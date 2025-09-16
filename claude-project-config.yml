@@ -1,0 +1,301 @@
+# Claude Flow Configuration - mega_agent_pro Multi-Agent System
+# Конфигурация агентного роя для разработки продвинутой юридической AI системы
+
+project:
+  name: "mega_agent_pro"
+  description: "Advanced Multi-Agent System для юридической сферы с LangGraph/LangChain"
+  version: "2.0.0"
+  base_directory: "./"
+
+orchestrator:
+  name: "project-orchestrator"
+  description: "Главный координатор проекта mega_agent_pro"
+  role: "Координирует работу всех агентов, распределяет задачи, отслеживает прогресс"
+  responsibilities:
+    - "Анализ общего прогресса проекта"
+    - "Распределение задач между специализированными агентами"
+    - "Координация интеграции компонентов"
+    - "Контроль качества и соответствие спецификациям"
+    - "Управление timeline и dependencies"
+
+# Специализированные агенты разработки
+agents:
+
+  # Системная архитектура и планирование
+  - name: "architect"
+    role: "Системный архитектор"
+    description: "Проектирует архитектуру системы, создает технические спецификации"
+    focus: "LangGraph architecture, system design, technical planning"
+    tools: ["Read", "Write", "Edit", "Bash"]
+    specialization:
+      - "LangGraph StateGraph workflows"
+      - "Multi-agent coordination patterns"
+      - "System integration design"
+      - "Performance architecture"
+    directories:
+      - "./core/orchestration/"
+      - "./core/workflow/"
+      - "./docs/"
+    primary_files:
+      - "LANGGRAPH_MIGRATION_GUIDE.md"
+      - "LANGGRAPH_ARCHITECTURE_PATTERNS.md"
+      - "core/orchestration/workflow_graph.py"
+    tasks:
+      - "Проектирование workflow patterns"
+      - "Создание архитектурной документации"
+      - "Планирование system integration"
+      - "Оптимизация performance архитектуры"
+
+  # Backend разработка - Core Agents
+  - name: "core-agent-developer"
+    role: "Core Agent Developer"
+    description: "Разрабатывает основные агенты системы (MegaAgent, SupervisorAgent, etc.)"
+    focus: "Core agents implementation, LangGraph integration"
+    tools: ["Read", "Write", "Edit", "MultiEdit", "Bash"]
+    specialization:
+      - "Python async programming"
+      - "LangGraph StateGraph nodes"
+      - "Pydantic v2 models"
+      - "Agent coordination patterns"
+    directories:
+      - "./core/groupagents/"
+      - "./core/orchestration/"
+    primary_files:
+      - "codex_spec.json"
+      - "enhanced_codex_spec.json"
+    tasks:
+      - "Реализация MegaAgent orchestrator"
+      - "Создание SupervisorAgent с dynamic routing"
+      - "Разработка CaseAgent, WriterAgent, ValidatorAgent"
+      - "Интеграция с MemoryManager"
+
+  # Система памяти и данных
+  - name: "memory-specialist"
+    role: "Memory System Specialist"
+    description: "Разрабатывает и оптимизирует систему памяти, embeddings, caching"
+    focus: "Memory systems, embeddings, RAG optimization"
+    tools: ["Read", "Write", "Edit", "Bash"]
+    specialization:
+      - "Vector databases и embeddings"
+      - "Semantic caching strategies"
+      - "RAG pipeline optimization"
+      - "Memory performance tuning"
+    directories:
+      - "./core/memory/"
+      - "./rag/"
+      - "./knowledge_base/"
+    primary_files:
+      - "core/memory/memory_manager.py"
+      - "core/memory/stores/"
+    tasks:
+      - "Оптимизация existing memory system"
+      - "Интеграция real embeddings (Gemini/OpenAI)"
+      - "Реализация hybrid RAG system"
+      - "Создание semantic caching layer"
+
+  # RAG и поиск
+  - name: "rag-engineer"
+    role: "RAG Pipeline Engineer"
+    description: "Создает продвинутую RAG систему с hybrid retrieval и reranking"
+    focus: "Hybrid RAG, contextual chunking, retrieval optimization"
+    tools: ["Read", "Write", "Edit", "Bash"]
+    specialization:
+      - "Hybrid retrieval strategies"
+      - "Cross-encoder reranking"
+      - "Contextual document chunking"
+      - "Multi-modal embeddings"
+    directories:
+      - "./rag/"
+      - "./knowledge_base/"
+      - "./core/groupagents/"
+    primary_files:
+      - "core/groupagents/rag_pipeline_agent.py"
+    tasks:
+      - "Реализация RAGPipelineAgent"
+      - "Создание hybrid retrieval system"
+      - "Интеграция contextual chunking"
+      - "Добавление file parsing capabilities"
+
+  # Безопасность и RBAC
+  - name: "security-engineer"
+    role: "Security Engineer"
+    description: "Реализует систему безопасности, RBAC, audit trail"
+    focus: "Security, RBAC, prompt injection detection, audit logging"
+    tools: ["Read", "Write", "Edit", "Bash"]
+    specialization:
+      - "Advanced RBAC systems"
+      - "Prompt injection detection"
+      - "Security audit procedures"
+      - "Compliance frameworks"
+    directories:
+      - "./core/security/"
+      - "./infrastructure/security/"
+    tasks:
+      - "Создание advanced RBAC system"
+      - "Реализация prompt injection detection"
+      - "Настройка audit trail с immutable logs"
+      - "Интеграция security middleware"
+
+  # DevOps и инфраструктура
+  - name: "devops-engineer"
+    role: "DevOps Engineer"
+    description: "Настраивает CI/CD, Docker, Kubernetes, monitoring"
+    focus: "Infrastructure, deployment, monitoring, scaling"
+    tools: ["Read", "Write", "Edit", "Bash"]
+    specialization:
+      - "Kubernetes deployment"
+      - "Docker containerization"
+      - "CI/CD pipelines"
+      - "Monitoring и observability"
+    directories:
+      - "./docker/"
+      - "./k8s/"
+      - "./infrastructure/"
+      - ".github/workflows/"
+    tasks:
+      - "Создание production Docker images"
+      - "Настройка Kubernetes manifests"
+      - "Конфигурация CI/CD pipeline"
+      - "Интеграция monitoring stack"
+
+  # Тестирование и качество
+  - name: "qa-engineer"
+    role: "QA Engineer"
+    description: "Создает comprehensive test suite, performance tests"
+    focus: "Testing, quality assurance, performance optimization"
+    tools: ["Read", "Write", "Edit", "Bash"]
+    specialization:
+      - "Async testing patterns"
+      - "Integration testing"
+      - "Performance testing"
+      - "Test automation"
+    directories:
+      - "./tests/"
+      - "./benchmarks/"
+    tasks:
+      - "Создание unit tests для всех agents"
+      - "Разработка integration tests"
+      - "Настройка performance benchmarks"
+      - "Автоматизация quality gates"
+
+  # UI/Frontend (опционально)
+  - name: "frontend-developer"
+    role: "Frontend Developer"
+    description: "Создает web интерфейс для управления и мониторинга системы"
+    focus: "React/Next.js, real-time interfaces, admin dashboards"
+    tools: ["Read", "Write", "Edit", "Bash"]
+    specialization:
+      - "React/Next.js development"
+      - "Real-time WebSocket interfaces"
+      - "Data visualization"
+      - "Admin dashboard design"
+    directories:
+      - "./frontend/"
+      - "./api/"
+    tasks:
+      - "Создание admin dashboard"
+      - "Реализация real-time workflow monitoring"
+      - "Интеграция с GraphQL API"
+      - "Создание agent interaction interfaces"
+
+# Общие настройки для всех агентов
+common_config:
+  coding_standards:
+    language: "Python 3.11+"
+    style: "PEP 8, черный formatter"
+    async_prefix: "a"  # async methods start with 'a'
+    type_hints: "mandatory"
+    docstrings: "mandatory for public methods"
+
+  frameworks:
+    primary: "LangGraph"
+    llm_framework: "LangChain"
+    data_validation: "Pydantic v2"
+    async_runtime: "asyncio"
+
+  testing:
+    framework: "pytest + pytest-asyncio"
+    coverage_minimum: "85%"
+    mock_external_services: true
+
+  documentation:
+    api_docs: "auto-generated from docstrings"
+    architecture_docs: "manual, keep updated"
+    code_examples: "in docstrings and README"
+
+# Coordination protocols
+coordination:
+  communication:
+    shared_context: "MemoryManager state store"
+    progress_updates: "TODO tracking in comments"
+    blockers: "immediate escalation to orchestrator"
+
+  workflow:
+    1: "Analyze task and existing code"
+    2: "Create implementation plan"
+    3: "Implement following established patterns"
+    4: "Create/update tests"
+    5: "Update documentation"
+    6: "Integration testing"
+    7: "Code review and approval"
+
+  integration_points:
+    state_management: "WorkflowState (Pydantic model)"
+    memory_access: "MemoryManager facade"
+    workflow_integration: "LangGraph StateGraph nodes"
+    error_handling: "Consistent error patterns"
+
+  code_review:
+    required_reviewers: 2
+    focus_areas:
+      - "Architecture alignment"
+      - "Performance implications"
+      - "Security considerations"
+      - "Test coverage"
+      - "Documentation completeness"
+
+# Project phases
+phases:
+  phase_1:
+    name: "Foundation & Core Agents"
+    duration: "4-6 weeks"
+    priority: "CRITICAL"
+    agents: ["architect", "core-agent-developer", "memory-specialist"]
+    deliverables:
+      - "Core agents implementation"
+      - "Enhanced workflow system"
+      - "Basic security framework"
+
+  phase_2:
+    name: "Advanced Features & RAG"
+    duration: "4-5 weeks"
+    priority: "HIGH"
+    agents: ["rag-engineer", "security-engineer", "qa-engineer"]
+    deliverables:
+      - "Hybrid RAG system"
+      - "Self-correcting agents"
+      - "Comprehensive testing"
+
+  phase_3:
+    name: "Production & Deployment"
+    duration: "3-4 weeks"
+    priority: "MEDIUM"
+    agents: ["devops-engineer", "frontend-developer", "qa-engineer"]
+    deliverables:
+      - "Production deployment"
+      - "Monitoring & alerting"
+      - "Admin interfaces"
+
+# Success metrics
+success_metrics:
+  technical:
+    - "All agents pass integration tests"
+    - "System handles 1000+ concurrent requests"
+    - "Response time < 2s for 95% of queries"
+    - "Memory usage < 2GB per worker"
+
+  business:
+    - "Workflow completion time reduced by 40%"
+    - "Agent coordination success rate > 95%"
+    - "System uptime > 99.5%"
+    - "LLM cost optimization by 25%"
