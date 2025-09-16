@@ -1,0 +1,337 @@
+{
+  "meta": {
+    "name": "mega_agent_pro",
+    "generated": "2025-09-16T08:15:39.465708Z",
+    "language": "python>=3.11",
+    "runtime": [
+      "asyncio",
+      "LangGraph",
+      "Pydantic v2"
+    ],
+    "principles": [
+      "Dependency Injection",
+      "Single Responsibility per agent",
+      "Centralized auditing & metrics",
+      "Feature-flag/config-driven routing",
+      "Secure by default (RBAC, secrets via env)"
+    ]
+  },
+  "env": {
+    "required": [
+      "OPENAI_API_KEY",
+      "ANTHROPIC_API_KEY",
+      "GOOGLE_API_KEY",
+      "MISTRAL_API_KEY",
+      "DEEPSEEK_API_KEY",
+      "HF_API_TOKEN",
+      "REDIS_URL",
+      "POSTGRES_DSN",
+      "TELEGRAM_BOT_TOKEN",
+      "S3_ENDPOINT",
+      "S3_BUCKET",
+      "S3_ACCESS_KEY",
+      "S3_SECRET_KEY",
+      "LOG_LEVEL"
+    ]
+  },
+  "new_capabilities": {
+    "gemini_embeddings": {
+      "model": "text-embedding-004",
+      "client": "core/llm_interface/gemini_client.py#aembed",
+      "rag_usage": [
+        "knowledge_base/rag_indexer.py",
+        "core/groupagents/rag_pipeline_agent.py#aembed_gemini"
+      ]
+    },
+    "file_parsing": {
+      "detector": "data_ingestion/ingest_utils.py#detect_mime",
+      "parsers": {
+        "pdf": "data_ingestion/web_parser.py|knowledge_base/embedding_utils.py#pdf_text",
+        "docx": "data_ingestion/ingest_utils.py#docx_text",
+        "html": "data_ingestion/ingest_utils.py#html_text",
+        "md": "data_ingestion/ingest_utils.py#md_text",
+        "txt": "data_ingestion/ingest_utils.py#txt_text",
+        "image_ocr": "data_ingestion/ingest_utils.py#image_ocr"
+      },
+      "chunking": "knowledge_base/embedding_utils.py#achunk_text"
+    },
+    "hybrid_retrieval": {
+      "vector": "knowledge_base/semantic_search.py#aretrieve_vector",
+      "bm25": "knowledge_base/semantic_search.py#aretrieve_bm25",
+      "hybrid": "knowledge_base/semantic_search.py#aretrieve_hybrid",
+      "re_rank": "recommendation_pipeline/ranker_tool.py#are_rank_cross_encoder"
+    },
+    "langgraph_plus": {
+      "checkpointer": "core/orchestration/pipeline_manager.py#setup_checkpointer (sqlite/postgres)",
+      "fan_out_in": "core/orchestration/workflow_graph.py (arag+acag parallel)",
+      "conditional_routers": [
+        "decide_next_step",
+        "after_feedback"
+      ],
+      "interrupts_hitl": "MegaAgent.await_human_approval (stub→impl)",
+      "tracing": "utils/metrics.py hooks"
+    }
+  },
+  "files": {
+    "core/groupagents/mega_agent.py": {
+      "purpose": "Central orchestrator; command entrypoint; RBAC; auditing; retries; dispatch; workflow start",
+      "public_api": {
+        "handle_command(cmd, payload, user_role='user')": "Validate via pydantic, check access, execute, audit",
+        "dispatch_to_agent(agent_name, action, **kwargs)": "Generic router to any agent's async methods",
+        "acreate_case(user_id, case_data)": "Create case with retry",
+        "aget_case(case_id)": "Get case with retry",
+        "aupdate_case(case_id, updates, expected_version=None)": "Update with optimistic lock",
+        "adelete_case(case_id)": "RBAC admin only",
+        "alist_cases(user_id=None, filter=None)": "Search cases",
+        "agenerate_letter(case_id, user_id, role, ...)": "WriterAgent delegation",
+        "agenerate_pdf(document_id, template_type='default', table_data=None)": "WriterAgent doc build",
+        "avalidate_document(content, doc_type=None, ...)": "ValidatorAgent",
+        "agenerate_feedback(case_id)": "FeedbackAgent",
+        "arequest_feedback(validation_id, reviewer_id)": "FeedbackAgent",
+        "agenerate_recommendation(case_id)": "RecommenderAgent",
+        "asearch_legal(question, context=None)": "LegalResearchAgent",
+        "aask_rag(question, context=None)": "RAGPipelineAgent RAG",
+        "arun_workflow(case_id, user_id)": "Start LangGraph workflow via pipeline_manager/build_workflow",
+        "atrain(data)": "MemoryManager.train",
+        "abatch_train(datasets)": "MemoryManager.batch_train (admin)",
+        "amemory_lookup(keywords)": "MemoryManager.lookup",
+        "aimprove(case_id, feedback_id)": "Self-learning loop (feedback→train→update)",
+        "aoptimize(model_name, params)": "Model optimization hook"
+      },
+      "commands": [
+        "/ask",
+        "/train",
+        "/validate",
+        "/generate",
+        "/recommend",
+        "/feedback",
+        "/workflow",
+        "/legal",
+        "/improve",
+        "/optimize"
+      ],
+      "dependencies": [
+        "CaseAgent",
+        "WriterAgent",
+        "ValidatorAgent",
+        "FeedbackAgent",
+        "RecommenderAgent",
+        "LegalResearchAgent",
+        "RAGPipelineAgent",
+        "MemoryManager",
+        "core/orchestration/workflow_graph.py",
+        "core/orchestration/pipeline_manager.py"
+      ],
+      "best_practices": [
+        "Pydantic v2 model_dump/validate",
+        "tenacity retries for ExternalServiceException",
+        "RBAC via ROLE_PERMISSIONS",
+        "central audit via memory_manager.log_audit",
+        "DI-friendly signatures (mockable)"
+      ]
+    },
+    "core/groupagents/case_agent.py": {
+      "purpose": "Case CRUD, exhibits, drafts, validation triggers, graph state conversion",
+      "public_api": [
+        "acreate_case(user_id, case_data) -> CaseRecord",
+        "aget_case(case_id) -> CaseRecord",
+        "aupdate_case(case_id, updates, expected_version=None) -> CaseRecord",
+        "adelete_case(case_id) -> None",
+        "asearch_cases(query) -> list[CaseRecord]",
+        "agather_exhibits(case_id) -> dict",
+        "agenerate_draft(case_id) -> dict",
+        "avalidate_case(case_id) -> ValidationResult",
+        "aget_feedback(case_id) -> FeedbackResult",
+        "astart_workflow(case_id) -> dict",
+        "to_graph_state(case_id) -> CaseWorkflowState"
+      ],
+      "models": [
+        "CaseRecord",
+        "CaseVersion",
+        "CaseWorkflowState",
+        "CaseQuery"
+      ],
+      "links": [
+        "writer_agent",
+        "validator_agent",
+        "rag_pipeline_agent",
+        "legal_research_agent"
+      ]
+    },
+    "core/groupagents/writer_agent.py": {
+      "purpose": "Generate letters/docs, manage styles, build PDFs/Docx, approve flows",
+      "public_api": [
+        "agenerate_letter(case_id, user_id, role, recipient=None, language='en', prompt_overrides=None, expected_version=None) -> LetterResult",
+        "agenerate_document_pdf(document_id, template_type='default', table_data=None) -> PdfResult",
+        "agenerate_final_pdf(case_id) -> PdfResult",
+        "arequest_approval(document_id, approver_id) -> dict"
+      ],
+      "links": [
+        "recommendation_pipeline/*",
+        "uscis_package/*"
+      ]
+    },
+    "core/groupagents/validator_agent.py": {
+      "purpose": "Validate documents with rules + MAGCC consensus, USCIS checklists, version diffs",
+      "public_api": [
+        "avalidate(content, doc_type=None, case_id=None, document_id=None, expected_version=None, language='en') -> ValidationResult",
+        "amagcc_evaluate(text) -> MagccResult",
+        "achecklist_score(case_id) -> dict",
+        "acompare_versions(doc_a, doc_b) -> dict"
+      ],
+      "links": [
+        "recommendation_pipeline/magcc_checker.py",
+        "recommendation_pipeline/qa_checklist.py",
+        "recommendation_pipeline/versioning.py"
+      ]
+    },
+    "core/groupagents/rag_pipeline_agent.py": {
+      "purpose": "RAG/CAG/KAG/MAGCC orchestration and utilities",
+      "public_api": [
+        "arag(question, context=None) -> RagAnswer",
+        "acag(case_id) -> dict",
+        "akag(question, known_items=None) -> dict",
+        "arac_conversation(turn) -> dict",
+        "arac_correction(draft) -> dict",
+        "amagcc(candidates) -> dict",
+        "aembed_gemini(texts: list[str], model='text-embedding-004') -> list[list[float]]",
+        "aembed_openai(texts) -> list[list[float]]",
+        "aembed_hf(texts, model) -> list[list[float]]",
+        "abuild_index(documents, namespace) -> dict",
+        "aupdate_index(changes, namespace) -> dict",
+        "aingest_files(paths_or_bytes, mime_types=None) -> list[IngestItem]",
+        "aparser_detect(bytes_or_path) -> str",
+        "aparser_pdf(bytes) -> str",
+        "aparser_docx(bytes) -> str",
+        "aparser_html(bytes) -> str",
+        "aparser_md(bytes) -> str",
+        "aparser_txt(bytes) -> str",
+        "aparser_image_ocr(bytes) -> str",
+        "achunk(text, method='semantic', target_tokens=400) -> list[str]",
+        "aretrieve_vector(query) -> list[Chunk]",
+        "aretrieve_bm25(query) -> list[Chunk]",
+        "aretrieve_hybrid(query) -> list[Chunk]",
+        "are_rank_cross_encoder(query, chunks) -> list[Chunk]",
+        "aaugment_context(question, topk=12) -> str",
+        "aanswer_direct(question, context) -> RagAnswer",
+        "aanswer_cot(question, context) -> RagAnswer",
+        "atrace(event, payload) -> None",
+        "aprofile_costs() -> dict"
+      ],
+      "links": [
+        "core/llm_interface/*",
+        "knowledge_base/*",
+        "recommendation_pipeline/*",
+        "data_ingestion/*"
+      ]
+    },
+    "core/llm_interface/llm_router.py": {
+      "purpose": "Dynamic routing across LLM providers for completion/embedding/moderation",
+      "public_api": [
+        "route_completion(task, policy) -> client",
+        "route_embedding(task, policy) -> client",
+        "route_moderation(text) -> client"
+      ],
+      "strategy": "price vs latency vs quality; feature flags via config/router_config.json",
+      "clients": [
+        "openai_client",
+        "anthropic_client",
+        "gemini_client",
+        "deepseek_client",
+        "mistral_client",
+        "huggingface_client"
+      ]
+    },
+    "core/orchestration/workflow_graph.py": {
+      "purpose": "LangGraph StateGraph for case workflow with routers and parallel RAG branches",
+      "key_nodes": [
+        "create_case",
+        "gather_exhibits",
+        "generate_draft",
+        "validate_case",
+        "get_feedback",
+        "start_parallel_rag",
+        "arag",
+        "acag",
+        "merge_parallel_rag",
+        "kag",
+        "magcc",
+        "rac_conversation",
+        "rac_correction",
+        "finalize_workflow",
+        "handle_error"
+      ],
+      "routers": [
+        "decide_next_step",
+        "after_feedback",
+        "check_for_error"
+      ],
+      "patterns": [
+        "fan-out/fan-in",
+        "retry wrappers",
+        "global error edges"
+      ],
+      "checkpointer": "via pipeline_manager"
+    },
+    "core/orchestration/pipeline_manager.py": {
+      "purpose": "Build/compile graphs, configure checkpointer (sqlite/postgres), register pipelines",
+      "public_api": [
+        "build_pipeline(name, **kwargs) -> GraphExecutable",
+        "setup_checkpointer(url) -> Checkpointer",
+        "run(graph, initial_state, thread_id) -> final_state"
+      ]
+    },
+    "knowledge_base/*": {
+      "purpose": "Indexing, storage and retrieval for RAG",
+      "components": [
+        "rag_indexer",
+        "knowledge_store",
+        "embedding_utils",
+        "semantic_search",
+        "context_enricher",
+        "summary_generator"
+      ],
+      "embeddings": [
+        "Gemini text-embedding-004",
+        "OpenAI text-embedding-3-large",
+        "MTEB HF models"
+      ]
+    },
+    "data_ingestion/*": {
+      "purpose": "Parsing and ingestion pipeline (web, telegram, youtube, files)",
+      "parsers": [
+        "PDF",
+        "DOCX",
+        "HTML",
+        "MD",
+        "TXT",
+        "Images via OCR"
+      ],
+      "scheduling": "scheduler.py + tasks.py + async_jobs.py"
+    },
+    "utils/metrics.py": {
+      "purpose": "Tracing/metrics hooks",
+      "hooks": [
+        "on_llm_call",
+        "on_graph_event",
+        "on_retries",
+        "on_rag_cost"
+      ]
+    },
+    "tests/*": {
+      "purpose": "Pytest suites with async mocks (pytest-asyncio, respx), contract tests for agents",
+      "coverage": [
+        ">=85% for core/groupagents"
+      ]
+    }
+  },
+  "acceptance_criteria": [
+    "Pydantic v2 throughout; no .dict(), use model_dump()",
+    "Tenacity retries on ExternalServiceException for external calls",
+    "RBAC enforced for admin commands (`delete_case`, `batch_train`, `optimize`)",
+    "MemoryManager.audit receives every command event from MegaAgent",
+    "RAG supports hybrid retrieval + Gemini embeddings path",
+    "LangGraph workflow supports parallel arag+acag and error routing",
+    "Unit tests pass with agent mocks and HTTP stubs"
+  ]
+}
