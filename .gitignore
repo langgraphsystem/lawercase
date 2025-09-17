@@ -1,0 +1,45 @@
+# Byte-compiled / cache
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Envs & local settings
+.env
+*.env
+.venv/
+venv/
+.python-version
+.claude/settings.local.json
+
+# Distribution / packaging
+build/
+dist/
+*.egg-info/
+*.egg
+
+# Coverage & test artifacts
+.coverage
+.coverage.*
+coverage.xml
+htmlcov/
+reports/
+
+# Editors / OS files
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+
+# Logs & misc
+*.log
+logs/
+tmp/
+
+# Generated docs or artifacts
+site/
+docs/_build/
+

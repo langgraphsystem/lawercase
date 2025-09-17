@@ -1,5 +1,19 @@
-python-dotenv>=1.0.1
-pydantic>=2.7.0
-langchain>=0.2.0
-langgraph>=0.2.30
-typing-extensions>=4.10.0
+########################################
+# Application & runtime dependencies   #
+########################################
+python-dotenv>=1.0.1,<2
+pydantic>=2.6,<3
+pydantic-settings>=2.2,<3
+typing-extensions>=4.8,<5
+prometheus-client>=0.20,<1
+PyJWT>=2.8,<3
+langchain>=0.2.0,<0.3
+langgraph>=0.2.30,<0.3
+
+########################################
+# Dev / QA tooling                     #
+########################################
+pytest>=8.2,<9
+pytest-asyncio>=0.23,<1
+ruff>=0.6,<0.7
+mypy>=1.10,<2
