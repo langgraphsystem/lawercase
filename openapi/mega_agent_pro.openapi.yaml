@@ -1,0 +1,24 @@
+openapi: 3.1.0
+info:
+  title: MegaAgent Pro API
+  version: 1.0.0
+  description: >
+    API for MegaAgent Pro, an advanced platform for creating and managing AI agents
+    with integrated RAG capabilities.
+  contact:
+    name: Systems Analysis Team
+    email: sys-analysis@example.com
+servers:
+  - url: https://api.megaagent.pro/v1
+    description: Production Server
+  - url: https://api.staging.megaagent.pro/v1
+    description: Staging Server
+paths:
+  /auth/token:
+    $ref: './paths/auth.yaml#/token'
+  /agents:
+    $ref: './paths/agents.yaml#/agentsCollection'
+  /agents/{agentId}:
+    $ref: './paths/agents.yaml#/agentsResource'
+  /agents/{agentId}/invoke:
+    $ref: './paths/agents.yaml#/invokeResource'

@@ -1,0 +1,36 @@
+token:
+  post:
+    summary: Get Authentication Token
+    tags:
+      - Authentication
+    operationId: getToken
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              username:
+                type: string
+              password:
+                type: string
+            required:
+              - username
+              - password
+    responses:
+      '200':
+        description: Authentication token.
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                accessToken:
+                  type: string
+      '401':
+        description: Unauthorized.
+        content:
+          application/json:
+            schema:
+              $ref: '../schemas/Error.json'

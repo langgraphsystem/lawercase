@@ -17,33 +17,78 @@ from __future__ import annotations
 __version__ = "1.0.0"
 __author__ = "mega_agent_pro team"
 
+# LLM Router
+try:
+    from .llm_router import *
+except ImportError:
+    pass
+
+# Simple Embedder
+try:
+    from .simple_embedder import *
+except ImportError:
+    pass
+
+# Basic RAG
+try:
+    from .basic_rag import *
+except ImportError:
+    pass
+
 # Group Agents
-from .groupagents import *
+try:
+    from .groupagents import *
+except ImportError:
+    pass
 
 # Memory System с Real Embeddings
-from .memory import *
-from .embeddings import *
+try:
+    from .memory import *
+    from .embeddings import *
+except ImportError:
+    pass
 
 # Security & RBAC
-from .security import *
+try:
+    from .security import *
+except ImportError:
+    pass
 
 # Performance & Caching
-from .performance import *
+try:
+    from .performance import *
+except ImportError:
+    pass
 
 # Testing & Quality
-from .testing import *
+try:
+    from .testing import *
+except ImportError:
+    pass
 
 # Monitoring & Observability
-from .monitoring import *
+try:
+    from .monitoring import *
+except ImportError:
+    pass
 
 # Deployment & DevOps
-from .deployment import *
+try:
+    from .deployment import *
+except ImportError:
+    pass
 
 # Infrastructure
-from .infrastructure import *
+try:
+    from .infrastructure import *
+except ImportError:
+    pass
 
 # Config
-from .config import *
+try:
+    from .config import *
+except ImportError:
+    pass
 
 __all__ = [
     # Core system info

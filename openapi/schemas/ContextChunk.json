@@ -1,0 +1,24 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "ContextChunk",
+  "description": "A single piece of retrieved context from a RAG source.",
+  "type": "object",
+  "properties": {
+    "sourceUri": {
+      "type": "string",
+      "description": "The original URI of the data source.",
+      "example": "file://c7a5c8a0-7e3c-4e4f-8f8e-2e6a7b6a2b1d/page/3"
+    },
+    "content": {
+      "type": "string",
+      "description": "The text content of the retrieved chunk."
+    },
+    "score": {
+      "type": "number",
+      "description": "The relevance score of this chunk to the query, typically between 0 and 1.",
+      "minimum": 0,
+      "maximum": 1
+    }
+  },
+  "required": ["sourceUri", "content"]
+}

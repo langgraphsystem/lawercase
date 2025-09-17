@@ -22,8 +22,11 @@ from ..memory.memory_manager import MemoryManager
 from ..memory.models import AuditEvent, MemoryRecord
 from ..orchestration.workflow_graph import WorkflowState, build_case_workflow
 from ..orchestration.pipeline_manager import run
+from core.llm.router import LLMRouter
+from core.rag.retrieve import HybridRetriever, _default_retriever
 from .case_agent import CaseAgent
-from .writer_agent import DocumentRequest, DocumentType, WriterAgent
+from .writer_agent import WriterAgent
+from .validator_agent import ValidationType, ValidatorAgent
 
 
 class UserRole(str, Enum):
@@ -136,7 +139,13 @@ class MegaAgent:
         CommandType.WORKFLOW: "workflow_system"
     }
 
-    def __init__(self, memory_manager: Optional[MemoryManager] = None):
+    def __init__(
+        self,
+        *,
+        router: Optional[LLMRouter] = None,
+        retriever: Optional[HybridRetriever] = None,
+        memory_manager: Optional[MemoryManager] = None,
+    ) -> None:
         """
         Инициализация MegaAgent.
 
@@ -144,10 +153,13 @@ class MegaAgent:
             memory_manager: Менеджер памяти для persistence
         """
         self.memory = memory_manager or MemoryManager()
+        self._router = router or LLMRouter()
+        self._retriever = retriever or _default_retriever
 
         # Инициализация агентов
-        self.case_agent = CaseAgent(memory_manager=self.memory)
-        self.writer_agent = WriterAgent(memory_manager=self.memory)
+        self.case_agent = CaseAgent(router=self._router, retriever=self._retriever)
+        self.writer_agent = WriterAgent(router=self._router, retriever=self._retriever)
+        self.validator_agent = ValidatorAgent(router=self._router, retriever=self._retriever)
 
         # Кэш пользователей и их ролей (в реальности из базы данных)
         self._user_roles: Dict[str, UserRole] = {}
@@ -255,6 +267,9 @@ class MegaAgent:
         elif agent_name == "writer_agent":
             return await self._handle_writer_command(command)
 
+        elif agent_name == "validator_agent":
+            return await self._handle_validator_command(command)
+
         # Маршрутизация к workflow_system (использует тот же workflow)
         elif agent_name == "workflow_system":
             return await self._handle_workflow_command(command)
@@ -289,107 +304,33 @@ class MegaAgent:
         return response
 
     async def _handle_writer_command(self, command: MegaAgentCommand) -> Dict[str, Any]:
-        """Обработка команд writer_agent"""
-        action = (command.action or "").lower()
-        payload: Dict[str, Any] = dict(command.payload or {})
-
-        if action in {"letter", "generate_letter"}:
-            payload.setdefault("document_type", DocumentType.LETTER)
-            try:
-                request = DocumentRequest(**payload)
-            except ValidationError as exc:
-                raise CommandError(f"Invalid document request: {exc}") from exc
-
-            document = await self.writer_agent.agenerate_letter(request, command.user_id)
-            return {
-                "operation": "generate_letter",
-                "document_id": document.document_id,
-                "document": document.model_dump(),
-            }
-
-        elif action in {"generate_pdf", "pdf"}:
-            document_id = payload.get("document_id")
-            if not document_id:
-                raise CommandError("document_id required for generate_pdf action")
-            pdf_path = await self.writer_agent.agenerate_document_pdf(document_id, command.user_id)
-            return {
-                "operation": "generate_pdf",
-                "document_id": document_id,
-                "pdf_path": pdf_path,
-            }
-
-        elif action == "get":
-            document_id = payload.get("document_id")
-            if not document_id:
-                raise CommandError("document_id required for get action")
-            document = await self.writer_agent.aget_document(document_id, command.user_id)
-            return {
-                "operation": "get_document",
-                "document_id": document_id,
-                "document": document.model_dump(),
-            }
-
-        else:
-            raise CommandError(f"Unknown writer action: {command.action}")
-
-
-    async def _run_case_workflow(
-        self,
-        *,
-        operation: str,
-        payload: Dict[str, Any],
-        user_id: str,
-    ) -> WorkflowState:
-        graph = build_case_workflow(self.memory, case_agent=self.case_agent)
-        compiled = graph.compile()
-        thread_id = str(uuid.uuid4())
-        initial = WorkflowState(
-            thread_id=thread_id,
-            user_id=user_id,
-            case_operation=operation,
-            case_data=payload,
-            case_id=payload.get("case_id"),
-        )
-        final_state = await run(compiled, initial, thread_id=thread_id)
-
-        if isinstance(final_state, dict):
-            candidate = (
-                final_state.get("update_rmt")
-                or final_state.get("case_agent")
-                or final_state.get("audit")
-                or final_state.get("reflect")
-                or next(iter(final_state.values()), None)
+        payload = command.payload
+        action = (command.action or 'letter').lower()
+        if action in {'letter', 'generate_letter'}:
+            draft = await self.writer_agent.agenerate_letter(
+                author_id=command.user_id,
+                recipient=payload['recipient'],
+                subject=payload['subject'],
+                outline=payload.get('outline', ''),
+                case_reference=payload.get('case_reference'),
             )
-            if isinstance(candidate, WorkflowState):
-                final_state = candidate
-            elif isinstance(candidate, dict):
-                final_state = WorkflowState.model_validate(candidate)
-            else:
-                final_state = candidate
+            return {'document': draft.model_dump(), 'operation': 'generate_letter'}
+        if action == 'get':
+            document = await self.writer_agent.aget_document(payload['document_id'])
+            return {'document': document.model_dump(), 'operation': 'get_document'}
+        raise CommandError(f"Unknown writer action {command.action}")
 
-        if not isinstance(final_state, WorkflowState):
-            raise CommandError("Unexpected workflow result type")
-
-        if final_state.error:
-            raise CommandError(final_state.error)
-
-        return final_state
-
-    @staticmethod
-    def _format_case_response(state: WorkflowState) -> Dict[str, Any]:
-        result: Dict[str, Any] = {
-            "case_result": state.case_result or {},
-            "thread_id": state.thread_id,
-        }
-        if state.case_id:
-            result["case_id"] = state.case_id
-        if state.rmt_slots:
-            result["rmt_slots"] = state.rmt_slots
-        if state.reflected:
-            result["reflected_count"] = len(state.reflected)
-        if state.retrieved:
-            result["retrieved_count"] = len(state.retrieved)
-        return result
+    async def _handle_validator_command(self, command: MegaAgentCommand) -> Dict[str, Any]:
+        payload = command.payload
+        action = (command.action or 'document').lower()
+        if action in {'document', 'case'}:
+            vtype = ValidationType.DOCUMENT if action == 'document' else ValidationType.CASE_DATA
+            result = await self.validator_agent.avalidate(data=payload['data'], validation_type=vtype)
+            return {'validation': result.model_dump(), 'operation': action}
+        if action == 'compare':
+            result = await self.validator_agent.acompare_versions(left=payload['left'], right=payload['right'])
+            return {'comparison': result.model_dump(), 'operation': 'compare'}
+        raise CommandError(f"Unknown validator action {command.action}")
 
     async def _check_permission(
         self,
@@ -589,4 +530,7 @@ class MegaAgent:
                 "error": str(e),
                 "timestamp": datetime.utcnow().isoformat()
             }
+
+
+
 

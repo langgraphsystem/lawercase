@@ -1,0 +1,18 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "InvokeRequest",
+  "description": "The request body for invoking an agent.",
+  "type": "object",
+  "properties": {
+    "command": {
+      "type": "string",
+      "description": "The command to execute."
+    },
+    "payload": {
+      "type": "object",
+      "description": "The payload for the command.",
+      "additionalProperties": true
+    }
+  },
+  "required": ["command"]
+}
