@@ -47,7 +47,20 @@ class Settings(BaseSettings):
     anthropic_api_key: Optional[str] = Field(default=None, alias="ANTHROPIC_API_KEY")
     gemini_api_key: Optional[str] = Field(default=None, alias="GEMINI_API_KEY")
 
+    # Pinecone Vector Database
+    pinecone_api_key: Optional[str] = Field(default=None, alias="PINECONE_API_KEY")
+    pinecone_env: Optional[str] = Field(default=None, alias="PINECONE_ENV")
+    pinecone_index: str = Field("mega-agent-pro", alias="PINECONE_INDEX")
+    vector_dim: int = Field(1536, alias="VECTOR_DIM")  # OpenAI text-embedding-3-small default
+    vector_namespace: Optional[str] = Field(default=None, alias="NAMESPACE")
+
     prometheus_namespace: str = Field("mega_agent_pro", alias="PROMETHEUS_NAMESPACE")
+
+    # Database (PostgreSQL, e.g., Railway-style DATABASE_URL)
+    database_url: Optional[str] = Field(default=None, alias="DATABASE_URL")
+    db_pool_size: int = Field(10, alias="DB_POOL_SIZE")
+    db_pool_timeout: float = Field(30.0, alias="DB_POOL_TIMEOUT")
+    db_sslmode: Optional[str] = Field(default=None, alias="DB_SSLMODE")  # e.g., require, verify-full
 
     def router_settings(self) -> RouterSettings:
         return RouterSettings(
