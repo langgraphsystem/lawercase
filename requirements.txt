@@ -7,6 +7,15 @@ pydantic-settings>=2.2,<3
 typing-extensions>=4.8,<5
 prometheus-client>=0.20,<1
 PyJWT>=2.8,<3
+fastapi>=0.104,<1
+uvicorn[standard]>=0.24,<1
+pinecone-client>=3.0,<4
+# Ingest providers (optional)
+trafilatura>=1.6,<2
+newspaper3k>=0.2,<1
+yt-dlp>=2023.10,<2025
+openai-whisper>=20230314,<20250101
+telethon>=1.28,<2
 langchain>=0.2.0,<0.3
 langgraph>=0.2.30,<0.3
 

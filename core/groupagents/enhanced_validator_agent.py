@@ -27,7 +27,22 @@ from ..simple_embedder import SimpleEmbedder, create_simple_embedder
 from ..basic_rag import BasicRAG, RAGQuery, SearchType, create_basic_rag
 
 # Импорты из validator_agent для совместимости
-from .validator_agent import ValidationType, SeverityLevel
+from .validator_agent import SeverityLevel
+
+# Extended ValidationType with additional AI-powered validation types
+class ValidationType(str, Enum):
+    # Base types from original validator
+    DOCUMENT = "document"
+    CASE_DATA = "case_data"
+    COMPARISON = "comparison"
+    # Extended AI types
+    LEGAL_COMPLIANCE = "legal_compliance"
+    QUALITY_ASSESSMENT = "quality_assessment"
+    STYLE_CHECK = "style_check"
+    GRAMMAR_CHECK = "grammar_check"
+    FACT_VERIFICATION = "fact_verification"
+    CONTENT_QUALITY = "content_quality"
+    DATA_INTEGRITY = "data_integrity"
 
 
 class ValidationRequest(BaseModel):

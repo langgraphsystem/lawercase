@@ -54,6 +54,12 @@ class Settings(BaseSettings):
     vector_dim: int = Field(1536, alias="VECTOR_DIM")  # OpenAI text-embedding-3-small default
     vector_namespace: Optional[str] = Field(default=None, alias="NAMESPACE")
 
+    # Ingest providers
+    whisper_model: str = Field("base", alias="WHISPER_MODEL")  # tiny, base, small, medium, large
+    tg_api_id: Optional[str] = Field(default=None, alias="TG_API_ID")
+    tg_api_hash: Optional[str] = Field(default=None, alias="TG_API_HASH")
+    tg_session_string: Optional[str] = Field(default=None, alias="TG_SESSION_STRING")
+
     prometheus_namespace: str = Field("mega_agent_pro", alias="PROMETHEUS_NAMESPACE")
 
     # Database (PostgreSQL, e.g., Railway-style DATABASE_URL)

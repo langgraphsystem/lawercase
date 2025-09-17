@@ -26,8 +26,27 @@ from ..llm_router import LLMRouter, LLMRequest, ModelType, Priority, create_llm_
 from ..simple_embedder import SimpleEmbedder, create_simple_embedder
 from ..basic_rag import BasicRAG, RAGQuery, SearchType, create_basic_rag
 
-# Импорты из writer_agent для совместимости
-from .writer_agent import DocumentType, DocumentFormat, Language
+# Define enums locally since they don't exist in base writer_agent
+class DocumentType(str, Enum):
+    CONTRACT = "contract"
+    LETTER = "letter"
+    REPORT = "report"
+    MEMO = "memo"
+    PROPOSAL = "proposal"
+    BRIEF = "brief"
+    OPINION = "opinion"
+    MOTION = "motion"
+    NOTICE = "notice"
+
+class DocumentFormat(str, Enum):
+    TXT = "txt"
+    PDF = "pdf"
+    DOCX = "docx"
+    HTML = "html"
+
+class Language(str, Enum):
+    RUSSIAN = "ru"
+    ENGLISH = "en"
 
 
 class DocumentGenerationRequest(BaseModel):
