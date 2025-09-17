@@ -1,0 +1,61 @@
+# Real Embeddings Integration Dependencies
+# Install with: pip install -r requirements-embeddings.txt
+
+# Core embedding dependencies
+aiohttp>=3.9.0,<4.0.0           # Async HTTP client for API calls
+sentence-transformers>=2.2.2    # Local embedding models
+
+# Optional cloud provider dependencies
+# Uncomment based on your needs:
+
+# Google Gemini API (via aiohttp - no specific client needed)
+# google-generativeai>=0.3.0   # Alternative: official Gemini client
+
+# OpenAI API
+# openai>=1.0.0                 # Official OpenAI client (optional, using aiohttp directly)
+
+# Azure OpenAI (same as OpenAI)
+# azure-openai>=1.0.0          # Alternative: Azure-specific client
+
+# Additional ML/NLP dependencies for local models
+torch>=2.0.0                    # PyTorch for sentence-transformers
+transformers>=4.21.0            # Hugging Face transformers
+numpy>=1.21.0                   # Numerical computing
+scikit-learn>=1.1.0             # For similarity calculations
+
+# Text processing utilities
+nltk>=3.8                       # Natural Language Toolkit
+spacy>=3.4.0                    # Advanced NLP library
+
+# Performance optimization
+faiss-cpu>=1.7.4                # Facebook AI Similarity Search (CPU version)
+# faiss-gpu>=1.7.4              # GPU version (if CUDA available)
+
+# Caching and serialization
+redis>=4.5.0                    # Redis client for distributed caching (optional)
+pickle-mixin>=1.0.2             # Enhanced pickle support
+
+# Monitoring and logging
+psutil>=5.9.0                   # System and process monitoring
+structlog>=22.0.0               # Structured logging
+
+# Development and testing
+pytest-asyncio>=0.21.0          # Async testing support
+pytest-mock>=3.10.0             # Mocking for tests
+pytest-cov>=4.0.0               # Coverage reporting
+
+# Optional: Vector database integrations
+# pinecone-client>=2.2.0        # Pinecone vector database
+# weaviate-client>=3.15.0       # Weaviate vector database
+# chromadb>=0.4.0               # Chroma vector database
+# qdrant-client>=1.6.0          # Qdrant vector database
+
+# Optional: Document processing
+# pypdf2>=3.0.0                 # PDF processing
+# python-docx>=0.8.11           # DOCX processing
+# beautifulsoup4>=4.11.0        # HTML processing
+# python-magic>=0.4.27          # File type detection
+
+# Optional: OCR for image processing
+# pytesseract>=0.3.10           # Tesseract OCR
+# pillow>=9.0.0                 # Image processing

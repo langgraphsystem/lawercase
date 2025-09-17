@@ -22,10 +22,10 @@ __author__ = "mega_agent_pro team"
 __all__ = [
     "CaseAgent",
     "WriterAgent",
-    # "MegaAgent",
-    # "SupervisorAgent",
-    # "ValidatorAgent",
-    # "RAGPipelineAgent",
+    "MegaAgent",
+    "SupervisorAgent",
+    "ValidatorAgent",
+    "RAGPipelineAgent",
     # "LegalResearchAgent",
 ]
 
@@ -34,8 +34,29 @@ try:
     from .case_agent import CaseAgent
 except ImportError:
     pass  # Agent not yet implemented
+
 try:
     from .writer_agent import WriterAgent
+except ImportError:
+    pass  # Agent not yet implemented
+
+try:
+    from .mega_agent import MegaAgent
+except ImportError:
+    pass  # Agent not yet implemented
+
+try:
+    from .supervisor_agent import SupervisorAgent
+except ImportError:
+    pass  # Agent not yet implemented
+
+try:
+    from .validator_agent import ValidatorAgent
+except ImportError:
+    pass  # Agent not yet implemented
+
+try:
+    from .rag_pipeline_agent import RAGPipelineAgent
 except ImportError:
     pass  # Agent not yet implemented
 
