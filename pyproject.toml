@@ -1,16 +1,3 @@
-[tool.ruff]
-line-length = 100
-target-version = "py311"
-extend-select = ["E","F","W","I","N","S","B","UP","PL","RUF"]
-ignore = ["E501"]
-exclude = ["docs/","dist/","build/",".venv/"]
-
-[tool.ruff.lint.isort]
-# : никакого "profile" тут быть не должно
-known-first-party = ["core","api","config","tests"]
-combine-as-imports = true
-force-sort-within-sections = true
-
 [tool.black]
 line-length = 100
 target-version = ["py311"]
