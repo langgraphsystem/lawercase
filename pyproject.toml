@@ -6,6 +6,7 @@ ignore = ["E501"]
 exclude = ["docs/","dist/","build/",".venv/"]
 
 [tool.ruff.lint.isort]
+# : никакого "profile" тут быть не должно
 known-first-party = ["core","api","config","tests"]
 combine-as-imports = true
 force-sort-within-sections = true
