@@ -1,0 +1,17 @@
+﻿[tool.ruff]
+line-length = 100
+target-version = "py311"
+extend-select = [
+  "E","F","W","I","N","S","B","UP","PL","RUF"
+]
+# временно игнорим длину строки, починим позже
+ignore = ["E501"]
+exclude = ["docs/","dist/","build/",".venv/"]
+
+[tool.ruff.lint.isort]
+known-first-party = ["core","api","config","tests"]
+profile = "black"
+
+[tool.black]
+line-length = 100
+target-version = ["py311"]
