@@ -1,10 +1,7 @@
-﻿[tool.ruff]
+[tool.ruff]
 line-length = 100
 target-version = "py311"
-extend-select = [
-  "E","F","W","I","N","S","B","UP","PL","RUF"
-]
-# временно игнорим длину строки, починим позже
+extend-select = ["E","F","W","I","N","S","B","UP","PL","RUF"]
 ignore = ["E501"]
 exclude = ["docs/","dist/","build/",".venv/"]
 
