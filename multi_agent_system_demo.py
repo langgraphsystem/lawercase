@@ -14,13 +14,10 @@ from __future__ import annotations
 
 import asyncio
 import tempfile
-import uuid
-from datetime import datetime
 from pathlib import Path
 
 from core.memory.memory_manager import MemoryManager
 from core.groupagents.mega_agent import MegaAgent, MegaAgentCommand, CommandType, UserRole
-from core.groupagents.case_agent import CaseAgent
 from core.groupagents.writer_agent import WriterAgent, DocumentRequest, DocumentType
 from core.groupagents.validator_agent import ValidatorAgent, ValidationRequest, ValidationType
 from core.groupagents.supervisor_agent import SupervisorAgent
@@ -59,7 +56,7 @@ async def demo_mega_agent_orchestration():
     )
 
     case_response = await mega_agent.handle_command(create_case_command)
-    print(f"✅ Дело создано через MegaAgent")
+    print("✅ Дело создано через MegaAgent")
     print(f"   Case ID: {case_response.result.get('case_id', 'unknown')}")
     print(f"   Success: {case_response.success}")
     print()
@@ -87,7 +84,7 @@ async def demo_mega_agent_orchestration():
     )
 
     letter_response = await mega_agent.handle_command(generate_letter_command)
-    print(f"✅ Письмо сгенерировано через MegaAgent")
+    print("✅ Письмо сгенерировано через MegaAgent")
     print(f"   Document ID: {letter_response.result.get('document_id', 'unknown')}")
     print(f"   Success: {letter_response.success}")
     print()
@@ -109,7 +106,7 @@ async def demo_supervisor_task_orchestration():
     complex_task = "Prepare a comprehensive immigration case package including document generation, legal research, validation, and quality control for a tech startup H-1B application"
 
     analysis = await supervisor.analyze_task(complex_task)
-    print(f"✅ Задача проанализирована")
+    print("✅ Задача проанализирована")
     print(f"   Сложность: {analysis.complexity}")
     print(f"   Требуемые агенты: {[agent.value for agent in analysis.required_agents]}")
     print(f"   Стратегия выполнения: {analysis.execution_strategy}")
@@ -128,7 +125,7 @@ async def demo_supervisor_task_orchestration():
     print("3. 🚀 Оркестрация выполнения...")
 
     execution_result = await supervisor.orchestrate_workflow(complex_task, user_id)
-    print(f"✅ Задача выполнена")
+    print("✅ Задача выполнена")
     print(f"   Успех: {execution_result.success}")
     print(f"   Время выполнения: {execution_result.execution_time:.2f}s")
     print(f"   Подзадач выполнено: {len(execution_result.results)}")
@@ -207,7 +204,7 @@ Sincerely,
     )
 
     document = await writer.agenerate_letter(request, user_id)
-    print(f"✅ Документ сгенерирован")
+    print("✅ Документ сгенерирован")
     print(f"   Document ID: {document.document_id}")
     print(f"   Title: {document.title}")
     print(f"   Approval Status: {document.approval_status}")
@@ -249,7 +246,7 @@ async def demo_validator_agent_capabilities():
     )
 
     validation_result = await validator.avalidate(validation_request, user_id)
-    print(f"✅ Валидация завершена")
+    print("✅ Валидация завершена")
     print(f"   Валидно: {validation_result.is_valid}")
     print(f"   Уверенность: {validation_result.confidence_score:.2f}")
     print(f"   Проблем найдено: {len(validation_result.issues)}")
@@ -274,7 +271,7 @@ async def demo_validator_agent_capabilities():
     )
 
     invalid_result = await validator.avalidate(invalid_request, user_id)
-    print(f"✅ Валидация некорректных данных завершена")
+    print("✅ Валидация некорректных данных завершена")
     print(f"   Валидно: {invalid_result.is_valid}")
     print(f"   Уверенность: {invalid_result.confidence_score:.2f}")
     print(f"   Проблем найдено: {len(invalid_result.issues)}")
@@ -301,7 +298,7 @@ async def demo_validator_agent_capabilities():
     )
 
     consensus_result = await validator.amagcc_consensus(consensus_request, user_id)
-    print(f"✅ MAGCC консенсус завершен")
+    print("✅ MAGCC консенсус завершен")
     print(f"   Консенсус достигнут: {consensus_result.achieved}")
     print(f"   Выбранный вариант: {consensus_result.selected_option}")
     print(f"   Уверенность: {consensus_result.confidence:.2f}")
@@ -354,7 +351,7 @@ async def demo_rag_pipeline_search():
     try:
         # Обработка документа
         processed_doc = await rag.aprocess_document(temp_file_path, user_id=user_id)
-        print(f"✅ Документ обработан")
+        print("✅ Документ обработан")
         print(f"   Document ID: {processed_doc.document_id}")
         print(f"   Чанков создано: {len(processed_doc.chunks)}")
         print(f"   Длина содержимого: {len(processed_doc.content)} символов")
@@ -370,7 +367,7 @@ async def demo_rag_pipeline_search():
         )
 
         search_results = await rag.asearch(search_query, user_id)
-        print(f"✅ Поиск завершен")
+        print("✅ Поиск завершен")
         print(f"   Найдено результатов: {len(search_results.results)}")
         print(f"   Время поиска: {search_results.search_time:.3f}s")
         print(f"   Стратегия: {search_results.strategy_used}")
@@ -395,7 +392,7 @@ async def demo_rag_pipeline_search():
         )
 
         semantic_results = await rag.asearch(semantic_query, user_id)
-        print(f"✅ Семантический поиск завершен")
+        print("✅ Семантический поиск завершен")
         print(f"   Найдено результатов: {len(semantic_results.results)}")
         print(f"   Агрегированное содержимое доступно: {semantic_results.aggregated_content is not None}")
         print()
@@ -442,7 +439,7 @@ async def demo_full_workflow_integration():
     )
 
     case_response = await mega_agent.handle_command(complex_case_command)
-    print(f"✅ Комплексное дело создано")
+    print("✅ Комплексное дело создано")
     print(f"   Case ID: {case_response.result.get('case_id')}")
     print()
 
@@ -463,7 +460,7 @@ async def demo_full_workflow_integration():
     )
 
     search_response = await mega_agent.handle_command(search_command)
-    print(f"✅ Поиск дел завершен")
+    print("✅ Поиск дел завершен")
     case_result = search_response.result.get('case_result', {}) if search_response.result else {}
     print(f"   Найдено дел: {case_result.get('count', 0)}")
     print()
@@ -489,7 +486,7 @@ async def demo_full_workflow_integration():
     )
 
     letter_response = await mega_agent.handle_command(letter_command)
-    print(f"✅ Cover letter сгенерирован")
+    print("✅ Cover letter сгенерирован")
     print(f"   Document ID: {letter_response.result.get('document_id')}")
     print()
 
@@ -499,7 +496,7 @@ async def demo_full_workflow_integration():
     mega_stats = await mega_agent.get_stats()
     health_check = await mega_agent.health_check()
 
-    print(f"✅ Статистика системы:")
+    print("✅ Статистика системы:")
     print(f"   Всего команд выполнено: {mega_stats.get('total_commands', 0)}")
     print(f"   Статистика команд: {mega_stats.get('command_stats', {})}")
     print(f"   Зарегистрированных пользователей: {mega_stats.get('registered_users', 0)}")

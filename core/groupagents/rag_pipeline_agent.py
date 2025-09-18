@@ -12,19 +12,18 @@ RAGPipelineAgent - Гибридный поиск и RAG (Retrieval Augmented Gen
 
 from __future__ import annotations
 
-import asyncio
 import hashlib
 import json
 import uuid
 from datetime import datetime
 from enum import Enum
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Union
+from typing import Any, Dict, List, Optional
 
 from pydantic import BaseModel, Field
 
 from ..memory.memory_manager import MemoryManager
-from ..memory.models import AuditEvent, MemoryRecord
+from ..memory.models import AuditEvent
 
 
 class DocumentType(str, Enum):

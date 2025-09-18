@@ -4,7 +4,6 @@ import asyncio
 import pathlib
 
 from sqlalchemy import text
-from sqlalchemy.ext.asyncio import AsyncSession
 
 from core.db.engine import db
 

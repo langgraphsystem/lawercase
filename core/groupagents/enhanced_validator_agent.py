@@ -12,19 +12,18 @@ Enhanced ValidatorAgent - Валидация документов с интег�
 
 from __future__ import annotations
 
-import asyncio
 import json
 import uuid
 from datetime import datetime
 from enum import Enum
-from typing import Any, Dict, List, Optional, Union
+from typing import Any, Dict, List, Optional
 
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, Field
 
 # Импорты новой архитектуры
 from ..llm_router import LLMRouter, LLMRequest, ModelType, Priority, create_llm_router
 from ..simple_embedder import SimpleEmbedder, create_simple_embedder
-from ..basic_rag import BasicRAG, RAGQuery, SearchType, create_basic_rag
+from ..basic_rag import BasicRAG, create_basic_rag
 
 # Импорты из validator_agent для совместимости
 from .validator_agent import SeverityLevel

@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import asyncio
 import os
-from typing import Dict
 
 from core.dto.llm_response import LLMResponse
 from core.dto.task_request import TaskRequest

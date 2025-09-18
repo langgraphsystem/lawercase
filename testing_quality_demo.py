@@ -17,14 +17,12 @@ Testing & Quality Framework Demo для mega_agent_pro.
 
 import asyncio
 import logging
-from datetime import datetime
 
 # Setup logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 from core.testing import (
-    TestRunner,
     TestType,
     TestSeverity,
     QualityGates,
@@ -138,7 +136,7 @@ async def demo_agent_testing():
     print(f"   📈 Success rate: {test_suite.success_rate:.1f}%")
     print(f"   ✅ Passed: {test_suite.passed_tests}/{test_suite.total_tests}")
 
-    print(f"\n📋 Individual test results:")
+    print("\n📋 Individual test results:")
     for test in test_suite.tests:
         status_icon = "✅" if test.status.value == "passed" else "❌" if test.status.value == "failed" else "⚠️"
         print(f"   {status_icon} {test.test_name}")
@@ -198,7 +196,7 @@ async def demo_performance_testing():
             "Agent performance testing"
         )
 
-        print(f"\n📊 Performance Suite Results:")
+        print("\n📊 Performance Suite Results:")
         print(f"   ⏱️ Total Duration: {perf_suite.duration_ms:.1f}ms")
         print(f"   ✅ Passed: {perf_suite.passed_tests}/{perf_suite.total_tests}")
 
@@ -245,7 +243,7 @@ async def demo_quality_gates():
     print(f"   📈 Success Rate: {quality_suite.success_rate:.1f}%")
 
     # Оцениваем quality gates
-    print(f"\n🚧 Quality Gates Evaluation:")
+    print("\n🚧 Quality Gates Evaluation:")
     gates = QualityGates.evaluate_quality_gates([quality_suite])
 
     print(f"   🎯 Test Coverage: {'✅ PASS' if gates['test_coverage']['passed'] else '❌ FAIL'}")
@@ -374,7 +372,7 @@ async def demo_continuous_quality_monitoring():
         await asyncio.sleep(0.1)
 
     # Анализ трендов качества
-    print(f"\n📈 Quality Trends Analysis:")
+    print("\n📈 Quality Trends Analysis:")
     print(f"   📊 Average Success Rate: {sum(t['success_rate'] for t in quality_trends) / len(quality_trends):.1f}%")
     print(f"   ⏱️ Average Duration: {sum(t['duration_ms'] for t in quality_trends) / len(quality_trends):.1f}ms")
 

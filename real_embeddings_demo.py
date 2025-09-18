@@ -274,7 +274,7 @@ async def demo_rag_integration():
         print(f"🔍 Searching for: '{search_query.query_text}'")
         search_response = await rag_agent.asearch(search_query, user_id="demo_user")
 
-        print(f"📊 Search Results:")
+        print("📊 Search Results:")
         print(f"   Found: {len(search_response.results)} results")
         print(f"   Strategy: {search_response.strategy}")
         print(f"   Processing time: {search_response.processing_time:.3f}s")

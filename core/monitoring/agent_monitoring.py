@@ -11,18 +11,15 @@ Agent Monitoring Integration для mega_agent_pro.
 
 from __future__ import annotations
 
-import asyncio
-import functools
 import time
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, Optional
 
 from .observability_system import (
     ObservabilitySystem,
     ComponentType,
     MetricType,
     AlertSeverity,
-    HealthStatus,
-    monitor_performance
+    HealthStatus
 )
 
 

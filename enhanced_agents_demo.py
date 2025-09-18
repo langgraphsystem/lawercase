@@ -15,7 +15,6 @@ Enhanced Agents Integration Demo для mega_agent_pro.
 
 import asyncio
 import logging
-from datetime import datetime
 
 # Setup logging
 logging.basicConfig(level=logging.INFO)
@@ -259,7 +258,7 @@ async def demo_validator_agent(validator_agent, document_id=None):
     print(f"      Время валидации: {legal_validation.validation_time:.2f}с")
 
     if legal_validation.corrected_content:
-        print(f"      🔧 Автокоррекция выполнена")
+        print("      🔧 Автокоррекция выполнена")
 
     # Валидация с улучшением
     print("\n   ✨ Валидация с автоматическим улучшением...")

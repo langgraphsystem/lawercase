@@ -19,19 +19,14 @@ Deployment & DevOps System Demo для mega_agent_pro.
 """
 
 import asyncio
-import json
 import logging
 import tempfile
-from datetime import datetime
-from pathlib import Path
 
 # Setup logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 from core.deployment import (
-    DeploymentManager,
-    ContainerManager,
     PipelineManager,
     EnvironmentManager,
     ConfigManager,
@@ -44,7 +39,6 @@ from core.deployment import (
     HealthCheckConfig,
     DeploymentStrategy,
     EnvironmentType,
-    ServiceStatus,
     PipelineStage,
     create_deployment_manager,
     create_container_manager,
@@ -66,7 +60,7 @@ async def basic_deployment_demo():
     # Выполняем развертывание
     result = await deployment_manager.deploy(config_path)
 
-    print(f"📊 Deployment result:")
+    print("📊 Deployment result:")
     print(f"   🎯 Success: {result.success}")
     print(f"   🆔 ID: {result.deployment_id}")
     print(f"   ⏱️ Duration: {result.duration:.2f}s" if result.duration else "   ⏱️ Duration: N/A")
@@ -135,7 +129,7 @@ async def container_management_demo():
     # Получение статуса
     status = await container_manager.get_container_status(container_id)
     if status:
-        print(f"   📊 Container status:")
+        print("   📊 Container status:")
         print(f"      - Name: {status['name']}")
         print(f"      - Status: {status['status']}")
         print(f"      - Port: {status['port']}")
@@ -217,7 +211,7 @@ async def pipeline_orchestration_demo():
     # Запуск pipeline
     result = await pipeline_manager.run_pipeline(pipeline_config, deployment_config)
 
-    print(f"📊 Pipeline result:")
+    print("📊 Pipeline result:")
     print(f"   🆔 Pipeline ID: {result.pipeline_id}")
     print(f"   🎯 Status: {result.status}")
     print(f"   ⏱️ Duration: {result.duration:.2f}s" if result.duration else "   ⏱️ Duration: N/A")
@@ -360,7 +354,7 @@ async def secret_config_management_demo():
 
         # Секреты базы данных
         await secret_manager.create_secret(
-            f"database-credentials",
+            "database-credentials",
             {
                 "username": f"mega_agent_{env}",
                 "password": f"super_secure_password_{env}",
@@ -372,7 +366,7 @@ async def secret_config_management_demo():
 
         # API ключи
         await secret_manager.create_secret(
-            f"api-keys",
+            "api-keys",
             {
                 "openai_api_key": f"sk-openai-key-{env}",
                 "gemini_api_key": f"gemini-key-{env}",
@@ -384,7 +378,7 @@ async def secret_config_management_demo():
 
         # Внешние сервисы
         await secret_manager.create_secret(
-            f"external-services",
+            "external-services",
             {
                 "redis_url": f"redis://redis.{env}.svc.cluster.local:6379",
                 "elasticsearch_url": f"http://elasticsearch.{env}.svc.cluster.local:9200",
@@ -394,14 +388,14 @@ async def secret_config_management_demo():
         )
 
     # Демонстрируем получение секретов
-    print(f"\n🔍 Retrieving secrets:")
+    print("\n🔍 Retrieving secrets:")
     for env in environments:
         db_secret = await secret_manager.get_secret("database-credentials", f"mega-agent-{env}")
         if db_secret:
             print(f"   ✅ {env} database secret loaded")
 
     # Работа с конфигурациями
-    print(f"\n⚙️ Configuration management:")
+    print("\n⚙️ Configuration management:")
 
     # Создаем конфигурацию
     with tempfile.NamedTemporaryFile(mode='w', suffix='.json', delete=False) as f:
@@ -503,7 +497,7 @@ async def monitoring_integration_demo():
     # Генерируем отчет о развертываниях
     report = await deployment_manager.generate_deployment_report()
 
-    print(f"📈 Deployment Analytics:")
+    print("📈 Deployment Analytics:")
     print(f"   📊 Total deployments: {report['total_deployments']}")
     print(f"   ✅ Successful deployments: {report['successful_deployments']}")
     print(f"   📈 Success rate: {report['success_rate']:.1f}%")
@@ -511,7 +505,7 @@ async def monitoring_integration_demo():
     print(f"   🐳 Active containers: {report['active_containers']}")
 
     if report['recent_deployments']:
-        print(f"\n📋 Recent deployments:")
+        print("\n📋 Recent deployments:")
         for deployment in report['recent_deployments']:
             status_icon = "✅" if deployment['success'] else "❌"
             print(f"   {status_icon} {deployment['id'][:8]}... "
@@ -525,7 +519,7 @@ async def monitoring_integration_demo():
         "change_failure_rate": "2.1%"
     }
 
-    print(f"\n📊 DevOps Metrics:")
+    print("\n📊 DevOps Metrics:")
     for metric, value in deployment_metrics.items():
         print(f"   📈 {metric.replace('_', ' ').title()}: {value}")
 
@@ -570,7 +564,7 @@ async def comprehensive_devops_demo():
 
     # Финальный отчет
     final_report = await deployment_manager.generate_deployment_report()
-    print(f"\n📊 Final DevOps Report:")
+    print("\n📊 Final DevOps Report:")
     print(f"   🎯 Total operations: {final_report['total_deployments']}")
     print(f"   📈 Success rate: {final_report['success_rate']:.1f}%")
 

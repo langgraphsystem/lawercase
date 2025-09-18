@@ -81,7 +81,7 @@ class HybridRetriever:
 
             return True  # BM25 indexing successful even if vector failed
 
-        except Exception as e:
+        except Exception:
             # Fallback to local-only indexing
             return True
 
@@ -163,7 +163,7 @@ class HybridRetriever:
 
             return chunks
 
-        except Exception as e:
+        except Exception:
             return []
 
     async def _hybrid_search_with_pinecone(self, spec: QuerySpec, vector_chunks: List[ContextChunk]) -> List[ContextChunk]:

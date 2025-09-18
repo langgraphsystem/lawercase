@@ -5,11 +5,10 @@ from __future__ import annotations
 import logging
 from abc import ABC, abstractmethod
 from typing import Any, Dict, List, Optional
-from uuid import uuid4
 
 from pydantic import BaseModel, Field
 
-from .pinecone_client import PineconeClient, PineconeClientError
+from .pinecone_client import PineconeClient
 from config.settings import Settings
 
 logger = logging.getLogger(__name__)

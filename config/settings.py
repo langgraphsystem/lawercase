@@ -68,6 +68,20 @@ class Settings(BaseSettings):
     db_pool_timeout: float = Field(30.0, alias="DB_POOL_TIMEOUT")
     db_sslmode: Optional[str] = Field(default=None, alias="DB_SSLMODE")  # e.g., require, verify-full
 
+    # Telegram Bot
+    telegram_bot_token: Optional[str] = Field(default=None, alias="TELEGRAM_BOT_TOKEN")
+    telegram_admin_user_id: Optional[int] = Field(default=None, alias="TELEGRAM_ADMIN_USER_ID")
+
+    # S3 Storage
+    s3_endpoint: Optional[str] = Field(default=None, alias="S3_ENDPOINT")
+    s3_region: str = Field("us-east-1", alias="S3_REGION")
+    s3_bucket: Optional[str] = Field(default=None, alias="S3_BUCKET")
+    s3_access_key_id: Optional[str] = Field(default=None, alias="S3_ACCESS_KEY_ID")
+    s3_secret_access_key: Optional[str] = Field(default=None, alias="S3_SECRET_ACCESS_KEY")
+    s3_presign_ttl_seconds: int = Field(3600, alias="S3_PRESIGN_TTL_SECONDS")
+    max_file_mb: int = Field(50, alias="MAX_FILE_MB")
+    allowed_domains: Optional[str] = Field(default=None, alias="ALLOWED_DOMAINS")
+
     def router_settings(self) -> RouterSettings:
         return RouterSettings(
             default_provider=self.router_default_provider,

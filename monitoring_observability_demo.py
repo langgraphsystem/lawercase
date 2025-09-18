@@ -19,7 +19,6 @@ Monitoring & Observability System Demo для mega_agent_pro.
 import asyncio
 import logging
 import random
-import time
 from datetime import datetime, timedelta
 
 # Setup logging
@@ -27,8 +26,6 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 from core.monitoring import (
-    ObservabilitySystem,
-    MonitoringIntegrationManager,
     MetricType,
     AlertSeverity,
     ComponentType,
@@ -410,22 +407,22 @@ async def demo_dashboard_data():
     print("\n📱 Generating dashboard data...")
     dashboard_data = await observability.get_dashboard_data()
 
-    print(f"📊 Dashboard Summary:")
+    print("📊 Dashboard Summary:")
     print(f"   🎯 System Health: {dashboard_data['system_health']['overall_status'].upper()}")
     print(f"   📈 Total Metrics: {dashboard_data['metrics_summary']['total_metrics']}")
     print(f"   🔍 Total Traces: {dashboard_data['tracing_summary']['total_traces']}")
     print(f"   🚨 Active Alerts: {dashboard_data['alerts_summary']['active_alerts']}")
 
-    print(f"\n📊 Metrics Summary:")
+    print("\n📊 Metrics Summary:")
     print(f"   🏢 Components: {dashboard_data['metrics_summary']['unique_components']}")
     print(f"   📊 Metric Types: {', '.join(dashboard_data['metrics_summary']['metric_types'])}")
 
-    print(f"\n🔍 Tracing Summary:")
+    print("\n🔍 Tracing Summary:")
     print(f"   🏢 Services: {dashboard_data['tracing_summary']['unique_services']}")
     print(f"   ⏱️ Avg Duration: {dashboard_data['tracing_summary']['avg_duration_ms']:.2f}ms")
 
     if dashboard_data['alerts_summary']['active_alerts'] > 0:
-        print(f"\n🚨 Alerts by Severity:")
+        print("\n🚨 Alerts by Severity:")
         for severity, count in dashboard_data['alerts_summary']['alerts_by_severity'].items():
             if count > 0:
                 print(f"   {severity}: {count}")
@@ -467,10 +464,10 @@ async def demo_workflow_monitoring():
 
     # Завершаем workflow
     await workflow_monitor.finish_workflow_monitoring(workflow_id, "success")
-    print(f"   ✅ Workflow completed successfully")
+    print("   ✅ Workflow completed successfully")
 
     # Получаем статус активных workflow
-    print(f"\n📊 Active workflows status:")
+    print("\n📊 Active workflows status:")
     status = await workflow_monitor.get_active_workflows_status()
 
     print(f"   🔄 Active workflows: {status['active_workflows']}")
@@ -541,7 +538,7 @@ async def demo_comprehensive_monitoring():
 
     # Получаем агрегированные метрики
     aggregates = await observability.metrics_collector.get_aggregates()
-    print(f"\n📊 Top performing components:")
+    print("\n📊 Top performing components:")
 
     # Сортируем по количеству метрик
     sorted_components = sorted(

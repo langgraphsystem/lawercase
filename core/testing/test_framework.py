@@ -15,12 +15,10 @@ Comprehensive Testing & Quality Framework для mega_agent_pro.
 from __future__ import annotations
 
 import asyncio
-import inspect
 import time
 import traceback
 from abc import ABC, abstractmethod
-from dataclasses import dataclass, field
-from datetime import datetime, timedelta
+from datetime import datetime
 from enum import Enum
 from typing import Any, Callable, Dict, List, Optional, Tuple, Union
 
@@ -252,7 +250,7 @@ class TestAssertion:
             self.test_result.assertions_passed += 1
             return True
         else:
-            self._log_assertion_failure(message, f"Expected True, got False")
+            self._log_assertion_failure(message, "Expected True, got False")
             return False
 
     def assert_false(self, condition: bool, message: str = "Expected False") -> bool:
@@ -262,7 +260,7 @@ class TestAssertion:
             self.test_result.assertions_passed += 1
             return True
         else:
-            self._log_assertion_failure(message, f"Expected False, got True")
+            self._log_assertion_failure(message, "Expected False, got True")
             return False
 
     def assert_equal(self, actual: Any, expected: Any, message: str = "Values should be equal") -> bool:

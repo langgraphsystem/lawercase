@@ -29,14 +29,14 @@ async def test_claude_availability():
         print(f"   ✅ {provider_type.value}: {provider.__class__.__name__}")
 
     # Проверяем health check всех провайдеров
-    print(f"\n🏥 Health Check результаты:")
+    print("\n🏥 Health Check результаты:")
     health_results = await router.health_check_all()
     for provider_name, is_healthy in health_results.items():
         status = "✅ Healthy" if is_healthy else "❌ Unhealthy"
         print(f"   {provider_name}: {status}")
 
     # Тестируем запрос через Claude
-    print(f"\n🧪 Тестирование Claude запроса...")
+    print("\n🧪 Тестирование Claude запроса...")
 
     request = LLMRequest(
         messages=[{"role": "user", "content": "Привет! Ты Claude?"}],
@@ -55,7 +55,7 @@ async def test_claude_availability():
     print(f"   Время: {response.latency:.3f}s")
 
     # Получаем статистику провайдеров
-    print(f"\n📊 Статистика провайдеров:")
+    print("\n📊 Статистика провайдеров:")
     stats = await router.get_providers_stats()
     for provider_name, provider_stats in stats.items():
         print(f"   {provider_name}:")

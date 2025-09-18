@@ -11,30 +11,24 @@ Enhanced CaseAgent - Агент для управления делами с ин
 
 from __future__ import annotations
 
-import asyncio
 import json
 import uuid
 from datetime import datetime
-from typing import Any, Dict, List, Optional, Union
+from typing import Any, Dict, List, Optional
 
 from pydantic import BaseModel, Field
 
 # Импорты новой архитектуры
 from ..llm_router import LLMRouter, LLMRequest, ModelType, Priority, create_llm_router
 from ..simple_embedder import SimpleEmbedder, EmbedRequest, create_simple_embedder
-from ..basic_rag import BasicRAG, RAGQuery, SearchType, create_basic_rag
+from ..basic_rag import BasicRAG, create_basic_rag
 
 # Импорты существующих моделей
 from .models import (
-    CaseExhibit,
     CaseOperationResult,
-    CaseQuery,
     CaseRecord,
     CaseStatus,
     CaseType,
-    CaseVersion,
-    CaseWorkflowState,
-    ValidationResult,
 )
 
 

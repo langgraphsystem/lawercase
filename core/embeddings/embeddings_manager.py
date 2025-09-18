@@ -24,7 +24,7 @@ import time
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Any, Dict, List, Optional, Union
+from typing import Dict, List, Optional
 
 import aiohttp
 from pydantic import BaseModel, Field
@@ -230,7 +230,7 @@ class GeminiEmbeddingProvider(BaseEmbeddingProvider):
                             logger.warning(f"Gemini API error (attempt {attempt + 1}): {response.status} - {error_text}")
                             if attempt == self.config.max_retries - 1:
                                 raise Exception(f"Gemini API failed: {response.status} - {error_text}")
-                except Exception as e:
+                except Exception:
                     if attempt == self.config.max_retries - 1:
                         raise
                     await asyncio.sleep(2 ** attempt)  # Exponential backoff
@@ -280,7 +280,7 @@ class OpenAIEmbeddingProvider(BaseEmbeddingProvider):
                             logger.warning(f"OpenAI API error (attempt {attempt + 1}): {response.status} - {error_text}")
                             if attempt == self.config.max_retries - 1:
                                 raise Exception(f"OpenAI API failed: {response.status} - {error_text}")
-                except Exception as e:
+                except Exception:
                     if attempt == self.config.max_retries - 1:
                         raise
                     await asyncio.sleep(2 ** attempt)

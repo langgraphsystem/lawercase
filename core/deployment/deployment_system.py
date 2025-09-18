@@ -17,17 +17,14 @@ from __future__ import annotations
 import asyncio
 import json
 import os
-import shutil
-import subprocess
-import tempfile
 import time
 import yaml
-from datetime import datetime, timedelta
+from datetime import datetime
 from enum import Enum
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Set, Union
+from typing import Any, Dict, List, Optional
 
-from pydantic import BaseModel, Field, validator
+from pydantic import BaseModel, Field
 
 
 class DeploymentStrategy(str, Enum):
@@ -218,7 +215,7 @@ class ContainerManager:
 
             print(f"📤 Pushing image to registry: {config.registry}")
             await asyncio.sleep(1)  # Симуляция push
-            print(f"   ✅ Image pushed successfully")
+            print("   ✅ Image pushed successfully")
             return True
 
         except Exception as e:
@@ -298,10 +295,10 @@ class ContainerManager:
             if is_healthy:
                 container["health"] = "healthy"
                 container["last_health_check"] = datetime.utcnow()
-                print(f"   ✅ Health check passed")
+                print("   ✅ Health check passed")
             else:
                 container["health"] = "unhealthy"
-                print(f"   ❌ Health check failed")
+                print("   ❌ Health check failed")
 
             return is_healthy
 
@@ -431,7 +428,7 @@ class EnvironmentManager:
         try:
             print(f"📊 Scaling service {service_name} to {replicas} replicas")
             await asyncio.sleep(0.3)
-            print(f"   ✅ Service scaled successfully")
+            print("   ✅ Service scaled successfully")
             return True
 
         except Exception as e:

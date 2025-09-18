@@ -18,27 +18,18 @@ Security & RBAC System Demo для mega_agent_pro.
 
 import asyncio
 import logging
-from datetime import datetime, timedelta
 
 # Setup logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 from core.security import (
-    RBACManager,
-    AuthenticationManager,
     PermissionType,
     RoleType,
     AuthenticationMethod,
-    SecurityAuditEvent,
     create_default_rbac_manager,
-    create_production_rbac_manager,
     create_testing_rbac_manager,
     initialize_default_users,
-    PasswordConfig,
-    JWTConfig,
-    APIKeyConfig,
-    RateLimitConfig,
 )
 
 
@@ -304,7 +295,7 @@ async def demo_authentication():
     # Проверяем ключ
     verified_key = auth_manager.api_key_manager.verify_key(api_key.key)
     if verified_key:
-        print(f"   ✅ Key verification successful")
+        print("   ✅ Key verification successful")
         print(f"   👤 User ID: {verified_key.user_id}")
         print(f"   ⏱️ Last used: {verified_key.last_used}")
 
@@ -402,7 +393,7 @@ async def demo_audit_logging():
     print("📈 User activity summary:")
     lawyer_activity = await rbac_manager.get_user_activity(lawyer.user_id, days=1)
 
-    print(f"   👤 Lawyer activity:")
+    print("   👤 Lawyer activity:")
     print(f"      📊 Total events: {lawyer_activity['total_events']}")
     print(f"      ✅ Successful logins: {lawyer_activity['successful_logins']}")
     print(f"      ❌ Permission denials: {lawyer_activity['permission_denials']}")
@@ -410,7 +401,7 @@ async def demo_audit_logging():
     print(f"      ⏰ Last activity: {lawyer_activity['last_activity']}")
 
     if lawyer_activity['event_types']:
-        print(f"      📋 Event types:")
+        print("      📋 Event types:")
         for event_type, count in lawyer_activity['event_types'].items():
             print(f"         - {event_type}: {count}")
 

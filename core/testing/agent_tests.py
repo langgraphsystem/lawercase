@@ -12,9 +12,7 @@ Comprehensive Agent Tests для mega_agent_pro.
 
 from __future__ import annotations
 
-import asyncio
-from datetime import datetime
-from typing import Any, Dict, List
+from typing import List
 
 from .test_framework import TestAssertion, TestType, TestSeverity, test_case, performance_test
 

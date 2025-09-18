@@ -16,15 +16,13 @@ from __future__ import annotations
 
 import asyncio
 import hashlib
-import json
-import pickle
 import time
 import uuid
 from abc import ABC, abstractmethod
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from datetime import datetime, timedelta
 from enum import Enum
-from typing import Any, Dict, List, Optional, Set, Tuple, Union
+from typing import Any, Dict, List, Optional, Set, Tuple
 
 from pydantic import BaseModel, Field
 
@@ -760,7 +758,7 @@ class CacheManager:
             data = await loader_func()
             for key, value in data.items():
                 await self.main_cache.set(key, value, ttl=3600)
-        except Exception as e:
+        except Exception:
             # Логируем ошибку, но не падаем
             pass
 

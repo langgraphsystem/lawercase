@@ -16,13 +16,12 @@ import asyncio
 import uuid
 from datetime import datetime
 from enum import Enum
-from typing import Any, Callable, Dict, List, Optional, Union
+from typing import Any, Callable, Dict, List, Optional
 
 from pydantic import BaseModel, Field
 
 from ..memory.memory_manager import MemoryManager
 from ..memory.models import AuditEvent
-from .workflow_graph import WorkflowState
 
 
 class WorkflowPattern(str, Enum):
@@ -597,7 +596,7 @@ class EnhancedWorkflowEngine:
 
                     return result
 
-                except Exception as e:
+                except Exception:
                     if attempt == max_retries:
                         raise
 
@@ -605,7 +604,7 @@ class EnhancedWorkflowEngine:
                     retry_delay = node.retry_config.get("retry_delay", 1.0)
                     await asyncio.sleep(retry_delay * (attempt + 1))
 
-        except Exception as e:
+        except Exception:
             execution.failed_nodes.append(node.node_id)
             raise
 

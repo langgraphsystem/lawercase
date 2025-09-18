@@ -15,32 +15,24 @@ Basic LLM Router + Simple Embedder + RAG Foundation Demo для mega_agent_pro.
 
 import asyncio
 import logging
-from datetime import datetime
-
-# Setup logging
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger(__name__)
-
 from core.llm_router import (
     create_llm_router,
     LLMRequest,
     ModelType,
     Priority
 )
-
 from core.simple_embedder import (
     create_simple_embedder,
     EmbedRequest,
     EmbedProviderType
 )
-
 from core.basic_rag import (
-    create_basic_rag,
-    Document,
-    RAGQuery,
-    SearchType,
-    ChunkingStrategy
+    create_basic_rag
 )
+
+# Setup logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 
 async def llm_router_demo():
@@ -123,7 +115,7 @@ async def llm_router_demo():
 
     # Статистика провайдеров
     stats = await router.get_providers_stats()
-    print(f"\n\n   📊 Итоговая статистика провайдеров:")
+    print("\n\n   📊 Итоговая статистика провайдеров:")
 
     for provider, provider_stats in stats.items():
         print(f"   📈 {provider}: {provider_stats.success_rate:.1f}% успех, "
@@ -187,7 +179,7 @@ async def simple_embedder_demo():
             print(f"   ❌ {provider_type.value}: Ошибка - {str(e)[:50]}...")
 
     # Тестируем кеширование
-    print(f"\n   💾 Тестируем кеширование:")
+    print("\n   💾 Тестируем кеширование:")
 
     # Первый запрос
     request = EmbedRequest(texts=["Тест кеширования эмбеддингов"])
@@ -212,7 +204,7 @@ async def basic_rag_demo(embedder=None, llm_router=None):
     # Создаем RAG систему с интеграциями
     rag = await create_basic_rag(embedder, llm_router)
 
-    print(f"   🏗️ RAG система создана")
+    print("   🏗️ RAG система создана")
     print(f"      Embedder: {'✅' if embedder else '❌'}")
     print(f"      LLM Router: {'✅' if llm_router else '❌'}")
 
@@ -285,7 +277,7 @@ async def basic_rag_demo(embedder=None, llm_router=None):
 
     # Статистика RAG
     stats = await rag.get_stats()
-    print(f"\n   📊 RAG статистика:")
+    print("\n   📊 RAG статистика:")
     print(f"      Документы: {stats['vector_store']['documents']}")
     print(f"      Части (chunks): {stats['vector_store']['total_chunks']}")
     print(f"      Эмбеддинги: {stats['vector_store']['total_embeddings']}")
@@ -311,7 +303,7 @@ async def basic_rag_demo(embedder=None, llm_router=None):
         }
     ]
 
-    print(f"\n   🔍 Тестируем RAG запросы:")
+    print("\n   🔍 Тестируем RAG запросы:")
 
     for i, test_query in enumerate(test_queries, 1):
         response = await rag.search(
@@ -392,16 +384,16 @@ async def integration_demo():
     response = await rag.search(complex_query, max_results=5, search_type="hybrid")
 
     print(f"\n   🎯 Комплексный запрос: {complex_query}")
-    print(f"   📊 Результат:")
+    print("   📊 Результат:")
     print(f"      Уверенность: {response.confidence:.2f}")
     print(f"      Время обработки: {response.latency:.2f}с")
     print(f"      Найдено источников: {len(response.sources)}")
 
-    print(f"\n   💬 Ответ системы:")
+    print("\n   💬 Ответ системы:")
     print(f"      {response.answer}")
 
     # 3. Проверяем работу всех компонентов
-    print(f"\n   🔍 Проверка компонентов:")
+    print("\n   🔍 Проверка компонентов:")
 
     # LLM Router статистика
     llm_stats = await llm_router.get_providers_stats()
@@ -433,10 +425,10 @@ async def main():
         embedder = await simple_embedder_demo()
 
         # 3. Демонстрация Basic RAG
-        rag = await basic_rag_demo(embedder, llm_router)
+        await basic_rag_demo(embedder, llm_router)
 
         # 4. Полная интеграция
-        components = await integration_demo()
+        await integration_demo()
 
         print("\n✅ === Demo Complete ===")
 

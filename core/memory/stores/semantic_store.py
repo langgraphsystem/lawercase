@@ -1,7 +1,5 @@
 from __future__ import annotations
 
-import asyncio
-from collections import defaultdict
 from typing import Dict, Iterable, List, Optional
 
 from ..models import MemoryRecord

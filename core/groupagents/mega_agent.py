@@ -14,14 +14,12 @@ from __future__ import annotations
 import uuid
 from datetime import datetime
 from enum import Enum
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, Optional
 
-from pydantic import BaseModel, Field, ValidationError
+from pydantic import BaseModel, Field
 
 from ..memory.memory_manager import MemoryManager
-from ..memory.models import AuditEvent, MemoryRecord
-from ..orchestration.workflow_graph import WorkflowState, build_case_workflow
-from ..orchestration.pipeline_manager import run
+from ..memory.models import AuditEvent
 from core.llm.router import LLMRouter
 from core.rag.retrieve import HybridRetriever, _default_retriever
 from .case_agent import CaseAgent

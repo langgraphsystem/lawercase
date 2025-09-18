@@ -5,7 +5,6 @@ from typing import List, Optional
 from fastapi import APIRouter
 from pydantic import BaseModel, Field
 
-from core.dto.context_chunk import ContextChunk
 from core.dto.query_spec import QuerySpec
 from core.rag.retrieve import retrieve as rag_retrieve
 

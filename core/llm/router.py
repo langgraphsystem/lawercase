@@ -4,7 +4,7 @@ import asyncio
 import random
 import time
 from collections import defaultdict
-from typing import Dict, Iterable, List, Optional
+from typing import Dict, List, Optional
 
 from config.settings import RouterSettings, Settings, get_settings
 from core.dto.llm_response import LLMResponse

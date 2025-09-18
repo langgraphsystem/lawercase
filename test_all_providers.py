@@ -47,7 +47,7 @@ async def test_all_providers():
         print(f"   Стоимость: ${response.cost:.6f}")
 
     # Тест автоматического выбора провайдера
-    print(f"\n🎯 === Автоматический выбор провайдера ===")
+    print("\n🎯 === Автоматический выбор провайдера ===")
     auto_request = LLMRequest(
         messages=[{"role": "user", "content": "Напиши краткий юридический совет"}],
         model_type=ModelType.CHAT,
@@ -60,7 +60,7 @@ async def test_all_providers():
     print(f"   Ответ: {auto_response.content}")
 
     # Финальная статистика
-    print(f"\n📊 === Финальная статистика ===")
+    print("\n📊 === Финальная статистика ===")
     stats = await router.get_providers_stats()
     for provider_name, provider_stats in stats.items():
         print(f"   {provider_name}:")

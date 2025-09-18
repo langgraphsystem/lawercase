@@ -5,7 +5,7 @@ from typing import Iterable, Optional
 from sqlalchemy import insert, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from .models import Case, CaseItem, Document
+from .models import Case, CaseItem
 
 
 async def create_case(session: AsyncSession, *, user_id: Optional[int], title: str, status: str = "open") -> int:

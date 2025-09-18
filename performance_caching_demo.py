@@ -26,10 +26,7 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 from core.performance import (
-    CacheManager,
     CacheIntegrationManager,
-    CacheConfig,
-    CacheItemType,
     create_default_cache_manager,
     create_cache_key,
 )
@@ -70,7 +67,7 @@ async def demo_basic_caching():
 
     # Показываем метрики
     metrics = await cache_manager.main_cache.get_metrics()
-    print(f"\n📊 Cache metrics:")
+    print("\n📊 Cache metrics:")
     print(f"   🎯 Hit rate: {metrics.hit_rate:.1f}%")
     print(f"   📈 Total requests: {metrics.total_requests}")
     print(f"   ✅ Hits: {metrics.hits}")
@@ -362,7 +359,7 @@ async def demo_cache_warming():
     common_key = create_cache_key("common_query", "status")
     cached_query = await cache_manager.main_cache.get(common_key)
     if cached_query:
-        print(f"   🎯 Found preloaded query: status")
+        print("   🎯 Found preloaded query: status")
 
     print()
 
@@ -405,17 +402,17 @@ async def demo_comprehensive_report():
     print("\n📋 Generating comprehensive report...")
     report = await integration_manager.generate_cache_report()
 
-    print(f"\n🏆 === CACHE PERFORMANCE REPORT ===")
+    print("\n🏆 === CACHE PERFORMANCE REPORT ===")
     print(f"📅 Generated: {report['timestamp']}")
     print(f"🏥 Health Status: {report['health_status']}")
 
-    print(f"\n📊 Summary:")
+    print("\n📊 Summary:")
     summary = report['summary']
     print(f"   📈 Total Requests: {summary['total_requests']}")
     print(f"   🎯 Overall Hit Rate: {summary['overall_hit_rate']:.1f}%")
     print(f"   🏆 Performance: {summary['overall_performance']}")
 
-    print(f"\n🔍 Performance Analysis:")
+    print("\n🔍 Performance Analysis:")
     for cache_name, efficiency in report['performance_analysis']['cache_efficiency'].items():
         print(f"   📦 {cache_name.title()} Cache:")
         print(f"      🎯 Hit Rate: {efficiency['hit_rate']:.1f}%")
@@ -423,11 +420,11 @@ async def demo_comprehensive_report():
         print(f"      📝 Grade: {efficiency['performance_grade']}")
 
     if report['performance_analysis']['recommendations']:
-        print(f"\n💡 Recommendations:")
+        print("\n💡 Recommendations:")
         for rec in report['performance_analysis']['recommendations']:
             print(f"   🔧 {rec}")
 
-    print(f"\n⚡ Optimization Status:")
+    print("\n⚡ Optimization Status:")
     optimization = report['optimization_recommendations']
     if optimization['applied_optimizations']:
         print("   ✅ Applied optimizations:")

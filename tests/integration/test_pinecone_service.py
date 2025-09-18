@@ -2,7 +2,6 @@
 
 import pytest
 from unittest.mock import AsyncMock, MagicMock, patch
-from typing import List, Dict, Any
 
 from core.vector.service import PineconeVectorService, VectorRecord, VectorMetadata, QueryResult
 from core.vector.pinecone_client import PineconeClient, PineconeClientError
