@@ -7,7 +7,8 @@ exclude = ["docs/","dist/","build/",".venv/"]
 
 [tool.ruff.lint.isort]
 known-first-party = ["core","api","config","tests"]
-profile = "black"
+combine-as-imports = true
+force-sort-within-sections = true
 
 [tool.black]
 line-length = 100
