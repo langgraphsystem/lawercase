@@ -17,6 +17,14 @@ class _NoOpEmbedder:
         return [[] for _ in texts]
 
 
+# Import real embedder when available
+try:
+    from ..embeddings import RealEmbedder, EmbeddingManager
+except ImportError:
+    RealEmbedder = None
+    EmbeddingManager = None
+
+
 class MemoryManager:
     """Facade over episodic/semantic stores and RMT buffer with optional embeddings.
 
@@ -117,4 +125,47 @@ class MemoryManager:
 
     async def aget_rmt(self, thread_id: str) -> Optional[Dict[str, str]]:
         return await self.working.aget_buffer(thread_id)
+
+    @classmethod
+    def create_with_real_embeddings(
+        cls,
+        embedding_configs: Optional[List[Any]] = None,
+        semantic: Optional[SemanticStore] = None,
+        episodic: Optional[EpisodicStore] = None,
+        working: Optional[WorkingMemory] = None,
+    ) -> "MemoryManager":
+        """Create MemoryManager with real embedding integration.
+
+        Args:
+            embedding_configs: List of EmbeddingConfig objects
+            semantic: Optional semantic store
+            episodic: Optional episodic store
+            working: Optional working memory
+
+        Returns:
+            MemoryManager configured with real embeddings
+
+        Note:
+            Falls back to NoOpEmbedder if real embeddings are not available
+        """
+        embedder = None
+
+        if RealEmbedder and EmbeddingManager and embedding_configs:
+            try:
+                embedding_manager = EmbeddingManager(embedding_configs)
+                embedder = RealEmbedder(embedding_manager)
+            except Exception as e:
+                import logging
+                logger = logging.getLogger(__name__)
+                logger.warning(f"Failed to initialize real embeddings, falling back to NoOp: {e}")
+                embedder = _NoOpEmbedder()
+        else:
+            embedder = _NoOpEmbedder()
+
+        return cls(
+            semantic=semantic,
+            episodic=episodic,
+            working=working,
+            embedder=embedder,
+        )
 

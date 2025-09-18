@@ -12,7 +12,6 @@ from __future__ import annotations
 
 import asyncio
 import uuid
-from datetime import datetime
 
 from core.memory.memory_manager import MemoryManager
 from core.groupagents.case_agent import CaseAgent
@@ -179,7 +178,7 @@ async def demo_workflow_integration():
     # Запуск workflow
     final_state = await run(compiled_graph, initial_state, thread_id=thread_id)
 
-    print(f"✅ Workflow завершен")
+    print("✅ Workflow завершен")
 
     # final_state - это словарь с именами узлов как ключами
     # Извлекаем state из узла update_rmt (финальный узел)
@@ -231,7 +230,7 @@ async def demo_workflow_integration():
     else:
         get_case_result = getattr(get_actual_state, 'case_result', {}) or {}
 
-    print(f"✅ Дело получено через workflow")
+    print("✅ Дело получено через workflow")
     if get_case_result and 'case' in get_case_result:
         case = get_case_result['case']
         print(f"   Название: {case['title']}")
@@ -266,7 +265,7 @@ async def demo_workflow_integration():
     else:
         search_case_result = getattr(search_actual_state, 'case_result', {}) or {}
 
-    print(f"✅ Поиск завершен через workflow")
+    print("✅ Поиск завершен через workflow")
     if search_case_result:
         count = search_case_result.get('count', 0)
         print(f"   Найдено дел: {count}")

@@ -1,0 +1,143 @@
+openapi: 3.0.0
+info:
+  title: Mega Agent Pro API
+  description: FastAPI bridge for mega_agent_pro_codex_handoff multi-agent system
+  version: 1.0.0
+  contact:
+    name: Mega Agent Pro Team
+  license:
+    name: MIT
+
+servers:
+  - url: http://localhost:8000
+    description: Development server
+
+paths:
+  /healthz:
+    get:
+      summary: Health Check
+      description: Returns the health status of the API service
+      operationId: health_check
+      tags:
+        - Health
+      responses:
+        '200':
+          description: Service is healthy
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: "ok"
+
+  /metrics:
+    get:
+      summary: Prometheus Metrics
+      description: Returns Prometheus-compatible metrics
+      operationId: get_metrics
+      tags:
+        - Monitoring
+      responses:
+        '200':
+          description: Metrics in Prometheus text format
+          content:
+            text/plain:
+              schema:
+                type: string
+
+  /openapi.yaml:
+    get:
+      summary: OpenAPI Specification
+      description: Returns the OpenAPI specification in YAML format
+      operationId: get_openapi_spec
+      tags:
+        - Documentation
+      responses:
+        '200':
+          description: OpenAPI specification
+          content:
+            text/yaml:
+              schema:
+                type: string
+
+  /rag/retrieve:
+    post:
+      summary: RAG Retrieve
+      description: Retrieve relevant chunks using the RAG system
+      operationId: retrieve_chunks
+      tags:
+        - RAG
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RetrieveRequest'
+      responses:
+        '200':
+          description: Successfully retrieved chunks
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RetrieveResponse'
+        '422':
+          description: Validation error
+        '500':
+          description: Internal server error
+
+components:
+  schemas:
+    RetrieveRequest:
+      type: object
+      required:
+        - query
+      properties:
+        query:
+          type: string
+          description: Search query
+        limit:
+          type: integer
+          minimum: 1
+          maximum: 50
+          default: 5
+          description: Maximum number of results
+
+    ContextChunk:
+      type: object
+      properties:
+        chunk_id:
+          type: string
+        document_id:
+          type: string
+        text:
+          type: string
+        score:
+          type: number
+          format: float
+          default: 0.0
+        metadata:
+          type: object
+
+    RetrieveResponse:
+      type: object
+      properties:
+        chunks:
+          type: array
+          items:
+            $ref: '#/components/schemas/ContextChunk'
+        query:
+          type: string
+        total_found:
+          type: integer
+
+tags:
+  - name: Health
+    description: Health check endpoints
+  - name: Monitoring
+    description: Metrics and monitoring endpoints
+  - name: Documentation
+    description: API documentation endpoints
+  - name: RAG
+    description: Retrieval Augmented Generation endpoints

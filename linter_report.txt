@@ -1,0 +1,320 @@
+Linter Analysis Report
+======================
+
+Date: 2025-09-17
+
+This report contains the full list of 230 issues found by the Ruff linter.
+
+Summary of Issues:
+------------------
+*   `F401`: Unused Import
+*   `F841`: Unused Local Variable
+*   `E402`: Module level import not at top of file
+*   `F403`: 'from module import *' used
+*   `F541`: f-string without any placeholders
+*   `E722`: Do not use bare 'except'
+*   `F821`: Undefined name
+*   `E731`: Do not assign a lambda expression, use a def
+
+Full List of Issues by File:
+----------------------------
+
+### `basic_llm_rag_demo.py`
+*   `F401`: `datetime.datetime` imported but unused (line 18)
+*   `E402`: Module level import not at top of file (line 24)
+*   `E402`: Module level import not at top of file (line 31)
+*   `E402`: Module level import not at top of file (line 37)
+*   `F401`: `core.basic_rag.Document` imported but unused (line 39)
+*   `F401`: `core.basic_rag.RAGQuery` imported but unused (line 40)
+*   `F401`: `core.basic_rag.SearchType` imported but unused (line 41)
+*   `F401`: `core.basic_rag.ChunkingStrategy` imported but unused (line 42)
+*   `F541`: f-string without any placeholders (line 110)
+*   `F541`: f-string without any placeholders (line 172)
+*   `F541`: f-string without any placeholders (line 197)
+*   `F541`: f-string without any placeholders (line 270)
+*   `F541`: f-string without any placeholders (line 296)
+*   `F541`: f-string without any placeholders (line 377)
+*   `F541`: f-string without any placeholders (line 382)
+*   `F541`: f-string without any placeholders (line 386)
+*   `F841`: Local variable `rag` is assigned to but never used (line 418)
+*   `F841`: Local variable `components` is assigned to but never used (line 421)
+
+### `case_agent_demo.py`
+*   `F401`: `datetime.datetime` imported but unused (line 15)
+*   `F541`: f-string without any placeholders (line 182)
+*   `F541`: f-string without any placeholders (line 234)
+*   `F541`: f-string without any placeholders (line 269)
+
+### `core/__init__.py`
+*   `F403`: `from .llm_router import *` used (line 22)
+*   `F403`: `from .simple_embedder import *` used (line 28)
+*   `F403`: `from .basic_rag import *` used (line 34)
+*   `F403`: `from .groupagents import *` used (line 40)
+*   `F403`: `from .memory import *` used (line 46)
+*   `F403`: `from .embeddings import *` used (line 47)
+*   `F403`: `from .security import *` used (line 53)
+*   `F403`: `from .performance import *` used (line 59)
+*   `F403`: `from .testing import *` used (line 65)
+*   `F403`: `from .monitoring import *` used (line 71)
+*   `F403`: `from .deployment import *` used (line 77)
+*   `F403`: `from .infrastructure import *` used (line 83)
+*   `F403`: `from .config import *` used (line 89)
+
+### `core/basic_rag/basic_rag.py`
+*   `F401`: `asyncio` imported but unused (line 16)
+*   `F401`: `json` imported but unused (line 18)
+*   `F401`: `typing.Tuple` imported but unused (line 22)
+*   `F401`: `typing.Union` imported but unused (line 22)
+
+### `core/deployment/deployment_system.py`
+*   `F401`: `shutil` imported but unused (line 20)
+*   `F401`: `subprocess` imported but unused (line 21)
+*   `F401`: `tempfile` imported but unused (line 22)
+*   `F401`: `datetime.timedelta` imported but unused (line 25)
+*   `F401`: `typing.Set` imported but unused (line 28)
+*   `F401`: `typing.Union` imported but unused (line 28)
+*   `F401`: `pydantic.validator` imported but unused (line 30)
+*   `F541`: f-string without any placeholders (line 221)
+*   `F541`: f-string without any placeholders (line 301)
+*   `F541`: f-string without any placeholders (line 304)
+*   `F841`: Local variable `deployment_manifest` is assigned to but never used (line 415)
+*   `F541`: f-string without any placeholders (line 434)
+*   `F841`: Local variable `test_results` is assigned to but never used (line 659)
+
+### `core/embeddings/embeddings_manager.py`
+*   `F401`: `typing.Any` imported but unused (line 27)
+*   `F401`: `typing.Union` imported but unused (line 27)
+*   `F841`: Local variable `e` is assigned to but never used (line 233)
+*   `F841`: Local variable `e` is assigned to but never used (line 283)
+*   `F841`: Local variable `primary_config` is assigned to but never used (line 381)
+
+### `core/groupagents/case_agent.py`
+*   `F401`: `json` imported but unused (line 11)
+
+### `core/groupagents/mega_agent.py`
+*   `F401`: `typing.List` imported but unused (line 17)
+*   `F401`: `..memory.models.MemoryRecord` imported but unused (line 22)
+
+### `core/groupagents/rag_pipeline_agent.py`
+*   `F401`: `asyncio` imported but unused (line 15)
+*   `F401`: `typing.Union` imported but unused (line 22)
+*   `F401`: `..memory.models.MemoryRecord` imported but unused (line 27)
+
+### `core/groupagents/supervisor_agent.py`
+*   `F401`: `typing.Union` imported but unused (line 18)
+*   `F401`: `..memory.models.MemoryRecord` imported but unused (line 23)
+*   `F401`: `..orchestration.workflow_graph.WorkflowState` imported but unused (line 24)
+*   `F401`: `..orchestration.workflow_graph.build_case_workflow` imported but unused (line 24)
+*   `F401`: `..orchestration.pipeline_manager.run` imported but unused (line 25)
+*   `F841`: Local variable `analysis_prompt` is assigned to but never used (line 139)
+
+### `core/groupagents/validator_agent.py`
+*   `F401`: `asyncio` imported but unused (line 15)
+*   `F401`: `json` imported but unused (line 16)
+*   `F401`: `typing.Union` imported but unused (line 20)
+*   `F401`: `..memory.models.MemoryRecord` imported but unused (line 25)
+*   `F401`: `.models.ValidationResult` imported but unused (line 26)
+
+### `core/groupagents/writer_agent.py`
+*   `F401`: `..memory.models.MemoryRecord` imported but unused (line 24)
+
+### `core/llm_router/llm_router.py`
+*   `F401`: `json` imported but unused (line 16)
+*   `F401`: `typing.Union` imported but unused (line 22)
+*   `E722`: Do not use bare `except` (line 247)
+*   `E722`: Do not use bare `except` (line 324)
+*   `E722`: Do not use bare `except` (line 400)
+*   `E722`: Do not use bare `except` (line 476)
+
+### `core/memory/policies/reflection.py`
+*   `F401`: `typing.Optional` imported but unused (line 3)
+
+### `core/memory/rmt/buffer.py`
+*   `F401`: `typing.Optional` imported but unused (line 3)
+
+### `core/memory/stores/episodic_store.py`
+*   `F401`: `typing.Optional` imported but unused (line 4)
+
+### `core/memory/stores/semantic_store.py`
+*   `F401`: `asyncio` imported but unused (line 3)
+*   `F401`: `collections.defaultdict` imported but unused (line 4)
+
+### `core/monitoring/agent_monitoring.py`
+*   `F401`: `asyncio` imported but unused (line 14)
+*   `F401`: `functools` imported but unused (line 15)
+*   `F401`: `typing.List` imported but unused (line 17)
+*   `F401`: `.observability_system.monitor_performance` imported but unused (line 25)
+
+### `core/monitoring/observability_system.py`
+*   `F401`: `json` imported but unused (line 18)
+*   `F401`: `abc.ABC` imported but unused (line 21)
+*   `F401`: `abc.abstractmethod` imported but unused (line 21)
+*   `F401`: `dataclasses.dataclass` imported but unused (line 23)
+*   `F401`: `dataclasses.field` imported but unused (line 23)
+*   `F841`: Local variable `since` is assigned to but never used (line 597)
+
+### `core/orchestration/enhanced_workflow.py`
+*   `F401`: `typing.Union` imported but unused (line 19)
+*   `F401`: `.workflow_graph.WorkflowState` imported but unused (line 25)
+*   `F841`: Local variable `checkpoint` is assigned to but never used (line 560)
+*   `F841`: Local variable `e` is assigned to but never used (line 600)
+*   `F841`: Local variable `e` is assigned to but never used (line 608)
+
+### `core/orchestration/workflow_graph.py`
+*   `F821`: Undefined name `CaseAgent` (line 106)
+
+### `core/performance/cache_integration.py`
+*   `F401`: `typing.Union` imported but unused (line 16)
+
+### `core/performance/caching_system.py`
+*   `F401`: `json` imported but unused (line 19)
+*   `F401`: `pickle` imported but unused (line 20)
+*   `F401`: `dataclasses.field` imported but unused (line 24)
+*   `F401`: `typing.Union` imported but unused (line 27)
+*   `F841`: Local variable `e` is assigned to but never used (line 763)
+
+### `core/security/auth_utils.py`
+*   `F401`: `time` imported but unused (line 17)
+
+### `core/security/rbac_system.py`
+*   `F401`: `hashlib` imported but unused (line 16)
+*   `F401`: `secrets` imported but unused (line 17)
+*   `F401`: `dataclasses.dataclass` imported but unused (line 20)
+*   `F401`: `dataclasses.field` imported but unused (line 20)
+*   `F401`: `typing.Union` imported but unused (line 23)
+
+### `core/simple_embedder/simple_embedder.py`
+*   `F401`: `typing.Union` imported but unused (line 22)
+*   `E722`: Do not use bare `except` (line 164)
+*   `E722`: Do not use bare `except` (line 248)
+*   `E722`: Do not use bare `except` (line 343)
+
+### `core/testing/agent_tests.py`
+*   `F401`: `asyncio` imported but unused (line 15)
+*   `F401`: `datetime.datetime` imported but unused (line 16)
+*   `F401`: `typing.Any` imported but unused (line 17)
+*   `F401`: `typing.Dict` imported but unused (line 17)
+*   `F401`: `..groupagents.supervisor_agent.TaskRequest` imported but unused (line 24)
+*   `F401`: `..groupagents.case_agent.CaseData` imported but unused (line 25)
+*   `F841`: Local variable `case_agent` is assigned to but never used (line 367)
+*   `F841`: Local variable `writer_agent` is assigned to but never used (line 368)
+
+### `core/testing/test_framework.py`
+*   `F401`: `inspect` imported but unused (line 18)
+*   `F401`: `dataclasses.dataclass` imported but unused (line 22)
+*   `F401`: `dataclasses.field` imported but unused (line 22)
+*   `F401`: `datetime.timedelta` imported but unused (line 23)
+*   `F541`: f-string without any placeholders (line 255)
+*   `F541`: f-string without any placeholders (line 265)
+
+### `deployment_devops_demo.py`
+*   `F401`: `json` imported but unused (line 22)
+*   `F401`: `datetime.datetime` imported but unused (line 25)
+*   `F401`: `pathlib.Path` imported but unused (line 26)
+*   `E402`: Module level import not at top of file (line 32)
+*   `F401`: `core.deployment.DeploymentManager` imported but unused (line 33)
+*   `F401`: `core.deployment.ContainerManager` imported but unused (line 34)
+*   `F401`: `core.deployment.ServiceStatus` imported but unused (line 47)
+*   `F541`: f-string without any placeholders (line 69)
+*   `F541`: f-string without any placeholders (line 138)
+*   `F541`: f-string without any placeholders (line 220)
+*   `F541`: f-string without any placeholders (line 363)
+*   `F541`: f-string without any placeholders (line 375)
+*   `F541`: f-string without any placeholders (line 387)
+*   `F541`: f-string without any placeholders (line 397)
+*   `F541`: f-string without any placeholders (line 404)
+*   `F841`: Local variable `config` is assigned to but never used (line 436)
+*   `F541`: f-string without any placeholders (line 506)
+*   `F541`: f-string without any placeholders (line 514)
+*   `F541`: f-string without any placeholders (line 528)
+*   `F541`: f-string without any placeholders (line 573)
+
+### `monitoring_observability_demo.py`
+*   `F401`: `time` imported but unused (line 22)
+*   `E402`: Module level import not at top of file (line 29)
+*   `F401`: `core.monitoring.ObservabilitySystem` imported but unused (line 30)
+*   `F401`: `core.monitoring.MonitoringIntegrationManager` imported but unused (line 31)
+*   `F541`: f-string without any placeholders (line 413)
+*   `F541`: f-string without any placeholders (line 419)
+*   `F541`: f-string without any placeholders (line 423)
+*   `F541`: f-string without any placeholders (line 428)
+*   `F541`: f-string without any placeholders (line 470)
+*   `F541`: f-string without any placeholders (line 473)
+*   `F841`: Local variable `integration` is assigned to but never used (line 488)
+*   `F541`: f-string without any placeholders (line 544)
+
+### `multi_agent_system_demo.py`
+*   `F401`: `uuid` imported but unused (line 17)
+*   `F401`: `datetime.datetime` imported but unused (line 18)
+*   `F401`: `core.groupagents.case_agent.CaseAgent` imported but unused (line 23)
+*   `F541`: f-string without any placeholders (line 62)
+*   `F541`: f-string without any placeholders (line 90)
+*   `F541`: f-string without any placeholders (line 112)
+*   `F541`: f-string without any placeholders (line 131)
+*   `F541`: f-string without any placeholders (line 210)
+*   `F541`: f-string without any placeholders (line 252)
+*   `F541`: f-string without any placeholders (line 277)
+*   `F541`: f-string without any placeholders (line 304)
+*   `F541`: f-string without any placeholders (line 357)
+*   `F541`: f-string without any placeholders (line 373)
+*   `F541`: f-string without any placeholders (line 398)
+*   `F541`: f-string without any placeholders (line 445)
+*   `F541`: f-string without any placeholders (line 466)
+*   `F541`: f-string without any placeholders (line 492)
+*   `F541`: f-string without any placeholders (line 502)
+
+### `performance_caching_demo.py`
+*   `E402`: Module level import not at top of file (line 28)
+*   `F401`: `core.performance.CacheManager` imported but unused (line 29)
+*   `F401`: `core.performance.CacheConfig` imported but unused (line 31)
+*   `F401`: `core.performance.CacheItemType` imported but unused (line 32)
+*   `E402`: Module level import not at top of file (line 38)
+*   `E402`: Module level import not at top of file (line 39)
+*   `F541`: f-string without any placeholders (line 73)
+*   `F841`: Local variable `success` is assigned to but never used (line 110)
+*   `F841`: Local variable `result1` is assigned to but never used (line 156)
+*   `F841`: Local variable `result2` is assigned to but never used (line 160)
+*   `F841`: Local variable `rag_result1` is assigned to but never used (line 172)
+*   `F841`: Local variable `rag_result2` is assigned to but never used (line 176)
+*   `F541`: f-string without any placeholders (line 365)
+*   `F541`: f-string without any placeholders (line 408)
+*   `F541`: f-string without any placeholders (line 412)
+*   `F541`: f-string without any placeholders (line 418)
+*   `F541`: f-string without any placeholders (line 426)
+*   `F541`: f-string without any placeholders (line 430)
+
+### `real_embeddings_demo.py`
+*   `F401`: `core.config.get_default_embedding_config` imported but unused (line 36)
+*   `E402`: Module level import not at top of file (line 42)
+*   `E402`: Module level import not at top of file (line 43)
+*   `F541`: f-string without any placeholders (line 277)
+
+### `security_rbac_demo.py`
+*   `F401`: `datetime.datetime` imported but unused (line 21)
+*   `F401`: `datetime.timedelta` imported but unused (line 21)
+*   `E402`: Module level import not at top of file (line 27)
+*   `F401`: `core.security.RBACManager` imported but unused (line 28)
+*   `F401`: `core.security.AuthenticationManager` imported but unused (line 29)
+*   `F401`: `core.security.SecurityAuditEvent` imported but unused (line 33)
+*   `F401`: `core.security.create_production_rbac_manager` imported but unused (line 35)
+*   `F401`: `core.security.PasswordConfig` imported but unused (line 38)
+*   `F401`: `core.security.JWTConfig` imported but unused (line 39)
+*   `F401`: `core.security.APIKeyConfig` imported but unused (line 40)
+*   `F401`: `core.security.RateLimitConfig` imported but unused (line 41)
+*   `F841`: Local variable `session2` is assigned to but never used (line 156)
+*   `F541`: f-string without any placeholders (line 307)
+*   `F541`: f-string without any placeholders (line 405)
+*   `F541`: f-string without any placeholders (line 413)
+
+### `testing_quality_demo.py`
+*   `F401`: `datetime.datetime` imported but unused (line 20)
+*   `E402`: Module level import not at top of file (line 26)
+*   `F401`: `core.testing.TestRunner` imported but unused (line 27)
+*   `F541`: f-string without any placeholders (line 141)
+*   `F541`: f-string without any placeholders (line 201)
+*   `F541`: f-string without any placeholders (line 248)
+*   `F841`: Local variable `unit_suite` is assigned to but never used (line 285)
+*   `F841`: Local variable `integration_suite` is assigned to but never used (line 293)
+*   `F841`: Local variable `perf_result` is assigned to but never used (line 299)
+*   `E731`: Do not assign a `lambda` expression, use a `def` (line 346)
+*   `F541`: f-string without any placeholders (line 377)

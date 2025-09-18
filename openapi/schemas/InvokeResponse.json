@@ -1,0 +1,22 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "InvokeResponse",
+  "description": "The response from an agent invocation.",
+  "type": "object",
+  "properties": {
+    "success": {
+      "type": "boolean",
+      "description": "Whether the invocation was successful."
+    },
+    "result": {
+      "type": "object",
+      "description": "The result of the invocation.",
+      "additionalProperties": true
+    },
+    "error": {
+      "type": "string",
+      "description": "An error message if the invocation failed."
+    }
+  },
+  "required": ["success"]
+}

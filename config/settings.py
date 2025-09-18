@@ -1,0 +1,109 @@
+from __future__ import annotations
+
+import json
+from functools import lru_cache
+from typing import Dict, List, Optional
+
+from pydantic import BaseModel, Field
+from pydantic_settings import BaseSettings, SettingsConfigDict
+
+
+class ProviderBudget(BaseModel):
+    """Budget guardrails per LLM provider."""
+
+    name: str
+    max_tokens: Optional[int] = Field(default=None, ge=0)
+    max_cost_usd: Optional[float] = Field(default=None, ge=0.0)
+
+
+class RouterSettings(BaseModel):
+    """Normalized router configuration."""
+
+    default_provider: str = "openai"
+    provider_priority: List[str] = Field(default_factory=lambda: ["openai", "anthropic", "gemini"])
+    max_retries: int = 3
+    initial_backoff_seconds: float = 0.3
+    backoff_multiplier: float = 2.0
+    jitter_seconds: float = 0.2
+    request_timeout_seconds: float = 30.0
+
+
+class Settings(BaseSettings):
+    """Application configuration loaded from environment variables."""
+
+    model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="ignore")
+
+    router_default_provider: str = Field("openai", alias="LLM_DEFAULT_PROVIDER")
+    router_provider_priority: List[str] = Field(default_factory=lambda: ["openai", "anthropic", "gemini"], alias="LLM_PROVIDER_PRIORITY")
+    router_max_retries: int = Field(3, alias="LLM_MAX_RETRIES")
+    router_initial_backoff: float = Field(0.3, alias="LLM_BACKOFF_INITIAL")
+    router_backoff_multiplier: float = Field(2.0, alias="LLM_BACKOFF_MULTIPLIER")
+    router_jitter_seconds: float = Field(0.2, alias="LLM_BACKOFF_JITTER")
+    router_request_timeout_seconds: float = Field(30.0, alias="LLM_REQUEST_TIMEOUT")
+
+    llm_provider_budgets: Optional[str] = Field(default=None, alias="LLM_PROVIDER_BUDGETS")
+
+    openai_api_key: Optional[str] = Field(default=None, alias="OPENAI_API_KEY")
+    anthropic_api_key: Optional[str] = Field(default=None, alias="ANTHROPIC_API_KEY")
+    gemini_api_key: Optional[str] = Field(default=None, alias="GEMINI_API_KEY")
+
+    # Pinecone Vector Database
+    pinecone_api_key: Optional[str] = Field(default=None, alias="PINECONE_API_KEY")
+    pinecone_env: Optional[str] = Field(default=None, alias="PINECONE_ENV")
+    pinecone_index: str = Field("mega-agent-pro", alias="PINECONE_INDEX")
+    vector_dim: int = Field(1536, alias="VECTOR_DIM")  # OpenAI text-embedding-3-small default
+    vector_namespace: Optional[str] = Field(default=None, alias="NAMESPACE")
+
+    # Ingest providers
+    whisper_model: str = Field("base", alias="WHISPER_MODEL")  # tiny, base, small, medium, large
+    tg_api_id: Optional[str] = Field(default=None, alias="TG_API_ID")
+    tg_api_hash: Optional[str] = Field(default=None, alias="TG_API_HASH")
+    tg_session_string: Optional[str] = Field(default=None, alias="TG_SESSION_STRING")
+
+    prometheus_namespace: str = Field("mega_agent_pro", alias="PROMETHEUS_NAMESPACE")
+
+    # Database (PostgreSQL, e.g., Railway-style DATABASE_URL)
+    database_url: Optional[str] = Field(default=None, alias="DATABASE_URL")
+    db_pool_size: int = Field(10, alias="DB_POOL_SIZE")
+    db_pool_timeout: float = Field(30.0, alias="DB_POOL_TIMEOUT")
+    db_sslmode: Optional[str] = Field(default=None, alias="DB_SSLMODE")  # e.g., require, verify-full
+
+    # Telegram Bot
+    telegram_bot_token: Optional[str] = Field(default=None, alias="TELEGRAM_BOT_TOKEN")
+    telegram_admin_user_id: Optional[int] = Field(default=None, alias="TELEGRAM_ADMIN_USER_ID")
+
+    # S3 Storage
+    s3_endpoint: Optional[str] = Field(default=None, alias="S3_ENDPOINT")
+    s3_region: str = Field("us-east-1", alias="S3_REGION")
+    s3_bucket: Optional[str] = Field(default=None, alias="S3_BUCKET")
+    s3_access_key_id: Optional[str] = Field(default=None, alias="S3_ACCESS_KEY_ID")
+    s3_secret_access_key: Optional[str] = Field(default=None, alias="S3_SECRET_ACCESS_KEY")
+    s3_presign_ttl_seconds: int = Field(3600, alias="S3_PRESIGN_TTL_SECONDS")
+    max_file_mb: int = Field(50, alias="MAX_FILE_MB")
+    allowed_domains: Optional[str] = Field(default=None, alias="ALLOWED_DOMAINS")
+
+    def router_settings(self) -> RouterSettings:
+        return RouterSettings(
+            default_provider=self.router_default_provider,
+            provider_priority=self.router_provider_priority,
+            max_retries=self.router_max_retries,
+            initial_backoff_seconds=self.router_initial_backoff,
+            backoff_multiplier=self.router_backoff_multiplier,
+            jitter_seconds=self.router_jitter_seconds,
+            request_timeout_seconds=self.router_request_timeout_seconds,
+        )
+
+    def provider_budgets(self) -> Dict[str, ProviderBudget]:
+        if not self.llm_provider_budgets:
+            return {}
+        raw = json.loads(self.llm_provider_budgets)
+        budgets: Dict[str, ProviderBudget] = {}
+        for provider_name, payload in raw.items():
+            payload["name"] = payload.get("name", provider_name)
+            budgets[provider_name] = ProviderBudget.model_validate(payload)
+        return budgets
+
+
+@lru_cache(maxsize=1)
+def get_settings() -> Settings:
+    return Settings()
