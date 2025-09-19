@@ -734,8 +734,9 @@ Sincerely,
             try:
                 template = DocumentTemplate(**template_data)
                 self._templates[template.template_id] = template
-            except Exception:
-                pass  # Ignore initialization errors
+            except (ValidationError, KeyError, TypeError) as e:
+                # Log template initialization errors but continue
+                print(f"Warning: Failed to initialize template: {e}")  # noqa: T201
 
     def _update_stats(self, document_type: DocumentType) -> None:
         """Обновление статистики генерации"""

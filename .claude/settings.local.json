@@ -13,7 +13,9 @@
       "Bash(ruff check:*)",
       "Bash(black:*)",
       "Bash(isort:*)",
-      "Bash(find:*)"
+      "Bash(find:*)",
+      "Bash(gh auth:*)",
+      "Bash(gh repo view:*)"
     ],
     "deny": [],
     "ask": []
