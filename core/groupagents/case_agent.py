@@ -13,31 +13,21 @@ from typing import Any
 
 from ..memory.memory_manager import MemoryManager
 from ..memory.models import AuditEvent, MemoryRecord
-from .models import (
-    CaseExhibit,
-    CaseOperationResult,
-    CaseQuery,
-    CaseRecord,
-    CaseStatus,
-    CaseVersion,
-    CaseWorkflowState,
-    ValidationResult,
-)
+from .models import (CaseExhibit, CaseOperationResult, CaseQuery, CaseRecord,
+                     CaseStatus, CaseVersion, CaseWorkflowState,
+                     ValidationResult)
 
 
 class CaseNotFoundError(Exception):
     """Исключение для случаев, когда дело не найдено"""
 
 
-
 class CaseValidationError(Exception):
     """Исключение для ошибок валидации дела"""
 
 
-
 class CaseVersionConflictError(Exception):
     """Исключение для конфликтов версий дела"""
-
 
 
 class CaseAgent:

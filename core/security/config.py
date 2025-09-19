@@ -23,7 +23,7 @@ class SecurityConfig(BaseModel):
     # Authentication
     jwt_secret_key: str = Field(
         default_factory=lambda: os.getenv("JWT_SECRET_KEY", "dev-secret-change-in-production"),
-        description="JWT signing key"
+        description="JWT signing key",
     )
     jwt_algorithm: str = Field(default="HS256", description="JWT signing algorithm")
     jwt_expiration_hours: int = Field(default=24, description="JWT token expiration in hours")
@@ -38,22 +38,26 @@ class SecurityConfig(BaseModel):
 
     # CORS settings
     cors_allowed_origins: list[str] = Field(
-        default_factory=lambda: os.getenv("CORS_ORIGINS", "http://localhost:3000,http://localhost:8080").split(","),
-        description="Allowed CORS origins"
+        default_factory=lambda: os.getenv(
+            "CORS_ORIGINS", "http://localhost:3000,http://localhost:8080"
+        ).split(","),
+        description="Allowed CORS origins",
     )
     cors_allow_credentials: bool = Field(default=True, description="Allow CORS credentials")
     cors_allowed_methods: list[str] = Field(
         default=["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
-        description="Allowed HTTP methods"
+        description="Allowed HTTP methods",
     )
     cors_allowed_headers: list[str] = Field(
         default=["Authorization", "Content-Type", "Accept", "Origin", "User-Agent"],
-        description="Allowed HTTP headers"
+        description="Allowed HTTP headers",
     )
 
     # Rate limiting
     rate_limit_enabled: bool = Field(default=True, description="Enable rate limiting")
-    rate_limit_requests_per_minute: int = Field(default=100, description="Requests per minute limit")
+    rate_limit_requests_per_minute: int = Field(
+        default=100, description="Requests per minute limit"
+    )
     rate_limit_burst: int = Field(default=20, description="Burst limit for rate limiting")
 
     # Security headers
@@ -61,13 +65,15 @@ class SecurityConfig(BaseModel):
     hsts_max_age: int = Field(default=31536000, description="HSTS max age in seconds")
     csp_policy: str = Field(
         default="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'",
-        description="Content Security Policy"
+        description="Content Security Policy",
     )
 
     # Audit and monitoring
     audit_enabled: bool = Field(default=True, description="Enable audit logging")
     audit_retention_days: int = Field(default=90, description="Audit log retention in days")
-    security_monitoring_enabled: bool = Field(default=True, description="Enable security monitoring")
+    security_monitoring_enabled: bool = Field(
+        default=True, description="Enable security monitoring"
+    )
 
     # RBAC enforcement
     rbac_strict_mode: bool = Field(default=True, description="Enable strict RBAC enforcement")
@@ -85,11 +91,11 @@ class SecurityConfig(BaseModel):
     # Development settings
     debug_mode: bool = Field(
         default_factory=lambda: os.getenv("DEBUG", "false").lower() == "true",
-        description="Enable debug mode"
+        description="Enable debug mode",
     )
     dev_bypass_auth: bool = Field(
         default_factory=lambda: os.getenv("DEV_BYPASS_AUTH", "false").lower() == "true",
-        description="Bypass authentication in development"
+        description="Bypass authentication in development",
     )
 
     class Config:

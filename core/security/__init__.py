@@ -9,9 +9,11 @@ Provides comprehensive security features:
 - Audit logging
 - RBAC enforcement
 """
+
 from __future__ import annotations
 
-from .config import CORSConfig, SecurityConfig, SecurityHeaders, security_config
+from .config import (CORSConfig, SecurityConfig, SecurityHeaders,
+                     security_config)
 
 __all__ = [
     "CORSConfig",

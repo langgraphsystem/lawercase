@@ -11,10 +11,10 @@ MegaAgent - Центральный оркестратор системы mega_ag
 
 from __future__ import annotations
 
+import uuid
 from datetime import datetime
 from enum import Enum
 from typing import Any
-import uuid
 
 from pydantic import BaseModel, Field, ValidationError
 
@@ -91,10 +91,8 @@ class SecurityError(Exception):
     """Исключение для ошибок безопасности"""
 
 
-
 class CommandError(Exception):
     """Исключение для ошибок команд"""
-
 
 
 class MegaAgent:

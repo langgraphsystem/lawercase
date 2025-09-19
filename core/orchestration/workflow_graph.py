@@ -13,6 +13,7 @@ from ..memory.rmt.buffer import compose_prompt
 try:
     from langgraph.checkpoint.memory import MemorySaver  # noqa: F401
     from langgraph.graph import StateGraph
+
     LANGGRAPH_AVAILABLE = True
 except ImportError:
     LANGGRAPH_AVAILABLE = False
