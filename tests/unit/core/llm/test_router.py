@@ -1,12 +1,14 @@
-# -*- coding: utf-8 -*-
 """Tests for the LLM Router."""
 
+from __future__ import annotations
+
+from unittest.mock import AsyncMock, MagicMock
+
 import pytest
-import asyncio
-from unittest.mock import AsyncMock, patch, MagicMock
 
 # Make sure the path is correct to import the router
-from core.llm.router import LLMRouter, LLMProvider, BudgetExhaustedError
+from core.llm.router import BudgetExhaustedError, LLMProvider, LLMRouter
+
 
 @pytest.fixture
 def mock_openai_provider():
@@ -17,6 +19,7 @@ def mock_openai_provider():
     provider.ainvoke = AsyncMock()
     return provider
 
+
 @pytest.fixture
 def mock_anthropic_provider():
     """Fixture for a mocked Anthropic provider."""
@@ -26,6 +29,7 @@ def mock_anthropic_provider():
     provider.ainvoke = AsyncMock()
     return provider
 
+
 @pytest.mark.asyncio
 async def test_router_budget_exhaustion(mock_openai_provider):
     """
@@ -34,7 +38,7 @@ async def test_router_budget_exhaustion(mock_openai_provider):
     # Arrange: High cost, low budget
     mock_openai_provider.cost_per_token = 0.5
     mock_openai_provider.ainvoke.return_value = {"text": "response", "tokens_used": 3}
-    
+
     router = LLMRouter(providers=[mock_openai_provider], initial_budget=1.0)
 
     # Act & Assert
@@ -52,8 +56,9 @@ async def test_router_budget_exhaustion(mock_openai_provider):
 
     with pytest.raises(BudgetExhaustedError):
         await router.ainvoke("Second request, should fail")
-    
-    assert router.budget == 0.5 # Budget remains unchanged on failed call
+
+    assert router.budget == 0.5  # Budget remains unchanged on failed call
+
 
 @pytest.mark.asyncio
 async def test_router_provider_fallback(mock_openai_provider, mock_anthropic_provider):
@@ -69,7 +74,7 @@ async def test_router_provider_fallback(mock_openai_provider, mock_anthropic_pro
 
     router = LLMRouter(
         providers=[mock_openai_provider, mock_anthropic_provider],
-        max_retries=1 # No retries, just fallback
+        max_retries=1,  # No retries, just fallback
     )
 
     # Act
@@ -82,6 +87,7 @@ async def test_router_provider_fallback(mock_openai_provider, mock_anthropic_pro
     assert result["response"] == "Hello from Anthropic"
     assert result["cost"] == 4 * 0.001
 
+
 @pytest.mark.asyncio
 async def test_router_retry_with_exponential_backoff(mocker, mock_openai_provider):
     """
@@ -90,7 +96,7 @@ async def test_router_retry_with_exponential_backoff(mocker, mock_openai_provide
     # Arrange
     # Mock asyncio.sleep to avoid waiting in tests and to check its call arguments
     mock_sleep = mocker.patch("asyncio.sleep", new_callable=AsyncMock)
-    
+
     # Simulate 2 failures then 1 success
     mock_openai_provider.ainvoke.side_effect = [
         ConnectionError("Network glitch"),
@@ -101,7 +107,7 @@ async def test_router_retry_with_exponential_backoff(mocker, mock_openai_provide
     router = LLMRouter(
         providers=[mock_openai_provider],
         max_retries=3,
-        backoff_factor=0.1 # Use a small factor for predictable testing
+        backoff_factor=0.1,  # Use a small factor for predictable testing
     )
 
     # Act
@@ -110,7 +116,7 @@ async def test_router_retry_with_exponential_backoff(mocker, mock_openai_provide
     # Assert
     # Check that ainvoke was called 3 times (2 failures + 1 success)
     assert mock_openai_provider.ainvoke.call_count == 3
-    
+
     # Check that sleep was called with increasing backoff times
     assert mock_sleep.call_count == 2
     # 1st retry sleep: 0.1 * (2 ** 0) = 0.1
@@ -121,6 +127,7 @@ async def test_router_retry_with_exponential_backoff(mocker, mock_openai_provide
     assert result["provider"] == "OpenAI"
     assert result["response"] == "Finally succeeded"
 
+
 @pytest.mark.asyncio
 async def test_router_all_providers_fail(mock_openai_provider, mock_anthropic_provider):
     """
@@ -130,14 +137,11 @@ async def test_router_all_providers_fail(mock_openai_provider, mock_anthropic_pr
     mock_openai_provider.ainvoke.side_effect = ConnectionError("OpenAI is down")
     mock_anthropic_provider.ainvoke.side_effect = ValueError("Anthropic has an invalid key")
 
-    router = LLMRouter(
-        providers=[mock_openai_provider, mock_anthropic_provider],
-        max_retries=1
-    )
+    router = LLMRouter(providers=[mock_openai_provider, mock_anthropic_provider], max_retries=1)
 
     # Act & Assert
     with pytest.raises(ValueError) as excinfo:
         await router.ainvoke("A prompt")
-    
+
     # The last exception (from Anthropic) should be raised
     assert "invalid key" in str(excinfo.value)

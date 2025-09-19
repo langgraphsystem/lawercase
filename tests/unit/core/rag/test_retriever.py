@@ -1,11 +1,14 @@
-# -*- coding: utf-8 -*-
 """Tests for the RAG Retriever."""
 
-import pytest
+from __future__ import annotations
+
 from unittest.mock import AsyncMock, MagicMock
 
+import pytest
+
 # Adjust the import path as necessary
-from core.rag.retrieve import RAGRetriever, SimpleEmbedder, PineconeIndex
+from core.rag.retrieve import PineconeIndex, RAGRetriever, SimpleEmbedder
+
 
 @pytest.fixture
 def mock_embedder():
@@ -15,6 +18,7 @@ def mock_embedder():
     embedder.aembed = AsyncMock(return_value=[[0.1] * 384, [0.2] * 384])
     return embedder
 
+
 @pytest.fixture
 def mock_pinecone_index():
     """Fixture for a mocked PineconeIndex."""
@@ -22,6 +26,7 @@ def mock_pinecone_index():
     index.dimension = 384
     index.upsert = MagicMock()
     return index
+
 
 def test_retriever_init_correct_dimension(mock_embedder, mock_pinecone_index):
     """
@@ -38,6 +43,7 @@ def test_retriever_init_correct_dimension(mock_embedder, mock_pinecone_index):
     except ValueError:
         pytest.fail("RAGRetriever raised ValueError unexpectedly on matching dimensions.")
 
+
 def test_retriever_init_dimension_mismatch():
     """
     Tests that RAGRetriever raises a ValueError on dimension mismatch.
@@ -49,10 +55,11 @@ def test_retriever_init_dimension_mismatch():
     # Act & Assert
     with pytest.raises(ValueError) as excinfo:
         RAGRetriever(embedder=embedder_low_dim, index=index_high_dim)
-    
+
     assert "Dimension mismatch" in str(excinfo.value)
     assert "128" in str(excinfo.value)
     assert "384" in str(excinfo.value)
+
 
 @pytest.mark.asyncio
 async def test_retriever_batch_embedding_call(mock_embedder, mock_pinecone_index):
@@ -69,11 +76,12 @@ async def test_retriever_batch_embedding_call(mock_embedder, mock_pinecone_index
     # Assert
     # Verify that aembed was called exactly once with the list of documents
     mock_embedder.aembed.assert_called_once_with(documents)
-    
+
     # Verify that the upsert call was made with the correct number of vectors
     mock_pinecone_index.upsert.assert_called_once()
     upsert_args = mock_pinecone_index.upsert.call_args[1]
     assert len(upsert_args["vectors"]) == len(documents)
+
 
 @pytest.mark.asyncio
 async def test_pinecone_index_upsert_dimension_check():

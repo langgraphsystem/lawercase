@@ -736,7 +736,7 @@ Sincerely,
                 self._templates[template.template_id] = template
             except (ValidationError, KeyError, TypeError) as e:
                 # Log template initialization errors but continue
-                print(f"Warning: Failed to initialize template: {e}")  # noqa: T201
+                print(f"Warning: Failed to initialize template: {e}")
 
     def _update_stats(self, document_type: DocumentType) -> None:
         """Обновление статистики генерации"""
