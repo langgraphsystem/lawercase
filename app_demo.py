@@ -30,7 +30,9 @@ async def main():
 
     # Build graph and run a simple flow with a query
     graph = build_pipeline(memory)
-    initial = WorkflowState(thread_id=thread_id, user_id=user_id, event=event, query="renewal deadlines Form I-765")
+    initial = WorkflowState(
+        thread_id=thread_id, user_id=user_id, event=event, query="renewal deadlines Form I-765"
+    )
     final = await run(graph, initial)
 
     print("--- Workflow Completed ---")
@@ -56,4 +58,3 @@ if __name__ == "__main__":
             print(str(e))
         else:
             raise
-

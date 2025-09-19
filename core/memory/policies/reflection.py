@@ -1,7 +1,5 @@
 from __future__ import annotations
 
-from typing import List, Optional
-
 from ..models import AuditEvent, MemoryRecord
 
 
@@ -16,7 +14,7 @@ def compress_event(event: AuditEvent) -> str:
     return f"[{src}] {act} {user} {detail}".strip()
 
 
-def select_salient_facts(event: AuditEvent) -> List[MemoryRecord]:
+def select_salient_facts(event: AuditEvent) -> list[MemoryRecord]:
     """Heuristic salience picker: convert notable events into semantic facts.
 
     In production, this should call an LLM to extract stable facts/preferences.
@@ -37,4 +35,3 @@ def select_salient_facts(event: AuditEvent) -> List[MemoryRecord]:
         tags=tags,
     )
     return [rec]
-

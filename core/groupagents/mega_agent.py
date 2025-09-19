@@ -14,20 +14,21 @@ from __future__ import annotations
 import uuid
 from datetime import datetime
 from enum import Enum
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 from pydantic import BaseModel, Field, ValidationError
 
 from ..memory.memory_manager import MemoryManager
-from ..memory.models import AuditEvent, MemoryRecord
-from ..orchestration.workflow_graph import WorkflowState, build_case_workflow
+from ..memory.models import AuditEvent
 from ..orchestration.pipeline_manager import run
+from ..orchestration.workflow_graph import WorkflowState, build_case_workflow
 from .case_agent import CaseAgent
 from .writer_agent import DocumentRequest, DocumentType, WriterAgent
 
 
 class UserRole(str, Enum):
     """Роли пользователей в системе"""
+
     ADMIN = "admin"
     LAWYER = "lawyer"
     PARALEGAL = "paralegal"
@@ -37,6 +38,7 @@ class UserRole(str, Enum):
 
 class Permission(str, Enum):
     """Разрешения в системе"""
+
     CREATE_CASE = "create_case"
     READ_CASE = "read_case"
     UPDATE_CASE = "update_case"
@@ -49,6 +51,7 @@ class Permission(str, Enum):
 
 class CommandType(str, Enum):
     """Типы команд системы"""
+
     ASK = "ask"
     TRAIN = "train"
     VALIDATE = "validate"
@@ -61,34 +64,38 @@ class CommandType(str, Enum):
 
 class MegaAgentCommand(BaseModel):
     """Модель команды для MegaAgent"""
+
     command_id: str = Field(default_factory=lambda: str(uuid.uuid4()))
     user_id: str = Field(..., description="ID пользователя")
     command_type: CommandType = Field(..., description="Тип команды")
     action: str = Field(..., description="Действие для выполнения")
-    payload: Dict[str, Any] = Field(default_factory=dict, description="Данные команды")
-    context: Optional[Dict[str, Any]] = Field(default=None, description="Контекст команды")
+    payload: dict[str, Any] = Field(default_factory=dict, description="Данные команды")
+    context: dict[str, Any] | None = Field(default=None, description="Контекст команды")
     priority: int = Field(default=5, ge=1, le=10, description="Приоритет (1-10)")
     timestamp: datetime = Field(default_factory=datetime.utcnow)
 
 
 class MegaAgentResponse(BaseModel):
     """Модель ответа MegaAgent"""
+
     command_id: str = Field(..., description="ID команды")
     success: bool = Field(..., description="Успешность выполнения")
-    result: Optional[Dict[str, Any]] = Field(default=None, description="Результат")
-    error: Optional[str] = Field(default=None, description="Ошибка")
-    agent_used: Optional[str] = Field(default=None, description="Использованный агент")
-    execution_time: Optional[float] = Field(default=None, description="Время выполнения")
+    result: dict[str, Any] | None = Field(default=None, description="Результат")
+    error: str | None = Field(default=None, description="Ошибка")
+    agent_used: str | None = Field(default=None, description="Использованный агент")
+    execution_time: float | None = Field(default=None, description="Время выполнения")
     timestamp: datetime = Field(default_factory=datetime.utcnow)
 
 
 class SecurityError(Exception):
     """Исключение для ошибок безопасности"""
+
     pass
 
 
 class CommandError(Exception):
     """Исключение для ошибок команд"""
+
     pass
 
 
@@ -107,23 +114,29 @@ class MegaAgent:
     # RBAC матрица разрешений
     ROLE_PERMISSIONS = {
         UserRole.ADMIN: [
-            Permission.CREATE_CASE, Permission.READ_CASE, Permission.UPDATE_CASE,
-            Permission.DELETE_CASE, Permission.GENERATE_DOCUMENT, Permission.VALIDATE_DOCUMENT,
-            Permission.ADMIN_ACCESS, Permission.VIEW_AUDIT
+            Permission.CREATE_CASE,
+            Permission.READ_CASE,
+            Permission.UPDATE_CASE,
+            Permission.DELETE_CASE,
+            Permission.GENERATE_DOCUMENT,
+            Permission.VALIDATE_DOCUMENT,
+            Permission.ADMIN_ACCESS,
+            Permission.VIEW_AUDIT,
         ],
         UserRole.LAWYER: [
-            Permission.CREATE_CASE, Permission.READ_CASE, Permission.UPDATE_CASE,
-            Permission.GENERATE_DOCUMENT, Permission.VALIDATE_DOCUMENT
+            Permission.CREATE_CASE,
+            Permission.READ_CASE,
+            Permission.UPDATE_CASE,
+            Permission.GENERATE_DOCUMENT,
+            Permission.VALIDATE_DOCUMENT,
         ],
         UserRole.PARALEGAL: [
-            Permission.READ_CASE, Permission.UPDATE_CASE, Permission.GENERATE_DOCUMENT
+            Permission.READ_CASE,
+            Permission.UPDATE_CASE,
+            Permission.GENERATE_DOCUMENT,
         ],
-        UserRole.CLIENT: [
-            Permission.READ_CASE
-        ],
-        UserRole.VIEWER: [
-            Permission.READ_CASE
-        ]
+        UserRole.CLIENT: [Permission.READ_CASE],
+        UserRole.VIEWER: [Permission.READ_CASE],
     }
 
     # Маппинг команд к агентам
@@ -133,10 +146,10 @@ class MegaAgent:
         CommandType.VALIDATE: "validator_agent",
         CommandType.SEARCH: "rag_pipeline_agent",
         CommandType.ASK: "supervisor_agent",
-        CommandType.WORKFLOW: "workflow_system"
+        CommandType.WORKFLOW: "workflow_system",
     }
 
-    def __init__(self, memory_manager: Optional[MemoryManager] = None):
+    def __init__(self, memory_manager: MemoryManager | None = None):
         """
         Инициализация MegaAgent.
 
@@ -150,15 +163,13 @@ class MegaAgent:
         self.writer_agent = WriterAgent(memory_manager=self.memory)
 
         # Кэш пользователей и их ролей (в реальности из базы данных)
-        self._user_roles: Dict[str, UserRole] = {}
+        self._user_roles: dict[str, UserRole] = {}
 
         # Статистика команд
-        self._command_stats: Dict[str, int] = {}
+        self._command_stats: dict[str, int] = {}
 
     async def handle_command(
-        self,
-        command: MegaAgentCommand,
-        user_role: Optional[UserRole] = None
+        self, command: MegaAgentCommand, user_role: UserRole | None = None
     ) -> MegaAgentResponse:
         """
         Центральный обработчик команд с RBAC проверкой.
@@ -203,7 +214,7 @@ class MegaAgent:
                 success=True,
                 result=result,
                 agent_used=self.COMMAND_AGENT_MAPPING.get(command.command_type),
-                execution_time=execution_time
+                execution_time=execution_time,
             )
 
             # Audit log завершения
@@ -222,7 +233,7 @@ class MegaAgent:
                 command_id=command.command_id,
                 success=False,
                 error=str(e),
-                execution_time=execution_time
+                execution_time=execution_time,
             )
 
             # Audit log ошибки
@@ -230,7 +241,7 @@ class MegaAgent:
 
             return response
 
-    async def _dispatch_to_agent(self, command: MegaAgentCommand) -> Dict[str, Any]:
+    async def _dispatch_to_agent(self, command: MegaAgentCommand) -> dict[str, Any]:
         """
         Маршрутизация команды к соответствующему агенту.
 
@@ -264,10 +275,10 @@ class MegaAgent:
             return {
                 "message": f"Agent {agent_name} not yet implemented",
                 "command": command.action,
-                "agent": agent_name
+                "agent": agent_name,
             }
 
-    async def _handle_case_command(self, command: MegaAgentCommand) -> Dict[str, Any]:
+    async def _handle_case_command(self, command: MegaAgentCommand) -> dict[str, Any]:
         """Обработка команд case_agent"""
         state = await self._run_case_workflow(
             operation=command.action,
@@ -276,7 +287,7 @@ class MegaAgent:
         )
         return self._format_case_response(state)
 
-    async def _handle_workflow_command(self, command: MegaAgentCommand) -> Dict[str, Any]:
+    async def _handle_workflow_command(self, command: MegaAgentCommand) -> dict[str, Any]:
         """Обработка команд workflow system"""
         state = await self._run_case_workflow(
             operation=command.action,
@@ -288,10 +299,10 @@ class MegaAgent:
         response["workflow"] = "case"
         return response
 
-    async def _handle_writer_command(self, command: MegaAgentCommand) -> Dict[str, Any]:
+    async def _handle_writer_command(self, command: MegaAgentCommand) -> dict[str, Any]:
         """Обработка команд writer_agent"""
         action = (command.action or "").lower()
-        payload: Dict[str, Any] = dict(command.payload or {})
+        payload: dict[str, Any] = dict(command.payload or {})
 
         if action in {"letter", "generate_letter"}:
             payload.setdefault("document_type", DocumentType.LETTER)
@@ -332,12 +343,11 @@ class MegaAgent:
         else:
             raise CommandError(f"Unknown writer action: {command.action}")
 
-
     async def _run_case_workflow(
         self,
         *,
         operation: str,
-        payload: Dict[str, Any],
+        payload: dict[str, Any],
         user_id: str,
     ) -> WorkflowState:
         graph = build_case_workflow(self.memory, case_agent=self.case_agent)
@@ -376,8 +386,8 @@ class MegaAgent:
         return final_state
 
     @staticmethod
-    def _format_case_response(state: WorkflowState) -> Dict[str, Any]:
-        result: Dict[str, Any] = {
+    def _format_case_response(state: WorkflowState) -> dict[str, Any]:
+        result: dict[str, Any] = {
             "case_result": state.case_result or {},
             "thread_id": state.thread_id,
         }
@@ -391,11 +401,7 @@ class MegaAgent:
             result["retrieved_count"] = len(state.retrieved)
         return result
 
-    async def _check_permission(
-        self,
-        command: MegaAgentCommand,
-        user_role: UserRole
-    ) -> bool:
+    async def _check_permission(self, command: MegaAgentCommand, user_role: UserRole) -> bool:
         """
         Проверка разрешений RBAC.
 
@@ -465,17 +471,10 @@ class MegaAgent:
         await self._log_audit_event(
             user_id="system",
             action="set_user_role",
-            payload={
-                "target_user": user_id,
-                "new_role": role.value
-            }
+            payload={"target_user": user_id, "new_role": role.value},
         )
 
-    async def _log_command_start(
-        self,
-        command: MegaAgentCommand,
-        user_role: UserRole
-    ) -> None:
+    async def _log_command_start(self, command: MegaAgentCommand, user_role: UserRole) -> None:
         """Логирование начала выполнения команды"""
         await self._log_audit_event(
             user_id=command.user_id,
@@ -485,14 +484,12 @@ class MegaAgent:
                 "command_type": command.command_type.value,
                 "action": command.action,
                 "user_role": user_role.value,
-                "priority": command.priority
-            }
+                "priority": command.priority,
+            },
         )
 
     async def _log_command_completion(
-        self,
-        command: MegaAgentCommand,
-        response: MegaAgentResponse
+        self, command: MegaAgentCommand, response: MegaAgentResponse
     ) -> None:
         """Логирование успешного завершения команды"""
         await self._log_audit_event(
@@ -502,15 +499,12 @@ class MegaAgent:
                 "command_id": command.command_id,
                 "agent_used": response.agent_used,
                 "execution_time": response.execution_time,
-                "success": response.success
-            }
+                "success": response.success,
+            },
         )
 
     async def _log_command_error(
-        self,
-        command: MegaAgentCommand,
-        response: MegaAgentResponse,
-        error: Exception
+        self, command: MegaAgentCommand, response: MegaAgentResponse, error: Exception
     ) -> None:
         """Логирование ошибки команды"""
         await self._log_audit_event(
@@ -520,16 +514,11 @@ class MegaAgent:
                 "command_id": command.command_id,
                 "error_type": type(error).__name__,
                 "error_message": str(error),
-                "execution_time": response.execution_time
-            }
+                "execution_time": response.execution_time,
+            },
         )
 
-    async def _log_audit_event(
-        self,
-        user_id: str,
-        action: str,
-        payload: Dict[str, Any]
-    ) -> None:
+    async def _log_audit_event(self, user_id: str, action: str, payload: dict[str, Any]) -> None:
         """Централизованное логирование audit событий"""
         event = AuditEvent(
             event_id=str(uuid.uuid4()),
@@ -538,7 +527,7 @@ class MegaAgent:
             source="mega_agent",
             action=action,
             payload=payload,
-            tags=["mega_agent", "orchestration"]
+            tags=["mega_agent", "orchestration"],
         )
 
         await self.memory.alog_audit(event)
@@ -548,7 +537,7 @@ class MegaAgent:
         key = command_type.value
         self._command_stats[key] = self._command_stats.get(key, 0) + 1
 
-    async def get_stats(self) -> Dict[str, Any]:
+    async def get_stats(self) -> dict[str, Any]:
         """
         Получение статистики работы MegaAgent.
 
@@ -559,10 +548,10 @@ class MegaAgent:
             "command_stats": self._command_stats.copy(),
             "total_commands": sum(self._command_stats.values()),
             "registered_users": len(self._user_roles),
-            "available_agents": list(self.COMMAND_AGENT_MAPPING.values())
+            "available_agents": list(self.COMMAND_AGENT_MAPPING.values()),
         }
 
-    async def health_check(self) -> Dict[str, Any]:
+    async def health_check(self) -> dict[str, Any]:
         """
         Проверка состояния системы.
 
@@ -580,13 +569,12 @@ class MegaAgent:
                 "status": "healthy",
                 "memory_system": memory_ok,
                 "case_agent": case_agent_ok,
-                "timestamp": datetime.utcnow().isoformat()
+                "timestamp": datetime.utcnow().isoformat(),
             }
 
         except Exception as e:
             return {
                 "status": "unhealthy",
                 "error": str(e),
-                "timestamp": datetime.utcnow().isoformat()
+                "timestamp": datetime.utcnow().isoformat(),
             }
-

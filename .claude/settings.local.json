@@ -3,7 +3,16 @@
     "allow": [
       "WebSearch",
       "Bash(dir:*)",
-      "Bash(python:*)"
+      "Bash(python:*)",
+      "Bash(mkdir:*)",
+      "Bash(git add:*)",
+      "Bash(git commit:*)",
+      "Bash(git push:*)",
+      "Bash(gh run list:*)",
+      "Bash(gh run view:*)",
+      "Bash(ruff check:*)",
+      "Bash(black:*)",
+      "Bash(isort:*)"
     ],
     "deny": [],
     "ask": []

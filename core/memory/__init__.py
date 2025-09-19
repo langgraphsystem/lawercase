@@ -4,11 +4,10 @@ Exposes MemoryManager and data models for integration with agents and RAG.
 """
 
 from .memory_manager import MemoryManager
-from .models import MemoryRecord, AuditEvent
+from .models import AuditEvent, MemoryRecord
 
 __all__ = [
+    "AuditEvent",
     "MemoryManager",
     "MemoryRecord",
-    "AuditEvent",
 ]
-
