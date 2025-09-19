@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Any, Dict, List, Optional
+from typing import Any
 from uuid import uuid4
 
 from pydantic import BaseModel, Field
@@ -14,37 +14,41 @@ class WorkflowState(BaseModel):
     """State carried through LangGraph workflows (memory + case operations)."""
 
     thread_id: str = Field(..., description="Conversation or workflow thread id")
-    user_id: Optional[str] = Field(default=None)
-    query: Optional[str] = Field(default=None)
+    user_id: str | None = Field(default=None)
+    query: str | None = Field(default=None)
 
     # Inputs/Artifacts
-    event: Optional[AuditEvent] = None
+    event: AuditEvent | None = None
 
     # Case-specific data
-    case_id: Optional[str] = Field(default=None, description="Current case ID")
-    case_operation: Optional[str] = Field(default=None, description="Requested case operation")
-    case_data: Optional[Dict[str, Any]] = Field(default=None, description="Input payload for case operations")
+    case_id: str | None = Field(default=None, description="Current case ID")
+    case_operation: str | None = Field(default=None, description="Requested case operation")
+    case_data: dict[str, Any] | None = Field(
+        default=None, description="Input payload for case operations"
+    )
 
     # Agent results
-    case_result: Optional[Dict[str, Any]] = Field(default=None, description="Result of the CaseAgent execution")
+    case_result: dict[str, Any] | None = Field(
+        default=None, description="Result of the CaseAgent execution"
+    )
 
     # Outputs/Derived
-    reflected: List[MemoryRecord] = Field(default_factory=list)
-    retrieved: List[MemoryRecord] = Field(default_factory=list)
-    rmt_slots: Dict[str, str] = Field(default_factory=dict)
+    reflected: list[MemoryRecord] = Field(default_factory=list)
+    retrieved: list[MemoryRecord] = Field(default_factory=list)
+    rmt_slots: dict[str, str] = Field(default_factory=dict)
 
     # Multi-agent coordination hooks
-    next_agent: Optional[str] = Field(default=None)
-    agent_results: Dict[str, Any] = Field(default_factory=dict)
+    next_agent: str | None = Field(default=None)
+    agent_results: dict[str, Any] = Field(default_factory=dict)
 
     # Error handling
-    error: Optional[str] = None
+    error: str | None = None
 
 
 def _ensure_langgraph() -> None:
     try:
-        from langgraph.graph import StateGraph  # noqa: F401
         from langgraph.checkpoint.memory import MemorySaver  # noqa: F401
+        from langgraph.graph import StateGraph  # noqa: F401
     except Exception as exc:  # pragma: no cover - import-time guard
         raise RuntimeError(
             "LangGraph is required for workflow execution. Install with: pip install langgraph"
@@ -76,7 +80,9 @@ def build_memory_workflow(memory: MemoryManager):
 
     async def node_update_rmt(state: WorkflowState) -> WorkflowState:
         persona = ""
-        long_term = "\n".join(record.text for record in state.retrieved[:5]) if state.retrieved else ""
+        long_term = (
+            "\n".join(record.text for record in state.retrieved[:5]) if state.retrieved else ""
+        )
         recent = state.reflected[0].text if state.reflected else ""
         slots = {
             "persona": persona,
@@ -103,11 +109,12 @@ def build_memory_workflow(memory: MemoryManager):
     return graph
 
 
-def build_case_workflow(memory: MemoryManager, *, case_agent: Optional["CaseAgent"] = None):
+def build_case_workflow(memory: MemoryManager, *, case_agent: CaseAgent | None = None):
     """Workflow that routes case operations through CaseAgent and updates memory."""
 
     _ensure_langgraph()
     from langgraph.graph import StateGraph
+
     from ..groupagents.case_agent import CaseAgent
 
     agent = case_agent or CaseAgent(memory_manager=memory)
@@ -148,7 +155,9 @@ def build_case_workflow(memory: MemoryManager, *, case_agent: Optional["CaseAgen
                     updates = {k: v for k, v in payload.items() if k != "case_id"}
                 else:
                     updates = dict(updates_payload)
-                record = await agent.aupdate_case(case_id=case_id, updates=updates, user_id=state.user_id)
+                record = await agent.aupdate_case(
+                    case_id=case_id, updates=updates, user_id=state.user_id
+                )
                 state.case_id = record.case_id
                 state.case_result = {"operation": "update", "case": record.model_dump()}
 
@@ -208,7 +217,7 @@ def build_case_workflow(memory: MemoryManager, *, case_agent: Optional["CaseAgen
         return state
 
     async def node_reflect(state: WorkflowState) -> WorkflowState:
-        reflections: List[MemoryRecord] = []
+        reflections: list[MemoryRecord] = []
 
         if state.event is not None:
             reflections.extend(await memory.awrite(state.event))
@@ -217,7 +226,9 @@ def build_case_workflow(memory: MemoryManager, *, case_agent: Optional["CaseAgen
             parts = [f"case:{state.case_operation}" if state.case_operation else "case"]
             if state.case_id:
                 parts.append(f"id={state.case_id}")
-            case_payload = state.case_result.get("case") if isinstance(state.case_result, dict) else None
+            case_payload = (
+                state.case_result.get("case") if isinstance(state.case_result, dict) else None
+            )
             if isinstance(case_payload, dict):
                 title = case_payload.get("title")
                 if title:
@@ -244,7 +255,9 @@ def build_case_workflow(memory: MemoryManager, *, case_agent: Optional["CaseAgen
         return state
 
     async def node_update_rmt(state: WorkflowState) -> WorkflowState:
-        long_term = "\n".join(record.text for record in state.retrieved[:5]) if state.retrieved else ""
+        long_term = (
+            "\n".join(record.text for record in state.retrieved[:5]) if state.retrieved else ""
+        )
 
         summary = ""
         if isinstance(state.case_result, dict):

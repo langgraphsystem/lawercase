@@ -1,7 +1,6 @@
-from .reflection import select_salient_facts, compress_event
+from .reflection import compress_event, select_salient_facts
 
 __all__ = [
-    "select_salient_facts",
     "compress_event",
+    "select_salient_facts",
 ]
-

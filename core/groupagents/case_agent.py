@@ -8,36 +8,31 @@ CaseAgent - Агент для управления делами и случая�
 
 from __future__ import annotations
 
-import json
 from datetime import datetime
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 from ..memory.memory_manager import MemoryManager
 from ..memory.models import AuditEvent, MemoryRecord
-from .models import (
-    CaseExhibit,
-    CaseOperationResult,
-    CaseQuery,
-    CaseRecord,
-    CaseStatus,
-    CaseVersion,
-    CaseWorkflowState,
-    ValidationResult,
-)
+from .models import (CaseExhibit, CaseOperationResult, CaseQuery, CaseRecord,
+                     CaseStatus, CaseVersion, CaseWorkflowState,
+                     ValidationResult)
 
 
 class CaseNotFoundError(Exception):
     """Исключение для случаев, когда дело не найдено"""
+
     pass
 
 
 class CaseValidationError(Exception):
     """Исключение для ошибок валидации дела"""
+
     pass
 
 
 class CaseVersionConflictError(Exception):
     """Исключение для конфликтов версий дела"""
+
     pass
 
 
@@ -54,7 +49,7 @@ class CaseAgent:
     - Управление версиями и изменениями
     """
 
-    def __init__(self, memory_manager: Optional[MemoryManager] = None):
+    def __init__(self, memory_manager: MemoryManager | None = None):
         """
         Инициализация CaseAgent.
 
@@ -62,17 +57,13 @@ class CaseAgent:
             memory_manager: Экземпляр MemoryManager для persistence
         """
         self.memory = memory_manager or MemoryManager()
-        self._cases_store: Dict[str, CaseRecord] = {}
-        self._versions_store: Dict[str, List[CaseVersion]] = {}
+        self._cases_store: dict[str, CaseRecord] = {}
+        self._versions_store: dict[str, list[CaseVersion]] = {}
 
     # ---- Core CRUD Operations ----
 
     async def acreate_case(
-        self,
-        user_id: str,
-        case_data: Dict[str, Any],
-        *,
-        created_by: Optional[str] = None
+        self, user_id: str, case_data: dict[str, Any], *, created_by: str | None = None
     ) -> CaseRecord:
         """
         Создание нового дела.
@@ -90,7 +81,7 @@ class CaseAgent:
         """
         try:
             # Создание записи дела
-            case_data['created_by'] = created_by or user_id
+            case_data["created_by"] = created_by or user_id
             case_record = CaseRecord(**case_data)
 
             # Валидация
@@ -107,7 +98,7 @@ class CaseAgent:
                 version_number=1,
                 changes={"action": "created", "data": case_record.model_dump()},
                 changed_by=case_record.created_by,
-                change_reason="Initial case creation"
+                change_reason="Initial case creation",
             )
             self._versions_store[case_record.case_id] = [initial_version]
 
@@ -116,7 +107,7 @@ class CaseAgent:
                 user_id=user_id,
                 action="create_case",
                 case_id=case_record.case_id,
-                payload={"case_title": case_record.title, "case_type": case_record.case_type}
+                payload={"case_title": case_record.title, "case_type": case_record.case_type},
             )
 
             # Сохранение в семантическую память
@@ -129,11 +120,11 @@ class CaseAgent:
                 user_id=user_id,
                 action="create_case_failed",
                 case_id=None,
-                payload={"error": str(e), "case_data": case_data}
+                payload={"error": str(e), "case_data": case_data},
             )
             raise
 
-    async def aget_case(self, case_id: str, user_id: Optional[str] = None) -> CaseRecord:
+    async def aget_case(self, case_id: str, user_id: str | None = None) -> CaseRecord:
         """
         Получение дела по ID.
 
@@ -153,7 +144,7 @@ class CaseAgent:
                     user_id=user_id,
                     action="get_case_not_found",
                     case_id=case_id,
-                    payload={"error": "Case not found"}
+                    payload={"error": "Case not found"},
                 )
             raise CaseNotFoundError(f"Case with ID {case_id} not found")
 
@@ -164,7 +155,7 @@ class CaseAgent:
                 user_id=user_id,
                 action="get_case",
                 case_id=case_id,
-                payload={"case_title": case_record.title}
+                payload={"case_title": case_record.title},
             )
 
         return case_record
@@ -172,10 +163,10 @@ class CaseAgent:
     async def aupdate_case(
         self,
         case_id: str,
-        updates: Dict[str, Any],
+        updates: dict[str, Any],
         user_id: str,
         *,
-        expected_version: Optional[int] = None
+        expected_version: int | None = None,
     ) -> CaseRecord:
         """
         Обновление дела с optimistic locking.
@@ -205,8 +196,8 @@ class CaseAgent:
         # Создание обновленной копии
         case_data = current_case.model_dump()
         case_data.update(updates)
-        case_data['version'] = current_case.version + 1
-        case_data['updated_at'] = datetime.utcnow()
+        case_data["version"] = current_case.version + 1
+        case_data["updated_at"] = datetime.utcnow()
 
         updated_case = CaseRecord(**case_data)
 
@@ -224,7 +215,7 @@ class CaseAgent:
             version_number=updated_case.version,
             changes={"action": "updated", "updates": updates},
             changed_by=user_id,
-            change_reason=updates.get('change_reason', 'Case update')
+            change_reason=updates.get("change_reason", "Case update"),
         )
         self._versions_store[case_id].append(version)
 
@@ -233,7 +224,7 @@ class CaseAgent:
             user_id=user_id,
             action="update_case",
             case_id=case_id,
-            payload={"updates": updates, "new_version": updated_case.version}
+            payload={"updates": updates, "new_version": updated_case.version},
         )
 
         # Обновление семантической памяти
@@ -261,11 +252,8 @@ class CaseAgent:
         # Soft delete - обновление статуса
         await self.aupdate_case(
             case_id=case_id,
-            updates={
-                'status': CaseStatus.ARCHIVED,
-                'change_reason': f'Deleted by user {user_id}'
-            },
-            user_id=user_id
+            updates={"status": CaseStatus.ARCHIVED, "change_reason": f"Deleted by user {user_id}"},
+            user_id=user_id,
         )
 
         # Audit log
@@ -273,21 +261,17 @@ class CaseAgent:
             user_id=user_id,
             action="delete_case",
             case_id=case_id,
-            payload={"case_title": case_record.title}
+            payload={"case_title": case_record.title},
         )
 
         return CaseOperationResult(
             success=True,
             case_id=case_id,
             operation="delete",
-            message=f"Case {case_id} successfully archived"
+            message=f"Case {case_id} successfully archived",
         )
 
-    async def asearch_cases(
-        self,
-        query: CaseQuery,
-        user_id: Optional[str] = None
-    ) -> List[CaseRecord]:
+    async def asearch_cases(self, query: CaseQuery, user_id: str | None = None) -> list[CaseRecord]:
         """
         Поиск дел по запросу.
 
@@ -317,10 +301,7 @@ class CaseAgent:
                 user_id=user_id,
                 action="search_cases",
                 case_id=None,
-                payload={
-                    "query": query.model_dump(),
-                    "results_count": len(results)
-                }
+                payload={"query": query.model_dump(), "results_count": len(results)},
             )
 
         return results
@@ -346,11 +327,11 @@ class CaseAgent:
                 "case_title": case_record.title,
                 "case_type": case_record.case_type,
                 "status": case_record.status,
-                "priority": case_record.priority
-            }
+                "priority": case_record.priority,
+            },
         )
 
-    async def astart_workflow(self, case_id: str, user_id: str) -> Dict[str, Any]:
+    async def astart_workflow(self, case_id: str, user_id: str) -> dict[str, Any]:
         """
         Запуск workflow для дела.
 
@@ -368,23 +349,14 @@ class CaseAgent:
             user_id=user_id,
             action="start_workflow",
             case_id=case_id,
-            payload={"workflow_step": workflow_state.current_step}
+            payload={"workflow_step": workflow_state.current_step},
         )
 
-        return {
-            "case_record": case_record,
-            "workflow_state": workflow_state,
-            "user_id": user_id
-        }
+        return {"case_record": case_record, "workflow_state": workflow_state, "user_id": user_id}
 
     # ---- Exhibit Management ----
 
-    async def aadd_exhibit(
-        self,
-        case_id: str,
-        exhibit: CaseExhibit,
-        user_id: str
-    ) -> CaseRecord:
+    async def aadd_exhibit(self, case_id: str, exhibit: CaseExhibit, user_id: str) -> CaseRecord:
         """
         Добавление приложения к делу.
 
@@ -404,16 +376,13 @@ class CaseAgent:
 
         return await self.aupdate_case(
             case_id=case_id,
-            updates={
-                'exhibits': exhibits,
-                'change_reason': f'Added exhibit: {exhibit.name}'
-            },
-            user_id=user_id
+            updates={"exhibits": exhibits, "change_reason": f"Added exhibit: {exhibit.name}"},
+            user_id=user_id,
         )
 
     # ---- Version Management ----
 
-    async def aget_case_versions(self, case_id: str) -> List[CaseVersion]:
+    async def aget_case_versions(self, case_id: str) -> list[CaseVersion]:
         """
         Получение истории версий дела.
 
@@ -448,18 +417,14 @@ class CaseAgent:
             is_valid=len(errors) == 0,
             errors=errors,
             warnings=warnings,
-            score=1.0 if len(errors) == 0 else 0.5
+            score=1.0 if len(errors) == 0 else 0.5,
         )
 
     def _matches_query(self, case_record: CaseRecord, query: CaseQuery) -> bool:
         """Проверка соответствия дела поисковому запросу"""
         # Текстовый поиск
         if query.query:
-            text_fields = [
-                case_record.title,
-                case_record.description,
-                ' '.join(case_record.tags)
-            ]
+            text_fields = [case_record.title, case_record.description, " ".join(case_record.tags)]
             query_lower = query.query.lower()
             if not any(query_lower in field.lower() for field in text_fields):
                 return False
@@ -495,11 +460,7 @@ class CaseAgent:
         return True
 
     async def _log_audit_event(
-        self,
-        user_id: str,
-        action: str,
-        case_id: Optional[str],
-        payload: Dict[str, Any]
+        self, user_id: str, action: str, case_id: str | None, payload: dict[str, Any]
     ) -> None:
         """Логирование audit события"""
         import uuid
@@ -511,7 +472,7 @@ class CaseAgent:
             source="case_agent",
             action=action,
             payload=payload,
-            tags=["case_management"]
+            tags=["case_management"],
         )
 
         await self.memory.alog_audit(event)
@@ -529,8 +490,8 @@ class CaseAgent:
                 "case_type": case_record.case_type,
                 "status": case_record.status,
                 "priority": case_record.priority,
-                "tags": case_record.tags
-            }
+                "tags": case_record.tags,
+            },
         )
 
         await self.memory.awrite([memory_record])

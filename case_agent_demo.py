@@ -12,13 +12,13 @@ from __future__ import annotations
 
 import asyncio
 import uuid
-from datetime import datetime
 
-from core.memory.memory_manager import MemoryManager
 from core.groupagents.case_agent import CaseAgent
-from core.groupagents.models import CaseType, CasePriority, CaseQuery
-from core.orchestration.workflow_graph import WorkflowState, build_case_workflow
+from core.groupagents.models import CasePriority, CaseQuery, CaseType
+from core.memory.memory_manager import MemoryManager
 from core.orchestration.pipeline_manager import run
+from core.orchestration.workflow_graph import (WorkflowState,
+                                               build_case_workflow)
 
 
 async def demo_case_operations():
@@ -41,13 +41,10 @@ async def demo_case_operations():
         "priority": CasePriority.HIGH,
         "client_id": "client-123",
         "assigned_lawyer": "lawyer-456",
-        "tags": ["h1b", "visa", "extension", "software-engineer"]
+        "tags": ["h1b", "visa", "extension", "software-engineer"],
     }
 
-    case_record = await case_agent.acreate_case(
-        user_id=user_id,
-        case_data=case_data
-    )
+    case_record = await case_agent.acreate_case(user_id=user_id, case_data=case_data)
 
     print(f"✅ Дело создано: {case_record.case_id}")
     print(f"   Название: {case_record.title}")
@@ -68,13 +65,11 @@ async def demo_case_operations():
     updates = {
         "status": "active",
         "description": "H-1B visa extension application for senior software engineer - priority case",
-        "change_reason": "Updated job title and priority status"
+        "change_reason": "Updated job title and priority status",
     }
 
     updated_case = await case_agent.aupdate_case(
-        case_id=case_record.case_id,
-        updates=updates,
-        user_id=user_id
+        case_id=case_record.case_id, updates=updates, user_id=user_id
     )
 
     print(f"✅ Дело обновлено (версия {updated_case.version})")
@@ -91,13 +86,10 @@ async def demo_case_operations():
         "priority": CasePriority.MEDIUM,
         "client_id": "client-789",
         "assigned_lawyer": "lawyer-456",
-        "tags": ["incorporation", "startup", "tech", "documents"]
+        "tags": ["incorporation", "startup", "tech", "documents"],
     }
 
-    case_record_2 = await case_agent.acreate_case(
-        user_id=user_id,
-        case_data=case_data_2
-    )
+    case_record_2 = await case_agent.acreate_case(user_id=user_id, case_data=case_data_2)
 
     print(f"✅ Второе дело создано: {case_record_2.case_id}")
     print(f"   Название: {case_record_2.title}\n")
@@ -172,38 +164,38 @@ async def demo_workflow_integration():
             "case_type": CaseType.FAMILY,
             "priority": CasePriority.HIGH,
             "client_id": "client-family-001",
-            "tags": ["divorce", "custody", "family"]
-        }
+            "tags": ["divorce", "custody", "family"],
+        },
     )
 
     # Запуск workflow
     final_state = await run(compiled_graph, initial_state, thread_id=thread_id)
 
-    print(f"✅ Workflow завершен")
+    print("✅ Workflow завершен")
 
     # final_state - это словарь с именами узлов как ключами
     # Извлекаем state из узла update_rmt (финальный узел)
-    if isinstance(final_state, dict) and 'update_rmt' in final_state:
-        actual_state = final_state['update_rmt']
+    if isinstance(final_state, dict) and "update_rmt" in final_state:
+        actual_state = final_state["update_rmt"]
     else:
         actual_state = final_state
 
     # Проверяем тип состояния
     if isinstance(actual_state, dict):
-        case_id = actual_state.get('case_id', 'unknown')
-        case_result = actual_state.get('case_result', {})
-        rmt_slots = actual_state.get('rmt_slots', {})
+        case_id = actual_state.get("case_id", "unknown")
+        case_result = actual_state.get("case_result", {})
+        rmt_slots = actual_state.get("rmt_slots", {})
     else:
-        case_id = getattr(actual_state, 'case_id', 'unknown')
-        case_result = getattr(actual_state, 'case_result', {}) or {}
-        rmt_slots = getattr(actual_state, 'rmt_slots', {}) or {}
+        case_id = getattr(actual_state, "case_id", "unknown")
+        case_result = getattr(actual_state, "case_result", {}) or {}
+        rmt_slots = getattr(actual_state, "rmt_slots", {}) or {}
 
     print(f"   Case ID: {case_id}")
     print(f"   Результат: {case_result.get('operation', 'unknown') if case_result else 'none'}")
     print(f"   RMT slots: {list(rmt_slots.keys()) if rmt_slots else []}")
 
-    if case_result and 'case' in case_result:
-        case = case_result['case']
+    if case_result and "case" in case_result:
+        case = case_result["case"]
         print(f"   Название дела: {case['title']}")
     print()
 
@@ -211,29 +203,26 @@ async def demo_workflow_integration():
 
     # Получение дела через workflow
     get_state = WorkflowState(
-        thread_id=str(uuid.uuid4()),
-        user_id=user_id,
-        case_operation="get",
-        case_id=case_id
+        thread_id=str(uuid.uuid4()), user_id=user_id, case_operation="get", case_id=case_id
     )
 
     get_final_state = await run(compiled_graph, get_state)
 
     # Обработка результата workflow
-    if isinstance(get_final_state, dict) and 'update_rmt' in get_final_state:
-        get_actual_state = get_final_state['update_rmt']
+    if isinstance(get_final_state, dict) and "update_rmt" in get_final_state:
+        get_actual_state = get_final_state["update_rmt"]
     else:
         get_actual_state = get_final_state
 
     # Проверяем тип состояния
     if isinstance(get_actual_state, dict):
-        get_case_result = get_actual_state.get('case_result', {})
+        get_case_result = get_actual_state.get("case_result", {})
     else:
-        get_case_result = getattr(get_actual_state, 'case_result', {}) or {}
+        get_case_result = getattr(get_actual_state, "case_result", {}) or {}
 
-    print(f"✅ Дело получено через workflow")
-    if get_case_result and 'case' in get_case_result:
-        case = get_case_result['case']
+    print("✅ Дело получено через workflow")
+    if get_case_result and "case" in get_case_result:
+        case = get_case_result["case"]
         print(f"   Название: {case['title']}")
         print(f"   Описание: {case['description']}")
         print(f"   Статус: {case['status']}")
@@ -246,32 +235,29 @@ async def demo_workflow_integration():
         thread_id=str(uuid.uuid4()),
         user_id=user_id,
         case_operation="search",
-        case_data={
-            "case_type": CaseType.FAMILY,
-            "limit": 5
-        }
+        case_data={"case_type": CaseType.FAMILY, "limit": 5},
     )
 
     search_final_state = await run(compiled_graph, search_state)
 
     # Обработка результата workflow
-    if isinstance(search_final_state, dict) and 'update_rmt' in search_final_state:
-        search_actual_state = search_final_state['update_rmt']
+    if isinstance(search_final_state, dict) and "update_rmt" in search_final_state:
+        search_actual_state = search_final_state["update_rmt"]
     else:
         search_actual_state = search_final_state
 
     # Проверяем тип состояния
     if isinstance(search_actual_state, dict):
-        search_case_result = search_actual_state.get('case_result', {})
+        search_case_result = search_actual_state.get("case_result", {})
     else:
-        search_case_result = getattr(search_actual_state, 'case_result', {}) or {}
+        search_case_result = getattr(search_actual_state, "case_result", {}) or {}
 
-    print(f"✅ Поиск завершен через workflow")
+    print("✅ Поиск завершен через workflow")
     if search_case_result:
-        count = search_case_result.get('count', 0)
+        count = search_case_result.get("count", 0)
         print(f"   Найдено дел: {count}")
 
-        cases = search_case_result.get('cases', [])
+        cases = search_case_result.get("cases", [])
         for case in cases:
             print(f"   - {case['title']} ({case['case_type']})")
     print()
@@ -293,7 +279,7 @@ async def demo_error_handling():
         await case_agent.aget_case("non-existent-case-id", user_id)
     except Exception as e:
         print(f"✅ Ошибка корректно обработана: {type(e).__name__}")
-        print(f"   Сообщение: {str(e)}")
+        print(f"   Сообщение: {e!s}")
     print()
 
     print("2. ❌ Попытка создать дело с некорректными данными...")
@@ -308,7 +294,7 @@ async def demo_error_handling():
         await case_agent.acreate_case(user_id, invalid_case_data)
     except Exception as e:
         print(f"✅ Валидация сработала: {type(e).__name__}")
-        print(f"   Сообщение: {str(e)}")
+        print(f"   Сообщение: {e!s}")
     print()
 
     print("3. 🔒 Тест optimistic locking...")
@@ -330,11 +316,11 @@ async def demo_error_handling():
             case_id=case_record.case_id,
             updates={"title": "Updated Title"},
             user_id=user_id,
-            expected_version=999  # Неправильная версия
+            expected_version=999,  # Неправильная версия
         )
     except Exception as e:
         print(f"✅ Optimistic locking сработал: {type(e).__name__}")
-        print(f"   Сообщение: {str(e)}")
+        print(f"   Сообщение: {e!s}")
     print()
 
 
@@ -359,8 +345,9 @@ async def main():
         print("All CaseAgent functionality demonstrated!")
 
     except Exception as e:
-        print(f"❌ Demo failed with error: {str(e)}")
+        print(f"❌ Demo failed with error: {e!s}")
         import traceback
+
         traceback.print_exc()
 
 

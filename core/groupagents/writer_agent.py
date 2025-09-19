@@ -16,12 +16,13 @@ import uuid
 from datetime import datetime
 from enum import Enum
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 from pydantic import BaseModel, Field, field_validator
 
 from ..memory.memory_manager import MemoryManager
-from ..memory.models import AuditEvent, MemoryRecord
+from ..memory.models import AuditEvent
+
 
 class _WriterBaseModel(BaseModel):
     """Base class to keep dumps JSON-friendly for enums/datetimes."""
@@ -34,6 +35,7 @@ class _WriterBaseModel(BaseModel):
 
 class DocumentType(str, Enum):
     """Типы документов"""
+
     LETTER = "letter"
     CONTRACT = "contract"
     MOTION = "motion"
@@ -48,6 +50,7 @@ class DocumentType(str, Enum):
 
 class DocumentFormat(str, Enum):
     """Форматы документов"""
+
     MARKDOWN = "markdown"
     HTML = "html"
     PDF = "pdf"
@@ -57,6 +60,7 @@ class DocumentFormat(str, Enum):
 
 class Language(str, Enum):
     """Поддерживаемые языки"""
+
     ENGLISH = "en"
     RUSSIAN = "ru"
     SPANISH = "es"
@@ -66,6 +70,7 @@ class Language(str, Enum):
 
 class ToneStyle(str, Enum):
     """Стили тона документа"""
+
     FORMAL = "formal"
     PROFESSIONAL = "professional"
     CASUAL = "casual"
@@ -76,40 +81,43 @@ class ToneStyle(str, Enum):
 
 class DocumentTemplate(_WriterBaseModel):
     """Модель шаблона документа"""
+
     template_id: str = Field(default_factory=lambda: str(uuid.uuid4()))
     name: str = Field(..., description="Название шаблона")
     document_type: DocumentType = Field(..., description="Тип документа")
     language: Language = Field(..., description="Язык шаблона")
     template_content: str = Field(..., description="Содержимое шаблона")
-    variables: List[str] = Field(default_factory=list, description="Переменные шаблона")
-    metadata: Dict[str, Any] = Field(default_factory=dict, description="Метаданные шаблона")
+    variables: list[str] = Field(default_factory=list, description="Переменные шаблона")
+    metadata: dict[str, Any] = Field(default_factory=dict, description="Метаданные шаблона")
     created_at: datetime = Field(default_factory=datetime.utcnow)
     version: int = Field(default=1, description="Версия шаблона")
 
 
 class DocumentRequest(_WriterBaseModel):
     """Запрос на генерацию документа"""
+
     request_id: str = Field(default_factory=lambda: str(uuid.uuid4()))
     document_type: DocumentType = Field(..., description="Тип документа")
-    template_id: Optional[str] = Field(None, description="ID шаблона")
-    content_data: Dict[str, Any] = Field(..., description="Данные для генерации")
+    template_id: str | None = Field(None, description="ID шаблона")
+    content_data: dict[str, Any] = Field(..., description="Данные для генерации")
     format: DocumentFormat = Field(default=DocumentFormat.MARKDOWN, description="Формат вывода")
     language: Language = Field(default=Language.ENGLISH, description="Язык документа")
     tone: ToneStyle = Field(default=ToneStyle.PROFESSIONAL, description="Стиль тона")
-    case_id: Optional[str] = Field(None, description="Связанное дело")
+    case_id: str | None = Field(None, description="Связанное дело")
     approval_required: bool = Field(default=False, description="Требуется ли одобрение")
-    custom_instructions: Optional[str] = Field(None, description="Дополнительные инструкции")
+    custom_instructions: str | None = Field(None, description="Дополнительные инструкции")
 
-    @field_validator('content_data')
+    @field_validator("content_data")
     @classmethod
-    def _validate_content(cls, value: Dict[str, Any]) -> Dict[str, Any]:
+    def _validate_content(cls, value: dict[str, Any]) -> dict[str, Any]:
         if not value:
-            raise ValueError('content_data cannot be empty')
+            raise ValueError("content_data cannot be empty")
         return value
 
 
 class GeneratedDocument(_WriterBaseModel):
     """Сгенерированный документ"""
+
     document_id: str = Field(default_factory=lambda: str(uuid.uuid4()))
     request_id: str = Field(..., description="ID запроса")
     title: str = Field(..., description="Заголовок документа")
@@ -117,10 +125,10 @@ class GeneratedDocument(_WriterBaseModel):
     format: DocumentFormat = Field(..., description="Формат документа")
     language: Language = Field(..., description="Язык документа")
     document_type: DocumentType = Field(..., description="Тип документа")
-    template_used: Optional[str] = Field(None, description="Использованный шаблон")
-    metadata: Dict[str, Any] = Field(default_factory=dict, description="Метаданные документа")
-    file_path: Optional[str] = Field(None, description="Путь к файлу")
-    file_size: Optional[int] = Field(None, description="Размер файла")
+    template_used: str | None = Field(None, description="Использованный шаблон")
+    metadata: dict[str, Any] = Field(default_factory=dict, description="Метаданные документа")
+    file_path: str | None = Field(None, description="Путь к файлу")
+    file_size: int | None = Field(None, description="Размер файла")
     generated_at: datetime = Field(default_factory=datetime.utcnow)
     generated_by: str = Field(..., description="ID пользователя")
     approval_status: str = Field(default="pending", description="Статус одобрения")
@@ -129,22 +137,25 @@ class GeneratedDocument(_WriterBaseModel):
 
 class ApprovalWorkflow(_WriterBaseModel):
     """Workflow одобрения документа"""
+
     workflow_id: str = Field(default_factory=lambda: str(uuid.uuid4()))
     document_id: str = Field(..., description="ID документа")
     approver_id: str = Field(..., description="ID одобряющего")
     status: str = Field(default="pending", description="Статус одобрения")
-    comments: List[str] = Field(default_factory=list, description="Комментарии")
-    approval_date: Optional[datetime] = Field(None, description="Дата одобрения")
+    comments: list[str] = Field(default_factory=list, description="Комментарии")
+    approval_date: datetime | None = Field(None, description="Дата одобрения")
     created_at: datetime = Field(default_factory=datetime.utcnow)
 
 
 class WriterError(Exception):
     """Исключение для ошибок WriterAgent"""
+
     pass
 
 
 class TemplateError(Exception):
     """Исключение для ошибок шаблонов"""
+
     pass
 
 
@@ -161,7 +172,7 @@ class WriterAgent:
     - Document versioning и tracking
     """
 
-    def __init__(self, memory_manager: Optional[MemoryManager] = None):
+    def __init__(self, memory_manager: MemoryManager | None = None):
         """
         Инициализация WriterAgent.
 
@@ -171,21 +182,17 @@ class WriterAgent:
         self.memory = memory_manager or MemoryManager()
 
         # Хранилища
-        self._templates: Dict[str, DocumentTemplate] = {}
-        self._documents: Dict[str, GeneratedDocument] = {}
-        self._approval_workflows: Dict[str, ApprovalWorkflow] = {}
+        self._templates: dict[str, DocumentTemplate] = {}
+        self._documents: dict[str, GeneratedDocument] = {}
+        self._approval_workflows: dict[str, ApprovalWorkflow] = {}
 
         # Инициализация базовых шаблонов
         self._load_default_templates()
 
         # Статистика
-        self._generation_stats: Dict[str, int] = {}
+        self._generation_stats: dict[str, int] = {}
 
-    async def agenerate_letter(
-        self,
-        request: DocumentRequest,
-        user_id: str
-    ) -> GeneratedDocument:
+    async def agenerate_letter(self, request: DocumentRequest, user_id: str) -> GeneratedDocument:
         """
         Генерация письма с template support.
 
@@ -217,7 +224,7 @@ class WriterAgent:
                 document_type=request.document_type,
                 template_used=template.template_id,
                 generated_by=user_id,
-                approval_status="approved" if not request.approval_required else "pending"
+                approval_status="approved" if not request.approval_required else "pending",
             )
 
             # Сохранение документа
@@ -241,13 +248,9 @@ class WriterAgent:
 
         except Exception as e:
             await self._log_generation_error(request, user_id, e)
-            raise WriterError(f"Failed to generate letter: {str(e)}")
+            raise WriterError(f"Failed to generate letter: {e!s}")
 
-    async def agenerate_document_pdf(
-        self,
-        document_id: str,
-        user_id: str
-    ) -> str:
+    async def agenerate_document_pdf(self, document_id: str, user_id: str) -> str:
         """
         Генерация PDF версии документа.
 
@@ -281,7 +284,7 @@ class WriterAgent:
 
         except Exception as e:
             await self._log_generation_error(None, user_id, e)
-            raise WriterError(f"Failed to generate PDF: {str(e)}")
+            raise WriterError(f"Failed to generate PDF: {e!s}")
 
     async def aget_document(self, document_id: str, user_id: str) -> GeneratedDocument:
         """
@@ -307,10 +310,8 @@ class WriterAgent:
         return document
 
     async def asearch_documents(
-        self,
-        filters: Dict[str, Any],
-        user_id: str
-    ) -> List[GeneratedDocument]:
+        self, filters: dict[str, Any], user_id: str
+    ) -> list[GeneratedDocument]:
         """
         Поиск документов по фильтрам.
 
@@ -336,9 +337,7 @@ class WriterAgent:
         return results
 
     async def acreate_template(
-        self,
-        template_data: Dict[str, Any],
-        user_id: str
+        self, template_data: dict[str, Any], user_id: str
     ) -> DocumentTemplate:
         """
         Создание нового шаблона документа.
@@ -366,13 +365,10 @@ class WriterAgent:
 
         except Exception as e:
             await self._log_template_error(template_data, user_id, e)
-            raise TemplateError(f"Failed to create template: {str(e)}")
+            raise TemplateError(f"Failed to create template: {e!s}")
 
     async def aapprove_document(
-        self,
-        document_id: str,
-        approver_id: str,
-        comments: Optional[str] = None
+        self, document_id: str, approver_id: str, comments: str | None = None
     ) -> ApprovalWorkflow:
         """
         Одобрение документа.
@@ -422,18 +418,17 @@ class WriterAgent:
 
         # Поиск подходящего шаблона
         for template in self._templates.values():
-            if (template.document_type == request.document_type and
-                template.language == request.language):
+            if (
+                template.document_type == request.document_type
+                and template.language == request.language
+            ):
                 return template
 
         # Создание шаблона по умолчанию
         return await self._create_default_template(request)
 
     async def _generate_content(
-        self,
-        request: DocumentRequest,
-        template: DocumentTemplate,
-        user_id: str
+        self, request: DocumentRequest, template: DocumentTemplate, user_id: str
     ) -> str:
         """Генерация содержимого документа"""
 
@@ -469,7 +464,7 @@ class WriterAgent:
                     "Уважаемый": "Глубокоуважаемый",
                     "Спасибо": "Выражаю благодарность",
                     "Пожалуйста": "Прошу Вас",
-                }
+                },
             },
             ToneStyle.CASUAL: {
                 Language.ENGLISH: {
@@ -481,8 +476,8 @@ class WriterAgent:
                     "Уважаемый": "Привет",
                     "Выражаю благодарность": "Спасибо",
                     "Прошу Вас": "Можешь",
-                }
-            }
+                },
+            },
         }
 
         modifications = tone_modifications.get(tone, {}).get(language, {})
@@ -521,7 +516,7 @@ Best regards,
 
 С уважением,
 {sender}
-                """.strip()
+                """.strip(),
             },
             DocumentType.EMAIL: {
                 Language.ENGLISH: """
@@ -543,13 +538,12 @@ Best regards,
 
 С уважением,
 {sender}
-                """.strip()
-            }
+                """.strip(),
+            },
         }
 
         template_content = default_templates.get(request.document_type, {}).get(
-            request.language,
-            "Default template for {document_type} in {language}\n\n{content}"
+            request.language, "Default template for {document_type} in {language}\n\n{content}"
         )
 
         template = DocumentTemplate(
@@ -557,7 +551,7 @@ Best regards,
             document_type=request.document_type,
             language=request.language,
             template_content=template_content,
-            variables=["recipient", "content", "closing", "sender", "subject"]
+            variables=["recipient", "content", "closing", "sender", "subject"],
         )
 
         # Сохранение шаблона
@@ -565,7 +559,9 @@ Best regards,
 
         return template
 
-    async def _convert_document_format(self, document: GeneratedDocument, target_format: DocumentFormat) -> None:
+    async def _convert_document_format(
+        self, document: GeneratedDocument, target_format: DocumentFormat
+    ) -> None:
         """Конвертация документа в другой формат"""
 
         if target_format == DocumentFormat.HTML:
@@ -616,7 +612,7 @@ Best regards,
             f.write(f"Content: {document.content}\n")
 
         # Обновление размера файла
-        document.file_size = len(document.content.encode('utf-8'))
+        document.file_size = len(document.content.encode("utf-8"))
 
         return pdf_path
 
@@ -636,12 +632,12 @@ Best regards,
         """Создание workflow одобрения"""
         workflow = ApprovalWorkflow(
             document_id=document.document_id,
-            approver_id=user_id  # В реальности получать из бизнес-логики
+            approver_id=user_id,  # В реальности получать из бизнес-логики
         )
 
         self._approval_workflows[workflow.workflow_id] = workflow
 
-    def _matches_filters(self, document: GeneratedDocument, filters: Dict[str, Any]) -> bool:
+    def _matches_filters(self, document: GeneratedDocument, filters: dict[str, Any]) -> bool:
         """Проверка соответствия документа фильтрам"""
         for key, value in filters.items():
             if key == "document_type" and document.document_type != value:
@@ -693,8 +689,16 @@ Sincerely,
 {sender_title}
 {sender_contact}
                 """.strip(),
-                "variables": ["date", "recipient_address", "recipient_name", "content",
-                            "closing_phrase", "sender_name", "sender_title", "sender_contact"]
+                "variables": [
+                    "date",
+                    "recipient_address",
+                    "recipient_name",
+                    "content",
+                    "closing_phrase",
+                    "sender_name",
+                    "sender_title",
+                    "sender_contact",
+                ],
             },
             {
                 "name": "Деловое письмо (Русский)",
@@ -717,9 +721,17 @@ Sincerely,
 {sender_title}
 {sender_contact}
                 """.strip(),
-                "variables": ["date", "recipient_address", "recipient_name", "content",
-                            "closing_phrase", "sender_name", "sender_title", "sender_contact"]
-            }
+                "variables": [
+                    "date",
+                    "recipient_address",
+                    "recipient_name",
+                    "content",
+                    "closing_phrase",
+                    "sender_name",
+                    "sender_title",
+                    "sender_contact",
+                ],
+            },
         ]
 
         for template_data in default_templates:
@@ -735,10 +747,7 @@ Sincerely,
         self._generation_stats[key] = self._generation_stats.get(key, 0) + 1
 
     async def _log_document_generation(
-        self,
-        request: DocumentRequest,
-        document: GeneratedDocument,
-        user_id: str
+        self, request: DocumentRequest, document: GeneratedDocument, user_id: str
     ) -> None:
         """Логирование генерации документа"""
         await self._log_audit_event(
@@ -749,8 +758,8 @@ Sincerely,
                 "document_type": request.document_type.value,
                 "language": request.language.value,
                 "format": request.format.value,
-                "case_id": request.case_id
-            }
+                "case_id": request.case_id,
+            },
         )
 
     async def _log_pdf_generation(self, document: GeneratedDocument, user_id: str) -> None:
@@ -761,8 +770,8 @@ Sincerely,
             payload={
                 "document_id": document.document_id,
                 "file_path": document.file_path,
-                "file_size": document.file_size
-            }
+                "file_size": document.file_size,
+            },
         )
 
     async def _log_document_access(self, document: GeneratedDocument, user_id: str) -> None:
@@ -772,19 +781,16 @@ Sincerely,
             action="document_accessed",
             payload={
                 "document_id": document.document_id,
-                "document_type": document.document_type.value
-            }
+                "document_type": document.document_type.value,
+            },
         )
 
-    async def _log_document_search(self, filters: Dict[str, Any], count: int, user_id: str) -> None:
+    async def _log_document_search(self, filters: dict[str, Any], count: int, user_id: str) -> None:
         """Логирование поиска документов"""
         await self._log_audit_event(
             user_id=user_id,
             action="documents_searched",
-            payload={
-                "filters": filters,
-                "results_count": count
-            }
+            payload={"filters": filters, "results_count": count},
         )
 
     async def _log_template_creation(self, template: DocumentTemplate, user_id: str) -> None:
@@ -796,15 +802,12 @@ Sincerely,
                 "template_id": template.template_id,
                 "template_name": template.name,
                 "document_type": template.document_type.value,
-                "language": template.language.value
-            }
+                "language": template.language.value,
+            },
         )
 
     async def _log_document_approval(
-        self,
-        document: GeneratedDocument,
-        workflow: ApprovalWorkflow,
-        approver_id: str
+        self, document: GeneratedDocument, workflow: ApprovalWorkflow, approver_id: str
     ) -> None:
         """Логирование одобрения документа"""
         await self._log_audit_event(
@@ -813,15 +816,14 @@ Sincerely,
             payload={
                 "document_id": document.document_id,
                 "workflow_id": workflow.workflow_id,
-                "approval_date": workflow.approval_date.isoformat() if workflow.approval_date else None
-            }
+                "approval_date": (
+                    workflow.approval_date.isoformat() if workflow.approval_date else None
+                ),
+            },
         )
 
     async def _log_generation_error(
-        self,
-        request: Optional[DocumentRequest],
-        user_id: str,
-        error: Exception
+        self, request: DocumentRequest | None, user_id: str, error: Exception
     ) -> None:
         """Логирование ошибки генерации"""
         await self._log_audit_event(
@@ -830,15 +832,12 @@ Sincerely,
             payload={
                 "error_type": type(error).__name__,
                 "error_message": str(error),
-                "request": request.model_dump() if request else None
-            }
+                "request": request.model_dump() if request else None,
+            },
         )
 
     async def _log_template_error(
-        self,
-        template_data: Dict[str, Any],
-        user_id: str,
-        error: Exception
+        self, template_data: dict[str, Any], user_id: str, error: Exception
     ) -> None:
         """Логирование ошибки шаблона"""
         await self._log_audit_event(
@@ -847,16 +846,11 @@ Sincerely,
             payload={
                 "error_type": type(error).__name__,
                 "error_message": str(error),
-                "template_data": template_data
-            }
+                "template_data": template_data,
+            },
         )
 
-    async def _log_audit_event(
-        self,
-        user_id: str,
-        action: str,
-        payload: Dict[str, Any]
-    ) -> None:
+    async def _log_audit_event(self, user_id: str, action: str, payload: dict[str, Any]) -> None:
         """Централизованное логирование audit событий"""
         event = AuditEvent(
             event_id=str(uuid.uuid4()),
@@ -865,19 +859,18 @@ Sincerely,
             source="writer_agent",
             action=action,
             payload=payload,
-            tags=["writer_agent", "document_generation"]
+            tags=["writer_agent", "document_generation"],
         )
 
         await self.memory.alog_audit(event)
 
-    async def get_stats(self) -> Dict[str, Any]:
+    async def get_stats(self) -> dict[str, Any]:
         """Получение статистики WriterAgent"""
         return {
             "generation_stats": self._generation_stats.copy(),
             "total_documents": len(self._documents),
             "total_templates": len(self._templates),
-            "pending_approvals": len([
-                wf for wf in self._approval_workflows.values()
-                if wf.status == "pending"
-            ])
+            "pending_approvals": len(
+                [wf for wf in self._approval_workflows.values() if wf.status == "pending"]
+            ),
         }
