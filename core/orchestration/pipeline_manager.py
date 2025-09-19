@@ -18,10 +18,9 @@ def setup_checkpointer(url: str | None = None):
             from langgraph.checkpoint.sqlite import SqliteSaver  # type: ignore
 
             return SqliteSaver(url)
-        else:
-            from langgraph.checkpoint.memory import MemorySaver  # type: ignore
+        from langgraph.checkpoint.memory import MemorySaver  # type: ignore
 
-            return MemorySaver()
+        return MemorySaver()
     except Exception as e:  # pragma: no cover - import/runtime guard
         raise RuntimeError(
             "Failed to initialize LangGraph checkpointer. Ensure 'langgraph' is installed."

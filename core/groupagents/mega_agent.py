@@ -11,10 +11,10 @@ MegaAgent - Центральный оркестратор системы mega_ag
 
 from __future__ import annotations
 
-import uuid
 from datetime import datetime
 from enum import Enum
 from typing import Any
+import uuid
 
 from pydantic import BaseModel, Field, ValidationError
 
@@ -90,13 +90,11 @@ class MegaAgentResponse(BaseModel):
 class SecurityError(Exception):
     """Исключение для ошибок безопасности"""
 
-    pass
 
 
 class CommandError(Exception):
     """Исключение для ошибок команд"""
 
-    pass
 
 
 class MegaAgent:
@@ -263,20 +261,19 @@ class MegaAgent:
         if agent_name == "case_agent":
             return await self._handle_case_command(command)
 
-        elif agent_name == "writer_agent":
+        if agent_name == "writer_agent":
             return await self._handle_writer_command(command)
 
         # Маршрутизация к workflow_system (использует тот же workflow)
-        elif agent_name == "workflow_system":
+        if agent_name == "workflow_system":
             return await self._handle_workflow_command(command)
 
         # Placeholder для других агентов
-        else:
-            return {
-                "message": f"Agent {agent_name} not yet implemented",
-                "command": command.action,
-                "agent": agent_name,
-            }
+        return {
+            "message": f"Agent {agent_name} not yet implemented",
+            "command": command.action,
+            "agent": agent_name,
+        }
 
     async def _handle_case_command(self, command: MegaAgentCommand) -> dict[str, Any]:
         """Обработка команд case_agent"""
@@ -318,7 +315,7 @@ class MegaAgent:
                 "document": document.model_dump(),
             }
 
-        elif action in {"generate_pdf", "pdf"}:
+        if action in {"generate_pdf", "pdf"}:
             document_id = payload.get("document_id")
             if not document_id:
                 raise CommandError("document_id required for generate_pdf action")
@@ -329,7 +326,7 @@ class MegaAgent:
                 "pdf_path": pdf_path,
             }
 
-        elif action == "get":
+        if action == "get":
             document_id = payload.get("document_id")
             if not document_id:
                 raise CommandError("document_id required for get action")
@@ -340,8 +337,7 @@ class MegaAgent:
                 "document": document.model_dump(),
             }
 
-        else:
-            raise CommandError(f"Unknown writer action: {command.action}")
+        raise CommandError(f"Unknown writer action: {command.action}")
 
     async def _run_case_workflow(
         self,

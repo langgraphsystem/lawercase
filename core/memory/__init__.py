@@ -2,6 +2,7 @@
 
 Exposes MemoryManager and data models for integration with agents and RAG.
 """
+from __future__ import annotations
 
 from .memory_manager import MemoryManager
 from .models import AuditEvent, MemoryRecord

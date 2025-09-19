@@ -1,12 +1,110 @@
-line-length = 100
+# Ruff configuration for MEGA Agent Pro
+# https://docs.astral.sh/ruff/configuration/
+
+# Target Python 3.11+ for modern features
 target-version = "py311"
 
+# Set the maximum line length
+line-length = 100
+
+# File patterns to include/exclude
+include = ["*.py", "*.pyi", "*.ipynb"]
+exclude = [
+    ".git",
+    ".mypy_cache",
+    ".ruff_cache",
+    ".venv",
+    "__pycache__",
+    "build",
+    "dist",
+    "node_modules",
+    "venv",
+    "migrations",
+]
+
+# Enable automatic fixing
+fix = true
+show-fixes = true
+
 [lint]
-extend-select = ["E","F","W","I","N","S","B","UP","PL","RUF"]
-ignore = ["E501"]
-exclude = ["docs/","dist/","build/",".venv/"]
+# Enable comprehensive rules but be practical
+select = [
+    "E",      # pycodestyle errors
+    "W",      # pycodestyle warnings
+    "F",      # Pyflakes
+    "UP",     # pyupgrade
+    "B",      # flake8-bugbear
+    "SIM",    # flake8-simplify
+    "I",      # isort
+    "N",      # pep8-naming
+    "S",      # flake8-bandit (security)
+    "BLE",    # flake8-blind-except
+    "A",      # flake8-builtins
+    "COM",    # flake8-commas
+    "C4",     # flake8-comprehensions
+    "ICN",    # flake8-import-conventions
+    "PIE",    # flake8-pie
+    "PT",     # flake8-pytest-style
+    "Q",      # flake8-quotes
+    "RET",    # flake8-return
+    "TID",    # flake8-tidy-imports
+    "TCH",    # flake8-type-checking
+    "ARG",    # flake8-unused-arguments
+    "PTH",    # flake8-use-pathlib
+    "PL",     # Pylint
+    "RUF",    # Ruff-specific rules
+]
+
+# Ignore rules that are too strict or problematic for this codebase
+ignore = [
+    "E501",   # Line too long (handled by formatter)
+    "S101",   # Use of assert detected (allow for development)
+    "S311",   # Standard pseudo-random generators (OK for non-crypto use)
+    "COM812", # Trailing comma missing (formatter handles this)
+    "COM819", # Trailing comma prohibited
+    "PLR0913", # Too many arguments (will be fixed gradually)
+    "PLR0915", # Too many statements (will be fixed gradually)
+    "PLR0912", # Too many branches (will be fixed gradually)
+    "PLR2004", # Magic value used in comparison
+    "RUF001", # String contains ambiguous unicode (allow for multilingual)
+    "RUF002", # Docstring contains ambiguous unicode
+    "RUF003", # Comment contains ambiguous unicode
+    "PLC0415", # Import should be at top (allow for circular import fixes)
+    "N999",   # Invalid module name (allow for existing structure)
+]
+
+# Allow specific rules for specific files
+[lint.per-file-ignores]
+"tests/*" = [
+    "S101",    # Use of assert in tests is OK
+    "PLR2004", # Magic values in tests are OK
+    "S311",    # Pseudo-random generators OK in tests
+    "ARG001",  # Unused function argument in tests
+]
+"**/migrations/*" = ["ALL"]  # Ignore all rules in migration files
+"scripts/*" = [
+    "T201",    # print() OK in scripts
+    "S602",    # subprocess calls OK in scripts
+]
+"demos/*" = [
+    "T201",    # print() OK in demos
+    "S311",    # Pseudo-random generators OK in demos
+]
+"*_demo.py" = [
+    "T201",    # print() OK in demo files
+]
 
 [lint.isort]
-known-first-party = ["core","api","config","tests"]
+known-first-party = ["core", "api", "config", "tests"]
 combine-as-imports = true
 force-sort-within-sections = true
+required-imports = ["from __future__ import annotations"]
+
+[lint.pylint]
+max-args = 8
+max-branches = 15
+max-statements = 60
+
+[lint.flake8-quotes]
+docstring-quotes = "double"
+inline-quotes = "double"

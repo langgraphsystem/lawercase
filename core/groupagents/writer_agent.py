@@ -12,11 +12,11 @@ WriterAgent - Генерация документов и писем.
 
 from __future__ import annotations
 
-import uuid
 from datetime import datetime
 from enum import Enum
 from pathlib import Path
 from typing import Any
+import uuid
 
 from pydantic import BaseModel, Field, field_validator
 
@@ -150,13 +150,11 @@ class ApprovalWorkflow(_WriterBaseModel):
 class WriterError(Exception):
     """Исключение для ошибок WriterAgent"""
 
-    pass
 
 
 class TemplateError(Exception):
     """Исключение для ошибок шаблонов"""
 
-    pass
 
 
 class WriterAgent:
@@ -640,15 +638,9 @@ Best regards,
     def _matches_filters(self, document: GeneratedDocument, filters: dict[str, Any]) -> bool:
         """Проверка соответствия документа фильтрам"""
         for key, value in filters.items():
-            if key == "document_type" and document.document_type != value:
+            if (key == "document_type" and document.document_type != value) or (key == "language" and document.language != value):
                 return False
-            elif key == "language" and document.language != value:
-                return False
-            elif key == "generated_by" and document.generated_by != value:
-                return False
-            elif key == "case_id" and document.metadata.get("case_id") != value:
-                return False
-            elif key == "approval_status" and document.approval_status != value:
+            if (key == "generated_by" and document.generated_by != value) or (key == "case_id" and document.metadata.get("case_id") != value) or (key == "approval_status" and document.approval_status != value):
                 return False
 
         return True

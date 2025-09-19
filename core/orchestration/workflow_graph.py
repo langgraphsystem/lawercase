@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Any
+from typing import TYPE_CHECKING, Any
 from uuid import uuid4
 
 from pydantic import BaseModel, Field
@@ -8,6 +8,17 @@ from pydantic import BaseModel, Field
 from ..memory.memory_manager import MemoryManager
 from ..memory.models import AuditEvent, MemoryRecord
 from ..memory.rmt.buffer import compose_prompt
+
+# Optional imports that may not be available
+try:
+    from langgraph.checkpoint.memory import MemorySaver  # noqa: F401
+    from langgraph.graph import StateGraph
+    LANGGRAPH_AVAILABLE = True
+except ImportError:
+    LANGGRAPH_AVAILABLE = False
+
+if TYPE_CHECKING:
+    from ..groupagents.case_agent import CaseAgent
 
 
 class WorkflowState(BaseModel):
@@ -46,21 +57,16 @@ class WorkflowState(BaseModel):
 
 
 def _ensure_langgraph() -> None:
-    try:
-        from langgraph.checkpoint.memory import MemorySaver  # noqa: F401
-        from langgraph.graph import StateGraph  # noqa: F401
-    except Exception as exc:  # pragma: no cover - import-time guard
+    if not LANGGRAPH_AVAILABLE:  # pragma: no cover - import-time guard
         raise RuntimeError(
             "LangGraph is required for workflow execution. Install with: pip install langgraph"
-        ) from exc
+        )
 
 
 def build_memory_workflow(memory: MemoryManager):
     """Basic memory-oriented workflow used in demos."""
 
     _ensure_langgraph()
-    from langgraph.graph import StateGraph
-
     graph = StateGraph(WorkflowState)
 
     async def node_log_event(state: WorkflowState) -> WorkflowState:
@@ -109,12 +115,12 @@ def build_memory_workflow(memory: MemoryManager):
     return graph
 
 
-def build_case_workflow(memory: MemoryManager, *, case_agent: Any | None = None):
+def build_case_workflow(memory: MemoryManager, *, case_agent: CaseAgent | None = None):
     """Workflow that routes case operations through CaseAgent and updates memory."""
 
     _ensure_langgraph()
-    from langgraph.graph import StateGraph
 
+    # Runtime import to avoid circular dependency
     from ..groupagents.case_agent import CaseAgent
 
     agent = case_agent or CaseAgent(memory_manager=memory)
@@ -169,6 +175,7 @@ def build_case_workflow(memory: MemoryManager, *, case_agent: Any | None = None)
                 state.case_result = {"operation": "delete", "result": result.model_dump()}
 
             elif operation == "search":
+                # Runtime import to avoid circular dependency
                 from ..groupagents.models import CaseQuery
 
                 query = CaseQuery(**payload)

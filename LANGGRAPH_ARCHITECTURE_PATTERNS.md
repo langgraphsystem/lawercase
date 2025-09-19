@@ -240,7 +240,7 @@ async def confidence_assessment_node(state: SelfCorrectionState) -> SelfCorrecti
     try:
         confidence = float(response.content.strip())
         state['confidence_score'] = confidence
-    except:
+    except (ValueError, AttributeError):
         state['confidence_score'] = 0.5
 
     return state

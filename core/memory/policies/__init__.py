@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from .reflection import compress_event, select_salient_facts
 
 __all__ = [

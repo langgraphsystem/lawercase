@@ -12,7 +12,8 @@
       "Bash(gh run view:*)",
       "Bash(ruff check:*)",
       "Bash(black:*)",
-      "Bash(isort:*)"
+      "Bash(isort:*)",
+      "Bash(find:*)"
     ],
     "deny": [],
     "ask": []
