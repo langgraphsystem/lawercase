@@ -15,7 +15,9 @@
       "Bash(isort:*)",
       "Bash(find:*)",
       "Bash(gh auth:*)",
-      "Bash(gh repo view:*)"
+      "Bash(gh repo view:*)",
+      "Bash(git stash:*)",
+      "Bash(git checkout:*)"
     ],
     "deny": [],
     "ask": []

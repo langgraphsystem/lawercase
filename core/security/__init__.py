@@ -12,8 +12,7 @@ Provides comprehensive security features:
 
 from __future__ import annotations
 
-from .config import (CORSConfig, SecurityConfig, SecurityHeaders,
-                     security_config)
+from .config import CORSConfig, SecurityConfig, SecurityHeaders, security_config
 
 __all__ = [
     "CORSConfig",
