@@ -1,8 +1,8 @@
 from __future__ import annotations
 
 import asyncio
-from datetime import datetime
 import uuid
+from datetime import datetime
 
 from core.memory.memory_manager import MemoryManager
 from core.memory.models import AuditEvent

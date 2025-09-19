@@ -1,10 +1,11 @@
 """Integration tests for API security features (CORS, JWT, RBAC)."""
+
 from __future__ import annotations
 
 from datetime import timedelta
 
-from fastapi.testclient import TestClient
 import pytest
+from fastapi.testclient import TestClient
 
 # Import the app and token creator from our test app file
 from .sec_test_app import app, create_test_token
@@ -16,7 +17,9 @@ def client():
     with TestClient(app) as c:
         yield c
 
+
 # --- CORS Tests ---
+
 
 def test_cors_allowed_origin(client: TestClient):
     """
@@ -31,6 +34,7 @@ def test_cors_allowed_origin(client: TestClient):
     # Assert
     assert response.status_code == 200
     assert response.headers["access-control-allow-origin"] == "https://example.com"
+
 
 def test_cors_disallowed_origin(client: TestClient):
     """
@@ -48,12 +52,15 @@ def test_cors_disallowed_origin(client: TestClient):
     # The header should NOT be the disallowed origin. In a real browser, the request would be blocked.
     assert "access-control-allow-origin" not in response.headers
 
+
 # --- JWT Authentication Tests ---
+
 
 def test_jwt_no_token_protected_route(client: TestClient):
     """Tests that accessing a protected route without a token fails."""
     response = client.get("/protected")
-    assert response.status_code == 403 # FastAPI's default for missing auth
+    assert response.status_code == 403  # FastAPI's default for missing auth
+
 
 def test_jwt_expired_token(client: TestClient):
     """Tests that an expired token is rejected."""
@@ -68,6 +75,7 @@ def test_jwt_expired_token(client: TestClient):
     assert response.status_code == 401
     assert "Token has expired" in response.json()["detail"]
 
+
 def test_jwt_valid_token(client: TestClient):
     """Tests that a valid token grants access to a protected route."""
     # Arrange
@@ -81,7 +89,9 @@ def test_jwt_valid_token(client: TestClient):
     assert response.status_code == 200
     assert response.json() == {"message": "This is a protected route"}
 
+
 # --- RBAC (Role-Based Access Control) Tests ---
+
 
 def test_rbac_user_without_role(client: TestClient):
     """
@@ -97,6 +107,7 @@ def test_rbac_user_without_role(client: TestClient):
     # Assert
     assert response.status_code == 403
     assert "not have access" in response.json()["detail"]
+
 
 def test_rbac_user_with_role(client: TestClient):
     """
