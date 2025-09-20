@@ -1,0 +1,1388 @@
+[
+  {
+    "cell": null,
+    "code": "I001",
+    "end_location": {
+      "column": 60,
+      "row": 10
+    },
+    "filename": "D:\\Программы\\mega_agent_pro_codex_handoff\\app_demo.py",
+    "fix": {
+      "applicability": "safe",
+      "edits": [
+        {
+          "content": "from __future__ import annotations\n\nimport asyncio\nfrom datetime import datetime\nimport uuid\n\nfrom core.memory.memory_manager import MemoryManager\nfrom core.memory.models import AuditEvent\nfrom core.orchestration.pipeline_manager import build_pipeline, run\nfrom core.orchestration.workflow_graph import WorkflowState\n\n\n",
+          "end_location": {
+            "column": 1,
+            "row": 13
+          },
+          "location": {
+            "column": 1,
+            "row": 1
+          }
+        }
+      ],
+      "message": "Organize imports"
+    },
+    "location": {
+      "column": 1,
+      "row": 1
+    },
+    "message": "Import block is un-sorted or un-formatted",
+    "noqa_row": 1,
+    "url": "https://docs.astral.sh/ruff/rules/unsorted-imports"
+  },
+  {
+    "cell": null,
+    "code": "RUF002",
+    "end_location": {
+      "column": 15,
+      "row": 8
+    },
+    "filename": "D:\\Программы\\mega_agent_pro_codex_handoff\\case_agent_demo.py",
+    "fix": null,
+    "location": {
+      "column": 14,
+      "row": 8
+    },
+    "message": "Docstring contains ambiguous `с` (CYRILLIC SMALL LETTER ES). Did you mean `c` (LATIN SMALL LETTER C)?",
+    "noqa_row": 9,
+    "url": "https://docs.astral.sh/ruff/rules/ambiguous-unicode-character-docstring"
+  },
+  {
+    "cell": null,
+    "code": "I001",
+    "end_location": {
+      "column": 68,
+      "row": 21
+    },
+    "filename": "D:\\Программы\\mega_agent_pro_codex_handoff\\case_agent_demo.py",
+    "fix": {
+      "applicability": "safe",
+      "edits": [
+        {
+          "content": "from __future__ import annotations\r\n\r\nimport asyncio\r\nimport uuid\r\n\r\nfrom core.groupagents.case_agent import CaseAgent\r\nfrom core.groupagents.models import CasePriority, CaseQuery, CaseType\r\nfrom core.memory.memory_manager import MemoryManager\r\nfrom core.orchestration.pipeline_manager import run\r\nfrom core.orchestration.workflow_graph import WorkflowState, build_case_workflow\r\n\r\n\r\n",
+          "end_location": {
+            "column": 1,
+            "row": 24
+          },
+          "location": {
+            "column": 1,
+            "row": 11
+          }
+        }
+      ],
+      "message": "Organize imports"
+    },
+    "location": {
+      "column": 1,
+      "row": 11
+    },
+    "message": "Import block is un-sorted or un-formatted",
+    "noqa_row": 11,
+    "url": "https://docs.astral.sh/ruff/rules/unsorted-imports"
+  },
+  {
+    "cell": null,
+    "code": "PLR0915",
+    "end_location": {
+      "column": 31,
+      "row": 24
+    },
+    "filename": "D:\\Программы\\mega_agent_pro_codex_handoff\\case_agent_demo.py",
+    "fix": null,
+    "location": {
+      "column": 11,
+      "row": 24
+    },
+    "message": "Too many statements (52 > 50)",
+    "noqa_row": 24,
+    "url": "https://docs.astral.sh/ruff/rules/too-many-statements"
+  },
+  {
+    "cell": null,
+    "code": "RUF001",
+    "end_location": {
+      "column": 28,
+      "row": 125
+    },
+    "filename": "D:\\Программы\\mega_agent_pro_codex_handoff\\case_agent_demo.py",
+    "fix": null,
+    "location": {
+      "column": 27,
+      "row": 125
+    },
+    "message": "String contains ambiguous `с` (CYRILLIC SMALL LETTER ES). Did you mean `c` (LATIN SMALL LETTER C)?",
+    "noqa_row": 125,
+    "url": "https://docs.astral.sh/ruff/rules/ambiguous-unicode-character-string"
+  },
+  {
+    "cell": null,
+    "code": "PLR0912",
+    "end_location": {
+      "column": 36,
+      "row": 143
+    },
+    "filename": "D:\\Программы\\mega_agent_pro_codex_handoff\\case_agent_demo.py",
+    "fix": null,
+    "location": {
+      "column": 11,
+      "row": 143
+    },
+    "message": "Too many branches (16 > 12)",
+    "noqa_row": 143,
+    "url": "https://docs.astral.sh/ruff/rules/too-many-branches"
+  },
+  {
+    "cell": null,
+    "code": "PLR0915",
+    "end_location": {
+      "column": 36,
+      "row": 143
+    },
+    "filename": "D:\\Программы\\mega_agent_pro_codex_handoff\\case_agent_demo.py",
+    "fix": null,
+    "location": {
+      "column": 11,
+      "row": 143
+    },
+    "message": "Too many statements (66 > 50)",
+    "noqa_row": 143,
+    "url": "https://docs.astral.sh/ruff/rules/too-many-statements"
+  },
+  {
+    "cell": null,
+    "code": "RUF002",
+    "end_location": {
+      "column": 43,
+      "row": 144
+    },
+    "filename": "D:\\Программы\\mega_agent_pro_codex_handoff\\case_agent_demo.py",
+    "fix": null,
+    "location": {
+      "column": 42,
+      "row": 144
+    },
+    "message": "Docstring contains ambiguous `с` (CYRILLIC SMALL LETTER ES). Did you mean `c` (LATIN SMALL LETTER C)?",
+    "noqa_row": 144,
+    "url": "https://docs.astral.sh/ruff/rules/ambiguous-unicode-character-docstring"
+  },
+  {
+    "cell": null,
+    "code": "RUF003",
+    "end_location": {
+      "column": 34,
+      "row": 176
+    },
+    "filename": "D:\\Программы\\mega_agent_pro_codex_handoff\\case_agent_demo.py",
+    "fix": null,
+    "location": {
+      "column": 33,
+      "row": 176
+    },
+    "message": "Comment contains ambiguous `с` (CYRILLIC SMALL LETTER ES). Did you mean `c` (LATIN SMALL LETTER C)?",
+    "noqa_row": 176,
+    "url": "https://docs.astral.sh/ruff/rules/ambiguous-unicode-character-comment"
+  },
+  {
+    "cell": null,
+    "code": "RUF001",
+    "end_location": {
+      "column": 39,
+      "row": 285
+    },
+    "filename": "D:\\Программы\\mega_agent_pro_codex_handoff\\case_agent_demo.py",
+    "fix": null,
+    "location": {
+      "column": 38,
+      "row": 285
+    },
+    "message": "String contains ambiguous `с` (CYRILLIC SMALL LETTER ES). Did you mean `c` (LATIN SMALL LETTER C)?",
+    "noqa_row": 285,
+    "url": "https://docs.astral.sh/ruff/rules/ambiguous-unicode-character-string"
+  },
+  {
+    "cell": null,
+    "code": "RUF003",
+    "end_location": {
+      "column": 25,
+      "row": 313
+    },
+    "filename": "D:\\Программы\\mega_agent_pro_codex_handoff\\case_agent_demo.py",
+    "fix": null,
+    "location": {
+      "column": 24,
+      "row": 313
+    },
+    "message": "Comment contains ambiguous `с` (CYRILLIC SMALL LETTER ES). Did you mean `c` (LATIN SMALL LETTER C)?",
+    "noqa_row": 313,
+    "url": "https://docs.astral.sh/ruff/rules/ambiguous-unicode-character-comment"
+  },
+  {
+    "cell": null,
+    "code": "RUF003",
+    "end_location": {
+      "column": 23,
+      "row": 337
+    },
+    "filename": "D:\\Программы\\mega_agent_pro_codex_handoff\\case_agent_demo.py",
+    "fix": null,
+    "location": {
+      "column": 22,
+      "row": 337
+    },
+    "message": "Comment contains ambiguous `с` (CYRILLIC SMALL LETTER ES). Did you mean `c` (LATIN SMALL LETTER C)?",
+    "noqa_row": 337,
+    "url": "https://docs.astral.sh/ruff/rules/ambiguous-unicode-character-comment"
+  },
+  {
+    "cell": null,
+    "code": "PLC0415",
+    "end_location": {
+      "column": 25,
+      "row": 349
+    },
+    "filename": "D:\\Программы\\mega_agent_pro_codex_handoff\\case_agent_demo.py",
+    "fix": null,
+    "location": {
+      "column": 9,
+      "row": 349
+    },
+    "message": "`import` should be at the top-level of a file",
+    "noqa_row": 349,
+    "url": "https://docs.astral.sh/ruff/rules/import-outside-top-level"
+  },
+  {
+    "cell": null,
+    "code": "RUF002",
+    "end_location": {
+      "column": 30,
+      "row": 11
+    },
+    "filename": "D:\\Программы\\mega_agent_pro_codex_handoff\\core\\groupagents\\__init__.py",
+    "fix": null,
+    "location": {
+      "column": 29,
+      "row": 11
+    },
+    "message": "Docstring contains ambiguous `с` (CYRILLIC SMALL LETTER ES). Did you mean `c` (LATIN SMALL LETTER C)?",
+    "noqa_row": 14,
+    "url": "https://docs.astral.sh/ruff/rules/ambiguous-unicode-character-docstring"
+  },
+  {
+    "cell": null,
+    "code": "RUF002",
+    "end_location": {
+      "column": 49,
+      "row": 4
+    },
+    "filename": "D:\\Программы\\mega_agent_pro_codex_handoff\\core\\groupagents\\case_agent.py",
+    "fix": null,
+    "location": {
+      "column": 48,
+      "row": 4
+    },
+    "message": "Docstring contains ambiguous `с` (CYRILLIC SMALL LETTER ES). Did you mean `c` (LATIN SMALL LETTER C)?",
+    "noqa_row": 7,
+    "url": "https://docs.astral.sh/ruff/rules/ambiguous-unicode-character-docstring"
+  },
+  {
+    "cell": null,
+    "code": "RUF002",
+    "end_location": {
+      "column": 15,
+      "row": 6
+    },
+    "filename": "D:\\Программы\\mega_agent_pro_codex_handoff\\core\\groupagents\\case_agent.py",
+    "fix": null,
+    "location": {
+      "column": 14,
+      "row": 6
+    },
+    "message": "Docstring contains ambiguous `с` (CYRILLIC SMALL LETTER ES). Did you mean `c` (LATIN SMALL LETTER C)?",
+    "noqa_row": 7,
+    "url": "https://docs.astral.sh/ruff/rules/ambiguous-unicode-character-docstring"
+  },
+  {
+    "cell": null,
+    "code": "I001",
+    "end_location": {
+      "column": 39,
+      "row": 18
+    },
+    "filename": "D:\\Программы\\mega_agent_pro_codex_handoff\\core\\groupagents\\case_agent.py",
+    "fix": {
+      "applicability": "safe",
+      "edits": [
+        {
+          "content": "from __future__ import annotations\r\n\r\nfrom datetime import datetime\r\nfrom typing import Any\r\n\r\nfrom ..memory.memory_manager import MemoryManager\r\nfrom ..memory.models import AuditEvent, MemoryRecord\r\nfrom .models import (\r\n    CaseExhibit,\r\n    CaseOperationResult,\r\n    CaseQuery,\r\n    CaseRecord,\r\n    CaseStatus,\r\n    CaseVersion,\r\n    CaseWorkflowState,\r\n    ValidationResult,\r\n)\r\n\r\n\r\n",
+          "end_location": {
+            "column": 1,
+            "row": 21
+          },
+          "location": {
+            "column": 1,
+            "row": 9
+          }
+        }
+      ],
+      "message": "Organize imports"
+    },
+    "location": {
+      "column": 1,
+      "row": 9
+    },
+    "message": "Import block is un-sorted or un-formatted",
+    "noqa_row": 9,
+    "url": "https://docs.astral.sh/ruff/rules/unsorted-imports"
+  },
+  {
+    "cell": null,
+    "code": "RUF002",
+    "end_location": {
+      "column": 34,
+      "row": 41
+    },
+    "filename": "D:\\Программы\\mega_agent_pro_codex_handoff\\core\\groupagents\\case_agent.py",
+    "fix": null,
+    "location": {
+      "column": 33,
+      "row": 41
+    },
+    "message": "Docstring contains ambiguous `с` (CYRILLIC SMALL LETTER ES). Did you mean `c` (LATIN SMALL LETTER C)?",
+    "noqa_row": 50,
+    "url": "https://docs.astral.sh/ruff/rules/ambiguous-unicode-character-docstring"
+  },
+  {
+    "cell": null,
+    "code": "RUF002",
+    "end_location": {
+      "column": 19,
+      "row": 46
+    },
+    "filename": "D:\\Программы\\mega_agent_pro_codex_handoff\\core\\groupagents\\case_agent.py",
+    "fix": null,
+    "location": {
+      "column": 18,
+      "row": 46
+    },
+    "message": "Docstring contains ambiguous `с` (CYRILLIC SMALL LETTER ES). Did you mean `c` (LATIN SMALL LETTER C)?",
+    "noqa_row": 50,
+    "url": "https://docs.astral.sh/ruff/rules/ambiguous-unicode-character-docstring"
+  },
+  {
+    "cell": null,
+    "code": "RUF002",
+    "end_location": {
+      "column": 26,
+      "row": 172
+    },
+    "filename": "D:\\Программы\\mega_agent_pro_codex_handoff\\core\\groupagents\\case_agent.py",
+    "fix": null,
+    "location": {
+      "column": 25,
+      "row": 172
+    },
+    "message": "Docstring contains ambiguous `с` (CYRILLIC SMALL LETTER ES). Did you mean `c` (LATIN SMALL LETTER C)?",
+    "noqa_row": 186,
+    "url": "https://docs.astral.sh/ruff/rules/ambiguous-unicode-character-docstring"
+  },
+  {
+    "cell": null,
+    "code": "PLR2004",
+    "end_location": {
+      "column": 46,
+      "row": 407
+    },
+    "filename": "D:\\Программы\\mega_agent_pro_codex_handoff\\core\\groupagents\\case_agent.py",
+    "fix": null,
+    "location": {
+      "column": 45,
+      "row": 407
+    },
+    "message": "Magic value used in comparison, consider replacing `3` with a constant variable",
+    "noqa_row": 407,
+    "url": "https://docs.astral.sh/ruff/rules/magic-value-comparison"
+  },
+  {
+    "cell": null,
+    "code": "PLR2004",
+    "end_location": {
+      "column": 53,
+      "row": 410
+    },
+    "filename": "D:\\Программы\\mega_agent_pro_codex_handoff\\core\\groupagents\\case_agent.py",
+    "fix": null,
+    "location": {
+      "column": 51,
+      "row": 410
+    },
+    "message": "Magic value used in comparison, consider replacing `10` with a constant variable",
+    "noqa_row": 410,
+    "url": "https://docs.astral.sh/ruff/rules/magic-value-comparison"
+  },
+  {
+    "cell": null,
+    "code": "PLR0911",
+    "end_location": {
+      "column": 23,
+      "row": 423
+    },
+    "filename": "D:\\Программы\\mega_agent_pro_codex_handoff\\core\\groupagents\\case_agent.py",
+    "fix": null,
+    "location": {
+      "column": 9,
+      "row": 423
+    },
+    "message": "Too many return statements (10 > 6)",
+    "noqa_row": 423,
+    "url": "https://docs.astral.sh/ruff/rules/too-many-return-statements"
+  },
+  {
+    "cell": null,
+    "code": "PLC0415",
+    "end_location": {
+      "column": 20,
+      "row": 466
+    },
+    "filename": "D:\\Программы\\mega_agent_pro_codex_handoff\\core\\groupagents\\case_agent.py",
+    "fix": null,
+    "location": {
+      "column": 9,
+      "row": 466
+    },
+    "message": "`import` should be at the top-level of a file",
+    "noqa_row": 466,
+    "url": "https://docs.astral.sh/ruff/rules/import-outside-top-level"
+  },
+  {
+    "cell": null,
+    "code": "RUF002",
+    "end_location": {
+      "column": 15,
+      "row": 8
+    },
+    "filename": "D:\\Программы\\mega_agent_pro_codex_handoff\\core\\groupagents\\mega_agent.py",
+    "fix": null,
+    "location": {
+      "column": 14,
+      "row": 8
+    },
+    "message": "Docstring contains ambiguous `с` (CYRILLIC SMALL LETTER ES). Did you mean `c` (LATIN SMALL LETTER C)?",
+    "noqa_row": 10,
+    "url": "https://docs.astral.sh/ruff/rules/ambiguous-unicode-character-docstring"
+  },
+  {
+    "cell": null,
+    "code": "I001",
+    "end_location": {
+      "column": 69,
+      "row": 26
+    },
+    "filename": "D:\\Программы\\mega_agent_pro_codex_handoff\\core\\groupagents\\mega_agent.py",
+    "fix": {
+      "applicability": "safe",
+      "edits": [
+        {
+          "content": "from __future__ import annotations\r\n\r\nfrom datetime import datetime\r\nfrom enum import Enum\r\nfrom typing import Any\r\nimport uuid\r\n\r\nfrom pydantic import BaseModel, Field, ValidationError\r\n\r\nfrom ..memory.memory_manager import MemoryManager\r\nfrom ..memory.models import AuditEvent\r\nfrom ..orchestration.pipeline_manager import run\r\nfrom ..orchestration.workflow_graph import WorkflowState, build_case_workflow\r\nfrom .case_agent import CaseAgent\r\nfrom .writer_agent import DocumentRequest, DocumentType, WriterAgent\r\n\r\n\r\n",
+          "end_location": {
+            "column": 1,
+            "row": 29
+          },
+          "location": {
+            "column": 1,
+            "row": 12
+          }
+        }
+      ],
+      "message": "Organize imports"
+    },
+    "location": {
+      "column": 1,
+      "row": 12
+    },
+    "message": "Import block is un-sorted or un-formatted",
+    "noqa_row": 12,
+    "url": "https://docs.astral.sh/ruff/rules/unsorted-imports"
+  },
+  {
+    "cell": null,
+    "code": "RUF002",
+    "end_location": {
+      "column": 19,
+      "row": 111
+    },
+    "filename": "D:\\Программы\\mega_agent_pro_codex_handoff\\core\\groupagents\\mega_agent.py",
+    "fix": null,
+    "location": {
+      "column": 18,
+      "row": 111
+    },
+    "message": "Docstring contains ambiguous `с` (CYRILLIC SMALL LETTER ES). Did you mean `c` (LATIN SMALL LETTER C)?",
+    "noqa_row": 112,
+    "url": "https://docs.astral.sh/ruff/rules/ambiguous-unicode-character-docstring"
+  },
+  {
+    "cell": null,
+    "code": "RUF012",
+    "end_location": {
+      "column": 6,
+      "row": 140
+    },
+    "filename": "D:\\Программы\\mega_agent_pro_codex_handoff\\core\\groupagents\\mega_agent.py",
+    "fix": null,
+    "location": {
+      "column": 24,
+      "row": 115
+    },
+    "message": "Mutable class attributes should be annotated with `typing.ClassVar`",
+    "noqa_row": 115,
+    "url": "https://docs.astral.sh/ruff/rules/mutable-class-default"
+  },
+  {
+    "cell": null,
+    "code": "RUF012",
+    "end_location": {
+      "column": 6,
+      "row": 150
+    },
+    "filename": "D:\\Программы\\mega_agent_pro_codex_handoff\\core\\groupagents\\mega_agent.py",
+    "fix": null,
+    "location": {
+      "column": 29,
+      "row": 143
+    },
+    "message": "Mutable class attributes should be annotated with `typing.ClassVar`",
+    "noqa_row": 143,
+    "url": "https://docs.astral.sh/ruff/rules/mutable-class-default"
+  },
+  {
+    "cell": null,
+    "code": "RUF002",
+    "end_location": {
+      "column": 40,
+      "row": 175
+    },
+    "filename": "D:\\Программы\\mega_agent_pro_codex_handoff\\core\\groupagents\\mega_agent.py",
+    "fix": null,
+    "location": {
+      "column": 39,
+      "row": 175
+    },
+    "message": "Docstring contains ambiguous `с` (CYRILLIC SMALL LETTER ES). Did you mean `c` (LATIN SMALL LETTER C)?",
+    "noqa_row": 187,
+    "url": "https://docs.astral.sh/ruff/rules/ambiguous-unicode-character-docstring"
+  },
+  {
+    "cell": null,
+    "code": "RUF003",
+    "end_location": {
+      "column": 32,
+      "row": 231
+    },
+    "filename": "D:\\Программы\\mega_agent_pro_codex_handoff\\core\\groupagents\\mega_agent.py",
+    "fix": null,
+    "location": {
+      "column": 31,
+      "row": 231
+    },
+    "message": "Comment contains ambiguous `с` (CYRILLIC SMALL LETTER ES). Did you mean `c` (LATIN SMALL LETTER C)?",
+    "noqa_row": 231,
+    "url": "https://docs.astral.sh/ruff/rules/ambiguous-unicode-character-comment"
+  },
+  {
+    "cell": null,
+    "code": "RUF003",
+    "end_location": {
+      "column": 40,
+      "row": 437
+    },
+    "filename": "D:\\Программы\\mega_agent_pro_codex_handoff\\core\\groupagents\\mega_agent.py",
+    "fix": null,
+    "location": {
+      "column": 39,
+      "row": 437
+    },
+    "message": "Comment contains ambiguous `у` (CYRILLIC SMALL LETTER U). Did you mean `y` (LATIN SMALL LETTER Y)?",
+    "noqa_row": 437,
+    "url": "https://docs.astral.sh/ruff/rules/ambiguous-unicode-character-comment"
+  },
+  {
+    "cell": null,
+    "code": "RUF003",
+    "end_location": {
+      "column": 12,
+      "row": 452
+    },
+    "filename": "D:\\Программы\\mega_agent_pro_codex_handoff\\core\\groupagents\\mega_agent.py",
+    "fix": null,
+    "location": {
+      "column": 11,
+      "row": 452
+    },
+    "message": "Comment contains ambiguous `В` (CYRILLIC CAPITAL LETTER VE). Did you mean `B` (LATIN CAPITAL LETTER B)?",
+    "noqa_row": 452,
+    "url": "https://docs.astral.sh/ruff/rules/ambiguous-unicode-character-comment"
+  },
+  {
+    "cell": null,
+    "code": "RUF003",
+    "end_location": {
+      "column": 32,
+      "row": 453
+    },
+    "filename": "D:\\Программы\\mega_agent_pro_codex_handoff\\core\\groupagents\\mega_agent.py",
+    "fix": null,
+    "location": {
+      "column": 31,
+      "row": 453
+    },
+    "message": "Comment contains ambiguous `с` (CYRILLIC SMALL LETTER ES). Did you mean `c` (LATIN SMALL LETTER C)?",
+    "noqa_row": 453,
+    "url": "https://docs.astral.sh/ruff/rules/ambiguous-unicode-character-comment"
+  },
+  {
+    "cell": null,
+    "code": "RUF002",
+    "end_location": {
+      "column": 28,
+      "row": 153
+    },
+    "filename": "D:\\Программы\\mega_agent_pro_codex_handoff\\core\\groupagents\\models.py",
+    "fix": null,
+    "location": {
+      "column": 27,
+      "row": 153
+    },
+    "message": "Docstring contains ambiguous `с` (CYRILLIC SMALL LETTER ES). Did you mean `c` (LATIN SMALL LETTER C)?",
+    "noqa_row": 153,
+    "url": "https://docs.astral.sh/ruff/rules/ambiguous-unicode-character-docstring"
+  },
+  {
+    "cell": null,
+    "code": "RUF001",
+    "end_location": {
+      "column": 63,
+      "row": 158
+    },
+    "filename": "D:\\Программы\\mega_agent_pro_codex_handoff\\core\\groupagents\\models.py",
+    "fix": null,
+    "location": {
+      "column": 62,
+      "row": 158
+    },
+    "message": "String contains ambiguous `о` (CYRILLIC SMALL LETTER O). Did you mean `o` (LATIN SMALL LETTER O)?",
+    "noqa_row": 158,
+    "url": "https://docs.astral.sh/ruff/rules/ambiguous-unicode-character-string"
+  },
+  {
+    "cell": null,
+    "code": "RUF002",
+    "end_location": {
+      "column": 27,
+      "row": 7
+    },
+    "filename": "D:\\Программы\\mega_agent_pro_codex_handoff\\core\\groupagents\\supervisor_agent.py",
+    "fix": null,
+    "location": {
+      "column": 26,
+      "row": 7
+    },
+    "message": "Docstring contains ambiguous `с` (CYRILLIC SMALL LETTER ES). Did you mean `c` (LATIN SMALL LETTER C)?",
+    "noqa_row": 10,
+    "url": "https://docs.astral.sh/ruff/rules/ambiguous-unicode-character-docstring"
+  },
+  {
+    "cell": null,
+    "code": "I001",
+    "end_location": {
+      "column": 39,
+      "row": 23
+    },
+    "filename": "D:\\Программы\\mega_agent_pro_codex_handoff\\core\\groupagents\\supervisor_agent.py",
+    "fix": {
+      "applicability": "safe",
+      "edits": [
+        {
+          "content": "from __future__ import annotations\r\n\r\nimport asyncio\r\nfrom datetime import datetime\r\nfrom enum import Enum\r\nfrom typing import Any\r\nimport uuid\r\n\r\nfrom pydantic import BaseModel, Field\r\n\r\nfrom ..memory.memory_manager import MemoryManager\r\nfrom ..memory.models import AuditEvent\r\n\r\n\r\n",
+          "end_location": {
+            "column": 1,
+            "row": 26
+          },
+          "location": {
+            "column": 1,
+            "row": 12
+          }
+        }
+      ],
+      "message": "Organize imports"
+    },
+    "location": {
+      "column": 1,
+      "row": 12
+    },
+    "message": "Import block is un-sorted or un-formatted",
+    "noqa_row": 12,
+    "url": "https://docs.astral.sh/ruff/rules/unsorted-imports"
+  },
+  {
+    "cell": null,
+    "code": "RUF002",
+    "end_location": {
+      "column": 31,
+      "row": 113
+    },
+    "filename": "D:\\Программы\\mega_agent_pro_codex_handoff\\core\\groupagents\\supervisor_agent.py",
+    "fix": null,
+    "location": {
+      "column": 30,
+      "row": 113
+    },
+    "message": "Docstring contains ambiguous `с` (CYRILLIC SMALL LETTER ES). Did you mean `c` (LATIN SMALL LETTER C)?",
+    "noqa_row": 116,
+    "url": "https://docs.astral.sh/ruff/rules/ambiguous-unicode-character-docstring"
+  },
+  {
+    "cell": null,
+    "code": "F841",
+    "end_location": {
+      "column": 24,
+      "row": 148
+    },
+    "filename": "D:\\Программы\\mega_agent_pro_codex_handoff\\core\\groupagents\\supervisor_agent.py",
+    "fix": {
+      "applicability": "unsafe",
+      "edits": [
+        {
+          "content": "",
+          "end_location": {
+            "column": 27,
+            "row": 148
+          },
+          "location": {
+            "column": 9,
+            "row": 148
+          }
+        }
+      ],
+      "message": "Remove assignment to unused variable `analysis_prompt`"
+    },
+    "location": {
+      "column": 9,
+      "row": 148
+    },
+    "message": "Local variable `analysis_prompt` is assigned to but never used",
+    "noqa_row": 148,
+    "url": "https://docs.astral.sh/ruff/rules/unused-variable"
+  },
+  {
+    "cell": null,
+    "code": "RUF003",
+    "end_location": {
+      "column": 12,
+      "row": 150
+    },
+    "filename": "D:\\Программы\\mega_agent_pro_codex_handoff\\core\\groupagents\\supervisor_agent.py",
+    "fix": null,
+    "location": {
+      "column": 11,
+      "row": 150
+    },
+    "message": "Comment contains ambiguous `В` (CYRILLIC CAPITAL LETTER VE). Did you mean `B` (LATIN CAPITAL LETTER B)?",
+    "noqa_row": 150,
+    "url": "https://docs.astral.sh/ruff/rules/ambiguous-unicode-character-comment"
+  },
+  {
+    "cell": null,
+    "code": "RUF003",
+    "end_location": {
+      "column": 56,
+      "row": 194
+    },
+    "filename": "D:\\Программы\\mega_agent_pro_codex_handoff\\core\\groupagents\\supervisor_agent.py",
+    "fix": null,
+    "location": {
+      "column": 55,
+      "row": 194
+    },
+    "message": "Comment contains ambiguous `с` (CYRILLIC SMALL LETTER ES). Did you mean `c` (LATIN SMALL LETTER C)?",
+    "noqa_row": 194,
+    "url": "https://docs.astral.sh/ruff/rules/ambiguous-unicode-character-comment"
+  },
+  {
+    "cell": null,
+    "code": "RUF002",
+    "end_location": {
+      "column": 33,
+      "row": 206
+    },
+    "filename": "D:\\Программы\\mega_agent_pro_codex_handoff\\core\\groupagents\\supervisor_agent.py",
+    "fix": null,
+    "location": {
+      "column": 32,
+      "row": 206
+    },
+    "message": "Docstring contains ambiguous `с` (CYRILLIC SMALL LETTER ES). Did you mean `c` (LATIN SMALL LETTER C)?",
+    "noqa_row": 215,
+    "url": "https://docs.astral.sh/ruff/rules/ambiguous-unicode-character-docstring"
+  },
+  {
+    "cell": null,
+    "code": "RUF003",
+    "end_location": {
+      "column": 34,
+      "row": 496
+    },
+    "filename": "D:\\Программы\\mega_agent_pro_codex_handoff\\core\\groupagents\\supervisor_agent.py",
+    "fix": null,
+    "location": {
+      "column": 33,
+      "row": 496
+    },
+    "message": "Comment contains ambiguous `с` (CYRILLIC SMALL LETTER ES). Did you mean `c` (LATIN SMALL LETTER C)?",
+    "noqa_row": 496,
+    "url": "https://docs.astral.sh/ruff/rules/ambiguous-unicode-character-comment"
+  },
+  {
+    "cell": null,
+    "code": "RUF003",
+    "end_location": {
+      "column": 12,
+      "row": 518
+    },
+    "filename": "D:\\Программы\\mega_agent_pro_codex_handoff\\core\\groupagents\\supervisor_agent.py",
+    "fix": null,
+    "location": {
+      "column": 11,
+      "row": 518
+    },
+    "message": "Comment contains ambiguous `В` (CYRILLIC CAPITAL LETTER VE). Did you mean `B` (LATIN CAPITAL LETTER B)?",
+    "noqa_row": 518,
+    "url": "https://docs.astral.sh/ruff/rules/ambiguous-unicode-character-comment"
+  },
+  {
+    "cell": null,
+    "code": "I001",
+    "end_location": {
+      "column": 39,
+      "row": 24
+    },
+    "filename": "D:\\Программы\\mega_agent_pro_codex_handoff\\core\\groupagents\\writer_agent.py",
+    "fix": {
+      "applicability": "safe",
+      "edits": [
+        {
+          "content": "from __future__ import annotations\r\n\r\nfrom datetime import datetime\r\nfrom enum import Enum\r\nfrom pathlib import Path\r\nfrom typing import Any\r\nimport uuid\r\n\r\nfrom pydantic import BaseModel, Field, field_validator\r\n\r\nfrom ..memory.memory_manager import MemoryManager\r\nfrom ..memory.models import AuditEvent\r\n\r\n\r\n",
+          "end_location": {
+            "column": 1,
+            "row": 27
+          },
+          "location": {
+            "column": 1,
+            "row": 13
+          }
+        }
+      ],
+      "message": "Organize imports"
+    },
+    "location": {
+      "column": 1,
+      "row": 13
+    },
+    "message": "Import block is un-sorted or un-formatted",
+    "noqa_row": 13,
+    "url": "https://docs.astral.sh/ruff/rules/unsorted-imports"
+  },
+  {
+    "cell": null,
+    "code": "RUF002",
+    "end_location": {
+      "column": 27,
+      "row": 197
+    },
+    "filename": "D:\\Программы\\mega_agent_pro_codex_handoff\\core\\groupagents\\writer_agent.py",
+    "fix": null,
+    "location": {
+      "column": 26,
+      "row": 197
+    },
+    "message": "Docstring contains ambiguous `с` (CYRILLIC SMALL LETTER ES). Did you mean `c` (LATIN SMALL LETTER C)?",
+    "noqa_row": 209,
+    "url": "https://docs.astral.sh/ruff/rules/ambiguous-unicode-character-docstring"
+  },
+  {
+    "cell": null,
+    "code": "B904",
+    "end_location": {
+      "column": 67,
+      "row": 251
+    },
+    "filename": "D:\\Программы\\mega_agent_pro_codex_handoff\\core\\groupagents\\writer_agent.py",
+    "fix": null,
+    "location": {
+      "column": 13,
+      "row": 251
+    },
+    "message": "Within an `except` clause, raise exceptions with `raise ... from err` or `raise ... from None` to distinguish them from errors in exception handling",
+    "noqa_row": 251,
+    "url": "https://docs.astral.sh/ruff/rules/raise-without-from-inside-except"
+  },
+  {
+    "cell": null,
+    "code": "B904",
+    "end_location": {
+      "column": 64,
+      "row": 287
+    },
+    "filename": "D:\\Программы\\mega_agent_pro_codex_handoff\\core\\groupagents\\writer_agent.py",
+    "fix": null,
+    "location": {
+      "column": 13,
+      "row": 287
+    },
+    "message": "Within an `except` clause, raise exceptions with `raise ... from err` or `raise ... from None` to distinguish them from errors in exception handling",
+    "noqa_row": 287,
+    "url": "https://docs.astral.sh/ruff/rules/raise-without-from-inside-except"
+  },
+  {
+    "cell": null,
+    "code": "B904",
+    "end_location": {
+      "column": 69,
+      "row": 368
+    },
+    "filename": "D:\\Программы\\mega_agent_pro_codex_handoff\\core\\groupagents\\writer_agent.py",
+    "fix": null,
+    "location": {
+      "column": 13,
+      "row": 368
+    },
+    "message": "Within an `except` clause, raise exceptions with `raise ... from err` or `raise ... from None` to distinguish them from errors in exception handling",
+    "noqa_row": 368,
+    "url": "https://docs.astral.sh/ruff/rules/raise-without-from-inside-except"
+  },
+  {
+    "cell": null,
+    "code": "RUF001",
+    "end_location": {
+      "column": 43,
+      "row": 466
+    },
+    "filename": "D:\\Программы\\mega_agent_pro_codex_handoff\\core\\groupagents\\writer_agent.py",
+    "fix": null,
+    "location": {
+      "column": 42,
+      "row": 466
+    },
+    "message": "String contains ambiguous `В` (CYRILLIC CAPITAL LETTER VE). Did you mean `B` (LATIN CAPITAL LETTER B)?",
+    "noqa_row": 466,
+    "url": "https://docs.astral.sh/ruff/rules/ambiguous-unicode-character-string"
+  },
+  {
+    "cell": null,
+    "code": "RUF001",
+    "end_location": {
+      "column": 44,
+      "row": 466
+    },
+    "filename": "D:\\Программы\\mega_agent_pro_codex_handoff\\core\\groupagents\\writer_agent.py",
+    "fix": null,
+    "location": {
+      "column": 43,
+      "row": 466
+    },
+    "message": "String contains ambiguous `а` (CYRILLIC SMALL LETTER A). Did you mean `a` (LATIN SMALL LETTER A)?",
+    "noqa_row": 466,
+    "url": "https://docs.astral.sh/ruff/rules/ambiguous-unicode-character-string"
+  },
+  {
+    "cell": null,
+    "code": "RUF001",
+    "end_location": {
+      "column": 45,
+      "row": 466
+    },
+    "filename": "D:\\Программы\\mega_agent_pro_codex_handoff\\core\\groupagents\\writer_agent.py",
+    "fix": null,
+    "location": {
+      "column": 44,
+      "row": 466
+    },
+    "message": "String contains ambiguous `с` (CYRILLIC SMALL LETTER ES). Did you mean `c` (LATIN SMALL LETTER C)?",
+    "noqa_row": 466,
+    "url": "https://docs.astral.sh/ruff/rules/ambiguous-unicode-character-string"
+  },
+  {
+    "cell": null,
+    "code": "RUF001",
+    "end_location": {
+      "column": 29,
+      "row": 478
+    },
+    "filename": "D:\\Программы\\mega_agent_pro_codex_handoff\\core\\groupagents\\writer_agent.py",
+    "fix": null,
+    "location": {
+      "column": 28,
+      "row": 478
+    },
+    "message": "String contains ambiguous `В` (CYRILLIC CAPITAL LETTER VE). Did you mean `B` (LATIN CAPITAL LETTER B)?",
+    "noqa_row": 478,
+    "url": "https://docs.astral.sh/ruff/rules/ambiguous-unicode-character-string"
+  },
+  {
+    "cell": null,
+    "code": "RUF001",
+    "end_location": {
+      "column": 30,
+      "row": 478
+    },
+    "filename": "D:\\Программы\\mega_agent_pro_codex_handoff\\core\\groupagents\\writer_agent.py",
+    "fix": null,
+    "location": {
+      "column": 29,
+      "row": 478
+    },
+    "message": "String contains ambiguous `а` (CYRILLIC SMALL LETTER A). Did you mean `a` (LATIN SMALL LETTER A)?",
+    "noqa_row": 478,
+    "url": "https://docs.astral.sh/ruff/rules/ambiguous-unicode-character-string"
+  },
+  {
+    "cell": null,
+    "code": "RUF001",
+    "end_location": {
+      "column": 31,
+      "row": 478
+    },
+    "filename": "D:\\Программы\\mega_agent_pro_codex_handoff\\core\\groupagents\\writer_agent.py",
+    "fix": null,
+    "location": {
+      "column": 30,
+      "row": 478
+    },
+    "message": "String contains ambiguous `с` (CYRILLIC SMALL LETTER ES). Did you mean `c` (LATIN SMALL LETTER C)?",
+    "noqa_row": 478,
+    "url": "https://docs.astral.sh/ruff/rules/ambiguous-unicode-character-string"
+  },
+  {
+    "cell": null,
+    "code": "RUF001",
+    "end_location": {
+      "column": 2,
+      "row": 517
+    },
+    "filename": "D:\\Программы\\mega_agent_pro_codex_handoff\\core\\groupagents\\writer_agent.py",
+    "fix": null,
+    "location": {
+      "column": 1,
+      "row": 517
+    },
+    "message": "String contains ambiguous `С` (CYRILLIC CAPITAL LETTER ES). Did you mean `C` (LATIN CAPITAL LETTER C)?",
+    "noqa_row": 519,
+    "url": "https://docs.astral.sh/ruff/rules/ambiguous-unicode-character-string"
+  },
+  {
+    "cell": null,
+    "code": "RUF001",
+    "end_location": {
+      "column": 2,
+      "row": 539
+    },
+    "filename": "D:\\Программы\\mega_agent_pro_codex_handoff\\core\\groupagents\\writer_agent.py",
+    "fix": null,
+    "location": {
+      "column": 1,
+      "row": 539
+    },
+    "message": "String contains ambiguous `С` (CYRILLIC CAPITAL LETTER ES). Did you mean `C` (LATIN CAPITAL LETTER C)?",
+    "noqa_row": 541,
+    "url": "https://docs.astral.sh/ruff/rules/ambiguous-unicode-character-string"
+  },
+  {
+    "cell": null,
+    "code": "RUF003",
+    "end_location": {
+      "column": 12,
+      "row": 603
+    },
+    "filename": "D:\\Программы\\mega_agent_pro_codex_handoff\\core\\groupagents\\writer_agent.py",
+    "fix": null,
+    "location": {
+      "column": 11,
+      "row": 603
+    },
+    "message": "Comment contains ambiguous `В` (CYRILLIC CAPITAL LETTER VE). Did you mean `B` (LATIN CAPITAL LETTER B)?",
+    "noqa_row": 603,
+    "url": "https://docs.astral.sh/ruff/rules/ambiguous-unicode-character-comment"
+  },
+  {
+    "cell": null,
+    "code": "RUF003",
+    "end_location": {
+      "column": 38,
+      "row": 635
+    },
+    "filename": "D:\\Программы\\mega_agent_pro_codex_handoff\\core\\groupagents\\writer_agent.py",
+    "fix": null,
+    "location": {
+      "column": 37,
+      "row": 635
+    },
+    "message": "Comment contains ambiguous `В` (CYRILLIC CAPITAL LETTER VE). Did you mean `B` (LATIN CAPITAL LETTER B)?",
+    "noqa_row": 635,
+    "url": "https://docs.astral.sh/ruff/rules/ambiguous-unicode-character-comment"
+  },
+  {
+    "cell": null,
+    "code": "RUF001",
+    "end_location": {
+      "column": 2,
+      "row": 718
+    },
+    "filename": "D:\\Программы\\mega_agent_pro_codex_handoff\\core\\groupagents\\writer_agent.py",
+    "fix": null,
+    "location": {
+      "column": 1,
+      "row": 718
+    },
+    "message": "String contains ambiguous `С` (CYRILLIC CAPITAL LETTER ES). Did you mean `C` (LATIN CAPITAL LETTER C)?",
+    "noqa_row": 723,
+    "url": "https://docs.astral.sh/ruff/rules/ambiguous-unicode-character-string"
+  },
+  {
+    "cell": null,
+    "code": "S110",
+    "end_location": {
+      "column": 21,
+      "row": 742
+    },
+    "filename": "D:\\Программы\\mega_agent_pro_codex_handoff\\core\\groupagents\\writer_agent.py",
+    "fix": null,
+    "location": {
+      "column": 13,
+      "row": 741
+    },
+    "message": "`try`-`except`-`pass` detected, consider logging the exception",
+    "noqa_row": 741,
+    "url": "https://docs.astral.sh/ruff/rules/try-except-pass"
+  },
+  {
+    "cell": null,
+    "code": "PLC0415",
+    "end_location": {
+      "column": 64,
+      "row": 18
+    },
+    "filename": "D:\\Программы\\mega_agent_pro_codex_handoff\\core\\orchestration\\pipeline_manager.py",
+    "fix": null,
+    "location": {
+      "column": 13,
+      "row": 18
+    },
+    "message": "`import` should be at the top-level of a file",
+    "noqa_row": 18,
+    "url": "https://docs.astral.sh/ruff/rules/import-outside-top-level"
+  },
+  {
+    "cell": null,
+    "code": "PLC0415",
+    "end_location": {
+      "column": 64,
+      "row": 22
+    },
+    "filename": "D:\\Программы\\mega_agent_pro_codex_handoff\\core\\orchestration\\pipeline_manager.py",
+    "fix": null,
+    "location": {
+      "column": 13,
+      "row": 22
+    },
+    "message": "`import` should be at the top-level of a file",
+    "noqa_row": 22,
+    "url": "https://docs.astral.sh/ruff/rules/import-outside-top-level"
+  },
+  {
+    "cell": null,
+    "code": "PLC0415",
+    "end_location": {
+      "column": 60,
+      "row": 50
+    },
+    "filename": "D:\\Программы\\mega_agent_pro_codex_handoff\\core\\orchestration\\workflow_graph.py",
+    "fix": null,
+    "location": {
+      "column": 9,
+      "row": 50
+    },
+    "message": "`import` should be at the top-level of a file",
+    "noqa_row": 50,
+    "url": "https://docs.astral.sh/ruff/rules/import-outside-top-level"
+  },
+  {
+    "cell": null,
+    "code": "PLC0415",
+    "end_location": {
+      "column": 47,
+      "row": 51
+    },
+    "filename": "D:\\Программы\\mega_agent_pro_codex_handoff\\core\\orchestration\\workflow_graph.py",
+    "fix": null,
+    "location": {
+      "column": 9,
+      "row": 51
+    },
+    "message": "`import` should be at the top-level of a file",
+    "noqa_row": 51,
+    "url": "https://docs.astral.sh/ruff/rules/import-outside-top-level"
+  },
+  {
+    "cell": null,
+    "code": "PLC0415",
+    "end_location": {
+      "column": 43,
+      "row": 62
+    },
+    "filename": "D:\\Программы\\mega_agent_pro_codex_handoff\\core\\orchestration\\workflow_graph.py",
+    "fix": null,
+    "location": {
+      "column": 5,
+      "row": 62
+    },
+    "message": "`import` should be at the top-level of a file",
+    "noqa_row": 62,
+    "url": "https://docs.astral.sh/ruff/rules/import-outside-top-level"
+  },
+  {
+    "cell": null,
+    "code": "PLR0915",
+    "end_location": {
+      "column": 24,
+      "row": 112
+    },
+    "filename": "D:\\Программы\\mega_agent_pro_codex_handoff\\core\\orchestration\\workflow_graph.py",
+    "fix": null,
+    "location": {
+      "column": 5,
+      "row": 112
+    },
+    "message": "Too many statements (116 > 50)",
+    "noqa_row": 112,
+    "url": "https://docs.astral.sh/ruff/rules/too-many-statements"
+  },
+  {
+    "cell": null,
+    "code": "PLC0415",
+    "end_location": {
+      "column": 43,
+      "row": 116
+    },
+    "filename": "D:\\Программы\\mega_agent_pro_codex_handoff\\core\\orchestration\\workflow_graph.py",
+    "fix": null,
+    "location": {
+      "column": 5,
+      "row": 116
+    },
+    "message": "`import` should be at the top-level of a file",
+    "noqa_row": 116,
+    "url": "https://docs.astral.sh/ruff/rules/import-outside-top-level"
+  },
+  {
+    "cell": null,
+    "code": "PLC0415",
+    "end_location": {
+      "column": 51,
+      "row": 118
+    },
+    "filename": "D:\\Программы\\mega_agent_pro_codex_handoff\\core\\orchestration\\workflow_graph.py",
+    "fix": null,
+    "location": {
+      "column": 5,
+      "row": 118
+    },
+    "message": "`import` should be at the top-level of a file",
+    "noqa_row": 118,
+    "url": "https://docs.astral.sh/ruff/rules/import-outside-top-level"
+  },
+  {
+    "cell": null,
+    "code": "PLR0912",
+    "end_location": {
+      "column": 30,
+      "row": 123
+    },
+    "filename": "D:\\Программы\\mega_agent_pro_codex_handoff\\core\\orchestration\\workflow_graph.py",
+    "fix": null,
+    "location": {
+      "column": 15,
+      "row": 123
+    },
+    "message": "Too many branches (16 > 12)",
+    "noqa_row": 123,
+    "url": "https://docs.astral.sh/ruff/rules/too-many-branches"
+  },
+  {
+    "cell": null,
+    "code": "PLR0915",
+    "end_location": {
+      "column": 30,
+      "row": 123
+    },
+    "filename": "D:\\Программы\\mega_agent_pro_codex_handoff\\core\\orchestration\\workflow_graph.py",
+    "fix": null,
+    "location": {
+      "column": 15,
+      "row": 123
+    },
+    "message": "Too many statements (54 > 50)",
+    "noqa_row": 123,
+    "url": "https://docs.astral.sh/ruff/rules/too-many-statements"
+  },
+  {
+    "cell": null,
+    "code": "PLC0415",
+    "end_location": {
+      "column": 59,
+      "row": 172
+    },
+    "filename": "D:\\Программы\\mega_agent_pro_codex_handoff\\core\\orchestration\\workflow_graph.py",
+    "fix": null,
+    "location": {
+      "column": 17,
+      "row": 172
+    },
+    "message": "`import` should be at the top-level of a file",
+    "noqa_row": 172,
+    "url": "https://docs.astral.sh/ruff/rules/import-outside-top-level"
+  },
+  {
+    "cell": null,
+    "code": "I001",
+    "end_location": {
+      "column": 59,
+      "row": 5
+    },
+    "filename": "D:\\Программы\\mega_agent_pro_codex_handoff\\writer_agent_demo.py",
+    "fix": {
+      "applicability": "safe",
+      "edits": [
+        {
+          "content": "import asyncio\r\nfrom pprint import pprint\r\n\r\nfrom core.groupagents.mega_agent import CommandType, MegaAgent, MegaAgentCommand\r\n\r\n\r\n",
+          "end_location": {
+            "column": 1,
+            "row": 8
+          },
+          "location": {
+            "column": 1,
+            "row": 1
+          }
+        }
+      ],
+      "message": "Organize imports"
+    },
+    "location": {
+      "column": 1,
+      "row": 1
+    },
+    "message": "Import block is un-sorted or un-formatted",
+    "noqa_row": 1,
+    "url": "https://docs.astral.sh/ruff/rules/unsorted-imports"
+  }
+]

@@ -12,21 +12,20 @@ SupervisorAgent - Динамическая маршрутизация и орк�
 from __future__ import annotations
 
 import asyncio
-import uuid
 from datetime import datetime
 from enum import Enum
-from typing import Any, Dict, List, Optional, Union
+from typing import Any
+import uuid
 
 from pydantic import BaseModel, Field
 
 from ..memory.memory_manager import MemoryManager
-from ..memory.models import AuditEvent, MemoryRecord
-from ..orchestration.workflow_graph import WorkflowState, build_case_workflow
-from ..orchestration.pipeline_manager import run
+from ..memory.models import AuditEvent
 
 
 class TaskComplexity(str, Enum):
     """Уровни сложности задач"""
+
     SIMPLE = "simple"
     MODERATE = "moderate"
     COMPLEX = "complex"
@@ -35,6 +34,7 @@ class TaskComplexity(str, Enum):
 
 class ExecutionStrategy(str, Enum):
     """Стратегии выполнения задач"""
+
     SEQUENTIAL = "sequential"
     PARALLEL = "parallel"
     PIPELINE = "pipeline"
@@ -43,6 +43,7 @@ class ExecutionStrategy(str, Enum):
 
 class AgentType(str, Enum):
     """Типы доступных агентов"""
+
     CASE_AGENT = "case_agent"
     WRITER_AGENT = "writer_agent"
     VALIDATOR_AGENT = "validator_agent"
@@ -52,47 +53,53 @@ class AgentType(str, Enum):
 
 class TaskAnalysis(BaseModel):
     """Результат анализа задачи"""
+
     task_id: str = Field(default_factory=lambda: str(uuid.uuid4()))
     complexity: TaskComplexity = Field(..., description="Сложность задачи")
     estimated_duration: int = Field(..., description="Оценка времени в секундах")
-    required_agents: List[AgentType] = Field(..., description="Необходимые агенты")
+    required_agents: list[AgentType] = Field(..., description="Необходимые агенты")
     execution_strategy: ExecutionStrategy = Field(..., description="Стратегия выполнения")
-    dependencies: List[str] = Field(default_factory=list, description="Зависимости между подзадачами")
+    dependencies: list[str] = Field(
+        default_factory=list, description="Зависимости между подзадачами"
+    )
     confidence_score: float = Field(..., ge=0.0, le=1.0, description="Уверенность в анализе")
     reasoning: str = Field(..., description="Объяснение выбора стратегии")
 
 
 class SubTask(BaseModel):
     """Подзадача для декомпозиции"""
+
     subtask_id: str = Field(default_factory=lambda: str(uuid.uuid4()))
     description: str = Field(..., description="Описание подзадачи")
     agent_type: AgentType = Field(..., description="Тип агента для выполнения")
     priority: int = Field(default=5, ge=1, le=10, description="Приоритет")
-    dependencies: List[str] = Field(default_factory=list, description="ID зависимых подзадач")
-    input_data: Dict[str, Any] = Field(default_factory=dict, description="Входные данные")
+    dependencies: list[str] = Field(default_factory=list, description="ID зависимых подзадач")
+    input_data: dict[str, Any] = Field(default_factory=dict, description="Входные данные")
     expected_output: str = Field(..., description="Ожидаемый результат")
 
 
 class WorkflowPlan(BaseModel):
     """План выполнения workflow"""
+
     plan_id: str = Field(default_factory=lambda: str(uuid.uuid4()))
     original_task: str = Field(..., description="Исходная задача")
-    subtasks: List[SubTask] = Field(..., description="Список подзадач")
+    subtasks: list[SubTask] = Field(..., description="Список подзадач")
     execution_strategy: ExecutionStrategy = Field(..., description="Стратегия выполнения")
     estimated_total_time: int = Field(..., description="Общее время выполнения")
-    critical_path: List[str] = Field(default_factory=list, description="Критический путь")
+    critical_path: list[str] = Field(default_factory=list, description="Критический путь")
     created_at: datetime = Field(default_factory=datetime.utcnow)
 
 
 class ExecutionResult(BaseModel):
     """Результат выполнения workflow"""
+
     execution_id: str = Field(default_factory=lambda: str(uuid.uuid4()))
     plan_id: str = Field(..., description="ID плана")
     success: bool = Field(..., description="Успешность выполнения")
-    results: Dict[str, Any] = Field(default_factory=dict, description="Результаты подзадач")
+    results: dict[str, Any] = Field(default_factory=dict, description="Результаты подзадач")
     execution_time: float = Field(..., description="Время выполнения")
-    errors: List[str] = Field(default_factory=list, description="Ошибки")
-    final_result: Optional[Dict[str, Any]] = Field(default=None, description="Итоговый результат")
+    errors: list[str] = Field(default_factory=list, description="Ошибки")
+    final_result: dict[str, Any] | None = Field(default=None, description="Итоговый результат")
     completed_at: datetime = Field(default_factory=datetime.utcnow)
 
 
@@ -108,7 +115,7 @@ class SupervisorAgent:
     - Adaptive routing на основе контекста
     """
 
-    def __init__(self, memory_manager: Optional[MemoryManager] = None):
+    def __init__(self, memory_manager: MemoryManager | None = None):
         """
         Инициализация SupervisorAgent.
 
@@ -118,13 +125,15 @@ class SupervisorAgent:
         self.memory = memory_manager or MemoryManager()
 
         # Кэш планов и результатов
-        self._workflow_plans: Dict[str, WorkflowPlan] = {}
-        self._execution_results: Dict[str, ExecutionResult] = {}
+        self._workflow_plans: dict[str, WorkflowPlan] = {}
+        self._execution_results: dict[str, ExecutionResult] = {}
 
         # Статистика производительности агентов
-        self._agent_performance: Dict[AgentType, Dict[str, float]] = {}
+        self._agent_performance: dict[AgentType, dict[str, float]] = {}
 
-    async def analyze_task(self, task_description: str, context: Optional[Dict[str, Any]] = None) -> TaskAnalysis:
+    async def analyze_task(
+        self, task_description: str, context: dict[str, Any] | None = None
+    ) -> TaskAnalysis:
         """
         LLM-driven анализ задачи для определения оптимальной стратегии.
 
@@ -147,7 +156,7 @@ class SupervisorAgent:
 
         return analysis
 
-    async def decompose_task(self, task_description: str, analysis: TaskAnalysis) -> List[SubTask]:
+    async def decompose_task(self, task_description: str, analysis: TaskAnalysis) -> list[SubTask]:
         """
         Intelligent decomposition сложной задачи на подзадачи.
 
@@ -164,8 +173,12 @@ class SupervisorAgent:
             # Простая задача - одна подзадача
             subtask = SubTask(
                 description=task_description,
-                agent_type=analysis.required_agents[0] if analysis.required_agents else AgentType.CASE_AGENT,
-                expected_output="Direct task completion"
+                agent_type=(
+                    analysis.required_agents[0]
+                    if analysis.required_agents
+                    else AgentType.CASE_AGENT
+                ),
+                expected_output="Direct task completion",
             )
             subtasks.append(subtask)
 
@@ -187,10 +200,7 @@ class SupervisorAgent:
         return subtasks
 
     async def orchestrate_workflow(
-        self,
-        task_description: str,
-        user_id: str,
-        context: Optional[Dict[str, Any]] = None
+        self, task_description: str, user_id: str, context: dict[str, Any] | None = None
     ) -> ExecutionResult:
         """
         Orchestration workflow с планированием и выполнением.
@@ -228,7 +238,7 @@ class SupervisorAgent:
                 success=True,
                 results=results,
                 execution_time=execution_time,
-                final_result=final_result
+                final_result=final_result,
             )
 
             # Сохранение результата
@@ -243,10 +253,7 @@ class SupervisorAgent:
             execution_time = (datetime.utcnow() - start_time).total_seconds()
 
             execution_result = ExecutionResult(
-                plan_id="error",
-                success=False,
-                execution_time=execution_time,
-                errors=[str(e)]
+                plan_id="error", success=False, execution_time=execution_time, errors=[str(e)]
             )
 
             # Логирование ошибки
@@ -255,9 +262,7 @@ class SupervisorAgent:
             return execution_result
 
     async def _rule_based_analysis(
-        self,
-        task_description: str,
-        context: Optional[Dict[str, Any]] = None
+        self, task_description: str, context: dict[str, Any] | None = None
     ) -> TaskAnalysis:
         """Rule-based анализ задачи (заглушка для LLM)"""
 
@@ -299,7 +304,7 @@ class SupervisorAgent:
             TaskComplexity.SIMPLE: 30,
             TaskComplexity.MODERATE: 120,
             TaskComplexity.COMPLEX: 300,
-            TaskComplexity.ENTERPRISE: 600
+            TaskComplexity.ENTERPRISE: 600,
         }
 
         estimated_duration = base_time[complexity] * len(required_agents)
@@ -310,14 +315,12 @@ class SupervisorAgent:
             required_agents=required_agents,
             execution_strategy=execution_strategy,
             confidence_score=0.7,  # Rule-based имеет среднюю уверенность
-            reasoning=f"Rule-based analysis: {complexity} task requiring {len(required_agents)} agents"
+            reasoning=f"Rule-based analysis: {complexity} task requiring {len(required_agents)} agents",
         )
 
     async def _decompose_moderate_task(
-        self,
-        task_description: str,
-        analysis: TaskAnalysis
-    ) -> List[SubTask]:
+        self, task_description: str, analysis: TaskAnalysis
+    ) -> list[SubTask]:
         """Декомпозиция задачи средней сложности"""
         subtasks = []
 
@@ -326,17 +329,19 @@ class SupervisorAgent:
             description=f"Prepare context and validate input for: {task_description}",
             agent_type=AgentType.VALIDATOR_AGENT,
             priority=8,
-            expected_output="Validated input and prepared context"
+            expected_output="Validated input and prepared context",
         )
         subtasks.append(prep_task)
 
         # Основная подзадача
         main_task = SubTask(
             description=f"Execute main task: {task_description}",
-            agent_type=analysis.required_agents[0] if analysis.required_agents else AgentType.CASE_AGENT,
+            agent_type=(
+                analysis.required_agents[0] if analysis.required_agents else AgentType.CASE_AGENT
+            ),
             priority=10,
             dependencies=[prep_task.subtask_id],
-            expected_output="Main task result"
+            expected_output="Main task result",
         )
         subtasks.append(main_task)
 
@@ -347,17 +352,15 @@ class SupervisorAgent:
                 agent_type=AgentType.VALIDATOR_AGENT,
                 priority=6,
                 dependencies=[main_task.subtask_id],
-                expected_output="Validated final result"
+                expected_output="Validated final result",
             )
             subtasks.append(validation_task)
 
         return subtasks
 
     async def _decompose_complex_task(
-        self,
-        task_description: str,
-        analysis: TaskAnalysis
-    ) -> List[SubTask]:
+        self, task_description: str, analysis: TaskAnalysis
+    ) -> list[SubTask]:
         """Декомпозиция сложной задачи"""
         subtasks = []
 
@@ -366,7 +369,7 @@ class SupervisorAgent:
             description=f"Research and gather information for: {task_description}",
             agent_type=AgentType.RAG_PIPELINE_AGENT,
             priority=9,
-            expected_output="Research results and context"
+            expected_output="Research results and context",
         )
         subtasks.append(research_task)
 
@@ -377,7 +380,7 @@ class SupervisorAgent:
                 agent_type=agent_type,
                 priority=8 - i,
                 dependencies=[research_task.subtask_id],
-                expected_output=f"Results from {agent_type}"
+                expected_output=f"Results from {agent_type}",
             )
             subtasks.append(agent_task)
 
@@ -387,26 +390,21 @@ class SupervisorAgent:
             agent_type=AgentType.VALIDATOR_AGENT,
             priority=10,
             dependencies=[task.subtask_id for task in subtasks[1:]],  # All agent tasks
-            expected_output="Fused and validated final result"
+            expected_output="Fused and validated final result",
         )
         subtasks.append(fusion_task)
 
         return subtasks
 
     async def _decompose_enterprise_task(
-        self,
-        task_description: str,
-        analysis: TaskAnalysis
-    ) -> List[SubTask]:
+        self, task_description: str, analysis: TaskAnalysis
+    ) -> list[SubTask]:
         """Декомпозиция энтерпрайз задачи"""
         # Enterprise tasks требуют полного workflow pipeline
         return await self._decompose_complex_task(task_description, analysis)
 
     async def _create_workflow_plan(
-        self,
-        task_description: str,
-        subtasks: List[SubTask],
-        analysis: TaskAnalysis
+        self, task_description: str, subtasks: list[SubTask], analysis: TaskAnalysis
     ) -> WorkflowPlan:
         """Создание плана выполнения workflow"""
 
@@ -424,7 +422,7 @@ class SupervisorAgent:
             subtasks=subtasks,
             execution_strategy=analysis.execution_strategy,
             estimated_total_time=total_time,
-            critical_path=critical_path
+            critical_path=critical_path,
         )
 
         # Сохранение плана
@@ -433,11 +431,8 @@ class SupervisorAgent:
         return plan
 
     async def _execute_workflow_plan(
-        self,
-        plan: WorkflowPlan,
-        user_id: str,
-        context: Optional[Dict[str, Any]] = None
-    ) -> Dict[str, Any]:
+        self, plan: WorkflowPlan, user_id: str, context: dict[str, Any] | None = None
+    ) -> dict[str, Any]:
         """Выполнение плана workflow"""
         results = {}
 
@@ -453,11 +448,8 @@ class SupervisorAgent:
         return results
 
     async def _execute_sequential(
-        self,
-        plan: WorkflowPlan,
-        user_id: str,
-        context: Optional[Dict[str, Any]] = None
-    ) -> Dict[str, Any]:
+        self, plan: WorkflowPlan, user_id: str, context: dict[str, Any] | None = None
+    ) -> dict[str, Any]:
         """Последовательное выполнение подзадач"""
         results = {}
 
@@ -474,11 +466,8 @@ class SupervisorAgent:
         return results
 
     async def _execute_parallel(
-        self,
-        plan: WorkflowPlan,
-        user_id: str,
-        context: Optional[Dict[str, Any]] = None
-    ) -> Dict[str, Any]:
+        self, plan: WorkflowPlan, user_id: str, context: dict[str, Any] | None = None
+    ) -> dict[str, Any]:
         """Параллельное выполнение подзадач"""
         # Группировка задач по dependency levels
         levels = await self._group_by_dependency_levels(plan.subtasks)
@@ -487,13 +476,12 @@ class SupervisorAgent:
         for level_tasks in levels:
             # Выполнение задач одного уровня параллельно
             tasks = [
-                self._execute_subtask(subtask, user_id, context, results)
-                for subtask in level_tasks
+                self._execute_subtask(subtask, user_id, context, results) for subtask in level_tasks
             ]
 
             level_results = await asyncio.gather(*tasks, return_exceptions=True)
 
-            for subtask, result in zip(level_tasks, level_results):
+            for subtask, result in zip(level_tasks, level_results, strict=False):
                 if isinstance(result, Exception):
                     results[subtask.subtask_id] = {"error": str(result), "success": False}
                 else:
@@ -502,21 +490,15 @@ class SupervisorAgent:
         return results
 
     async def _execute_pipeline(
-        self,
-        plan: WorkflowPlan,
-        user_id: str,
-        context: Optional[Dict[str, Any]] = None
-    ) -> Dict[str, Any]:
+        self, plan: WorkflowPlan, user_id: str, context: dict[str, Any] | None = None
+    ) -> dict[str, Any]:
         """Pipeline выполнение подзадач"""
         # Pipeline = sequential с передачей результатов между задачами
         return await self._execute_sequential(plan, user_id, context)
 
     async def _execute_fan_out_fan_in(
-        self,
-        plan: WorkflowPlan,
-        user_id: str,
-        context: Optional[Dict[str, Any]] = None
-    ) -> Dict[str, Any]:
+        self, plan: WorkflowPlan, user_id: str, context: dict[str, Any] | None = None
+    ) -> dict[str, Any]:
         """Fan-out/Fan-in выполнение"""
         # Первая задача - fan-out point
         # Последняя задача - fan-in point
@@ -527,9 +509,9 @@ class SupervisorAgent:
         self,
         subtask: SubTask,
         user_id: str,
-        context: Optional[Dict[str, Any]] = None,
-        previous_results: Optional[Dict[str, Any]] = None
-    ) -> Dict[str, Any]:
+        context: dict[str, Any] | None = None,
+        previous_results: dict[str, Any] | None = None,
+    ) -> dict[str, Any]:
         """Выполнение одной подзадачи"""
 
         # Placeholder для выполнения подзадачи через соответствующий агент
@@ -543,23 +525,23 @@ class SupervisorAgent:
             "subtask_id": subtask.subtask_id,
             "agent_type": subtask.agent_type.value,
             "result": f"Completed: {subtask.description}",
-            "timestamp": datetime.utcnow().isoformat()
+            "timestamp": datetime.utcnow().isoformat(),
         }
 
     async def _fuse_results(
-        self,
-        results: Dict[str, Any],
-        strategy: ExecutionStrategy
-    ) -> Dict[str, Any]:
+        self, results: dict[str, Any], strategy: ExecutionStrategy
+    ) -> dict[str, Any]:
         """Fusion результатов подзадач"""
 
         successful_results = [
-            result for result in results.values()
+            result
+            for result in results.values()
             if isinstance(result, dict) and result.get("success", False)
         ]
 
         failed_results = [
-            result for result in results.values()
+            result
+            for result in results.values()
             if isinstance(result, dict) and not result.get("success", True)
         ]
 
@@ -571,10 +553,10 @@ class SupervisorAgent:
             "success_rate": len(successful_results) / len(results) if results else 0,
             "combined_results": successful_results,
             "errors": [r.get("error", "Unknown error") for r in failed_results],
-            "overall_success": len(failed_results) == 0
+            "overall_success": len(failed_results) == 0,
         }
 
-    async def _calculate_critical_path(self, subtasks: List[SubTask]) -> List[str]:
+    async def _calculate_critical_path(self, subtasks: list[SubTask]) -> list[str]:
         """Расчет критического пути"""
         # Упрощенный алгоритм - самая длинная цепочка зависимостей
         paths = []
@@ -586,15 +568,12 @@ class SupervisorAgent:
 
         return max(paths, key=len) if paths else []
 
-    async def _find_longest_path(self, start_task: SubTask, all_tasks: List[SubTask]) -> List[str]:
+    async def _find_longest_path(self, start_task: SubTask, all_tasks: list[SubTask]) -> list[str]:
         """Поиск самого длинного пути от задачи"""
         path = [start_task.subtask_id]
 
         # Поиск задач, зависящих от текущей
-        dependent_tasks = [
-            task for task in all_tasks
-            if start_task.subtask_id in task.dependencies
-        ]
+        dependent_tasks = [task for task in all_tasks if start_task.subtask_id in task.dependencies]
 
         if not dependent_tasks:
             return path
@@ -608,7 +587,7 @@ class SupervisorAgent:
 
         return path + longest_subpath
 
-    async def _topological_sort(self, subtasks: List[SubTask]) -> List[SubTask]:
+    async def _topological_sort(self, subtasks: list[SubTask]) -> list[SubTask]:
         """Топологическая сортировка подзадач"""
         # Упрощенная реализация
         sorted_tasks = []
@@ -617,10 +596,10 @@ class SupervisorAgent:
         while remaining_tasks:
             # Поиск задач без неразрешенных зависимостей
             ready_tasks = [
-                task for task in remaining_tasks
+                task
+                for task in remaining_tasks
                 if all(
-                    dep_id in [t.subtask_id for t in sorted_tasks]
-                    for dep_id in task.dependencies
+                    dep_id in [t.subtask_id for t in sorted_tasks] for dep_id in task.dependencies
                 )
             ]
 
@@ -634,7 +613,7 @@ class SupervisorAgent:
 
         return sorted_tasks
 
-    async def _group_by_dependency_levels(self, subtasks: List[SubTask]) -> List[List[SubTask]]:
+    async def _group_by_dependency_levels(self, subtasks: list[SubTask]) -> list[list[SubTask]]:
         """Группировка задач по уровням зависимостей"""
         levels = []
         remaining_tasks = subtasks.copy()
@@ -642,7 +621,8 @@ class SupervisorAgent:
 
         while remaining_tasks:
             current_level = [
-                task for task in remaining_tasks
+                task
+                for task in remaining_tasks
                 if all(dep_id in completed_task_ids for dep_id in task.dependencies)
             ]
 
@@ -659,9 +639,7 @@ class SupervisorAgent:
         return levels
 
     def _build_analysis_prompt(
-        self,
-        task_description: str,
-        context: Optional[Dict[str, Any]] = None
+        self, task_description: str, context: dict[str, Any] | None = None
     ) -> str:
         """Построение prompt для LLM анализа"""
 
@@ -693,11 +671,11 @@ class SupervisorAgent:
                 "complexity": analysis.complexity.value,
                 "agents": [a.value for a in analysis.required_agents],
                 "strategy": analysis.execution_strategy.value,
-                "confidence": analysis.confidence_score
-            }
+                "confidence": analysis.confidence_score,
+            },
         )
 
-    async def _log_task_decomposition(self, task: str, subtasks: List[SubTask]) -> None:
+    async def _log_task_decomposition(self, task: str, subtasks: list[SubTask]) -> None:
         """Логирование декомпозиции задачи"""
         await self._log_audit_event(
             user_id="supervisor_agent",
@@ -706,14 +684,10 @@ class SupervisorAgent:
                 "task": task,
                 "subtasks_count": len(subtasks),
                 "subtasks": [
-                    {
-                        "id": st.subtask_id,
-                        "agent": st.agent_type.value,
-                        "priority": st.priority
-                    }
+                    {"id": st.subtask_id, "agent": st.agent_type.value, "priority": st.priority}
                     for st in subtasks
-                ]
-            }
+                ],
+            },
         )
 
     async def _log_workflow_completion(self, task: str, result: ExecutionResult) -> None:
@@ -726,11 +700,13 @@ class SupervisorAgent:
                 "execution_id": result.execution_id,
                 "success": result.success,
                 "execution_time": result.execution_time,
-                "subtasks_count": len(result.results)
-            }
+                "subtasks_count": len(result.results),
+            },
         )
 
-    async def _log_workflow_error(self, task: str, result: ExecutionResult, error: Exception) -> None:
+    async def _log_workflow_error(
+        self, task: str, result: ExecutionResult, error: Exception
+    ) -> None:
         """Логирование ошибки workflow"""
         await self._log_audit_event(
             user_id="supervisor_agent",
@@ -739,16 +715,11 @@ class SupervisorAgent:
                 "task": task,
                 "error_type": type(error).__name__,
                 "error_message": str(error),
-                "execution_time": result.execution_time
-            }
+                "execution_time": result.execution_time,
+            },
         )
 
-    async def _log_audit_event(
-        self,
-        user_id: str,
-        action: str,
-        payload: Dict[str, Any]
-    ) -> None:
+    async def _log_audit_event(self, user_id: str, action: str, payload: dict[str, Any]) -> None:
         """Централизованное логирование audit событий"""
         event = AuditEvent(
             event_id=str(uuid.uuid4()),
@@ -757,35 +728,32 @@ class SupervisorAgent:
             source="supervisor_agent",
             action=action,
             payload=payload,
-            tags=["supervisor_agent", "orchestration", "workflow"]
+            tags=["supervisor_agent", "orchestration", "workflow"],
         )
 
         await self.memory.alog_audit(event)
 
-    async def get_workflow_status(self, plan_id: str) -> Optional[Dict[str, Any]]:
+    async def get_workflow_status(self, plan_id: str) -> dict[str, Any] | None:
         """Получение статуса выполнения workflow"""
         plan = self._workflow_plans.get(plan_id)
         if not plan:
             return None
 
         execution = next(
-            (result for result in self._execution_results.values()
-             if result.plan_id == plan_id),
-            None
+            (result for result in self._execution_results.values() if result.plan_id == plan_id),
+            None,
         )
 
         return {
             "plan": plan.model_dump(),
             "execution": execution.model_dump() if execution else None,
-            "status": "completed" if execution else "planned"
+            "status": "completed" if execution else "planned",
         }
 
-    async def get_agent_performance(self) -> Dict[str, Any]:
+    async def get_agent_performance(self) -> dict[str, Any]:
         """Получение статистики производительности агентов"""
         return {
             "agent_stats": self._agent_performance,
             "total_workflows": len(self._execution_results),
-            "successful_workflows": len([
-                r for r in self._execution_results.values() if r.success
-            ])
+            "successful_workflows": len([r for r in self._execution_results.values() if r.success]),
         }

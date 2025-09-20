@@ -205,7 +205,7 @@ MISTRAL_API_KEY=
 DEEPSEEK_API_KEY=
 
 # Infrastructure
-POSTGRES_URL=postgresql://user:pass@localhost:5432/mega_agent
+POSTGRES_URL=postgresql://user:pass@localhost:5432/mega_agent # pragma: allowlist secret
 REDIS_URL=redis://localhost:6379
 
 # Monitoring

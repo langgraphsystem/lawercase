@@ -1,6 +1,9 @@
 from __future__ import annotations
 
-from typing import Any, Dict, Iterable, List, Optional, Protocol
+from typing import TYPE_CHECKING, Any, Protocol
+
+if TYPE_CHECKING:
+    from collections.abc import Iterable
 
 from .models import AuditEvent, ConsolidateStats, MemoryRecord, RetrievalQuery
 from .policies import select_salient_facts
@@ -8,12 +11,12 @@ from .stores import EpisodicStore, SemanticStore, WorkingMemory
 
 
 class Embedder(Protocol):
-    async def aembed(self, texts: List[str]) -> List[List[float]]:  # pragma: no cover - interface
+    async def aembed(self, texts: list[str]) -> list[list[float]]:  # pragma: no cover - interface
         ...
 
 
 class _NoOpEmbedder:
-    async def aembed(self, texts: List[str]) -> List[List[float]]:
+    async def aembed(self, texts: list[str]) -> list[list[float]]:
         return [[] for _ in texts]
 
 
@@ -30,10 +33,10 @@ class MemoryManager:
     def __init__(
         self,
         *,
-        semantic: Optional[SemanticStore] = None,
-        episodic: Optional[EpisodicStore] = None,
-        working: Optional[WorkingMemory] = None,
-        embedder: Optional[Embedder] = None,
+        semantic: SemanticStore | None = None,
+        episodic: EpisodicStore | None = None,
+        working: WorkingMemory | None = None,
+        embedder: Embedder | None = None,
     ) -> None:
         self.semantic = semantic or SemanticStore()
         self.episodic = episodic or EpisodicStore()
@@ -49,8 +52,8 @@ class MemoryManager:
         self,
         payload: Iterable[MemoryRecord] | AuditEvent,
         *,
-        policy: Optional[str] = None,
-    ) -> List[MemoryRecord]:
+        policy: str | None = None,
+    ) -> list[MemoryRecord]:
         """Write MemoryRecord(s) or reflect from an AuditEvent.
 
         - If payload is AuditEvent: run reflection policy to produce MemoryRecord(s).
@@ -64,7 +67,7 @@ class MemoryManager:
         texts = [r.text for r in records]
         if texts:
             embeddings = await self.embedder.aembed(texts)
-            for r, emb in zip(records, embeddings):
+            for r, emb in zip(records, embeddings, strict=False):
                 r.embedding = emb
 
         await self.semantic.ainsert(records)
@@ -72,21 +75,28 @@ class MemoryManager:
 
     # ---- Retrieve ----
     async def aretrieve(
-        self, query: str | RetrievalQuery, *, user_id: Optional[str] = None, topk: Optional[int] = None, filters: Optional[Dict[str, Any]] = None
-    ) -> List[MemoryRecord]:
+        self,
+        query: str | RetrievalQuery,
+        *,
+        user_id: str | None = None,
+        topk: int | None = None,
+        filters: dict[str, Any] | None = None,
+    ) -> list[MemoryRecord]:
         if isinstance(query, RetrievalQuery):
             user_id = query.user_id
             topk = query.topk
             filters = query.filters
             query = query.query
-        return await self.semantic.aretrieve(query=query, user_id=user_id, topk=topk or 8, filters=filters)
+        return await self.semantic.aretrieve(
+            query=query, user_id=user_id, topk=topk or 8, filters=filters
+        )
 
     # ---- Consolidate ----
-    async def aconsolidate(self, *, user_id: Optional[str] = None) -> ConsolidateStats:
+    async def aconsolidate(self, *, user_id: str | None = None) -> ConsolidateStats:
         """Placeholder consolidation: deduplicate identical texts per user."""
         all_items = await self.semantic.aall(user_id=user_id)
         seen = set()
-        deduped: List[MemoryRecord] = []
+        deduped: list[MemoryRecord] = []
         deduplicated = 0
         for r in all_items:
             key = (r.user_id, r.type, r.text)
@@ -112,9 +122,8 @@ class MemoryManager:
         return "\n".join(lines)
 
     # ---- RMT Buffer ----
-    async def aset_rmt(self, thread_id: str, slots: Dict[str, str]) -> None:
+    async def aset_rmt(self, thread_id: str, slots: dict[str, str]) -> None:
         await self.working.aset_buffer(thread_id, slots)
 
-    async def aget_rmt(self, thread_id: str) -> Optional[Dict[str, str]]:
+    async def aget_rmt(self, thread_id: str) -> dict[str, str] | None:
         return await self.working.aget_buffer(thread_id)
-
