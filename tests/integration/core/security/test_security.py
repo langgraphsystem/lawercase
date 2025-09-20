@@ -8,7 +8,7 @@ import pytest
 from fastapi.testclient import TestClient
 
 # Import the app and token creator from our test app file
-from .sec_test_app import app, create_test_token
+from tests.integration.core.security.sec_test_app import app, create_test_token
 
 
 @pytest.fixture(scope="module")

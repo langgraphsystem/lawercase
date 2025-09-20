@@ -20,6 +20,7 @@ exclude = [
     "node_modules",
     "venv",
     "migrations",
+    "deps",
 ]
 
 # Enable automatic fixing
@@ -85,8 +86,7 @@ ignore = [
     "B008",   # Function call in argument defaults (FastAPI pattern)
     "S105",   # Hardcoded password (test configuration)
     "PTH123", # Use Path.open (will be migrated gradually)
-    "TC001",  # Type checking block imports (performance not critical)
-    "TC003",  # Type checking block imports (performance not critical)
+    
     "PT011",  # pytest.raises too broad (test practicality)
     "N999",   # Invalid module name (allow for existing structure)
 ]

@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any
+from typing import Any
 from uuid import uuid4
 
 from pydantic import BaseModel, Field
@@ -17,9 +17,6 @@ try:
     LANGGRAPH_AVAILABLE = True
 except ImportError:
     LANGGRAPH_AVAILABLE = False
-
-if TYPE_CHECKING:
-    from ..groupagents.case_agent import CaseAgent
 
 
 class WorkflowState(BaseModel):
@@ -39,9 +36,37 @@ class WorkflowState(BaseModel):
         default=None, description="Input payload for case operations"
     )
 
+    # Document workflow data (integrated from legal workflow)
+    document_id: str | None = Field(default=None, description="Current document ID")
+    document_operation: str | None = Field(default=None, description="Document operation")
+    document_data: dict[str, Any] | None = Field(default=None, description="Document data")
+    document_content: str | None = Field(default=None, description="Document content")
+    is_exhibit: bool = Field(default=False, description="Is this an exhibit document")
+    is_draft: bool = Field(default=True, description="Is this a draft document")
+
+    # Validation workflow data
+    validation_required: bool = Field(default=True, description="Requires validation")
+    validation_level: str = Field(default="standard", description="Validation level")
+    validation_results: dict[str, Any] | None = Field(
+        default=None, description="Validation results"
+    )
+
+    # Feedback workflow data
+    feedback_required: bool = Field(default=False, description="Requires peer review")
+    feedback_results: dict[str, Any] | None = Field(default=None, description="Feedback results")
+
     # Agent results
     case_result: dict[str, Any] | None = Field(
         default=None, description="Result of the CaseAgent execution"
+    )
+    writer_result: dict[str, Any] | None = Field(
+        default=None, description="Result of the WriterAgent execution"
+    )
+    validator_result: dict[str, Any] | None = Field(
+        default=None, description="Result of the ValidatorAgent execution"
+    )
+    feedback_result: dict[str, Any] | None = Field(
+        default=None, description="Result of the FeedbackAgent execution"
     )
 
     # Outputs/Derived
@@ -52,6 +77,10 @@ class WorkflowState(BaseModel):
     # Multi-agent coordination hooks
     next_agent: str | None = Field(default=None)
     agent_results: dict[str, Any] = Field(default_factory=dict)
+
+    # Workflow routing
+    workflow_step: str = Field(default="start", description="Current workflow step")
+    final_output: dict[str, Any] | None = Field(default=None, description="Final workflow output")
 
     # Error handling
     error: str | None = None
@@ -263,6 +292,7 @@ def build_case_workflow(memory: MemoryManager, *, case_agent: CaseAgent | None =
         return state
 
     async def node_update_rmt(state: WorkflowState) -> WorkflowState:
+        persona = ""
         long_term = (
             "\n".join(record.text for record in state.retrieved[:5]) if state.retrieved else ""
         )
@@ -278,7 +308,7 @@ def build_case_workflow(memory: MemoryManager, *, case_agent: CaseAgent | None =
             summary = state.reflected[0].text
 
         slots = {
-            "persona": "",
+            "persona": persona,
             "long_term_facts": long_term,
             "open_loops": "",
             "recent_summary": summary,
@@ -302,3 +332,14 @@ def build_case_workflow(memory: MemoryManager, *, case_agent: CaseAgent | None =
     graph.set_finish_point("update_rmt")
 
     return graph
+
+
+# Import the legal document workflow from the dedicated module
+try:
+    from .legal_workflow import build_legal_document_workflow
+except ImportError:
+    # Fallback if legal_workflow module is not available
+    def build_legal_document_workflow(*args, **kwargs):
+        raise NotImplementedError(
+            "Legal document workflow not available - missing legal_workflow module"
+        )

@@ -4,14 +4,15 @@ from __future__ import annotations
 
 from datetime import datetime, timedelta
 
-import jwt
 from fastapi import Depends, FastAPI, HTTPException, Security
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
-from starlette.status import HTTP_403_FORBIDDEN
+from jose import jwt
+from jose.exceptions import ExpiredSignatureError, JWTError
+from starlette.status import HTTP_401_UNAUTHORIZED, HTTP_403_FORBIDDEN
 
 # --- Configuration ---
-SECRET_KEY = "a_very_secret_key"
+SECRET_KEY = "a_very_secret_key"  # pragma: allowlist secret # nosec B105
 ALGORITHM = "HS256"
 ALLOWED_ORIGINS = ["http://localhost:3000", "https://example.com"]
 
@@ -33,11 +34,11 @@ def get_current_user(credentials: HTTPAuthorizationCredentials = Security(auth_s
     token = credentials.credentials
     try:
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
-        if datetime.utcnow() > datetime.fromtimestamp(payload["exp"]):
-            raise HTTPException(status_code=401, detail="Token has expired")
         return payload
-    except jwt.PyJWTError:
-        raise HTTPException(status_code=401, detail="Invalid token")
+    except ExpiredSignatureError:
+        raise HTTPException(status_code=HTTP_401_UNAUTHORIZED, detail="Token has expired")
+    except JWTError:
+        raise HTTPException(status_code=HTTP_401_UNAUTHORIZED, detail="Invalid token")
 
 
 def require_role(required_role: str):
