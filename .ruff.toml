@@ -99,6 +99,12 @@ ignore = [
     "S311",    # Pseudo-random generators OK in tests
     "ARG001",  # Unused function argument in tests
 ]
+"core/memory/models.py" = [
+    "A003",  # id/type field names are intentional in data models
+]
+"core/groupagents/writer_agent.py" = [
+    "A003",  # 'format' field name is part of API schema
+]
 "**/migrations/*" = ["ALL"]  # Ignore all rules in migration files
 "scripts/*" = [
     "T201",    # print() OK in scripts

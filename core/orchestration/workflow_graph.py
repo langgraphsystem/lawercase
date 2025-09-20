@@ -1,13 +1,15 @@
 from __future__ import annotations
 
-from typing import Any
+from typing import TYPE_CHECKING, Any
 from uuid import uuid4
 
 from pydantic import BaseModel, Field
 
-from ..memory.memory_manager import MemoryManager
 from ..memory.models import AuditEvent, MemoryRecord
 from ..memory.rmt.buffer import compose_prompt
+
+if TYPE_CHECKING:
+    from ..memory.memory_manager import MemoryManager
 
 # Optional imports that may not be available
 try:
@@ -339,7 +341,7 @@ try:
     from .legal_workflow import build_legal_document_workflow
 except ImportError:
     # Fallback if legal_workflow module is not available
-    def build_legal_document_workflow(*args, **kwargs):
+    def build_legal_document_workflow(*_args, **_kwargs):
         raise NotImplementedError(
             "Legal document workflow not available - missing legal_workflow module"
         )

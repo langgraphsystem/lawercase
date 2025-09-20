@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import logging
+
 
 class GeminiEmbedder:
     """Embeddings adapter for Gemini "gemini-embedding-001" only.
@@ -84,8 +86,8 @@ class GeminiEmbedder:
                 out.extend([[]] * (len(texts) - len(out)))
             return out[: len(texts)]
         except Exception:
-            # Fallback to per-text requests
-            pass
+            # Log and fallback to per-text requests instead of silent pass
+            logging.exception("Gemini batch embedding failed; falling back to per-text mode")
 
         out: list[list[float]] = []
         for t in truncated:

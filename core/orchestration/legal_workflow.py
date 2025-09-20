@@ -14,9 +14,9 @@ Implements the 8-step legal document workflow with conditional logic:
 
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
 from uuid import uuid4
 
-from ..memory.memory_manager import MemoryManager
 from ..memory.models import AuditEvent, MemoryRecord
 from .workflow_graph import WorkflowState, _ensure_langgraph
 
@@ -33,6 +33,7 @@ if TYPE_CHECKING:
     from ..groupagents.feedback_agent import FeedbackAgent
     from ..groupagents.validator_agent import ValidatorAgent
     from ..groupagents.writer_agent import WriterAgent
+    from ..memory.memory_manager import MemoryManager
 
 
 def build_legal_document_workflow(

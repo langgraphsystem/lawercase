@@ -1,8 +1,10 @@
 from __future__ import annotations
 
 from collections import defaultdict
+from typing import TYPE_CHECKING
 
-from ..models import AuditEvent
+if TYPE_CHECKING:
+    from ..models import AuditEvent
 
 
 class EpisodicStore:

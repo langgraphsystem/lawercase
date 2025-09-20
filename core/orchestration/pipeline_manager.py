@@ -1,9 +1,11 @@
 from __future__ import annotations
 
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
-from ..memory.memory_manager import MemoryManager
 from .workflow_graph import WorkflowState, build_memory_workflow
+
+if TYPE_CHECKING:
+    from ..memory.memory_manager import MemoryManager
 
 
 def setup_checkpointer(url: str | None = None):
