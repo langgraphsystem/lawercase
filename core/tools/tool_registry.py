@@ -112,7 +112,7 @@ _registry: ToolRegistry | None = None
 def get_tool_registry() -> ToolRegistry:
     """Return the global ``ToolRegistry`` instance."""
 
-    global _registry
+    global _registry  # noqa: PLW0603
     if _registry is None:
         _registry = ToolRegistry()
     return _registry
@@ -121,5 +121,5 @@ def get_tool_registry() -> ToolRegistry:
 def reset_tool_registry() -> None:
     """Reset the shared registry (mainly for testing)."""
 
-    global _registry
+    global _registry  # noqa: PLW0603
     _registry = None

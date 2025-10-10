@@ -7,7 +7,6 @@ import os
 from typing import Any
 
 try:
-    import redis.asyncio as aioredis
     from redis.asyncio import ConnectionPool, Redis
 
     REDIS_AVAILABLE = True
@@ -501,7 +500,7 @@ def get_redis_client() -> RedisClient:
         # No running loop; fall back to a single instance
         key = -1
 
-    global _redis_clients_by_loop
+    global _redis_clients_by_loop  # noqa: PLW0602
     client = _redis_clients_by_loop.get(key)
     if client is None:
         client = RedisClient()
@@ -512,7 +511,7 @@ def get_redis_client() -> RedisClient:
 async def close_redis_client() -> None:
     """Close global Redis client connection."""
     # Close all loop-bound clients
-    global _redis_clients_by_loop
+    global _redis_clients_by_loop  # noqa: PLW0602
     for client in list(_redis_clients_by_loop.values()):
         try:
             await client.close()

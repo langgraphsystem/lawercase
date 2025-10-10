@@ -12,10 +12,12 @@ if TYPE_CHECKING:
     from collections.abc import Iterable
 
     from ...llm.voyage_embedder import VoyageEmbedder
+    from ...storage.pinecone_store import PineconeSemanticStore as PineconeStore
     from ..models import MemoryRecord
+else:
+    from collections.abc import Iterable
 
-# Import storage modules
-from ...storage.pinecone_store import PineconeSemanticStore
+    from ...storage.pinecone_store import PineconeSemanticStore as PineconeStore
 
 
 class PineconeSemanticStoreAdapter:
@@ -27,7 +29,7 @@ class PineconeSemanticStoreAdapter:
 
     def __init__(
         self,
-        pinecone_store: PineconeSemanticStore | None = None,
+        pinecone_store: PineconeStore | None = None,
         embedder: VoyageEmbedder | None = None,
         namespace: str | None = None,
     ):
@@ -35,7 +37,7 @@ class PineconeSemanticStoreAdapter:
         Initialize Pinecone semantic store adapter.
 
         Args:
-            pinecone_store: PineconeSemanticStore instance (created if None)
+            pinecone_store: PineconeStore instance (created if None)
             embedder: VoyageEmbedder instance (created if None)
             namespace: Pinecone namespace for multi-tenancy
         """
@@ -211,5 +213,5 @@ class PineconeSemanticStoreAdapter:
         return await self.pinecone.health_check()
 
 
-# Alias for backwards compatibility
-PineconeSemanticStore = PineconeSemanticStoreAdapter
+# Export main class
+__all__ = ["PineconeSemanticStoreAdapter"]

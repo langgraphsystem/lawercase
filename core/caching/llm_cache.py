@@ -233,7 +233,7 @@ def get_llm_cache(namespace: str = "llm_cache") -> LLMCache:
         >>> cache = get_llm_cache()
         >>> await cache.set("prompt", response, model="gpt-4")
     """
-    global _llm_cache
+    global _llm_cache  # noqa: PLW0603
     if _llm_cache is None:
         _llm_cache = LLMCache(namespace=namespace)
     return _llm_cache
@@ -241,6 +241,6 @@ def get_llm_cache(namespace: str = "llm_cache") -> LLMCache:
 
 async def close_llm_cache() -> None:
     """Close global LLM cache."""
-    global _llm_cache
+    global _llm_cache  # noqa: PLW0603
     if _llm_cache is not None:
         _llm_cache = None

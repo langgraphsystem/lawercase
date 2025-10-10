@@ -5,9 +5,9 @@ This module provides metrics collection and monitoring for cache performance.
 
 from __future__ import annotations
 
-import time
 from collections import deque
 from dataclasses import dataclass, field
+import time
 from typing import Any
 
 from .config import get_cache_config
@@ -345,7 +345,7 @@ def get_cache_monitor() -> CacheMonitor:
     Returns:
         Shared CacheMonitor instance
     """
-    global _cache_monitor
+    global _cache_monitor  # noqa: PLW0603
     if _cache_monitor is None:
         _cache_monitor = CacheMonitor()
     return _cache_monitor

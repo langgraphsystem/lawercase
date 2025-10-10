@@ -349,29 +349,8 @@ class SemanticCache:
         self._semantic_hits = 0
 
 
-# Add missing Redis methods for sorted sets
-class RedisClient:
-    """Extension to redis_client.py - add these methods."""
-
-    async def zadd(self, key: str, mapping: dict[str, float]) -> int:
-        """Add members to sorted set."""
-        client = self.get_client()
-        return await client.zadd(key, mapping)
-
-    async def zrevrange(self, key: str, start: int, end: int) -> list[str]:
-        """Get members from sorted set in reverse order."""
-        client = self.get_client()
-        return await client.zrevrange(key, start, end)
-
-    async def zremrangebyrank(self, key: str, start: int, end: int) -> int:
-        """Remove members by rank range."""
-        client = self.get_client()
-        return await client.zremrangebyrank(key, start, end)
-
-    async def zrem(self, key: str, *members: str) -> int:
-        """Remove members from sorted set."""
-        client = self.get_client()
-        return await client.zrem(key, *members)
+# Note: RedisClient already has zadd, zrevrange, zremrangebyrank, zrem methods
+# imported from redis_client.py
 
 
 # Global singletons keyed by event loop and namespace
@@ -396,7 +375,7 @@ def get_semantic_cache(namespace: str = "semantic_cache") -> SemanticCache:
     except RuntimeError:
         loop_key = -1
 
-    global _semantic_caches
+    global _semantic_caches  # noqa: PLW0602
     key = (loop_key, namespace)
     cache = _semantic_caches.get(key)
     if cache is None:
@@ -407,5 +386,5 @@ def get_semantic_cache(namespace: str = "semantic_cache") -> SemanticCache:
 
 async def close_semantic_cache() -> None:
     """Close global semantic cache."""
-    global _semantic_caches
+    global _semantic_caches  # noqa: PLW0602
     _semantic_caches.clear()

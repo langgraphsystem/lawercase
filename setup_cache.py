@@ -239,11 +239,12 @@ async def run_health_check():
 
 async def setup_env_file():
     """Create .env file template if it doesn't exist."""
-    import os
 
-    env_file = ".env"
+    from pathlib import Path
 
-    if os.path.exists(env_file):
+    env_file = Path(".env")
+
+    if env_file.exists():
         print(f"\n✓ {env_file} already exists")
         return
 

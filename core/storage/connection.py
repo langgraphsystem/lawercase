@@ -5,8 +5,12 @@ from __future__ import annotations
 from contextlib import asynccontextmanager
 from typing import TYPE_CHECKING
 
-from sqlalchemy.ext.asyncio import (AsyncEngine, AsyncSession,
-                                    async_sessionmaker, create_async_engine)
+from sqlalchemy.ext.asyncio import (
+    AsyncEngine,
+    AsyncSession,
+    async_sessionmaker,
+    create_async_engine,
+)
 
 from .config import get_storage_config
 
@@ -204,7 +208,7 @@ def get_db_manager() -> DatabaseManager:
         ...     # Use session
         ...     pass
     """
-    global _db_manager
+    global _db_manager  # noqa: PLW0603
     if _db_manager is None:
         _db_manager = DatabaseManager()
     return _db_manager

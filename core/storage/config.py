@@ -64,7 +64,7 @@ _storage_config: StorageConfig | None = None
 
 def get_storage_config() -> StorageConfig:
     """Get global storage configuration instance."""
-    global _storage_config
+    global _storage_config  # noqa: PLW0603
     if _storage_config is None:
         _storage_config = StorageConfig()
     return _storage_config
