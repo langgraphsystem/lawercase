@@ -2,23 +2,16 @@
 
 from __future__ import annotations
 
-import pytest
 from datetime import datetime, timedelta
+
+import pytest
 
 from core.memory.memory_manager import MemoryManager
 from core.memory.models import AuditEvent
 from core.orchestration.enhanced_workflows import (
-    EnhancedWorkflowState,
-    ErrorContext,
-    ErrorRecoveryManager,
-    HumanFeedback,
-    HumanReviewManager,
-    RetryStrategy,
-    RouterOptimizer,
-    WorkflowStage,
-    create_enhanced_orchestration,
-    execute_parallel_agents,
-)
+    EnhancedWorkflowState, ErrorContext, ErrorRecoveryManager, HumanFeedback,
+    HumanReviewManager, RetryStrategy, RouterOptimizer, WorkflowStage,
+    create_enhanced_orchestration, execute_parallel_agents)
 
 
 @pytest.fixture
@@ -249,9 +242,7 @@ async def test_router_optimizer_low_confidence_logging(router_optimizer, enhance
         "route_a": 0.5,  # Below threshold (0.75)
     }
 
-    enhanced_state.event = AuditEvent(
-        event_type="routing_check", actor="system", details={}
-    )
+    enhanced_state.event = AuditEvent(event_type="routing_check", actor="system", details={})
 
     route, confidence = await router_optimizer.optimize_routing(enhanced_state, routing_options)
 
