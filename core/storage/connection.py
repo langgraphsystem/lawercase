@@ -204,7 +204,7 @@ def get_db_manager() -> DatabaseManager:
         ...     # Use session
         ...     pass
     """
-    global _db_manager  # noqa: PLW0603
+    global _db_manager
     if _db_manager is None:
         _db_manager = DatabaseManager()
     return _db_manager

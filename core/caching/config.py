@@ -77,7 +77,7 @@ _cache_config: CacheConfig | None = None
 
 def get_cache_config() -> CacheConfig:
     """Get global cache configuration instance."""
-    global _cache_config  # noqa: PLW0603
+    global _cache_config
     if _cache_config is None:
         _cache_config = CacheConfig()
     return _cache_config

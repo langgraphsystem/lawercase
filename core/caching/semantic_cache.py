@@ -375,7 +375,7 @@ def get_semantic_cache(namespace: str = "semantic_cache") -> SemanticCache:
     except RuntimeError:
         loop_key = -1
 
-    global _semantic_caches  # noqa: PLW0602
+    global _semantic_caches
     key = (loop_key, namespace)
     cache = _semantic_caches.get(key)
     if cache is None:
@@ -386,5 +386,5 @@ def get_semantic_cache(namespace: str = "semantic_cache") -> SemanticCache:
 
 async def close_semantic_cache() -> None:
     """Close global semantic cache."""
-    global _semantic_caches  # noqa: PLW0602
+    global _semantic_caches
     _semantic_caches.clear()

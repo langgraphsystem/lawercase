@@ -345,7 +345,7 @@ def get_cache_monitor() -> CacheMonitor:
     Returns:
         Shared CacheMonitor instance
     """
-    global _cache_monitor  # noqa: PLW0603
+    global _cache_monitor
     if _cache_monitor is None:
         _cache_monitor = CacheMonitor()
     return _cache_monitor

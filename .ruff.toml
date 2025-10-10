@@ -60,6 +60,7 @@ select = [
 ignore = [
     "E501",   # Line too long (handled by formatter)
     "S101",   # Use of assert detected (allow for development)
+    "S110",   # try-except-pass (legitimate in cleanup code)
     "S311",   # Standard pseudo-random generators (OK for non-crypto use)
     "COM812", # Trailing comma missing (formatter handles this)
     "COM819", # Trailing comma prohibited
@@ -68,6 +69,8 @@ ignore = [
     "PLR0912", # Too many branches (will be fixed gradually)
     "PLR0911", # Too many return statements (will be fixed gradually)
     "PLR2004", # Magic value used in comparison
+    "PLW0603", # Global statement (singleton pattern)
+    "PLW0602", # Global without assignment (singleton pattern)
     "RUF001", # String contains ambiguous unicode (allow for multilingual)
     "RUF002", # Docstring contains ambiguous unicode
     "RUF003", # Comment contains ambiguous unicode
@@ -77,6 +80,7 @@ ignore = [
     "RUF012", # Mutable class attributes (allow for configuration)
     "SIM105", # Use contextlib.suppress (preference for explicit try/except)
     "SIM102", # Combine if statements (readability preference)
+    "ARG001", # Unused function argument (interface compliance)
     "ARG002", # Unused method argument (interface compliance)
     "ARG003", # Unused class method argument (interface compliance)
     "F841",   # Unused local variable (allow for future development)
@@ -86,7 +90,10 @@ ignore = [
     "B008",   # Function call in argument defaults (FastAPI pattern)
     "S105",   # Hardcoded password (test configuration)
     "PTH123", # Use Path.open (will be migrated gradually)
-    
+    "E402",   # Module level import not at top (allow for conditional imports)
+    "N818",   # Exception naming (allow custom exception names)
+    "PT018",  # Pytest assertion breakdown (readability preference)
+
     "PT011",  # pytest.raises too broad (test practicality)
     "N999",   # Invalid module name (allow for existing structure)
 ]
@@ -102,8 +109,17 @@ ignore = [
 "core/memory/models.py" = [
     "A003",  # id/type field names are intentional in data models
 ]
+"core/storage/models.py" = [
+    "A003",  # id/type field names are intentional in data models
+]
 "core/groupagents/writer_agent.py" = [
     "A003",  # 'format' field name is part of API schema
+]
+"core/caching/*.py" = [
+    "A003",  # set method name shadows builtin (Redis API)
+]
+"api/schemas.py" = [
+    "A003",  # type field name is intentional in API schemas
 ]
 "**/migrations/*" = ["ALL"]  # Ignore all rules in migration files
 "scripts/*" = [
