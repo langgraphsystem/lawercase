@@ -1,71 +1,91 @@
-"""A simplified RAG retriever implementation for testing purposes."""
+"""RAG pipeline orchestration: ingestion, hybrid retrieval, re-ranking, context."""
 
 from __future__ import annotations
 
+from dataclasses import dataclass
 from typing import Any
 
 import numpy as np
 
+from .context import ContextBuilder
+from .hybrid import HybridRetriever, ScoredChunk
+from .ingestion import Document, DocumentChunk, DocumentIngestion, DocumentStore
+from .rerank import Reranker
+
 
 class SimpleEmbedder:
-    """A mock embedding model that produces fixed-dimension vectors."""
+    """Simple random embedder used for development/testing."""
 
-    def __init__(self, embedding_dim: int = 384):
-        # This parameter is named correctly as embedding_dim
+    def __init__(self, embedding_dim: int = 384) -> None:
         self.embedding_dim = embedding_dim
 
     async def aembed(self, texts: list[str]) -> list[list[float]]:
-        """Simulates batch embedding of texts."""
-        # In a real scenario, this would be a single call to an embedding service.
-        return [list(np.random.rand(self.embedding_dim)) for _ in texts]
+        rng = np.random.default_rng(seed=42)
+        return rng.random((len(texts), self.embedding_dim)).tolist()
 
 
-class PineconeIndex:
-    """A mock Pinecone index."""
-
-    def __init__(self, index_name: str, dimension: int):
-        """
-        Initializes the mock index, checking for dimension mismatch.
-        Note: Pinecone's client uses 'dimension', so we check against that.
-        """
-        self.index_name = index_name
-        self.dimension = dimension
-        self.vectors = {}
-
-    def upsert(self, vectors: list[dict[str, Any]]):
-        """Simulates upserting vectors to the index."""
-        for vec in vectors:
-            if len(vec["values"]) != self.dimension:
-                raise ValueError(
-                    f"Vector dimension {len(vec['values'])} does not match index dimension {self.dimension}"
-                )
-            self.vectors[vec["id"]] = vec["values"]
-        return {"upserted_count": len(vectors)}
+@dataclass
+class RAGResult:
+    chunk_id: str
+    doc_id: str
+    text: str
+    metadata: dict
+    score: float
+    keyword_score: float
+    semantic_score: float
 
 
-class RAGRetriever:
-    """
-    A retriever that uses an embedder and a vector index to store and retrieve
-    information.
-    """
+class RAGPipeline:
+    """High-level RAG pipeline with ingestion -> hybrid search -> re-ranking -> context."""
 
-    def __init__(self, embedder: SimpleEmbedder, index: PineconeIndex):
-        # Verify that the embedder's output dimension matches the index's required dimension.
-        if embedder.embedding_dim != index.dimension:
-            raise ValueError(
-                "Dimension mismatch: Embedder dimension is "
-                f"{embedder.embedding_dim} but index dimension is {index.dimension}."
-            )
-        self.embedder = embedder
-        self.index = index
+    def __init__(
+        self,
+        *,
+        embedder: SimpleEmbedder | None = None,
+        alpha: float = 0.6,
+    ) -> None:
+        self.embedder = embedder or SimpleEmbedder()
+        self.store = DocumentStore()
+        self.ingestion = DocumentIngestion(store=self.store, embedder=self.embedder)
+        self.retriever = HybridRetriever(store=self.store, embedder=self.embedder, alpha=alpha)
+        self.reranker = Reranker()
+        self.context_builder = ContextBuilder()
 
-    async def add_documents(self, documents: list[str]):
-        """
-        Embeds a batch of documents and upserts them into the index.
-        """
-        # This should call aembed ONCE for the entire batch.
-        embeddings = await self.embedder.aembed(documents)
+    async def ingest(self, documents: list[Document]) -> list[DocumentChunk]:
+        return await self.ingestion.ingest(documents)
 
-        vectors_to_upsert = [{"id": f"doc_{i}", "values": emb} for i, emb in enumerate(embeddings)]
+    async def query(
+        self,
+        query: str,
+        *,
+        top_k: int = 5,
+        context_tokens: int = 600,
+    ) -> dict[str, Any]:
+        preliminary = await self.retriever.search(query, top_k=top_k * 2)
+        reranked = self.reranker.rerank(query, preliminary)
+        top_results = reranked[:top_k]
 
-        self.index.upsert(vectors=vectors_to_upsert)
+        context = self.context_builder.build(top_results, max_tokens=context_tokens)
+        results = [self._to_result(sc) for sc in top_results]
+        return {"results": results, "context": context}
+
+    def _to_result(self, scored: ScoredChunk) -> RAGResult:
+        return RAGResult(
+            chunk_id=scored.chunk.chunk_id,
+            doc_id=scored.chunk.doc_id,
+            text=scored.chunk.text,
+            metadata=scored.chunk.metadata,
+            score=scored.combined_score,
+            keyword_score=scored.keyword_score,
+            semantic_score=scored.semantic_score,
+        )
+
+
+# Legacy exports kept for backwards compatibility in tests/imports.
+__all__ = [
+    "SimpleEmbedder",
+    "Document",
+    "DocumentChunk",
+    "RAGPipeline",
+    "RAGResult",
+]
