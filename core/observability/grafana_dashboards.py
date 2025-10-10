@@ -7,8 +7,8 @@ directly into Grafana.
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
 import json
+from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
@@ -18,7 +18,7 @@ class Panel:
     """Grafana panel configuration."""
 
     title: str
-    type: str  # graph, stat, table, gauge, etc.  # noqa: A003
+    type: str  # graph, stat, table, gauge, etc.
     targets: list[dict[str, Any]]
     grid_pos: dict[str, int]  # x, y, w, h
     options: dict[str, Any] = field(default_factory=dict)
