@@ -17,7 +17,8 @@ from core.groupagents.case_agent import CaseAgent
 from core.groupagents.models import CasePriority, CaseQuery, CaseType
 from core.memory.memory_manager import MemoryManager
 from core.orchestration.pipeline_manager import run
-from core.orchestration.workflow_graph import WorkflowState, build_case_workflow
+from core.orchestration.workflow_graph import (WorkflowState,
+                                               build_case_workflow)
 
 
 async def demo_case_operations():

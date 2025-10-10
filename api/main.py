@@ -3,12 +3,10 @@ from __future__ import annotations
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from api.routes import (
-    agent as agent_routes,
-    cases as cases_routes,
-    health as health_routes,
-    memory as memory_routes,
-)
+from api.routes import agent as agent_routes
+from api.routes import cases as cases_routes
+from api.routes import health as health_routes
+from api.routes import memory as memory_routes
 from core.security.config import SecurityConfig
 
 
