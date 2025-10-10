@@ -11,19 +11,15 @@ MegaAgent - Центральный оркестратор системы mega_ag
 
 from __future__ import annotations
 
+import uuid
 from datetime import datetime
 from enum import Enum
 from typing import Any
-import uuid
 
 from pydantic import BaseModel, Field, ValidationError
 
-from ..execution.secure_sandbox import (
-    SandboxPolicy,
-    SandboxRunner,
-    SandboxViolation,
-    ensure_tool_allowed,
-)
+from ..execution.secure_sandbox import (SandboxPolicy, SandboxRunner,
+                                        SandboxViolation, ensure_tool_allowed)
 from ..memory.memory_manager import MemoryManager
 from ..memory.models import AuditEvent
 from ..orchestration.pipeline_manager import build_pipeline, run
