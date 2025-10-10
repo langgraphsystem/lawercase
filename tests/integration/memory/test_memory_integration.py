@@ -1,14 +1,13 @@
 """Integration tests for MemoryManager with production backends."""
+
 from __future__ import annotations
 
 from uuid import uuid4
 
 import pytest
 
-from core.memory.memory_manager_v2 import (
-    create_dev_memory_manager,
-    create_production_memory_manager,
-)
+from core.memory.memory_manager_v2 import (create_dev_memory_manager,
+                                           create_production_memory_manager)
 from core.memory.models import AuditEvent, MemoryRecord
 
 
@@ -174,9 +173,7 @@ async def test_dev_memory_in_memory():
     assert isinstance(memory.semantic._items, list)
 
     # Test basic operations
-    record = MemoryRecord(
-        user_id="test", text="test memory", type="semantic", source="test"
-    )
+    record = MemoryRecord(user_id="test", text="test memory", type="semantic", source="test")
 
     await memory.awrite([record])
     results = await memory.aretrieve("test memory", user_id="test")
@@ -214,9 +211,7 @@ async def test_multiple_users_isolation(production_memory):
     await asyncio.sleep(1)  # Wait for indexing
 
     # Retrieve for user1 - should not see user2's data
-    results_user1 = await production_memory.aretrieve(
-        "private information", user_id=user1, topk=10
-    )
+    results_user1 = await production_memory.aretrieve("private information", user_id=user1, topk=10)
 
     assert len(results_user1) > 0
     assert all(r.user_id == user1 for r in results_user1), "Found other user's data!"

@@ -1,4 +1,5 @@
 """Integration tests for LLM cache."""
+
 from __future__ import annotations
 
 from uuid import uuid4
@@ -85,6 +86,7 @@ async def test_semantic_similarity_for_llm(llm_cache):
 
     # Small delay for indexing
     import asyncio
+
     await asyncio.sleep(0.5)
 
     # Query with similar prompt
@@ -133,6 +135,7 @@ async def test_cache_ttl(llm_cache):
 
     # Wait for expiration
     import asyncio
+
     await asyncio.sleep(2)
 
     # Should be expired
@@ -162,11 +165,7 @@ async def test_cache_clear(llm_cache):
 
     # Add entries
     for i in range(3):
-        await llm_cache.set(
-            f"prompt_{i}",
-            {"content": f"response_{i}"},
-            model=model
-        )
+        await llm_cache.set(f"prompt_{i}", {"content": f"response_{i}"}, model=model)
 
     # Clear
     deleted = await llm_cache.clear()

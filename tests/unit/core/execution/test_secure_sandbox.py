@@ -1,14 +1,12 @@
 from __future__ import annotations
 
 import asyncio
+
 import pytest
 
-from core.execution.secure_sandbox import (
-    SandboxPolicy,
-    SandboxRunner,
-    SandboxViolation,
-    ensure_tool_allowed,
-)
+from core.execution.secure_sandbox import (SandboxPolicy, SandboxRunner,
+                                           SandboxViolation,
+                                           ensure_tool_allowed)
 
 
 @pytest.mark.asyncio

@@ -53,7 +53,7 @@ class SandboxRunner:
 
         try:
             return await asyncio.wait_for(func(**kwargs), timeout=timeout)
-        except asyncio.TimeoutError as exc:  # pragma: no cover - simple guard
+        except TimeoutError as exc:  # pragma: no cover - simple guard
             raise SandboxViolation("Execution exceeded time limit") from exc
 
 

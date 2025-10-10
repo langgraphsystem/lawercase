@@ -1,4 +1,5 @@
 """Integration tests for cached LLM router."""
+
 from __future__ import annotations
 
 from uuid import uuid4
@@ -196,11 +197,7 @@ async def test_reset_stats(router):
 @pytest.mark.asyncio
 async def test_factory_function(providers):
     """Test create_cached_router factory function."""
-    router = create_cached_router(
-        providers=providers,
-        initial_budget=5.0,
-        use_cache=True
-    )
+    router = create_cached_router(providers=providers, initial_budget=5.0, use_cache=True)
 
     assert router is not None
     assert router.budget == 5.0
@@ -247,6 +244,7 @@ async def test_semantic_cache_similarity(router):
 
     # Small delay for embedding indexing
     import asyncio
+
     await asyncio.sleep(0.5)
 
     # Similar query - might hit via semantic matching

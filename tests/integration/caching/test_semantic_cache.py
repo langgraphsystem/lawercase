@@ -1,4 +1,5 @@
 """Integration tests for semantic cache."""
+
 from __future__ import annotations
 
 from uuid import uuid4
@@ -49,6 +50,7 @@ async def test_semantic_similarity_cache(cache):
 
     # Small delay for embedding indexing
     import asyncio
+
     await asyncio.sleep(0.5)
 
     # Query with similar text - should hit via semantic similarity
@@ -108,6 +110,7 @@ async def test_cache_ttl_expiration():
 
     # Wait for expiration
     import asyncio
+
     await asyncio.sleep(2)
 
     # Should be expired
