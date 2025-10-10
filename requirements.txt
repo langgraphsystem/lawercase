@@ -15,3 +15,10 @@ python-jose[cryptography]>=3.3.0
 numpy>=1.26.0
 requests>=2.31.0
 prometheus-client>=0.20.0
+
+# Observability dependencies
+opentelemetry-api>=1.20.0
+opentelemetry-sdk>=1.20.0
+opentelemetry-exporter-jaeger>=1.20.0
+opentelemetry-exporter-zipkin-json>=1.20.0
+opentelemetry-exporter-otlp>=1.20.0

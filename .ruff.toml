@@ -89,6 +89,7 @@ ignore = [
     "B904",   # Exception chaining (will be addressed gradually)
     "B008",   # Function call in argument defaults (FastAPI pattern)
     "S105",   # Hardcoded password (test configuration)
+    "S106",   # Hardcoded password in function arg (metrics labels, not passwords)
     "PTH123", # Use Path.open (will be migrated gradually)
     "E402",   # Module level import not at top (allow for conditional imports)
     "N818",   # Exception naming (allow custom exception names)
