@@ -18,10 +18,17 @@ from typing import Any
 
 from pydantic import BaseModel, Field, ValidationError
 
+from ..execution.secure_sandbox import (
+    SandboxPolicy,
+    SandboxRunner,
+    SandboxViolation,
+    ensure_tool_allowed,
+)
 from ..memory.memory_manager import MemoryManager
 from ..memory.models import AuditEvent
-from ..orchestration.pipeline_manager import run
+from ..orchestration.pipeline_manager import build_pipeline, run
 from ..orchestration.workflow_graph import WorkflowState, build_case_workflow
+from ..tools.tool_registry import get_tool_registry
 from .case_agent import CaseAgent
 from .writer_agent import DocumentRequest, DocumentType, WriterAgent
 
@@ -47,6 +54,7 @@ class Permission(str, Enum):
     VALIDATE_DOCUMENT = "validate_document"
     ADMIN_ACCESS = "admin_access"
     VIEW_AUDIT = "view_audit"
+    USE_TOOL = "use_tool"
 
 
 class CommandType(str, Enum):
@@ -60,6 +68,7 @@ class CommandType(str, Enum):
     SEARCH = "search"
     WORKFLOW = "workflow"
     ADMIN = "admin"
+    TOOL = "tool"
 
 
 class MegaAgentCommand(BaseModel):
@@ -118,6 +127,7 @@ class MegaAgent:
             Permission.VALIDATE_DOCUMENT,
             Permission.ADMIN_ACCESS,
             Permission.VIEW_AUDIT,
+            Permission.USE_TOOL,
         ],
         UserRole.LAWYER: [
             Permission.CREATE_CASE,
@@ -125,11 +135,13 @@ class MegaAgent:
             Permission.UPDATE_CASE,
             Permission.GENERATE_DOCUMENT,
             Permission.VALIDATE_DOCUMENT,
+            Permission.USE_TOOL,
         ],
         UserRole.PARALEGAL: [
             Permission.READ_CASE,
             Permission.UPDATE_CASE,
             Permission.GENERATE_DOCUMENT,
+            Permission.USE_TOOL,
         ],
         UserRole.CLIENT: [Permission.READ_CASE],
         UserRole.VIEWER: [Permission.READ_CASE],
@@ -143,6 +155,7 @@ class MegaAgent:
         CommandType.SEARCH: "rag_pipeline_agent",
         CommandType.ASK: "supervisor_agent",
         CommandType.WORKFLOW: "workflow_system",
+        CommandType.TOOL: "tool_runner",
     }
 
     def __init__(self, memory_manager: MemoryManager | None = None):
@@ -199,7 +212,7 @@ class MegaAgent:
             await self._log_command_start(command, user_role)
 
             # Маршрутизация к соответствующему агенту
-            result = await self._dispatch_to_agent(command)
+            result = await self._dispatch_to_agent(command, user_role)
 
             # Расчет времени выполнения
             execution_time = (datetime.utcnow() - start_time).total_seconds()
@@ -237,7 +250,9 @@ class MegaAgent:
 
             return response
 
-    async def _dispatch_to_agent(self, command: MegaAgentCommand) -> dict[str, Any]:
+    async def _dispatch_to_agent(
+        self, command: MegaAgentCommand, user_role: UserRole
+    ) -> dict[str, Any]:
         """
         Маршрутизация команды к соответствующему агенту.
 
@@ -265,6 +280,17 @@ class MegaAgent:
         # Маршрутизация к workflow_system (использует тот же workflow)
         if agent_name == "workflow_system":
             return await self._handle_workflow_command(command)
+
+        if agent_name == "tool_runner":
+            return await self._handle_tool_command(command, user_role)
+
+        # Базовая интеграция для ASK: memory workflow (log→reflect→retrieve→rmt)
+        if agent_name == "supervisor_agent":
+            return await self._handle_ask_command(command)
+
+        # Базовый SEARCH: прямой поиск по семантической памяти
+        if agent_name == "rag_pipeline_agent":
+            return await self._handle_search_command(command)
 
         # Placeholder для других агентов
         return {
@@ -336,6 +362,126 @@ class MegaAgent:
             }
 
         raise CommandError(f"Unknown writer action: {command.action}")
+
+    async def _handle_tool_command(
+        self, command: MegaAgentCommand, user_role: UserRole
+    ) -> dict[str, Any]:
+        """Execute registered tool within sandbox policy."""
+
+        payload = dict(command.payload or {})
+        tool_id = payload.get("tool_id")
+        if not tool_id:
+            raise CommandError("tool_id is required for TOOL commands")
+
+        arguments = payload.get("arguments") or {}
+        timeout = float(payload.get("timeout", 2.0))
+        network = bool(payload.get("network", False))
+        filesystem = bool(payload.get("filesystem", False))
+
+        registry = get_tool_registry()
+        metadata = registry.get_metadata(tool_id)
+
+        policy = SandboxPolicy(
+            name=str(payload.get("policy", "default")),
+            description=f"Sandbox for tool {tool_id}",
+            allowed_tools={tool_id},
+            network_access=network,
+            filesystem_access=filesystem,
+            max_cpu_seconds=timeout,
+            max_memory_mb=int(payload.get("memory_mb", 256)),
+        )
+
+        ensure_tool_allowed(policy, tool_id)
+        runner = SandboxRunner(policy)
+
+        async def _invoke():
+            return await registry.invoke(
+                tool_id,
+                caller_role=user_role.value,
+                arguments=arguments,
+            )
+
+        try:
+            result = await runner.run_async(_invoke, timeout=timeout)
+        except SandboxViolation as exc:
+            raise CommandError(str(exc)) from exc
+
+        return {
+            "operation": "tool",
+            "tool_id": tool_id,
+            "result": result,
+            "metadata": {
+                "policy": policy.name,
+                "network": policy.network_access,
+                "filesystem": policy.filesystem_access,
+                "allowed_roles": list(metadata.allowed_roles),
+                "tags": list(metadata.tags),
+            },
+        }
+
+    async def _handle_ask_command(self, command: MegaAgentCommand) -> dict[str, Any]:
+        """Обработка ASK: прогон через memory workflow и возврат контекста.
+
+        Ожидает в payload:
+            - query: str — пользовательский вопрос
+        """
+        query = str((command.payload or {}).get("query", "")).strip()
+        if not query:
+            raise CommandError("ASK requires 'query' in payload")
+
+        # Формируем AuditEvent для трассировки
+        event = AuditEvent(
+            event_id=str(uuid.uuid4()),
+            user_id=command.user_id,
+            thread_id=f"ask_{uuid.uuid4().hex[:8]}",
+            source="mega_agent",
+            action="ask",
+            payload={"summary": query},
+            tags=["ask", "milestone"],
+        )
+
+        # Собираем и запускаем граф памяти
+        graph_exec = build_pipeline(self.memory)
+        initial = WorkflowState(
+            thread_id=event.thread_id or str(uuid.uuid4()),
+            user_id=command.user_id,
+            event=event,
+            query=query,
+        )
+        final = await run(graph_exec, initial)
+
+        return {
+            "operation": "ask",
+            "thread_id": final.thread_id,
+            "rmt_slots": final.rmt_slots,
+            "reflected": [r.model_dump() for r in final.reflected],
+            "retrieved": [r.model_dump() for r in final.retrieved],
+        }
+
+    async def _handle_search_command(self, command: MegaAgentCommand) -> dict[str, Any]:
+        """Обработка SEARCH: упрощенный поиск по памяти.
+
+        Ожидает в payload:
+            - query: str
+            - topk: int (optional)
+            - filters: dict (optional)
+        """
+        payload = dict(command.payload or {})
+        query = str(payload.get("query", "")).strip()
+        if not query:
+            raise CommandError("SEARCH requires 'query' in payload")
+        topk = int(payload.get("topk", 8))
+        filters = payload.get("filters") or {}
+
+        results = await self.memory.aretrieve(
+            query=query, user_id=command.user_id, topk=topk, filters=filters
+        )
+        return {
+            "operation": "search",
+            "query": query,
+            "count": len(results),
+            "results": [r.model_dump() for r in results],
+        }
 
     async def _run_case_workflow(
         self,
@@ -427,6 +573,9 @@ class MegaAgent:
 
         elif command.command_type == CommandType.ADMIN:
             required_permissions.append(Permission.ADMIN_ACCESS)
+
+        elif command.command_type == CommandType.TOOL:
+            required_permissions.append(Permission.USE_TOOL)
 
         # Проверка наличия разрешений у роли
         user_permissions = self.ROLE_PERMISSIONS.get(user_role, [])

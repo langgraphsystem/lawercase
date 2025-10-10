@@ -17,7 +17,13 @@
       "Bash(gh auth:*)",
       "Bash(gh repo view:*)",
       "Bash(git stash:*)",
-      "Bash(git checkout:*)"
+      "Bash(git checkout:*)",
+      "Bash(pytest:*)",
+      "Bash(test:*)",
+      "Bash(sed -i 's|POSTGRES_DSN=postgresql+asyncpg://user:password@localhost:5432/megaagent|POSTGRES_DSN=postgresql+asyncpg://user:password@localhost:5432/megaagent  # pragma: allowlist secret|' .env.example)",
+      "Bash(sed -i 's|postgresql+asyncpg://user:password@localhost:5432/megaagent|postgresql+asyncpg://user:password@localhost:5432/megaagent  # pragma: allowlist secret|g' DATABASE_FOUNDATION_README.md)",
+      "Bash(sed -i 's|postgresql+asyncpg://user:pass@host:port/db|postgresql+asyncpg://user:pass@host:port/db  # pragma: allowlist secret|g' DATABASE_FOUNDATION_README.md INTEGRATION_COMPLETE.md MEMORY_MANAGER_MIGRATION.md)",
+      "Bash(sed:*)"
     ],
     "deny": [],
     "ask": []

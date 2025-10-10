@@ -1,0 +1,11 @@
+# Phase 2: Caching Layer Dependencies
+
+# Redis async client
+redis[hiredis]>=5.0.0
+
+# Already installed from Phase 1 (Voyage AI embeddings)
+# voyageai>=0.2.0
+
+# Core dependencies (already installed)
+# pydantic>=2.0.0
+# pydantic-settings>=2.0.0
