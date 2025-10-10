@@ -4,8 +4,7 @@ import asyncio
 
 import pytest
 
-from core.tools.tool_registry import (ToolMetadata, get_tool_registry,
-                                      reset_tool_registry)
+from core.tools.tool_registry import ToolMetadata, get_tool_registry, reset_tool_registry
 
 
 @pytest.fixture(autouse=True)
