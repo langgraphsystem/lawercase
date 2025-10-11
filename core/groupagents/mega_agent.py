@@ -11,35 +11,24 @@ MegaAgent - Центральный оркестратор системы mega_ag
 
 from __future__ import annotations
 
+import uuid
 from datetime import datetime
 from enum import Enum
-from typing import Any, Tuple
-import uuid
+from typing import Any
 
 from pydantic import BaseModel, Field, ValidationError
 
-from ..execution.secure_sandbox import (
-    SandboxPolicy,
-    SandboxRunner,
-    SandboxViolation,
-    ensure_tool_allowed,
-)
+from ..execution.secure_sandbox import (SandboxPolicy, SandboxRunner,
+                                        SandboxViolation, ensure_tool_allowed)
 from ..memory.memory_manager import MemoryManager
 from ..memory.models import AuditEvent
 from ..orchestration.enhanced_workflows import EnhancedWorkflowState
-from ..orchestration.pipeline_manager import (
-    build_enhanced_pipeline,
-    build_pipeline,
-    run as run_pipeline,
-)
+from ..orchestration.pipeline_manager import (build_enhanced_pipeline,
+                                              build_pipeline)
+from ..orchestration.pipeline_manager import run as run_pipeline
 from ..orchestration.workflow_graph import WorkflowState, build_case_workflow
-from ..security import (
-    PromptInjectionResult,
-    get_audit_trail,
-    get_prompt_detector,
-    get_rbac_manager,
-    security_config,
-)
+from ..security import (PromptInjectionResult, get_audit_trail,
+                        get_prompt_detector, get_rbac_manager, security_config)
 from ..tools.tool_registry import get_tool_registry
 from .case_agent import CaseAgent
 from .writer_agent import DocumentRequest, DocumentType, WriterAgent
@@ -319,7 +308,7 @@ class MegaAgent:
             "agent": agent_name,
         }
 
-    def _permission_for_command(self, command: MegaAgentCommand) -> Tuple[str, str]:
+    def _permission_for_command(self, command: MegaAgentCommand) -> tuple[str, str]:
         action = (command.action or "").lower() or "read"
         ct = command.command_type
         if ct == CommandType.CASE:
@@ -350,7 +339,9 @@ class MegaAgent:
         payload_tags = command.payload.get("tags") if isinstance(command.payload, dict) else None
         if payload_tags:
             context.setdefault("tags", [])
-            context["tags"].extend(payload_tags if isinstance(payload_tags, list) else [payload_tags])
+            context["tags"].extend(
+                payload_tags if isinstance(payload_tags, list) else [payload_tags]
+            )
         context.setdefault("time", context.get("time") or datetime.utcnow().strftime("%H:%M"))
         context.setdefault("mfa_verified", context.get("mfa_verified", False))
         allowed = self.rbac_manager.check_permission(

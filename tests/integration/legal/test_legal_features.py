@@ -2,21 +2,10 @@
 
 from __future__ import annotations
 
-import pytest
-
-from core.legal import (
-    CitationExtractor,
-    CitationType,
-    ComplianceChecker,
-    ComplianceStandard,
-    ComplianceStatus,
-    ContractAnalyzer,
-    DocumentParser,
-    LegalDocumentType,
-    LegalEntityRecognizer,
-    LegalEntityType,
-)
-
+from core.legal import (CitationExtractor, CitationType, ComplianceChecker,
+                        ComplianceStandard, ComplianceStatus, ContractAnalyzer,
+                        DocumentParser, LegalDocumentType,
+                        LegalEntityRecognizer, LegalEntityType)
 
 SAMPLE_CONTRACT = """
 SERVICE AGREEMENT
@@ -287,9 +276,7 @@ class TestCitationExtractor:
         extractor = CitationExtractor()
         citations = extractor.extract(text)
 
-        statute_cites = [
-            c for c in citations if c.citation_type == CitationType.STATUTE
-        ]
+        statute_cites = [c for c in citations if c.citation_type == CitationType.STATUTE]
         assert len(statute_cites) > 0
 
     def test_citation_parsing(self):
@@ -328,9 +315,7 @@ class TestLegalEntityRecognizer:
         recognizer = LegalEntityRecognizer()
         entities = recognizer.recognize(text)
 
-        statute_entities = [
-            e for e in entities if e.entity_type == LegalEntityType.STATUTE
-        ]
+        statute_entities = [e for e in entities if e.entity_type == LegalEntityType.STATUTE]
         assert len(statute_entities) > 0
 
     def test_recognize_contract_types(self):
@@ -343,9 +328,7 @@ class TestLegalEntityRecognizer:
         recognizer = LegalEntityRecognizer()
         entities = recognizer.recognize(text)
 
-        contract_entities = [
-            e for e in entities if e.entity_type == LegalEntityType.CONTRACT_TYPE
-        ]
+        contract_entities = [e for e in entities if e.entity_type == LegalEntityType.CONTRACT_TYPE]
         assert len(contract_entities) > 0
 
     def test_entity_positions(self):

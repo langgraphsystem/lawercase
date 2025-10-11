@@ -12,7 +12,8 @@ from api.routes import memory as memory_routes
 from api.routes import metrics as metrics_routes
 from api.routes import workflows as workflows_routes
 from api.startup import register_builtin_tools
-from core.observability import init_logging_from_env, init_tracing, TracingConfig
+from core.observability import (TracingConfig, init_logging_from_env,
+                                init_tracing)
 from core.security.config import SecurityConfig
 
 

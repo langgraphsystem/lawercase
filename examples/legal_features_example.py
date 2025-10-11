@@ -6,18 +6,10 @@ Demonstrates the legal document processing capabilities.
 from __future__ import annotations
 
 import asyncio
-from datetime import datetime
 
-from core.legal import (
-    CaseLawSearch,
-    CitationExtractor,
-    ComplianceChecker,
-    ComplianceStandard,
-    ContractAnalyzer,
-    DocumentParser,
-    LegalEntityRecognizer,
-)
-
+from core.legal import (CaseLawSearch, CitationExtractor, ComplianceChecker,
+                        ComplianceStandard, ContractAnalyzer, DocumentParser,
+                        LegalEntityRecognizer)
 
 # Sample legal documents
 SAMPLE_CONTRACT = """
@@ -146,9 +138,7 @@ def demonstrate_contract_analysis(contract_doc):
     print("\n   Clause Types:")
     clause_types = {}
     for clause in result.clauses:
-        clause_types[clause.clause_type.value] = (
-            clause_types.get(clause.clause_type.value, 0) + 1
-        )
+        clause_types[clause.clause_type.value] = clause_types.get(clause.clause_type.value, 0) + 1
 
     for clause_type, count in clause_types.items():
         print(f"     - {clause_type}: {count}")
@@ -171,7 +161,7 @@ def demonstrate_contract_analysis(contract_doc):
 
     # Show payment terms
     if result.payment_terms.get("amounts"):
-        print(f"\n   💰 Payment Terms:")
+        print("\n   💰 Payment Terms:")
         print(f"     Amounts: {', '.join(result.payment_terms['amounts'][:3])}")
         if result.payment_terms.get("schedule"):
             print(f"     Schedule: {result.payment_terms['schedule'][:60]}...")
@@ -209,17 +199,17 @@ def demonstrate_compliance_checking():
     print(f"   Rules Failed: {len(gdpr_result.failed_rules)}")
 
     if gdpr_result.failed_rules:
-        print(f"\n   ❌ Failed Rules:")
+        print("\n   ❌ Failed Rules:")
         for rule_id in gdpr_result.failed_rules:
             print(f"     - {rule_id}")
 
     if gdpr_result.warnings:
-        print(f"\n   ⚠️  Warnings:")
+        print("\n   ⚠️  Warnings:")
         for warning in gdpr_result.warnings[:5]:
             print(f"     • {warning}")
 
     if gdpr_result.recommendations:
-        print(f"\n   💡 Recommendations:")
+        print("\n   💡 Recommendations:")
         for rec in gdpr_result.recommendations[:5]:
             print(f"     • {rec}")
 

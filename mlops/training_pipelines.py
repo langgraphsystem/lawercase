@@ -6,10 +6,11 @@ import logging
 import pickle
 import uuid
 from collections import Counter
+from collections.abc import Iterable, Mapping, Sequence
 from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Dict, Iterable, List, Mapping, Optional, Sequence, Tuple
+from typing import Any
 
 import numpy as np
 
@@ -25,16 +26,14 @@ class TrainingConfig:
     """
 
     target_column: str = "label"
-    feature_columns: Optional[Sequence[str]] = None
+    feature_columns: Sequence[str] | None = None
     test_size: float = 0.2
     random_seed: int = 42
     learning_rate: float = 0.1
     epochs: int = 400
     l2_regularization: float = 0.0
     model_dir: Path = field(default_factory=lambda: Path("artifacts") / "models")
-    registry_path: Path = field(
-        default_factory=lambda: Path("artifacts") / "model_registry.json"
-    )
+    registry_path: Path = field(default_factory=lambda: Path("artifacts") / "model_registry.json")
     monitor_window: int = 200
     min_samples: int = 30
     max_class_imbalance: float = 0.95
@@ -63,10 +62,10 @@ class DatasetSummary:
 
     num_rows: int
     num_features: int
-    feature_names: List[str]
-    class_distribution: Dict[str, int]
+    feature_names: list[str]
+    class_distribution: dict[str, int]
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "num_rows": self.num_rows,
             "num_features": self.num_features,
@@ -85,11 +84,11 @@ class TrainingMetrics:
     precision: float
     recall: float
     f1_score: float
-    auc: Optional[float]
+    auc: float | None
     loss: float
 
-    def to_dict(self) -> Dict[str, Any]:
-        result: Dict[str, Any] = {
+    def to_dict(self) -> dict[str, Any]:
+        result: dict[str, Any] = {
             "accuracy": float(self.accuracy),
             "precision": float(self.precision),
             "recall": float(self.recall),
@@ -113,13 +112,13 @@ class ModelRegistryEntry:
     version: str
     created_at: str
     artifact_path: str
-    metrics: Dict[str, Any]
-    data_summary: Dict[str, Any]
-    feature_scaler: Dict[str, Any]
-    label_mapping: Dict[str, Any]
-    training_params: Dict[str, Any]
+    metrics: dict[str, Any]
+    data_summary: dict[str, Any]
+    feature_scaler: dict[str, Any]
+    label_mapping: dict[str, Any]
+    training_params: dict[str, Any]
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "model_name": self.model_name,
             "version": self.version,
@@ -139,8 +138,8 @@ class LabelEncoder:
     """
 
     def __init__(self) -> None:
-        self.class_to_index: Dict[Any, int] = {}
-        self.index_to_class: Dict[int, Any] = {}
+        self.class_to_index: dict[Any, int] = {}
+        self.index_to_class: dict[int, Any] = {}
 
     def fit(self, labels: Iterable[Any]) -> None:
         unique = sorted({self._normalize_label(label) for label in labels})
@@ -162,12 +161,12 @@ class LabelEncoder:
             transformed.append(self.class_to_index[normalized])
         return np.array(transformed, dtype=np.float64)
 
-    def inverse_transform(self, encoded: Iterable[int]) -> List[Any]:
+    def inverse_transform(self, encoded: Iterable[int]) -> list[Any]:
         if not self.index_to_class:
             raise ValueError("LabelEncoder must be fitted before calling inverse_transform.")
         return [self.index_to_class[int(index)] for index in encoded]
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "classes": [self.index_to_class[idx] for idx in sorted(self.index_to_class)],
             "class_to_index": {str(k): int(v) for k, v in self.class_to_index.items()},
@@ -188,9 +187,9 @@ class LoadedDataset:
 
     features: np.ndarray
     labels: np.ndarray
-    feature_names: List[str]
+    feature_names: list[str]
     label_encoder: LabelEncoder
-    class_distribution: Dict[str, int]
+    class_distribution: dict[str, int]
 
 
 class DatasetLoader:
@@ -236,7 +235,7 @@ class DatasetLoader:
             class_distribution=dict(class_distribution),
         )
 
-    def _determine_feature_columns(self, sample_row: Mapping[str, Any]) -> List[str]:
+    def _determine_feature_columns(self, sample_row: Mapping[str, Any]) -> list[str]:
         if self.config.feature_columns:
             return [str(col) for col in self.config.feature_columns]
 
@@ -253,9 +252,9 @@ class DatasetLoader:
 
     def _extract_arrays(
         self, records: Sequence[Mapping[str, Any]], feature_names: Sequence[str]
-    ) -> Tuple[np.ndarray, List[Any]]:
-        feature_matrix: List[List[float]] = []
-        labels: List[Any] = []
+    ) -> tuple[np.ndarray, list[Any]]:
+        feature_matrix: list[list[float]] = []
+        labels: list[Any] = []
 
         for idx, row in enumerate(records):
             try:
@@ -282,13 +281,13 @@ class DatasetLoader:
         return float(value)
 
     @staticmethod
-    def _load_csv(path: Path) -> List[Dict[str, Any]]:
+    def _load_csv(path: Path) -> list[dict[str, Any]]:
         with path.open("r", encoding="utf-8") as handle:
             reader = csv.DictReader(handle)
             return [dict(row) for row in reader]
 
     @staticmethod
-    def _load_json(path: Path) -> List[Dict[str, Any]]:
+    def _load_json(path: Path) -> list[dict[str, Any]]:
         with path.open("r", encoding="utf-8") as handle:
             if path.suffix.lower() == ".jsonl":
                 return [json.loads(line) for line in handle if line.strip()]
@@ -334,8 +333,8 @@ class FeatureScaler:
     """
 
     def __init__(self) -> None:
-        self.mean_: Optional[np.ndarray] = None
-        self.std_: Optional[np.ndarray] = None
+        self.mean_: np.ndarray | None = None
+        self.std_: np.ndarray | None = None
 
     def fit(self, features: np.ndarray) -> None:
         self.mean_ = np.mean(features, axis=0)
@@ -351,7 +350,7 @@ class FeatureScaler:
         self.fit(features)
         return self.transform(features)
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         if self.mean_ is None or self.std_ is None:
             raise ValueError("FeatureScaler must be fitted before serialization.")
         return {"mean": self.mean_.tolist(), "std": self.std_.tolist()}
@@ -362,20 +361,18 @@ class LogisticRegressionModel:
     Binary logistic regression implemented with gradient descent.
     """
 
-    def __init__(
-        self, learning_rate: float, epochs: int, l2_regularization: float = 0.0
-    ) -> None:
+    def __init__(self, learning_rate: float, epochs: int, l2_regularization: float = 0.0) -> None:
         self.learning_rate = learning_rate
         self.epochs = epochs
         self.l2_regularization = l2_regularization
-        self.weights: Optional[np.ndarray] = None
+        self.weights: np.ndarray | None = None
 
-    def fit(self, features: np.ndarray, labels: np.ndarray) -> List[float]:
+    def fit(self, features: np.ndarray, labels: np.ndarray) -> list[float]:
         n_samples, n_features = features.shape
         extended = np.hstack([features, np.ones((n_samples, 1))])
         self.weights = np.zeros(n_features + 1)
 
-        losses: List[float] = []
+        losses: list[float] = []
         for _ in range(self.epochs):
             logits = extended @ self.weights
             predictions = self._sigmoid(logits)
@@ -425,7 +422,7 @@ def train_test_split(
     labels: np.ndarray,
     test_size: float,
     random_seed: int,
-) -> Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
+) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
     if not 0 < test_size < 1:
         raise ValueError("test_size must be between 0 and 1.")
 
@@ -463,9 +460,7 @@ def compute_metrics(
     accuracy = (tp + tn) / total if total else 0.0
     precision = tp / (tp + fp) if (tp + fp) else 0.0
     recall = tp / (tp + fn) if (tp + fn) else 0.0
-    f1_score = (
-        2 * precision * recall / (precision + recall) if (precision + recall) else 0.0
-    )
+    f1_score = 2 * precision * recall / (precision + recall) if (precision + recall) else 0.0
 
     auc = _compute_auc(labels, probabilities)
 
@@ -479,7 +474,7 @@ def compute_metrics(
     )
 
 
-def _compute_auc(labels: np.ndarray, probabilities: np.ndarray) -> Optional[float]:
+def _compute_auc(labels: np.ndarray, probabilities: np.ndarray) -> float | None:
     positive = probabilities[labels == 1]
     negative = probabilities[labels == 0]
 
@@ -503,26 +498,24 @@ class ModelRegistry:
         self.registry_path = registry_path
         self.registry_path.parent.mkdir(parents=True, exist_ok=True)
 
-    def register(self, entry: ModelRegistryEntry) -> Dict[str, Any]:
+    def register(self, entry: ModelRegistryEntry) -> dict[str, Any]:
         records = self._load_registry()
         serialized = entry.to_dict()
         records.append(serialized)
         self._save_registry(records)
         return serialized
 
-    def _load_registry(self) -> List[Dict[str, Any]]:
+    def _load_registry(self) -> list[dict[str, Any]]:
         if not self.registry_path.exists():
             return []
         with self.registry_path.open("r", encoding="utf-8") as handle:
             try:
                 return json.load(handle)
             except json.JSONDecodeError:
-                logger.warning(
-                    "Model registry file was corrupted. Starting with a fresh registry."
-                )
+                logger.warning("Model registry file was corrupted. Starting with a fresh registry.")
                 return []
 
-    def _save_registry(self, entries: List[Dict[str, Any]]) -> None:
+    def _save_registry(self, entries: list[dict[str, Any]]) -> None:
         with self.registry_path.open("w", encoding="utf-8") as handle:
             json.dump(entries, handle, indent=2, ensure_ascii=False)
 
@@ -539,7 +532,7 @@ class TrainingPipeline:
         self.scaler = FeatureScaler()
         self.registry = ModelRegistry(config.registry_path)
 
-    def run(self, model_name: str, data_path: str) -> Dict[str, Any]:
+    def run(self, model_name: str, data_path: str) -> dict[str, Any]:
         logger.info("Starting training pipeline for '%s'.", model_name)
 
         dataset = self.loader.load(data_path)
@@ -574,9 +567,7 @@ class TrainingPipeline:
 
         train_probabilities = model.predict_proba(train_features)
         test_probabilities = model.predict_proba(test_features)
-        test_predictions = model.predict(
-            test_features, threshold=self.config.decision_threshold
-        )
+        test_predictions = model.predict(test_features, threshold=self.config.decision_threshold)
 
         metrics = compute_metrics(
             labels=test_labels,
@@ -638,7 +629,7 @@ class TrainingPipeline:
         model_name: str,
         model: LogisticRegressionModel,
         dataset: LoadedDataset,
-    ) -> Tuple[Path, str]:
+    ) -> tuple[Path, str]:
         if model.weights is None:
             raise ValueError("Cannot persist an untrained model.")
 
@@ -677,7 +668,7 @@ class TrainingPipeline:
         model_name: str,
         train_probabilities: np.ndarray,
         test_probabilities: np.ndarray,
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         monitor = ModelMonitor(window_size=self.config.monitor_window)
         monitor.set_reference_data(model_name, train_probabilities.tolist())
 
@@ -699,8 +690,8 @@ class TrainingPipeline:
 def run_training_pipeline(
     model_name: str,
     data_path: str,
-    config: Optional[TrainingConfig | Mapping[str, Any]] = None,
-) -> Dict[str, Any]:
+    config: TrainingConfig | Mapping[str, Any] | None = None,
+) -> dict[str, Any]:
     """
     Execute the full MLOps training pipeline for the provided dataset.
     """

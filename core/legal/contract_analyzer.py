@@ -84,11 +84,7 @@ class ContractAnalysisResult:
 
     def get_high_risk_clauses(self) -> list[ContractClause]:
         """Get all high or critical risk clauses."""
-        return [
-            c
-            for c in self.clauses
-            if c.risk_level in [RiskLevel.HIGH, RiskLevel.CRITICAL]
-        ]
+        return [c for c in self.clauses if c.risk_level in [RiskLevel.HIGH, RiskLevel.CRITICAL]]
 
 
 class ContractAnalyzer:
@@ -412,9 +408,7 @@ class ContractAnalyzer:
         payment_terms["amounts"] = amounts
 
         # Extract payment schedule
-        schedule_pattern = (
-            r"(?:pay|payment).*?(?:monthly|quarterly|annually|upon\s+\w+)"
-        )
+        schedule_pattern = r"(?:pay|payment).*?(?:monthly|quarterly|annually|upon\s+\w+)"
         schedule_match = re.search(schedule_pattern, document.content, re.IGNORECASE)
         if schedule_match:
             payment_terms["schedule"] = schedule_match.group(0)
@@ -526,9 +520,7 @@ class ContractAnalyzer:
             recommendations.append("Add clear effective date")
 
         # Check for one-sided terms
-        high_risk_count = sum(
-            1 for r in risks if r["risk_level"] in ["high", "critical"]
-        )
+        high_risk_count = sum(1 for r in risks if r["risk_level"] in ["high", "critical"])
         if high_risk_count > 3:
             recommendations.append(
                 "Multiple high-risk clauses detected - negotiate for more balanced terms",

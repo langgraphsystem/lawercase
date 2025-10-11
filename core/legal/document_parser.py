@@ -95,12 +95,8 @@ class LegalDocument:
                 for s in self.sections
             ],
             "parties": self.parties,
-            "effective_date": self.effective_date.isoformat()
-            if self.effective_date
-            else None,
-            "expiration_date": self.expiration_date.isoformat()
-            if self.expiration_date
-            else None,
+            "effective_date": self.effective_date.isoformat() if self.effective_date else None,
+            "expiration_date": self.expiration_date.isoformat() if self.expiration_date else None,
             "jurisdiction": self.jurisdiction,
             "metadata": self.metadata,
         }
@@ -291,9 +287,7 @@ class DocumentParser:
 
                     # Get content until next section
                     start_pos = match.end()
-                    end_pos = (
-                        matches[i + 1].start() if i + 1 < len(matches) else len(text)
-                    )
+                    end_pos = matches[i + 1].start() if i + 1 < len(matches) else len(text)
                     content = text[start_pos:end_pos].strip()
 
                     sections.append(

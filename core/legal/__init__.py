@@ -13,19 +13,13 @@ from __future__ import annotations
 
 from .case_law import CaseLawSearch, CaseLawSearchResult
 from .citation_extractor import CitationExtractor, LegalCitation
-from .compliance_checker import ComplianceChecker, ComplianceResult, ComplianceRule
-from .contract_analyzer import (
-    ContractAnalyzer,
-    ContractAnalysisResult,
-    ContractClause,
-)
-from .document_parser import (
-    DocumentParser,
-    DocumentSection,
-    LegalDocument,
-    LegalDocumentType,
-)
-from .entity_recognition import LegalEntityRecognizer, LegalEntity
+from .compliance_checker import (ComplianceChecker, ComplianceResult,
+                                 ComplianceRule)
+from .contract_analyzer import (ContractAnalysisResult, ContractAnalyzer,
+                                ContractClause)
+from .document_parser import (DocumentParser, DocumentSection, LegalDocument,
+                              LegalDocumentType)
+from .entity_recognition import LegalEntity, LegalEntityRecognizer
 
 __all__ = [
     # Document parsing

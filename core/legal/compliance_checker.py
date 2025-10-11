@@ -141,9 +141,7 @@ class ComplianceChecker:
 
         # Calculate compliance score
         total_rules = len(standard_rules)
-        compliance_score = (
-            (len(passed_rules) / total_rules * 100) if total_rules > 0 else 0
-        )
+        compliance_score = (len(passed_rules) / total_rules * 100) if total_rules > 0 else 0
 
         # Determine overall status
         status = self._determine_status(compliance_score, failed_rules, standard_rules)
@@ -220,9 +218,7 @@ class ComplianceChecker:
         """Determine overall compliance status."""
         # Check if any critical rules failed
         critical_failures = [
-            r.rule_id
-            for r in all_rules
-            if r.rule_id in failed_rules and r.severity == "critical"
+            r.rule_id for r in all_rules if r.rule_id in failed_rules and r.severity == "critical"
         ]
 
         if critical_failures:
@@ -230,12 +226,11 @@ class ComplianceChecker:
 
         if score >= 95:
             return ComplianceStatus.COMPLIANT
-        elif score >= 70:
+        if score >= 70:
             return ComplianceStatus.PARTIALLY_COMPLIANT
-        elif score >= 50:
+        if score >= 50:
             return ComplianceStatus.REQUIRES_REVIEW
-        else:
-            return ComplianceStatus.NON_COMPLIANT
+        return ComplianceStatus.NON_COMPLIANT
 
     def _generate_compliance_recommendations(
         self,
