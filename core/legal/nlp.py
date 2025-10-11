@@ -9,11 +9,11 @@ types, etc.).
 
 from __future__ import annotations
 
+import re
+import threading
 from collections.abc import Iterable, Iterator
 from dataclasses import dataclass
 from functools import lru_cache
-import re
-import threading
 
 try:  # pragma: no cover - dependency optional at runtime
     import spacy

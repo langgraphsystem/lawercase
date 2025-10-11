@@ -7,11 +7,12 @@ to any agent through confidence scoring and automatic retry logic.
 from __future__ import annotations
 
 import asyncio
-from collections.abc import Callable
 import time
+from collections.abc import Callable
 from typing import Any
 
-from core.validation import RetryConfig, RetryHandler, get_confidence_scorer, get_quality_tracker
+from core.validation import (RetryConfig, RetryHandler, get_confidence_scorer,
+                             get_quality_tracker)
 
 
 class SelfCorrectingMixin:

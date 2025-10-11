@@ -10,12 +10,12 @@ Integrates with distributed tracing to include trace IDs in logs.
 
 from __future__ import annotations
 
-from datetime import datetime
 import json
 import logging
 import os
-from pathlib import Path
 import sys
+from datetime import datetime
+from pathlib import Path
 from typing import Any
 
 from .distributed_tracing import get_trace_context
@@ -24,7 +24,7 @@ from .distributed_tracing import get_trace_context
 class StructuredFormatter(logging.Formatter):
     """JSON formatter for structured logging."""
 
-    def format(self, record: logging.LogRecord) -> str:  # noqa: A003
+    def format(self, record: logging.LogRecord) -> str:
         """Format log record as JSON."""
         # Base log structure
         log_data = {

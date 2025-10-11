@@ -2,18 +2,10 @@
 
 from __future__ import annotations
 
-from core.legal import (
-    CitationExtractor,
-    CitationType,
-    ComplianceChecker,
-    ComplianceStandard,
-    ComplianceStatus,
-    ContractAnalyzer,
-    DocumentParser,
-    LegalDocumentType,
-    LegalEntityRecognizer,
-    LegalEntityType,
-)
+from core.legal import (CitationExtractor, CitationType, ComplianceChecker,
+                        ComplianceStandard, ComplianceStatus, ContractAnalyzer,
+                        DocumentParser, LegalDocumentType,
+                        LegalEntityRecognizer, LegalEntityType)
 
 SAMPLE_CONTRACT = """
 SERVICE AGREEMENT
