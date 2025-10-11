@@ -7,11 +7,53 @@ from core.llm_interface.intelligent_router import IntelligentRouter, LLMRequest
 from core.optimization.cost_optimizer import CostOptimizer, CostTracker
 
 
-class FakeMultiLevelCache:
+class StubLLMCache:
     def __init__(self) -> None:
+        self.store: dict[tuple, dict[str, str]] = {}
+
+    def _key(self, prompt: str, model: str, temperature: float, metadata: dict[str, str]) -> tuple:
+        return (prompt, model, round(temperature, 2), tuple(sorted(metadata.items())))
+
+    async def get(
+        self,
+        prompt: str,
+        model: str,
+        temperature: float = 0.0,
+        use_semantic: bool = True,
+        **metadata: str,
+    ) -> dict[str, str] | None:
+        return self.store.get(self._key(prompt, model, temperature, metadata))
+
+    async def set(
+        self,
+        prompt: str,
+        response: dict[str, str],
+        model: str,
+        temperature: float = 0.0,
+        ttl: int | None = None,
+        **metadata: str,
+    ) -> None:
+        self.store[self._key(prompt, model, temperature, metadata)] = response
+
+    async def delete(
+        self,
+        prompt: str,
+        model: str,
+        temperature: float = 0.0,
+        **metadata: str,
+    ) -> bool:
+        return self.store.pop(self._key(prompt, model, temperature, metadata), None) is not None
+
+    async def clear(self) -> None:
+        self.store.clear()
+
+
+class FakeMultiLevelCache:
+    def __init__(self, llm_cache: StubLLMCache) -> None:
         self.storage: dict[tuple, dict[str, str]] = {}
         self.l0_hits = 0
         self.misses = 0
+        self.llm_cache = llm_cache
 
     def _key(self, prompt: str, model: str, temperature: float, metadata: dict[str, str]) -> tuple:
         return (prompt, model, round(temperature, 2), tuple(sorted(metadata.items())))
@@ -63,13 +105,15 @@ async def test_intelligent_router_caching_and_cost_tracking():
         LLMProvider("claude-3-haiku", cost_per_token=0.00025),
         LLMProvider("claude-3-sonnet", cost_per_token=0.003),
     ]
-    cache = FakeMultiLevelCache()
+    llm_cache = StubLLMCache()
+    cache = FakeMultiLevelCache(llm_cache)
     tracker = CostTracker()
     optimizer = CostOptimizer(tracker, enable_auto_optimization=False)
 
     router = IntelligentRouter(
         providers,
         multi_level_cache=cache,  # type: ignore[arg-type]
+        llm_cache=llm_cache,  # type: ignore[arg-type]
         cost_tracker=tracker,
         cost_optimizer=optimizer,
         initial_budget=50.0,

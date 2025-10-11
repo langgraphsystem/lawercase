@@ -1,0 +1,23 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: megaagent-config
+  namespace: megaagent-prod
+data:
+  redis-url: "redis://redis-service:6379/0"
+  log-level: "INFO"
+  cache-ttl: "3600"
+  max-workers: "4"
+
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: megaagent-secrets
+  namespace: megaagent-prod
+type: Opaque
+stringData:
+  database-url: "postgresql://user:CHANGE_ME@postgres-service:5432/megaagent"
+  secret-key: "CHANGE_ME_TO_RANDOM_SECRET"
+  openai-api-key: "CHANGE_ME"
+  anthropic-api-key: "CHANGE_ME"

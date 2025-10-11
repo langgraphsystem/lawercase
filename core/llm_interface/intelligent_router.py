@@ -6,6 +6,7 @@ from collections.abc import Iterable, Sequence
 from dataclasses import dataclass, field
 from typing import Any
 
+from ..caching.llm_cache import LLMCache, get_llm_cache
 from ..caching.multi_level_cache import MultiLevelCache
 from ..llm.cached_router import CachedLLMRouter
 from ..llm.router import LLMProvider
@@ -35,6 +36,7 @@ class IntelligentRouter:
         providers: Sequence[LLMProvider],
         *,
         multi_level_cache: MultiLevelCache | None = None,
+        llm_cache: LLMCache | None = None,
         cost_tracker: CostTracker | None = None,
         cost_optimizer: CostOptimizer | None = None,
         initial_budget: float = 20.0,
@@ -48,6 +50,15 @@ class IntelligentRouter:
         self.multi_level_cache = multi_level_cache or MultiLevelCache(
             namespace="intelligent_router"
         )
+
+        cache_candidate: LLMCache | None = llm_cache
+        if cache_candidate is None and isinstance(self.multi_level_cache, MultiLevelCache):
+            cache_candidate = self.multi_level_cache.llm_cache
+        if cache_candidate is None:
+            cache_candidate = getattr(self.multi_level_cache, "llm_cache", None)
+        if cache_candidate is None:
+            cache_candidate = get_llm_cache(namespace="intelligent_router")
+        self.llm_cache = cache_candidate
         self.cost_tracker = cost_tracker or get_cost_tracker()
         self.cost_optimizer = cost_optimizer or get_cost_optimizer()
 
@@ -57,6 +68,7 @@ class IntelligentRouter:
         self.router = CachedLLMRouter(
             list(self.providers),
             initial_budget=initial_budget,
+            cache=self.llm_cache,
         )
 
     # ------------------------------------------------------------------ #

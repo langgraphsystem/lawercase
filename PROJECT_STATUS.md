@@ -93,6 +93,8 @@
 **Файлы:**
 - `core/memory/memory_manager_v2.py` - Memory manager
 - `core/memory/stores/pinecone_semantic_store.py`
+- `core/memory/memory_hierarchy.py`
+- `core/memory/episodic_memory.py`
 - `MEMORY_MANAGER_MIGRATION.md`
 
 #### 2.2 Enhanced Orchestration (100%) ✅
@@ -121,6 +123,8 @@
 - `core/llm/cached_router.py` - Cached router
 - `core/llm/voyage_embedder.py` - Embedder
 - `core/optimization/cost_optimizer.py` - 700 LOC (Cost tracking & optimization)
+- `core/caching/multi_level_cache.py`
+- `core/llm_interface/intelligent_router.py`
 
 #### 2.4 Agent System (70%) ⏳
 - ✅ MegaAgent (central orchestrator)

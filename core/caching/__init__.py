@@ -17,6 +17,7 @@ from __future__ import annotations
 __all__ = [
     "CacheMonitor",
     "LLMCache",
+    "MultiLevelCache",
     "RedisClient",
     "SemanticCache",
     # Metrics
@@ -31,6 +32,7 @@ __all__ = [
 
 # Import implementations
 from .llm_cache import LLMCache, get_llm_cache
+from .multi_level_cache import MultiLevelCache
 from .metrics import CacheMonitor, get_cache_monitor
 from .redis_client import RedisClient, get_redis_client
 from .semantic_cache import SemanticCache, get_semantic_cache

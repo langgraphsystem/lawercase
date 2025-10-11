@@ -46,9 +46,15 @@
 - ✅ Long-term (PostgreSQL)
 - ✅ Semantic (Pinecone)
 - ✅ Memory consolidation
+- ✅ Memory hierarchy facade (episodic + semantic coordination)
 
 **Location**: `core/memory/`
 **Docs**: [MEMORY_MANAGER_MIGRATION.md](MEMORY_MANAGER_MIGRATION.md)
+**Key Files**:
+- `core/memory/memory_manager_v2.py`
+- `core/memory/memory_hierarchy.py`
+- `core/memory/episodic_memory.py`
+- `core/memory/stores/pinecone_semantic_store.py`
 
 #### 5. Enhanced Orchestration
 - ✅ Error Recovery Manager
@@ -87,8 +93,13 @@
 - ✅ Intelligent model selection
 - ✅ Cost projections
 - ✅ Optimization recommendations
+- ✅ Multi-level caching facade + intelligent router integration
 
 **Location**: `core/optimization/cost_optimizer.py`
+**Supporting Files**:
+- `core/caching/multi_level_cache.py`
+- `core/llm_interface/intelligent_router.py`
+
 **Usage**:
 ```python
 from core.optimization import get_cost_tracker, get_cost_optimizer
@@ -109,6 +120,17 @@ model = optimizer.select_model(
     required_quality=0.9,
     max_cost_usd=0.05
 )
+
+# Intelligent router example
+from core.llm.router import LLMProvider
+from core.llm_interface import IntelligentRouter, LLMRequest
+
+providers = [
+    LLMProvider("claude-3-haiku", cost_per_token=0.00025),
+    LLMProvider("claude-3-sonnet", cost_per_token=0.003),
+]
+router = IntelligentRouter(providers)
+result = await router.acomplete(LLMRequest(prompt="Summarise the contract dispute."))
 ```
 
 #### 9. Security Enhancements (80%) ✅

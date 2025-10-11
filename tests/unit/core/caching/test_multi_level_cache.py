@@ -53,7 +53,7 @@ async def test_multi_level_cache_local_hits():
     prompt = "What is contract law?"
     response = {"content": "Contract law governs agreements.", "model": "claude-3-haiku"}
 
-    await cache.set(prompt, response, model="claude-3-haiku")
+    await cache.llm_cache.set(prompt, response, model="claude-3-haiku")
 
     # First access -> underlying LLM cache
     result1 = await cache.get(prompt, model="claude-3-haiku")
