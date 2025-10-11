@@ -1,6 +1,9 @@
-from typing import Dict, Any
+from __future__ import annotations
 
-def run_training_pipeline(model_name: str, data_path: str) -> Dict[str, Any]:
+from typing import Any
+
+
+def run_training_pipeline(model_name: str, data_path: str) -> dict[str, Any]:
     """
     Simulates a training pipeline for a model.
 
@@ -31,9 +34,10 @@ def run_training_pipeline(model_name: str, data_path: str) -> Dict[str, Any]:
     # 3. Model training
     print("Step 3: Training the model...")
     # ... (e.g., using scikit-learn, PyTorch, TensorFlow)
-    
+
     # Simulate training time
     import time
+
     time.sleep(10)
 
     # 4. Model evaluation
@@ -43,7 +47,7 @@ def run_training_pipeline(model_name: str, data_path: str) -> Dict[str, Any]:
 
     # 5. Model versioning and registration
     print("Step 5: Versioning and registering the model...")
-    model_version = "v1.2.3" # Dummy version
+    model_version = "v1.2.3"  # Dummy version
     # ... (e.g., using MLflow, DVC)
 
     print("Training pipeline completed.")

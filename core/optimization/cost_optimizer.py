@@ -6,10 +6,9 @@ and intelligent model routing based on cost considerations.
 
 from __future__ import annotations
 
-import time
 from collections import defaultdict, deque
 from dataclasses import dataclass, field
-from datetime import datetime, timedelta
+from datetime import datetime
 from enum import Enum
 from typing import Any
 
@@ -271,17 +270,13 @@ class CostTracker:
         if self.daily_budget:
             today_cost = self.daily_costs.get(today, 0.0)
             if today_cost >= self.daily_budget * self.alert_threshold:
-                print(
-                    f"⚠️  Daily budget alert: ${today_cost:.2f} / ${self.daily_budget:.2f}"
-                )
+                print(f"⚠️  Daily budget alert: ${today_cost:.2f} / ${self.daily_budget:.2f}")
 
         # Monthly budget check
         if self.monthly_budget:
             month_cost = self.monthly_costs.get(this_month, 0.0)
             if month_cost >= self.monthly_budget * self.alert_threshold:
-                print(
-                    f"⚠️  Monthly budget alert: ${month_cost:.2f} / ${self.monthly_budget:.2f}"
-                )
+                print(f"⚠️  Monthly budget alert: ${month_cost:.2f} / ${self.monthly_budget:.2f}")
 
     def get_daily_cost(self, date: str | None = None) -> float:
         """Get cost for a specific day (or today)."""

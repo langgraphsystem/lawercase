@@ -10,25 +10,15 @@ import pytest
 
 pytest.importorskip("opentelemetry")
 
-from core.observability import (
-    TracingConfig,
-    get_log_aggregator,
-    get_metrics_collector,
-    get_tracer,
-    init_logging,
-    init_tracing,
-    structured_logger,
-    trace_async,
-    trace_function,
-)
+from core.observability import (TracingConfig, get_log_aggregator,
+                                get_metrics_collector, get_tracer,
+                                init_logging, init_tracing, structured_logger,
+                                trace_async, trace_function)
 from core.observability.grafana_dashboards import (
-    create_api_dashboard,
-    create_cache_dashboard,
-    create_dashboards,
-    create_orchestration_dashboard,
-    create_system_dashboard,
-)
-from core.observability.metrics_collector import DatabaseQueryTimer, WorkflowTimer
+    create_api_dashboard, create_cache_dashboard, create_dashboards,
+    create_orchestration_dashboard, create_system_dashboard)
+from core.observability.metrics_collector import (DatabaseQueryTimer,
+                                                  WorkflowTimer)
 
 
 # Grafana Dashboard Tests
@@ -345,9 +335,7 @@ def test_record_routing_decision():
     collector.record_routing_decision("test_workflow", "route_a", 0.95)
 
     # Check confidence gauge was set
-    confidence_metric = collector.workflow_routing_confidence.labels(
-        workflow_name="test_workflow"
-    )
+    confidence_metric = collector.workflow_routing_confidence.labels(workflow_name="test_workflow")
     assert confidence_metric is not None
 
 
@@ -407,9 +395,8 @@ def test_workflow_timer_with_error():
     """Test workflow timer with error."""
     collector = get_metrics_collector()
 
-    with pytest.raises(ValueError):
-        with WorkflowTimer(collector, "test_workflow"):
-            raise ValueError("Test error")
+    with pytest.raises(ValueError), WorkflowTimer(collector, "test_workflow"):
+        raise ValueError("Test error")
 
     # Should have recorded as error status
 
@@ -430,9 +417,8 @@ def test_database_query_timer_with_error():
     """Test database query timer with error."""
     collector = get_metrics_collector()
 
-    with pytest.raises(ValueError):
-        with DatabaseQueryTimer(collector, "insert"):
-            raise ValueError("Query failed")
+    with pytest.raises(ValueError), DatabaseQueryTimer(collector, "insert"):
+        raise ValueError("Query failed")
 
     # Should have recorded error
 

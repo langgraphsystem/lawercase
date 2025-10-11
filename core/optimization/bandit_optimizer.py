@@ -40,9 +40,8 @@ class EpsilonGreedyBandit:
         if random.random() < self.epsilon:
             # Explore
             return random.choice(arms)
-        else:
-            # Exploit
-            return self._get_best_arm(experiment_name)
+        # Exploit
+        return self._get_best_arm(experiment_name)
 
     def update_arm(self, experiment_name: str, arm: str, reward: float):
         """

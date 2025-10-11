@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from collections import deque
-from typing import Any, Deque
+from typing import Any
 
 import numpy as np
 
@@ -20,7 +20,7 @@ class ModelMonitor:
         """
         self.window_size = window_size
         self.reference_data: dict[str, np.ndarray] = {}
-        self.live_data: dict[str, Deque] = {}
+        self.live_data: dict[str, deque] = {}
 
     def set_reference_data(self, model_name: str, data: list[float]):
         """
