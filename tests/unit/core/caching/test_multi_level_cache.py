@@ -70,4 +70,3 @@ async def test_multi_level_cache_local_hits():
 
     deleted = await cache.delete(prompt, model="claude-3-haiku")
     assert deleted
-

@@ -55,4 +55,3 @@ async def test_timeline_and_snapshot():
 
     snapshot = await hierarchy.get_thread_snapshot("thread-2")
     assert "step 2" in snapshot
-

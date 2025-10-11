@@ -4,12 +4,8 @@ from __future__ import annotations
 
 import pytest
 
-from core.context import (
-    ContextBlock,
-    ContextManager,
-    ContextTemplate,
-    ContextType,
-)
+from core.context import (ContextBlock, ContextManager, ContextTemplate,
+                          ContextType)
 
 
 class TestContextManager:
@@ -111,9 +107,7 @@ class TestContextManager:
         assert "Analyze case" in context
         assert "Additional information" in context
 
-    def test_context_optimization_token_limit(
-        self, context_manager: ContextManager
-    ) -> None:
+    def test_context_optimization_token_limit(self, context_manager: ContextManager) -> None:
         """Test context optimization respects token limits."""
         # Create template with lots of content
         long_template = ContextTemplate(

@@ -87,4 +87,3 @@ async def test_intelligent_router_caching_and_cost_tracking():
     assert second_response["cache_layer"] == "multi-level"
     assert len(tracker.records) == 2
     assert second_response["response"].startswith("Response from")
-
