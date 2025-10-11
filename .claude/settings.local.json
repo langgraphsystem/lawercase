@@ -28,7 +28,10 @@
       "Bash(awk:*)",
       "Bash(xargs:*)",
       "Bash(git reset:*)",
-      "Bash(ruff format:*)"
+      "Bash(ruff format:*)",
+      "Bash(git fetch:*)",
+      "Bash(git pull:*)",
+      "Bash(git rebase:*)"
     ],
     "deny": [],
     "ask": []
