@@ -47,3 +47,24 @@ class MemoryRetrieveRequest(BaseModel):
     user_id: str | None = None
     topk: int = 8
     filters: dict[str, Any] | None = None
+
+
+class AuditEventInput(BaseModel):
+    source: str
+    action: str
+    payload: dict[str, Any] | None = None
+
+
+class EnhancedWorkflowRequest(BaseModel):
+    thread_id: str
+    user_id: str
+    query: str
+    event: AuditEventInput | None = None
+
+
+class HumanFeedbackRequest(BaseModel):
+    reviewer_id: str
+    approved: bool
+    comments: str | None = None
+    suggested_changes: dict[str, Any] | None = None
+    confidence_score: float | None = Field(default=None, ge=0.0, le=1.0)

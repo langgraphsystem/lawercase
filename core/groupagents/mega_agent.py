@@ -11,18 +11,27 @@ MegaAgent - Центральный оркестратор системы mega_ag
 
 from __future__ import annotations
 
-import uuid
 from datetime import datetime
 from enum import Enum
 from typing import Any
+import uuid
 
 from pydantic import BaseModel, Field, ValidationError
 
-from ..execution.secure_sandbox import (SandboxPolicy, SandboxRunner,
-                                        SandboxViolation, ensure_tool_allowed)
+from ..execution.secure_sandbox import (
+    SandboxPolicy,
+    SandboxRunner,
+    SandboxViolation,
+    ensure_tool_allowed,
+)
 from ..memory.memory_manager import MemoryManager
 from ..memory.models import AuditEvent
-from ..orchestration.pipeline_manager import build_pipeline, run
+from ..orchestration.enhanced_workflows import EnhancedWorkflowState
+from ..orchestration.pipeline_manager import (
+    build_enhanced_pipeline,
+    build_pipeline,
+    run as run_pipeline,
+)
 from ..orchestration.workflow_graph import WorkflowState, build_case_workflow
 from ..tools.tool_registry import get_tool_registry
 from .case_agent import CaseAgent
@@ -275,7 +284,7 @@ class MegaAgent:
 
         # Маршрутизация к workflow_system (использует тот же workflow)
         if agent_name == "workflow_system":
-            return await self._handle_workflow_command(command)
+            return await self._handle_workflow_command(command, user_role)
 
         if agent_name == "tool_runner":
             return await self._handle_tool_command(command, user_role)
@@ -304,8 +313,14 @@ class MegaAgent:
         )
         return self._format_case_response(state)
 
-    async def _handle_workflow_command(self, command: MegaAgentCommand) -> dict[str, Any]:
+    async def _handle_workflow_command(
+        self, command: MegaAgentCommand, user_role: UserRole
+    ) -> dict[str, Any]:
         """Обработка команд workflow system"""
+        action = (command.action or "").lower()
+        if action == "enhanced_memory":
+            return await self._handle_enhanced_memory_command(command)
+
         state = await self._run_case_workflow(
             operation=command.action,
             payload=command.payload,
@@ -315,6 +330,49 @@ class MegaAgent:
         response["operation"] = command.action
         response["workflow"] = "case"
         return response
+
+    async def _handle_enhanced_memory_command(self, command: MegaAgentCommand) -> dict[str, Any]:
+        """Запуск расширенного workflow с человеческими review и оптимизацией."""
+        payload = dict(command.payload or {})
+        query = payload.get("query") or command.payload.get("query") if command.payload else None
+        if not query:
+            raise CommandError("enhanced_memory workflow requires 'query' in payload")
+
+        thread_id = payload.get("thread_id") or command.command_id
+        event_payload = payload.get("event") or {}
+
+        event = AuditEvent(
+            event_id=event_payload.get("event_id", str(uuid.uuid4())),
+            timestamp=event_payload.get("timestamp", datetime.utcnow()),
+            user_id=command.user_id,
+            thread_id=thread_id,
+            source=event_payload.get("source", "mega_agent"),
+            action=event_payload.get("action", "enhanced_memory"),
+            payload=event_payload.get("payload", {}),
+        )
+
+        initial_state = EnhancedWorkflowState(
+            thread_id=thread_id,
+            user_id=command.user_id,
+            query=query,
+            event=event,
+        )
+
+        pipeline = build_enhanced_pipeline(self.memory)
+        final_state = await run_pipeline(pipeline, initial_state, thread_id=thread_id)
+
+        if isinstance(final_state, dict):
+            values = list(final_state.values())
+            if values and isinstance(values[0], dict):
+                final_state = EnhancedWorkflowState.model_validate(values[0])
+            else:
+                final_state = EnhancedWorkflowState.model_validate(final_state)
+
+        return {
+            "operation": "enhanced_memory",
+            "workflow": "enhanced",
+            "state": final_state.model_dump(),
+        }
 
     async def _handle_writer_command(self, command: MegaAgentCommand) -> dict[str, Any]:
         """Обработка команд writer_agent"""
@@ -444,7 +502,7 @@ class MegaAgent:
             event=event,
             query=query,
         )
-        final = await run(graph_exec, initial)
+        final = await run_pipeline(graph_exec, initial)
 
         return {
             "operation": "ask",
@@ -496,7 +554,7 @@ class MegaAgent:
             case_data=payload,
             case_id=payload.get("case_id"),
         )
-        final_state = await run(compiled, initial, thread_id=thread_id)
+        final_state = await run_pipeline(compiled, initial, thread_id=thread_id)
 
         if isinstance(final_state, dict):
             candidate = (

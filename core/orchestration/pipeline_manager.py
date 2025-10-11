@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any
 
+from .enhanced_workflows import EnhancedWorkflowState, create_enhanced_orchestration
 from .workflow_graph import WorkflowState, build_memory_workflow
 
 if TYPE_CHECKING:
@@ -36,9 +37,19 @@ def build_pipeline(memory: MemoryManager, *, checkpointer: Any | None = None):
     return graph.compile(checkpointer=checkpointer)
 
 
+def build_enhanced_pipeline(memory: MemoryManager, *, checkpointer: Any | None = None):
+    workflow, _, _, _ = create_enhanced_orchestration(memory)
+    if checkpointer is None:
+        checkpointer = setup_checkpointer(None)
+    return workflow.compile(checkpointer=checkpointer)
+
+
 async def run(
-    graph_executable, initial_state: WorkflowState, *, thread_id: str | None = None
-) -> WorkflowState:
+    graph_executable,
+    initial_state: WorkflowState | EnhancedWorkflowState,
+    *,
+    thread_id: str | None = None,
+) -> WorkflowState | EnhancedWorkflowState:
     """Run a compiled LangGraph with given initial state."""
     if thread_id is None:
         thread_id = initial_state.thread_id

@@ -26,7 +26,8 @@
       "Bash(sed:*)",
       "Bash(tree:*)",
       "Bash(awk:*)",
-      "Bash(xargs:*)"
+      "Bash(xargs:*)",
+      "Bash(git reset:*)"
     ],
     "deny": [],
     "ask": []

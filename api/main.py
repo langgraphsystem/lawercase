@@ -3,13 +3,15 @@ from __future__ import annotations
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from api.middleware import (RateLimitMiddleware, RequestMetricsMiddleware,
-                            get_rate_limit_settings)
-from api.routes import agent as agent_routes
-from api.routes import cases as cases_routes
-from api.routes import health as health_routes
-from api.routes import memory as memory_routes
-from api.routes import metrics as metrics_routes
+from api.middleware import RateLimitMiddleware, RequestMetricsMiddleware, get_rate_limit_settings
+from api.routes import (
+    agent as agent_routes,
+    cases as cases_routes,
+    health as health_routes,
+    memory as memory_routes,
+    metrics as metrics_routes,
+    workflows as workflows_routes,
+)
 from api.startup import register_builtin_tools
 from core.security.config import SecurityConfig
 
@@ -37,6 +39,7 @@ def create_app() -> FastAPI:
     app.include_router(memory_routes.router)
     app.include_router(cases_routes.router)
     app.include_router(metrics_routes.router)
+    app.include_router(workflows_routes.router)
 
     register_builtin_tools()
 

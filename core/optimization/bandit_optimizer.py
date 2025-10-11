@@ -1,26 +1,99 @@
 from __future__ import annotations
 
-"""Multi-armed bandit optimizer scaffolding."""
-
-from dataclasses import dataclass
-
-
-@dataclass
-class ArmStats:
-    wins: int = 0
-    pulls: int = 0
+import random
+from typing import Any
 
 
 class EpsilonGreedyBandit:
-    def __init__(self, arms: list[str], epsilon: float = 0.1) -> None:
+    """
+    An Epsilon-Greedy multi-armed bandit optimizer.
+    """
+
+    def __init__(self, epsilon: float = 0.1, storage: dict[str, Any] = None):
+        """
+        Initializes the Epsilon-Greedy bandit.
+
+        Args:
+            epsilon: The exploration factor (0.0 to 1.0). Defaults to 0.1.
+            storage: A dictionary-like object to store bandit data.
+                     If None, an in-memory dictionary is used.
+        """
+        if not 0.0 <= epsilon <= 1.0:
+            raise ValueError("Epsilon must be between 0.0 and 1.0.")
         self.epsilon = epsilon
-        self.stats: dict[str, ArmStats] = {arm: ArmStats() for arm in arms}
+        self.storage = storage if storage is not None else {}
 
-    def record(self, arm: str, reward: float) -> None:
-        stats = self.stats[arm]
-        stats.pulls += 1
-        if reward > 0:
-            stats.wins += 1
+    def select_arm(self, experiment_name: str, arms: list[str]) -> str:
+        """
+        Selects an arm (prompt) to play.
 
-    def select(self) -> str:
-        return next(iter(self.stats))
+        Args:
+            experiment_name: The name of the experiment.
+            arms: A list of arms (prompts) to choose from.
+
+        Returns:
+            The selected arm.
+        """
+        if experiment_name not in self.storage:
+            self._initialize_experiment(experiment_name, arms)
+
+        if random.random() < self.epsilon:
+            # Explore
+            return random.choice(arms)
+        else:
+            # Exploit
+            return self._get_best_arm(experiment_name)
+
+    def update_arm(self, experiment_name: str, arm: str, reward: float):
+        """
+        Updates the value of an arm based on a reward.
+
+        Args:
+            experiment_name: The name of the experiment.
+            arm: The arm that was played.
+            reward: The reward received.
+        """
+        if experiment_name not in self.storage:
+            raise ValueError(f"Experiment '{experiment_name}' not found.")
+
+        experiment = self.storage[experiment_name]
+        if arm not in experiment["arms"]:
+            raise ValueError(f"Arm '{arm}' not found in experiment '{experiment_name}'.")
+
+        arm_data = experiment["arms"][arm]
+        arm_data["pulls"] += 1
+        # Update the average reward
+        arm_data["value"] = ((arm_data["value"] * (arm_data["pulls"] - 1)) + reward) / arm_data[
+            "pulls"
+        ]
+
+    def _initialize_experiment(self, experiment_name: str, arms: list[str]):
+        """
+        Initializes a new experiment.
+        """
+        self.storage[experiment_name] = {"arms": {arm: {"pulls": 0, "value": 0.0} for arm in arms}}
+
+    def _get_best_arm(self, experiment_name: str) -> str:
+        """
+        Gets the arm with the highest estimated value.
+        """
+        experiment = self.storage[experiment_name]
+        if not experiment or not experiment["arms"]:
+            raise ValueError(f"No arms found for experiment '{experiment_name}'.")
+
+        return max(experiment["arms"], key=lambda arm: experiment["arms"][arm]["value"])
+
+    def get_experiment_stats(self, experiment_name: str) -> dict[str, Any]:
+        """
+        Gets the stats of an experiment.
+
+        Args:
+            experiment_name: The name of the experiment.
+
+        Returns:
+            A dictionary with the experiment stats.
+        """
+        if experiment_name not in self.storage:
+            raise ValueError(f"Experiment '{experiment_name}' not found.")
+
+        return self.storage[experiment_name]

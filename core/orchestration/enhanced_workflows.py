@@ -233,9 +233,17 @@ class HumanReviewManager:
         # Log audit event
         if state.event:
             state.event = AuditEvent(
-                event_type="human_review_requested",
-                actor=state.user_id or "system",
-                details={"reason": reason, "timeout_minutes": timeout, "review_id": review_id},
+                event_id=str(uuid4()),
+                user_id=state.user_id,
+                thread_id=state.thread_id,
+                source="enhanced_workflow",
+                action="human_review_requested",
+                payload={
+                    "reason": reason,
+                    "timeout_minutes": timeout,
+                    "review_id": review_id,
+                },
+                tags=["human_review"],
             )
 
         return state
@@ -310,13 +318,17 @@ class RouterOptimizer:
         if confidence < self.confidence_threshold:
             if state.event:
                 state.event = AuditEvent(
-                    event_type="low_confidence_routing",
-                    actor=state.user_id or "system",
-                    details={
+                    event_id=str(uuid4()),
+                    user_id=state.user_id,
+                    thread_id=state.thread_id,
+                    source="router_optimizer",
+                    action="low_confidence_routing",
+                    payload={
                         "route": best_route,
                         "confidence": confidence,
                         "alternatives": state.routing_alternatives,
                     },
+                    tags=["routing", "low_confidence"],
                 )
 
         return best_route, confidence
@@ -396,8 +408,8 @@ def build_enhanced_memory_workflow(
             start_time = datetime.utcnow()
 
             if state.event:
-                reflected = await memory.areflect(state.event)
-                state.reflected = reflected
+                reflections = await memory.awrite(state.event)
+                state.reflected = reflections
                 state.workflow_step = "reflected"
                 state.current_stage = WorkflowStage.PROCESSING
 
@@ -430,7 +442,7 @@ def build_enhanced_memory_workflow(
                 )
 
                 # Execute retrieval
-                records = await memory.aretrieve(state.query, k=5)
+                records = await memory.aretrieve(state.query, user_id=state.user_id, topk=5)
                 state.retrieved = records
                 state.workflow_step = f"retrieved_{strategy}"
 

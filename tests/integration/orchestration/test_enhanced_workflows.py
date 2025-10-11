@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from datetime import datetime, timedelta
+from uuid import uuid4
 
 import pytest
 
@@ -242,13 +243,21 @@ async def test_router_optimizer_low_confidence_logging(router_optimizer, enhance
         "route_a": 0.5,  # Below threshold (0.75)
     }
 
-    enhanced_state.event = AuditEvent(event_type="routing_check", actor="system", details={})
+    enhanced_state.event = AuditEvent(
+        event_id=str(uuid4()),
+        timestamp=datetime.utcnow(),
+        user_id="system",
+        thread_id=enhanced_state.thread_id,
+        source="router_optimizer_test",
+        action="routing_check",
+        payload={},
+    )
 
     route, confidence = await router_optimizer.optimize_routing(enhanced_state, routing_options)
 
     assert confidence < router_optimizer.confidence_threshold
     # Event should be updated with low confidence warning
-    assert enhanced_state.event.event_type == "low_confidence_routing"
+    assert enhanced_state.event.action == "low_confidence_routing"
 
 
 @pytest.mark.asyncio
@@ -405,9 +414,13 @@ async def test_enhanced_workflow_execution_success(memory_manager):
         user_id="user-789",
         query="test query",
         event=AuditEvent(
-            event_type="workflow_test",
-            actor="user-789",
-            details={"test": "data"},
+            event_id=str(uuid4()),
+            timestamp=datetime.utcnow(),
+            user_id="user-789",
+            thread_id="test-workflow-123",
+            source="enhanced_workflow_test",
+            action="workflow_test",
+            payload={"test": "data"},
         ),
     )
 
@@ -423,5 +436,11 @@ async def test_enhanced_workflow_execution_success(memory_manager):
 
     # Verify final state
     assert final_state is not None
+    if isinstance(final_state, dict):
+        values = list(final_state.values())
+        if values and isinstance(values[0], dict):
+            final_state = EnhancedWorkflowState.model_validate(values[0])
+        else:
+            final_state = EnhancedWorkflowState.model_validate(final_state)
     # The workflow should have progressed through stages
-    assert len(final_state["node_execution_times"]) > 0
+    assert len(final_state.node_execution_times) > 0

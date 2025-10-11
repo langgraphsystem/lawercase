@@ -14,7 +14,10 @@ from core.memory.models import AuditEvent, MemoryRecord
 @pytest.fixture
 async def production_memory():
     """Fixture for production memory manager with test namespace."""
-    memory = create_production_memory_manager(namespace="test")
+    try:
+        memory = create_production_memory_manager(namespace="test")
+    except Exception as exc:  # pragma: no cover - environment-specific
+        pytest.skip(f"Production memory backend unavailable: {exc}")
     return memory
     # Cleanup: delete test data after tests
     # (In production you'd want more sophisticated cleanup)
