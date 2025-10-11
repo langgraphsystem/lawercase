@@ -5,10 +5,10 @@ Parses legal documents and extracts structured information.
 
 from __future__ import annotations
 
-import re
 from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
+import re
 from typing import Any
 
 
@@ -259,14 +259,14 @@ class DocumentParser:
         lines = text.split("\n")[:10]
 
         # Look for all-caps title
-        for line in lines:
-            line = line.strip()
+        for raw_line in lines:
+            line = raw_line.strip()
             if line and line.isupper() and len(line) > 10:
                 return line
 
         # Look for first non-empty line
-        for line in lines:
-            line = line.strip()
+        for raw_line in lines:
+            line = raw_line.strip()
             if line and len(line) > 5:
                 return line
 
@@ -282,8 +282,19 @@ class DocumentParser:
 
             if matches:
                 for i, match in enumerate(matches):
-                    section_num = match.group(1)
-                    section_title = match.group(-1).strip()
+                    groups = match.groups()
+
+                    # Extract section number and title based on pattern
+                    if len(groups) == 2:
+                        # Pattern: "1. Title"
+                        section_num = groups[0]
+                        section_title = groups[1].strip()
+                    elif len(groups) >= 3:
+                        # Pattern: "Article I. Title" or "SECTION 1 - TITLE"
+                        section_num = groups[1] if groups[1] else groups[0]
+                        section_title = groups[2].strip() if len(groups) > 2 else groups[1].strip()
+                    else:
+                        continue
 
                     # Get content until next section
                     start_pos = match.end()

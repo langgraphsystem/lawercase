@@ -12,14 +12,32 @@ This package provides comprehensive legal document processing capabilities:
 from __future__ import annotations
 
 from .case_law import CaseLawSearch, CaseLawSearchResult
-from .citation_extractor import CitationExtractor, LegalCitation
-from .compliance_checker import (ComplianceChecker, ComplianceResult,
-                                 ComplianceRule)
-from .contract_analyzer import (ContractAnalysisResult, ContractAnalyzer,
-                                ContractClause)
-from .document_parser import (DocumentParser, DocumentSection, LegalDocument,
-                              LegalDocumentType)
-from .entity_recognition import LegalEntity, LegalEntityRecognizer
+from .citation_extractor import CitationExtractor, CitationType, LegalCitation
+from .compliance_checker import (
+    ComplianceChecker,
+    ComplianceResult,
+    ComplianceRule,
+    ComplianceStandard,
+    ComplianceStatus,
+)
+from .contract_analyzer import (
+    ClauseType,
+    ContractAnalysisResult,
+    ContractAnalyzer,
+    ContractClause,
+    RiskLevel,
+)
+from .document_parser import (
+    DocumentParser,
+    DocumentSection,
+    LegalDocument,
+    LegalDocumentType,
+)
+from .entity_recognition import (
+    LegalEntity,
+    LegalEntityRecognizer,
+    LegalEntityType,
+)
 
 __all__ = [
     # Document parsing
@@ -31,17 +49,23 @@ __all__ = [
     "ContractAnalyzer",
     "ContractAnalysisResult",
     "ContractClause",
+    "ClauseType",
+    "RiskLevel",
     # Compliance
     "ComplianceChecker",
     "ComplianceResult",
     "ComplianceRule",
+    "ComplianceStandard",
+    "ComplianceStatus",
     # Case law
     "CaseLawSearch",
     "CaseLawSearchResult",
     # Citations
     "CitationExtractor",
     "LegalCitation",
+    "CitationType",
     # Entities
     "LegalEntityRecognizer",
     "LegalEntity",
+    "LegalEntityType",
 ]
