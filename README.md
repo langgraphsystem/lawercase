@@ -38,6 +38,18 @@
   }
   ```
 
+## Monitoring & Observability
+- **Prometheus**: метрики доступны на `GET /metrics` (требуется роль `admin`).
+- **Structured logging**: настраивается окружением (`LOG_LEVEL`, `LOG_CONSOLE_OUTPUT`, `LOG_FILE_OUTPUT`, `LOG_JSON_FORMAT`, `LOG_DIR`). По умолчанию логируются в консоль и каталог `logs/`.
+- **Distributed tracing**: опционально включается через `TRACING_ENABLED=true`. Поддерживаются экспортеры `console`, `jaeger`, `zipkin`, `otlp`. Остальные переменные: `TRACING_EXPORTER`, `TRACING_SERVICE_NAME`, `OTLP_ENDPOINT` и т.д.
+- **Grafana dashboards**: сформируйте JSON при помощи `python -m core.observability.grafana_dashboards --output-dir dashboards/`, затем импортируйте файлы в Grafana.
+
+## Security Enhancements
+- **RBAC**: расширенный менеджер ролей (`core/security/advanced_rbac.py`) с поддержкой наследования и условий (MFA, IP, время, теги). Политика подключается через `RBAC_POLICY_PATH`.
+- **Prompt Injection Detector**: эвристический анализ (`core/security/prompt_injection_detector.py`) применяется в команде MegaAgent. Порог настройте переменными `PROMPT_DETECTION_ENABLED` и `PROMPT_DETECTION_THRESHOLD`.
+- **Immutable Audit Trail**: hash-цепочка (`core/security/audit_trail.py`) фиксирует события; путь и алгоритм управляются `AUDIT_LOG_PATH` и `AUDIT_HASH_ALGORITHM`.
+
+
 ## Как расширять
 - Добавить новые узлы (например, RAG генерацию ответа через LangChain LLM) в `workflow_graph.py` и связать рёбрами.
 - Подключить постоянное хранилище (pgvector/FAISS/Redis) вместо in‑memory стораджей, не меняя интерфейсы `SemanticStore`/`EpisodicStore`/`WorkingMemory`.

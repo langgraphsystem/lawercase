@@ -13,8 +13,13 @@ from .distributed_tracing import (TracingConfig, get_tracer, init_tracing,
                                   trace_async, trace_function)
 from .grafana_dashboards import (GrafanaDashboard, create_dashboards,
                                  export_dashboard)
-from .log_aggregation import (LogAggregator, get_log_aggregator, init_logging,
-                              structured_logger)
+from .log_aggregation import (
+    LogAggregator,
+    get_log_aggregator,
+    init_logging,
+    init_logging_from_env,
+    structured_logger,
+)
 from .metrics_collector import MetricsCollector, get_metrics_collector
 
 __all__ = [
@@ -32,6 +37,7 @@ __all__ = [
     "LogAggregator",
     "get_log_aggregator",
     "init_logging",
+    "init_logging_from_env",
     "structured_logger",
     # Metrics
     "MetricsCollector",

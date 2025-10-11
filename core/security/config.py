@@ -74,10 +74,31 @@ class SecurityConfig(BaseModel):
     security_monitoring_enabled: bool = Field(
         default=True, description="Enable security monitoring"
     )
+    audit_log_path: str = Field(
+        default_factory=lambda: os.getenv("AUDIT_LOG_PATH", "audits/immutable_audit.log"),
+        description="Path for immutable audit trail",
+    )
+    audit_hash_algorithm: str = Field(
+        default="sha256", description="Hash algorithm for audit chain"
+    )
 
     # RBAC enforcement
     rbac_strict_mode: bool = Field(default=True, description="Enable strict RBAC enforcement")
     rbac_cache_ttl_seconds: int = Field(default=300, description="RBAC cache TTL in seconds")
+    rbac_policy_path: str | None = Field(
+        default_factory=lambda: os.getenv("RBAC_POLICY_PATH"),
+        description="Optional path to custom RBAC policy JSON",
+    )
+
+    # Prompt injection detection
+    prompt_detection_enabled: bool = Field(
+        default_factory=lambda: os.getenv("PROMPT_DETECTION_ENABLED", "true").lower() == "true",
+        description="Enable prompt injection detection",
+    )
+    prompt_detection_threshold: float = Field(
+        default_factory=lambda: float(os.getenv("PROMPT_DETECTION_THRESHOLD", "0.7")),
+        description="Threshold above which prompt is blocked",
+    )
 
     # API Security
     api_key_required: bool = Field(default=False, description="Require API key for requests")

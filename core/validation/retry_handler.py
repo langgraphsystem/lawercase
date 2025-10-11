@@ -81,8 +81,8 @@ class RetryHandler:
         self,
         func: Callable,
         config: RetryConfig,
-        validation_func: Callable[[Any], bool] | None = None,
         *args,
+        validation_func: Callable[[Any], bool] | None = None,
         **kwargs,
     ) -> tuple[Any, ConfidenceMetrics, dict[str, Any]]:
         """
@@ -135,7 +135,9 @@ class RetryHandler:
 
             try:
                 # Execute function
-                result = await func(*args, **kwargs)
+                call_kwargs = kwargs.copy()
+                call_kwargs.pop("context", None)
+                result = await func(*args, **call_kwargs)
 
                 # Extract output text
                 if isinstance(result, dict):

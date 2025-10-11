@@ -2,7 +2,7 @@
 
 **Дата обновления:** 2025-10-11
 **Ветка:** `hardening/roadmap-v1`
-**Общий прогресс:** ~70% ✅
+**Общий прогресс:** ~75% ✅
 
 ---
 
@@ -216,17 +216,26 @@
 - `integrations/external_apis/`
 - `security/sandbox_policies.yml`
 
-#### 3.6 Legal-Specific Enhancements (0%)
-- ⏳ Legal document intelligence
-- ⏳ Citation extraction
-- ⏳ Cross-referencing система
-- ⏳ Compliance tracking
+#### 3.6 Legal-Specific Features (100%) ✅
+- ✅ Legal document parsing (15+ document types)
+- ✅ Contract analysis with risk assessment
+- ✅ Compliance checking (GDPR, CCPA, HIPAA)
+- ✅ Citation extraction (cases, statutes)
+- ✅ Legal entity recognition
+- ✅ Case law search framework
+- ✅ Clause classification (15+ types)
+- ✅ Risk scoring and recommendations
 
-**Требуется:**
-- `legal/document_intelligence.py`
-- `legal/citation_extractor.py`
-- `legal/compliance_tracker.py`
-- `legal/legal_ner_models/`
+**Файлы:**
+- `core/legal/document_parser.py` - 400 LOC
+- `core/legal/contract_analyzer.py` - 550 LOC
+- `core/legal/compliance_checker.py` - 400 LOC
+- `core/legal/citation_extractor.py` - 150 LOC
+- `core/legal/entity_recognition.py` - 100 LOC
+- `core/legal/case_law.py` - 80 LOC
+- `examples/legal_features_example.py`
+- `tests/integration/legal/test_legal_features.py`
+- `LEGAL_FEATURES_README.md` - Complete documentation
 
 ---
 

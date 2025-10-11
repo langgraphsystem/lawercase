@@ -12,11 +12,16 @@ from api.routes import memory as memory_routes
 from api.routes import metrics as metrics_routes
 from api.routes import workflows as workflows_routes
 from api.startup import register_builtin_tools
+from core.observability import init_logging_from_env, init_tracing, TracingConfig
 from core.security.config import SecurityConfig
 
 
 def create_app() -> FastAPI:
     app = FastAPI(title="mega_agent_pro API", version="1.0")
+
+    # Observability setup
+    init_logging_from_env()
+    init_tracing(TracingConfig.from_env())
 
     # CORS from security config
     sc = SecurityConfig()

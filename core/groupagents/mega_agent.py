@@ -11,22 +11,35 @@ MegaAgent - Центральный оркестратор системы mega_ag
 
 from __future__ import annotations
 
-import uuid
 from datetime import datetime
 from enum import Enum
-from typing import Any
+from typing import Any, Tuple
+import uuid
 
 from pydantic import BaseModel, Field, ValidationError
 
-from ..execution.secure_sandbox import (SandboxPolicy, SandboxRunner,
-                                        SandboxViolation, ensure_tool_allowed)
+from ..execution.secure_sandbox import (
+    SandboxPolicy,
+    SandboxRunner,
+    SandboxViolation,
+    ensure_tool_allowed,
+)
 from ..memory.memory_manager import MemoryManager
 from ..memory.models import AuditEvent
 from ..orchestration.enhanced_workflows import EnhancedWorkflowState
-from ..orchestration.pipeline_manager import (build_enhanced_pipeline,
-                                              build_pipeline)
-from ..orchestration.pipeline_manager import run as run_pipeline
+from ..orchestration.pipeline_manager import (
+    build_enhanced_pipeline,
+    build_pipeline,
+    run as run_pipeline,
+)
 from ..orchestration.workflow_graph import WorkflowState, build_case_workflow
+from ..security import (
+    PromptInjectionResult,
+    get_audit_trail,
+    get_prompt_detector,
+    get_rbac_manager,
+    security_config,
+)
 from ..tools.tool_registry import get_tool_registry
 from .case_agent import CaseAgent
 from .writer_agent import DocumentRequest, DocumentType, WriterAgent
@@ -176,6 +189,12 @@ class MegaAgent:
         # Статистика команд
         self._command_stats: dict[str, int] = {}
 
+        self.rbac_manager = get_rbac_manager()
+        self.prompt_detector = (
+            get_prompt_detector() if security_config.prompt_detection_enabled else None
+        )
+        self.audit_trail = get_audit_trail() if security_config.audit_enabled else None
+
     async def handle_command(
         self, command: MegaAgentCommand, user_role: UserRole | None = None
     ) -> MegaAgentResponse:
@@ -269,6 +288,8 @@ class MegaAgent:
         if not agent_name:
             raise CommandError(f"Unknown command type: {command.command_type}")
 
+        self._enforce_permission(user_role, command)
+
         # Маршрутизация к case_agent через LangGraph workflow
         if agent_name == "case_agent":
             return await self._handle_case_command(command)
@@ -297,6 +318,62 @@ class MegaAgent:
             "command": command.action,
             "agent": agent_name,
         }
+
+    def _permission_for_command(self, command: MegaAgentCommand) -> Tuple[str, str]:
+        action = (command.action or "").lower() or "read"
+        ct = command.command_type
+        if ct == CommandType.CASE:
+            return (f"case:{action}", "case")
+        if ct == CommandType.GENERATE:
+            return (f"document:{action}", "document")
+        if ct == CommandType.VALIDATE:
+            return ("document:validate", "document")
+        if ct == CommandType.TRAIN:
+            return (f"model:{action}", "model")
+        if ct == CommandType.SEARCH:
+            return ("memory:read", "memory")
+        if ct == CommandType.ASK:
+            return ("memory:read", "memory")
+        if ct == CommandType.WORKFLOW:
+            return (f"workflow:{action}", "workflow")
+        if ct == CommandType.TOOL:
+            return (f"tool:{action or 'use'}", "tool")
+        if ct == CommandType.ADMIN:
+            return (f"admin:{action}", "admin")
+        return ("*", "*")
+
+    def _enforce_permission(self, user_role: UserRole, command: MegaAgentCommand) -> None:
+        if not security_config.rbac_strict_mode:
+            return
+        action, resource = self._permission_for_command(command)
+        context = dict(command.context or {})
+        payload_tags = command.payload.get("tags") if isinstance(command.payload, dict) else None
+        if payload_tags:
+            context.setdefault("tags", [])
+            context["tags"].extend(payload_tags if isinstance(payload_tags, list) else [payload_tags])
+        context.setdefault("time", context.get("time") or datetime.utcnow().strftime("%H:%M"))
+        context.setdefault("mfa_verified", context.get("mfa_verified", False))
+        allowed = self.rbac_manager.check_permission(
+            user_role.value,
+            action,
+            resource,
+            context=context,
+        )
+        if not allowed:
+            raise SecurityError(
+                f"Role '{user_role.value}' lacks permission for {action} on {resource}"
+            )
+
+    def _check_prompt_injection(
+        self, text: str, *, context: dict[str, Any] | None = None
+    ) -> PromptInjectionResult | None:
+        if not text or not self.prompt_detector or not security_config.prompt_detection_enabled:
+            return None
+
+        result = self.prompt_detector.analyze(text, context=context)
+        if result.blocked:
+            raise CommandError("Prompt blocked due to suspected injection attempt")
+        return result
 
     async def _handle_case_command(self, command: MegaAgentCommand) -> dict[str, Any]:
         """Обработка команд case_agent"""
@@ -335,6 +412,8 @@ class MegaAgent:
         thread_id = payload.get("thread_id") or command.command_id
         event_payload = payload.get("event") or {}
 
+        detection = self._check_prompt_injection(query, context=command.context)
+
         event = AuditEvent(
             event_id=event_payload.get("event_id", str(uuid.uuid4())),
             timestamp=event_payload.get("timestamp", datetime.utcnow()),
@@ -362,11 +441,17 @@ class MegaAgent:
             else:
                 final_state = EnhancedWorkflowState.model_validate(final_state)
 
-        return {
+        response = {
             "operation": "enhanced_memory",
             "workflow": "enhanced",
             "state": final_state.model_dump(),
         }
+        if detection:
+            response["prompt_analysis"] = {
+                "score": detection.score,
+                "issues": detection.issues,
+            }
+        return response
 
     async def _handle_writer_command(self, command: MegaAgentCommand) -> dict[str, Any]:
         """Обработка команд writer_agent"""
@@ -477,6 +562,8 @@ class MegaAgent:
         if not query:
             raise CommandError("ASK requires 'query' in payload")
 
+        detection = self._check_prompt_injection(query, context=command.context)
+
         # Формируем AuditEvent для трассировки
         event = AuditEvent(
             event_id=str(uuid.uuid4()),
@@ -498,13 +585,19 @@ class MegaAgent:
         )
         final = await run_pipeline(graph_exec, initial)
 
-        return {
+        response = {
             "operation": "ask",
             "thread_id": final.thread_id,
             "rmt_slots": final.rmt_slots,
             "reflected": [r.model_dump() for r in final.reflected],
             "retrieved": [r.model_dump() for r in final.retrieved],
         }
+        if detection:
+            response["prompt_analysis"] = {
+                "score": detection.score,
+                "issues": detection.issues,
+            }
+        return response
 
     async def _handle_search_command(self, command: MegaAgentCommand) -> dict[str, Any]:
         """Обработка SEARCH: упрощенный поиск по памяти.
@@ -521,15 +614,23 @@ class MegaAgent:
         topk = int(payload.get("topk", 8))
         filters = payload.get("filters") or {}
 
+        detection = self._check_prompt_injection(query, context=command.context)
+
         results = await self.memory.aretrieve(
             query=query, user_id=command.user_id, topk=topk, filters=filters
         )
-        return {
+        response = {
             "operation": "search",
             "query": query,
             "count": len(results),
             "results": [r.model_dump() for r in results],
         }
+        if detection:
+            response["prompt_analysis"] = {
+                "score": detection.score,
+                "issues": detection.issues,
+            }
+        return response
 
     async def _run_case_workflow(
         self,
@@ -663,6 +764,8 @@ class MegaAgent:
             user_id="system",
             action="set_user_role",
             payload={"target_user": user_id, "new_role": role.value},
+            resource="rbac",
+            tags=["rbac", "role"],
         )
 
     async def _log_command_start(self, command: MegaAgentCommand, user_role: UserRole) -> None:
@@ -677,6 +780,8 @@ class MegaAgent:
                 "user_role": user_role.value,
                 "priority": command.priority,
             },
+            resource="command",
+            tags=["mega_agent", "command"],
         )
 
     async def _log_command_completion(
@@ -692,6 +797,8 @@ class MegaAgent:
                 "execution_time": response.execution_time,
                 "success": response.success,
             },
+            resource="command",
+            tags=["mega_agent", "command"],
         )
 
     async def _log_command_error(
@@ -707,9 +814,19 @@ class MegaAgent:
                 "error_message": str(error),
                 "execution_time": response.execution_time,
             },
+            resource="command",
+            tags=["mega_agent", "command", "error"],
         )
 
-    async def _log_audit_event(self, user_id: str, action: str, payload: dict[str, Any]) -> None:
+    async def _log_audit_event(
+        self,
+        user_id: str,
+        action: str,
+        payload: dict[str, Any],
+        *,
+        resource: str = "mega_agent",
+        tags: list[str] | None = None,
+    ) -> None:
         """Централизованное логирование audit событий"""
         event = AuditEvent(
             event_id=str(uuid.uuid4()),
@@ -718,10 +835,18 @@ class MegaAgent:
             source="mega_agent",
             action=action,
             payload=payload,
-            tags=["mega_agent", "orchestration"],
+            tags=tags or ["mega_agent", "orchestration"],
         )
 
         await self.memory.alog_audit(event)
+        if self.audit_trail and security_config.audit_enabled:
+            self.audit_trail.record_event(
+                user_id=user_id,
+                action=action,
+                resource=resource,
+                metadata=payload,
+                tags=tags or ["mega_agent"],
+            )
 
     def _update_stats(self, command_type: CommandType) -> None:
         """Обновление статистики команд"""

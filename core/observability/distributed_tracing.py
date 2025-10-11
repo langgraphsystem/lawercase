@@ -13,15 +13,24 @@ from collections.abc import Callable
 from dataclasses import dataclass
 from typing import Any
 
-from opentelemetry import trace
-from opentelemetry.exporter.jaeger.thrift import JaegerExporter
-from opentelemetry.exporter.otlp.proto.grpc.trace_exporter import \
-    OTLPSpanExporter
-from opentelemetry.exporter.zipkin.json import ZipkinExporter
-from opentelemetry.sdk.resources import SERVICE_NAME, Resource
-from opentelemetry.sdk.trace import TracerProvider
-from opentelemetry.sdk.trace.export import (BatchSpanProcessor,
-                                            ConsoleSpanExporter)
+try:  # pragma: no cover - optional dependency
+    from opentelemetry import trace
+    from opentelemetry.exporter.jaeger.thrift import JaegerExporter
+    from opentelemetry.exporter.otlp.proto.grpc.trace_exporter import (
+        OTLPSpanExporter,
+    )
+    from opentelemetry.exporter.zipkin.json import ZipkinExporter
+    from opentelemetry.sdk.resources import SERVICE_NAME, Resource
+    from opentelemetry.sdk.trace import TracerProvider
+    from opentelemetry.sdk.trace.export import (
+        BatchSpanProcessor,
+        ConsoleSpanExporter,
+    )
+
+    OTEL_AVAILABLE = True
+except Exception:  # pragma: no cover - optional dependency
+    OTEL_AVAILABLE = False
+    trace = None  # type: ignore
 
 
 @dataclass
@@ -61,7 +70,7 @@ _tracer: trace.Tracer | None = None
 _tracer_provider: TracerProvider | None = None
 
 
-def init_tracing(config: TracingConfig | None = None) -> trace.Tracer:
+def init_tracing(config: TracingConfig | None = None):
     """
     Initialize distributed tracing.
 
@@ -76,6 +85,9 @@ def init_tracing(config: TracingConfig | None = None) -> trace.Tracer:
         >>> tracer = init_tracing(config)
     """
     global _tracer, _tracer_provider
+
+    if not OTEL_AVAILABLE:
+        return None
 
     if config is None:
         config = TracingConfig.from_env()
@@ -352,12 +364,16 @@ def get_trace_context() -> dict[str, str]:
         >>> context = get_trace_context()
         >>> print(context["trace_id"])
     """
+    if not OTEL_AVAILABLE or trace is None:
+        return {}
+
     span = trace.get_current_span()
     if span and span.is_recording():
         ctx = span.get_span_context()
-        return {
-            "trace_id": format(ctx.trace_id, "032x"),
-            "span_id": format(ctx.span_id, "016x"),
-            "trace_flags": format(ctx.trace_flags, "02x"),
-        }
+        if ctx:
+            return {
+                "trace_id": format(ctx.trace_id, "032x"),
+                "span_id": format(ctx.span_id, "016x"),
+                "trace_flags": format(ctx.trace_flags, "02x"),
+            }
     return {}

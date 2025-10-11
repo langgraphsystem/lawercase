@@ -7,6 +7,7 @@ directly into Grafana.
 
 from __future__ import annotations
 
+import argparse
 import json
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -530,3 +531,20 @@ def export_dashboard(dashboard: GrafanaDashboard, output_path: str | Path) -> No
         >>> export_dashboard(dashboard, "my_dashboard.json")
     """
     dashboard.export_json(output_path)
+
+
+def main() -> None:
+    parser = argparse.ArgumentParser(description="Export Grafana dashboards to JSON files")
+    parser.add_argument(
+        "--output-dir",
+        default="grafana_dashboards",
+        help="Directory to write dashboard JSON files",
+    )
+    args = parser.parse_args()
+
+    files = create_dashboards(args.output_dir)
+    print(f"Exported {len(files)} dashboards to {Path(args.output_dir).resolve()}")
+
+
+if __name__ == "__main__":  # pragma: no cover - CLI entry point
+    main()

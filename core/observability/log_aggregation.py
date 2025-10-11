@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import json
 import logging
+import os
 import sys
 from datetime import datetime
 from pathlib import Path
@@ -362,6 +363,22 @@ def init_logging(
     )
 
     return _log_aggregator
+
+
+def init_logging_from_env() -> LogAggregator:
+    """Initialize logging using environment variables."""
+
+    def _env_bool(name: str, default: bool) -> bool:
+        return os.getenv(name, "true" if default else "false").lower() in {"1", "true", "yes", "on"}
+
+    return init_logging(
+        service_name=os.getenv("LOG_SERVICE_NAME", "megaagent-pro"),
+        log_level=os.getenv("LOG_LEVEL", "INFO"),
+        console_output=_env_bool("LOG_CONSOLE_OUTPUT", True),
+        file_output=_env_bool("LOG_FILE_OUTPUT", True),
+        json_format=_env_bool("LOG_JSON_FORMAT", True),
+        log_dir=os.getenv("LOG_DIR", "logs"),
+    )
 
 
 def get_log_aggregator() -> LogAggregator:

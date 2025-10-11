@@ -54,7 +54,7 @@ class SelfCorrectingMixin:
         self._retry_handler = RetryHandler(self._confidence_scorer)
 
         # Agent-specific config
-        self._agent_name = self.__class__.__name__
+        self._agent_name = f"{self.__class__.__name__}_{id(self)}"
         self._default_min_confidence = 0.7
         self._default_max_retries = 3
 
