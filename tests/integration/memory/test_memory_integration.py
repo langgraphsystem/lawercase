@@ -6,8 +6,10 @@ from uuid import uuid4
 
 import pytest
 
-from core.memory.memory_manager_v2 import (create_dev_memory_manager,
-                                           create_production_memory_manager)
+from core.memory.memory_manager_v2 import (
+    create_dev_memory_manager,
+    create_production_memory_manager,
+)
 from core.memory.models import AuditEvent, MemoryRecord
 
 
@@ -39,9 +41,9 @@ async def test_health_check_production(production_memory):
     assert "working" in health
 
     # All should be healthy
-    assert all(
-        health.values()
-    ), f"Some backends are unhealthy: {[k for k, v in health.items() if not v]}"
+    assert all(health.values()), (
+        f"Some backends are unhealthy: {[k for k, v in health.items() if not v]}"
+    )
 
 
 @pytest.mark.asyncio

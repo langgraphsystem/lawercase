@@ -24,32 +24,26 @@ from .entity_recognition import (LegalEntity, LegalEntityRecognizer,
                                  LegalEntityType)
 
 __all__ = [
-    # Document parsing
-    "DocumentParser",
-    "LegalDocument",
-    "DocumentSection",
-    "LegalDocumentType",
-    # Contract analysis
-    "ContractAnalyzer",
-    "ContractAnalysisResult",
-    "ContractClause",
+    "CaseLawSearch",
+    "CaseLawSearchResult",
+    "CitationExtractor",
+    "CitationType",
     "ClauseType",
-    "RiskLevel",
-    # Compliance
     "ComplianceChecker",
     "ComplianceResult",
     "ComplianceRule",
     "ComplianceStandard",
     "ComplianceStatus",
-    # Case law
-    "CaseLawSearch",
-    "CaseLawSearchResult",
-    # Citations
-    "CitationExtractor",
+    "ContractAnalysisResult",
+    "ContractAnalyzer",
+    "ContractClause",
+    "DocumentParser",
+    "DocumentSection",
     "LegalCitation",
-    "CitationType",
-    # Entities
-    "LegalEntityRecognizer",
+    "LegalDocument",
+    "LegalDocumentType",
     "LegalEntity",
+    "LegalEntityRecognizer",
     "LegalEntityType",
+    "RiskLevel",
 ]

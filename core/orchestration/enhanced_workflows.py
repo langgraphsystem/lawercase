@@ -143,9 +143,7 @@ class ErrorRecoveryManager:
             return False
         if error_ctx.retry_count >= error_ctx.max_retries:
             return False
-        if error_ctx.retry_strategy == RetryStrategy.NO_RETRY:
-            return False
-        return True
+        return error_ctx.retry_strategy != RetryStrategy.NO_RETRY
 
     async def get_retry_delay(self, error_ctx: ErrorContext) -> float:
         """Calculate retry delay based on strategy."""

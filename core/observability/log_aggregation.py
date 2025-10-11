@@ -10,12 +10,12 @@ Integrates with distributed tracing to include trace IDs in logs.
 
 from __future__ import annotations
 
+from datetime import datetime
 import json
 import logging
 import os
-import sys
-from datetime import datetime
 from pathlib import Path
+import sys
 from typing import Any
 
 from .distributed_tracing import get_trace_context
@@ -24,7 +24,7 @@ from .distributed_tracing import get_trace_context
 class StructuredFormatter(logging.Formatter):
     """JSON formatter for structured logging."""
 
-    def format(self, record: logging.LogRecord) -> str:
+    def format(self, record: logging.LogRecord) -> str:  # noqa: A003
         """Format log record as JSON."""
         # Base log structure
         log_data = {
@@ -369,7 +369,10 @@ def init_logging_from_env() -> LogAggregator:
     """Initialize logging using environment variables."""
 
     def _env_bool(name: str, default: bool) -> bool:
-        return os.getenv(name, "true" if default else "false").lower() in {"1", "true", "yes", "on"}
+        value = os.getenv(name)
+        if value is None:
+            return default
+        return value.lower() in {"1", "true", "yes", "on"}
 
     return init_logging(
         service_name=os.getenv("LOG_SERVICE_NAME", "megaagent-pro"),

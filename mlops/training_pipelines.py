@@ -1,16 +1,16 @@
 from __future__ import annotations
 
-import csv
-import json
-import logging
-import pickle
-import uuid
 from collections import Counter
 from collections.abc import Iterable, Mapping, Sequence
+import csv
 from dataclasses import dataclass, field
 from datetime import datetime
+import json
+import logging
 from pathlib import Path
+import pickle  # nosec B403 - required for model serialization
 from typing import Any
+import uuid
 
 import numpy as np
 
@@ -241,7 +241,7 @@ class DatasetLoader:
 
         feature_names = [
             key
-            for key in sample_row.keys()
+            for key in sample_row
             if key != self.config.target_column and not key.startswith("_")
         ]
         if not feature_names:
@@ -681,7 +681,7 @@ class TrainingPipeline:
             "reference_sample_size": len(train_probabilities),
             "live_sample_size": len(test_probabilities),
             "drift_status": {
-                key: (float(value) if isinstance(value, (np.floating, np.integer)) else value)
+                key: (float(value) if isinstance(value, np.floating | np.integer) else value)
                 for key, value in status.items()
             },
         }

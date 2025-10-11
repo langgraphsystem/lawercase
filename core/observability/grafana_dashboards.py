@@ -8,8 +8,8 @@ directly into Grafana.
 from __future__ import annotations
 
 import argparse
-import json
 from dataclasses import dataclass, field
+import json
 from pathlib import Path
 from typing import Any
 
@@ -19,7 +19,7 @@ class Panel:
     """Grafana panel configuration."""
 
     title: str
-    type: str  # graph, stat, table, gauge, etc.
+    type: str  # noqa: A003  # graph, stat, table, gauge, etc.
     targets: list[dict[str, Any]]
     grid_pos: dict[str, int]  # x, y, w, h
     options: dict[str, Any] = field(default_factory=dict)

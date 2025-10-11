@@ -9,7 +9,7 @@ class EpsilonGreedyBandit:
     An Epsilon-Greedy multi-armed bandit optimizer.
     """
 
-    def __init__(self, epsilon: float = 0.1, storage: dict[str, Any] = None):
+    def __init__(self, epsilon: float = 0.1, storage: dict[str, Any] | None = None):
         """
         Initializes the Epsilon-Greedy bandit.
 
@@ -37,9 +37,9 @@ class EpsilonGreedyBandit:
         if experiment_name not in self.storage:
             self._initialize_experiment(experiment_name, arms)
 
-        if random.random() < self.epsilon:
+        if random.random() < self.epsilon:  # nosec B311 - not used for security
             # Explore
-            return random.choice(arms)
+            return random.choice(arms)  # nosec B311 - not used for security
         # Exploit
         return self._get_best_arm(experiment_name)
 

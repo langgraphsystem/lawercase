@@ -2,10 +2,18 @@
 
 from __future__ import annotations
 
-from core.legal import (CitationExtractor, CitationType, ComplianceChecker,
-                        ComplianceStandard, ComplianceStatus, ContractAnalyzer,
-                        DocumentParser, LegalDocumentType,
-                        LegalEntityRecognizer, LegalEntityType)
+from core.legal import (
+    CitationExtractor,
+    CitationType,
+    ComplianceChecker,
+    ComplianceStandard,
+    ComplianceStatus,
+    ContractAnalyzer,
+    DocumentParser,
+    LegalDocumentType,
+    LegalEntityRecognizer,
+    LegalEntityType,
+)
 
 SAMPLE_CONTRACT = """
 SERVICE AGREEMENT
@@ -192,7 +200,7 @@ class TestComplianceChecker:
         result = checker.check_compliance(doc, ComplianceStandard.GDPR)
 
         assert result.standard == ComplianceStandard.GDPR
-        assert result.status in [s for s in ComplianceStatus]
+        assert result.status in list(ComplianceStatus)
         assert 0 <= result.compliance_score <= 100
         assert len(result.passed_rules) > 0
 

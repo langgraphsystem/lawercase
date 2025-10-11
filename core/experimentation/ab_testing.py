@@ -9,7 +9,7 @@ class PromptABTester:
     A/B testing framework for prompts.
     """
 
-    def __init__(self, storage: dict[str, Any] = None):
+    def __init__(self, storage: dict[str, Any] | None = None):
         """
         Initializes the A/B tester.
 
@@ -20,7 +20,7 @@ class PromptABTester:
         self.storage = storage if storage is not None else {}
 
     def create_experiment(
-        self, experiment_name: str, prompts: list[str], distribution: list[float] = None
+        self, experiment_name: str, prompts: list[str], distribution: list[float] | None = None
     ):
         """
         Creates a new A/B testing experiment.

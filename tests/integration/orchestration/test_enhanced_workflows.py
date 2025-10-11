@@ -10,9 +10,17 @@ import pytest
 from core.memory.memory_manager import MemoryManager
 from core.memory.models import AuditEvent
 from core.orchestration.enhanced_workflows import (
-    EnhancedWorkflowState, ErrorContext, ErrorRecoveryManager, HumanFeedback,
-    HumanReviewManager, RetryStrategy, RouterOptimizer, WorkflowStage,
-    create_enhanced_orchestration, execute_parallel_agents)
+    EnhancedWorkflowState,
+    ErrorContext,
+    ErrorRecoveryManager,
+    HumanFeedback,
+    HumanReviewManager,
+    RetryStrategy,
+    RouterOptimizer,
+    WorkflowStage,
+    create_enhanced_orchestration,
+    execute_parallel_agents,
+)
 
 
 @pytest.fixture
@@ -88,7 +96,7 @@ async def test_error_recovery_max_retries(error_manager, enhanced_state):
     # Simulate multiple retries
     error = ConnectionError("Network timeout")
 
-    for i in range(4):
+    for _ in range(4):
         enhanced_state = await error_manager.handle_error(enhanced_state, error, "flaky_node")
 
     # Should fail after max retries
@@ -160,7 +168,7 @@ async def test_human_feedback_approval(review_manager, enhanced_state):
     """Test submitting approval feedback."""
     # Request review
     state = await review_manager.request_human_review(enhanced_state, "Check quality")
-    review_id = list(review_manager.pending_reviews.keys())[0]
+    review_id = next(iter(review_manager.pending_reviews.keys()))
 
     # Submit approval
     feedback = HumanFeedback(
@@ -183,7 +191,7 @@ async def test_human_feedback_approval(review_manager, enhanced_state):
 async def test_human_feedback_rejection(review_manager, enhanced_state):
     """Test submitting rejection feedback."""
     state = await review_manager.request_human_review(enhanced_state, "Check quality")
-    review_id = list(review_manager.pending_reviews.keys())[0]
+    review_id = next(iter(review_manager.pending_reviews.keys()))
 
     feedback = HumanFeedback(
         reviewer_id="reviewer-456",

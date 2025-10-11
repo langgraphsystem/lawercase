@@ -13,9 +13,16 @@ from typing import Any
 
 from ..memory.memory_manager import MemoryManager
 from ..memory.models import AuditEvent, MemoryRecord
-from .models import (CaseExhibit, CaseOperationResult, CaseQuery, CaseRecord,
-                     CaseStatus, CaseVersion, CaseWorkflowState,
-                     ValidationResult)
+from .models import (
+    CaseExhibit,
+    CaseOperationResult,
+    CaseQuery,
+    CaseRecord,
+    CaseStatus,
+    CaseVersion,
+    CaseWorkflowState,
+    ValidationResult,
+)
 
 
 class CaseNotFoundError(Exception):
