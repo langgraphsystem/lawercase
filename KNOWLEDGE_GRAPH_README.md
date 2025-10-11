@@ -1,7 +1,7 @@
 # Knowledge Graph System
 
 **Status**: ✅ Complete
-**Version**: 1.0.0
+**Version**: 1.1.0
 **Last Updated**: 2025-10-11
 
 ## Overview
@@ -11,12 +11,13 @@ The Knowledge Graph system provides a complete solution for building, querying, 
 ### Key Features
 
 - **Entity and Relation Extraction**: Automatically extract entities and relations from unstructured text
-- **Graph Storage**: NetworkX-based flexible graph storage with full CRUD operations
+- **Graph Storage**: Thread-safe NetworkX 3.x MultiDiGraph storage with full CRUD operations
 - **Graph-Enhanced RAG**: Combine vector search with graph traversal for context-aware retrieval
 - **Hybrid Retrieval**: Multiple retrieval strategies (dense, sparse, graph, hybrid fusion)
 - **Entity Linking**: Automatic entity resolution across documents
 - **Subgraph Extraction**: Extract and visualize focused subgraphs
 - **Path Finding**: Multi-hop reasoning through graph relationships
+- **Standards-Based Interop**: RDF (via RDFLib) export/import and optional Neo4j persistence using the official driver
 
 ## Architecture
 
@@ -152,16 +153,15 @@ results = await hybrid.retrieve(
 
 ### 1. GraphStore
 
-NetworkX-based graph storage with comprehensive query capabilities.
+Thread-safe graph storage powered by the official NetworkX 3.x `MultiDiGraph`.
 
 **Features**:
-- Add/remove nodes and edges
-- Find nodes by type or pattern
-- Get neighbors with optional relation filtering
-- Find paths between nodes
-- Extract subgraphs
-- Related entity discovery (N-hop)
-- Import/export to JSON
+- Add/remove nodes and edges with metadata via `KGNode`/`KGEdge`
+- Pattern and type-based discovery (`find_nodes_by_type`, `find_nodes_by_pattern`)
+- Neighbor, path, and N-hop related-entity exploration returning structured dictionaries
+- Rich graph analytics through `get_stats()` (nodes, edges, density, average degree, distributions)
+- Standards-based serialization: JSON, and RDF 1.1 via `rdflib` (optional)
+- Optional production connector using the official Neo4j Python driver (`Neo4jGraphStore`)
 
 **Example**:
 ```python
@@ -173,13 +173,37 @@ store = GraphStore()
 store.add_node("person_1", "John Doe", node_type="PERSON")
 store.add_node("org_1", "Acme Corp", node_type="ORG")
 
-# Add edge
-store.add_edge("person_1", "org_1", "works_at", confidence=0.95)
+# Add edge with metadata bundle
+store.add_edge(
+    "person_1",
+    "org_1",
+    "works_at",
+    metadata={"confidence": 0.95, "source": "employee_records"},
+)
 
 # Query
 neighbors = store.get_neighbors("person_1")
 paths = store.get_paths("person_1", "org_1", max_length=3)
-related = store.get_related_entities("person_1", max_hops=2)
+related = store.get_related_entities("person_1", max_hops=2)  # {'org_1': 1, ...}
+
+# Serialize
+store.export_to_json("graph_snapshot.json")
+rdf_graph = store.to_rdflib_graph()  # requires rdflib>=6
+```
+
+**Neo4j integration**:
+```python
+from core.knowledge_graph import Neo4jGraphStore, KnowledgeTriple
+
+with Neo4jGraphStore("neo4j+s://demo.db", "user", "pass") as neo_store:
+    neo_store.upsert_triple(
+        KnowledgeTriple(
+            subject="person_1",
+            relation="WORKS_AT",
+            obj="org_1",
+            metadata={"source": "sync_job"},
+        )
+    )
 ```
 
 ### 2. EntityExtractor
@@ -436,7 +460,7 @@ llm_response = await llm.generate(
 - Fast queries: O(1) node access, O(E) edge traversal
 
 **For Large Graphs (100K+ nodes)**:
-- Use Neo4j backend (replace GraphStore)
+- Switch to `Neo4jGraphStore` (official Neo4j driver) or another graph database adapter
 - Implement graph database adapters
 - Add caching layer for frequent queries
 

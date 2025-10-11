@@ -4,6 +4,8 @@ langchain>=0.2.0
 langgraph>=0.2.30
 typing-extensions>=4.10.0
 google-generativeai>=0.7.0
+spacy>=3.7.2
+dateparser>=1.2.0
 
 # Test dependencies
 pytest>=8.0.0

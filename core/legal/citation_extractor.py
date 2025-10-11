@@ -1,17 +1,14 @@
-"""Legal Citation Extractor.
-
-Extracts and normalizes legal citations from text.
-"""
+"""Robust extraction and normalisation of common legal citation formats."""
 
 from __future__ import annotations
 
-import re
 from dataclasses import dataclass
 from enum import Enum
+import re
 
 
 class CitationType(str, Enum):
-    """Types of legal citations."""
+    """Categorisation of legal citations."""
 
     CASE = "case"
     STATUTE = "statute"
@@ -21,9 +18,9 @@ class CitationType(str, Enum):
     OTHER = "other"
 
 
-@dataclass
+@dataclass(slots=True)
 class LegalCitation:
-    """Legal citation."""
+    """Normalised legal citation details."""
 
     citation_text: str
     citation_type: CitationType
@@ -37,66 +34,117 @@ class LegalCitation:
 
 
 class CitationExtractor:
-    """Extract and parse legal citations."""
+    """Extract case law and statutory citations using Bluebook-style patterns."""
 
-    def __init__(self):
-        """Initialize citation extractor."""
-        # US Case law patterns
-        self.case_patterns = [
-            # 123 U.S. 456
-            re.compile(r"(\d+)\s+([A-Z]\.?\s?[A-Z]\.?[A-Z]?\.?)\s+(\d+)"),
-            # Smith v. Jones, 123 F.3d 456
-            re.compile(
-                r"([A-Z][a-z]+)\s+v\.?\s+([A-Z][a-z]+),\s+(\d+)\s+([A-Z][A-Z.]\.?[A-Z]?\.?)\s+(\d+)",
-            ),
-        ]
+    # Bluebook compliant case citation patterns (e.g. "Smith v. Jones, 123 F.3d 456 (9th Cir. 2000)")
+    _CASE_PATTERN = re.compile(
+        r"""
+        (?P<case_name>[A-Z][\w.&\s]+?\s+v\.?\s+[A-Z][\w.&\s]+?)      # Case name
+        ,?\s+
+        (?P<volume>\d+)\s+
+        (?P<reporter>[A-Z][A-Za-z.\d]+)\s+
+        (?P<page>\d+)
+        (?:\s*\(
+            (?P<court>[^)0-9]*?)?
+            \s*
+            (?P<year>\d{4})
+        \))?
+        """,
+        re.VERBOSE,
+    )
 
-        # Statute patterns
-        self.statute_patterns = [
-            # 42 U.S.C. § 1983
-            re.compile(r"(\d+)\s+U\.S\.C\.?\s+§\s*(\d+)"),
-            # 15 USC 78
-            re.compile(r"(\d+)\s+USC\s+(\d+)"),
-        ]
+    # Short reporter-only citations (e.g. "123 F.3d 456")
+    _SHORT_CASE_PATTERN = re.compile(
+        r"(?P<volume>\d+)\s+(?P<reporter>[A-Z]\.?[A-Za-z.\d]+)\s+(?P<page>\d+)"
+    )
+
+    # Statutory references (USC, CFR, state codes).
+    _STATUTE_PATTERNS = [
+        re.compile(r"(?P<title>\d+)\s+U\.?S\.?C\.?\s+§+\s*(?P<section>[\w\.-]+)"),
+        re.compile(r"(?P<title>\d+)\s+C\.?F\.?R\.?\s+§+\s*(?P<section>[\w\.-]+)"),
+        re.compile(r"(?P<section>Art\.?\s+\w+)\s+Const\."),
+    ]
 
     def extract(self, text: str) -> list[LegalCitation]:
-        """Extract all citations from text."""
-        citations = []
+        """Return all citations found within `text`."""
+        citations: list[LegalCitation] = []
+        seen_offsets: set[tuple[int, int]] = set()
 
-        # Extract case citations
-        for pattern in self.case_patterns:
-            for match in pattern.finditer(text):
-                citation = self._parse_case_citation(match)
-                if citation:
-                    citations.append(citation)
+        for match in self._CASE_PATTERN.finditer(text):
+            start, end = match.span()
+            if (start, end) in seen_offsets:
+                continue
+            seen_offsets.add((start, end))
+            citation = self._parse_case_citation(match)
+            if citation:
+                citations.append(citation)
 
-        # Extract statute citations
-        for pattern in self.statute_patterns:
+        for match in self._SHORT_CASE_PATTERN.finditer(text):
+            start, end = match.span()
+            if (start, end) in seen_offsets:
+                continue
+            seen_offsets.add((start, end))
+            citations.append(
+                LegalCitation(
+                    citation_text=match.group(0),
+                    citation_type=CitationType.CASE,
+                    volume=match.group("volume"),
+                    reporter=match.group("reporter"),
+                    page=match.group("page"),
+                    normalized=f"{match.group('volume')} {match.group('reporter')} {match.group('page')}",
+                )
+            )
+
+        for pattern in self._STATUTE_PATTERNS:
             for match in pattern.finditer(text):
-                citation = self._parse_statute_citation(match)
-                if citation:
-                    citations.append(citation)
+                start, end = match.span()
+                if (start, end) in seen_offsets:
+                    continue
+                seen_offsets.add((start, end))
+                citations.append(self._parse_statute_citation(match))
 
         return citations
 
     def _parse_case_citation(self, match: re.Match) -> LegalCitation | None:
-        """Parse case law citation."""
-        groups = match.groups()
-        if len(groups) >= 3:
-            return LegalCitation(
-                citation_text=match.group(0),
-                citation_type=CitationType.CASE,
-                volume=groups[0],
-                reporter=groups[1],
-                page=groups[2],
-            )
-        return None
+        """Convert a regex match to a `LegalCitation`."""
+        groups = match.groupdict()
+        case_name = groups.get("case_name")
+        volume = groups.get("volume")
+        reporter = groups.get("reporter")
+        page = groups.get("page")
+        year = groups.get("year")
+        court = groups.get("court")
 
-    def _parse_statute_citation(self, match: re.Match) -> LegalCitation | None:
-        """Parse statute citation."""
+        normalized = None
+        if case_name and volume and reporter and page:
+            parts = [case_name.strip(), f"{volume} {reporter} {page}"]
+            if court or year:
+                paren_content = " ".join(filter(None, [court and court.strip(), year]))
+                if paren_content:
+                    parts[-1] = f"{parts[-1]} ({paren_content})"
+            normalized = ", ".join(parts)
+
         return LegalCitation(
             citation_text=match.group(0),
+            citation_type=CitationType.CASE,
+            reporter=reporter,
+            volume=volume,
+            page=page,
+            year=year,
+            court=court.strip() if court else None,
+            normalized=normalized,
+        )
+
+    def _parse_statute_citation(self, match: re.Match) -> LegalCitation:
+        """Parse statutory citation matches."""
+        volume = match.group("title") if "title" in match.groupdict() else None
+        section = match.group("section")
+        citation_text = match.group(0)
+        normalized = citation_text.replace("  ", " ").strip()
+        return LegalCitation(
+            citation_text=citation_text,
             citation_type=CitationType.STATUTE,
-            volume=match.group(1),
-            page=match.group(2),
+            volume=volume,
+            page=section,
+            normalized=normalized,
         )

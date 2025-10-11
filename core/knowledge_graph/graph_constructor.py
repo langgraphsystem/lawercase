@@ -151,7 +151,7 @@ class GraphConstructor:
         self.relation_extractor = RelationExtractor()
 
         # Entity linking cache
-        self.entity_cache: dict[str, str] = {}  # text -> node_id
+        self.entity_cache: dict[str, set[str]] = {}  # normalized text -> node ids
 
     def add_document(
         self,
@@ -187,7 +187,7 @@ class GraphConstructor:
                 node_id,
                 entity["text"],
                 node_type=entity["type"],
-                **(metadata or {}),
+                metadata=metadata,
             )
             added_nodes.append(node_id)
 
@@ -202,7 +202,7 @@ class GraphConstructor:
                 subject_id,
                 object_id,
                 triple.relation,
-                **triple.metadata,
+                metadata=triple.metadata,
             )
             added_edges.append((subject_id, object_id, triple.relation))
 
@@ -229,12 +229,13 @@ class GraphConstructor:
         normalized = text.strip().lower()
 
         # Check cache
-        if normalized in self.entity_cache:
-            return self.entity_cache[normalized]
+        cached = self.entity_cache.get(normalized)
+        if cached:
+            return next(iter(cached))
 
         # Create new ID
         entity_id = f"{entity_type}_{len(self.entity_cache)}"
-        self.entity_cache[normalized] = entity_id
+        self.entity_cache.setdefault(normalized, set()).add(entity_id)
 
         return entity_id
 
@@ -254,13 +255,21 @@ class GraphConstructor:
             obj: Object entity
             **metadata: Additional metadata
         """
+        meta = dict(metadata)
+
         triple = KnowledgeTriple(
             subject=subject,
             relation=relation,
             obj=obj,
-            metadata=metadata,
+            metadata=meta,
         )
         self.graph_store.add_triple(triple)
+
+        # Update cache for downstream linking / resolution
+        subject_norm = subject.strip().lower()
+        object_norm = obj.strip().lower()
+        self.entity_cache.setdefault(subject_norm, set()).add(triple.subject)
+        self.entity_cache.setdefault(object_norm, set()).add(triple.obj)
 
     def get_graph(self) -> GraphStore:
         """Get the constructed graph."""
@@ -283,10 +292,12 @@ class GraphConstructor:
         """
         # Find entity in cache
         normalized = entity.strip().lower()
-        entity_id = self.entity_cache.get(normalized)
+        entity_ids = self.entity_cache.get(normalized)
 
-        if not entity_id:
+        if not entity_ids:
             return {"found": False, "entity": entity}
+
+        entity_id = next(iter(entity_ids))
 
         # Get node info
         node_info = self.graph_store.get_node(entity_id)
@@ -317,21 +328,58 @@ class GraphConstructor:
         Returns:
             True if merged successfully
         """
-        # Find both entities
-        id1 = self.entity_cache.get(entity1.strip().lower())
-        id2 = self.entity_cache.get(entity2.strip().lower())
+        key1 = entity1.strip().lower()
+        key2 = entity2.strip().lower()
+        ids1 = set(self.entity_cache.get(key1, set()))
+        ids2 = set(self.entity_cache.get(key2, set()))
 
-        if not id1 or not id2 or id1 == id2:
+        if not ids1 or not ids2:
             return False
 
-        # Merge edges from id2 to id1
+        if key1 == key2:
+            if len(ids1) < 2:
+                return False
+            id1, id2 = list(ids1)[:2]
+        else:
+            id1 = next(iter(ids1))
+            remaining = [candidate for candidate in ids2 if candidate != id1]
+            if not remaining:
+                return False
+            id2 = remaining[0]
+
+        # Merge outgoing edges from id2 to id1
         for neighbor in self.graph_store.get_neighbors(id2):
-            edges = self.graph_store.graph[id2][neighbor]
-            for relation, attrs in edges.items():
-                self.graph_store.add_edge(id1, neighbor, relation, **attrs)
+            for edge in self.graph_store.get_edges(id2, neighbor):
+                self.graph_store.add_edge(
+                    id1,
+                    neighbor,
+                    edge["relation"],
+                    metadata=edge.get("metadata"),
+                    weight=edge.get("weight"),
+                )
+
+        # Merge incoming edges to id2
+        for neighbor, direction in self.graph_store.get_neighbors(id2, include_direction=True):
+            if direction != "in":
+                continue
+            for edge in self.graph_store.get_edges(neighbor, id2):
+                self.graph_store.add_edge(
+                    neighbor,
+                    id1,
+                    edge["relation"],
+                    metadata=edge.get("metadata"),
+                    weight=edge.get("weight"),
+                )
+
+        # Remove duplicate node
+        self.graph_store.remove_node(id2)
 
         # Update cache
-        self.entity_cache[entity2.strip().lower()] = id1
+        for ids in self.entity_cache.values():
+            if id2 in ids:
+                ids.discard(id2)
+                ids.add(id1)
+        self.entity_cache.setdefault(key2, set()).add(id1)
 
         # Note: In production, would also handle incoming edges and remove old node
 
