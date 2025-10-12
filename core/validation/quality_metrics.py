@@ -6,10 +6,10 @@ self-correcting agents.
 
 from __future__ import annotations
 
-import time
 from collections import deque
 from dataclasses import dataclass, field
 from datetime import datetime
+import time
 from typing import Any
 
 
@@ -373,17 +373,17 @@ class QualityTracker:
             "agents": list(self.agent_stats.keys()),
         }
 
-    def export_metrics(self, format: str = "dict") -> Any:  # noqa: A002
+    def export_metrics(self, output_format: str = "dict") -> Any:
         """
         Export metrics in various formats.
 
         Args:
-            format: Export format (dict, csv, json)
+            output_format: Export format (dict, csv, json)
 
         Returns:
             Metrics in requested format
         """
-        if format == "dict":
+        if output_format == "dict":
             return {
                 "operations": [
                     {
@@ -404,7 +404,7 @@ class QualityTracker:
             }
 
         # TODO: Implement CSV and JSON exports
-        raise NotImplementedError(f"Export format '{format}' not implemented")
+        raise NotImplementedError(f"Export format '{output_format}' not implemented")
 
 
 # Global singleton
