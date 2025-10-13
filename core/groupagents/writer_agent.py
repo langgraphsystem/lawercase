@@ -12,11 +12,11 @@ WriterAgent - Генерация документов и писем.
 
 from __future__ import annotations
 
-import uuid
 from datetime import datetime
 from enum import Enum
 from pathlib import Path
 from typing import Any
+import uuid
 
 from pydantic import BaseModel, Field, field_validator
 
@@ -304,6 +304,54 @@ class WriterAgent:
         await self._log_document_access(document, user_id)
 
         return document
+
+    async def arequest_approval(
+        self, document_id: str, approver_id: str, user_id: str, comments: str | None = None
+    ) -> ApprovalWorkflow:
+        """
+        Создать запрос на одобрение документа (workflow со статусом pending).
+
+        Args:
+            document_id: ID документа для одобрения
+            approver_id: ID одобряющего
+            user_id: Инициатор запроса (для аудита)
+            comments: Необязательные комментарии
+
+        Returns:
+            ApprovalWorkflow: Созданный workflow одобрения
+        """
+        document = self._documents.get(document_id)
+        if not document:
+            raise WriterError(f"Document {document_id} not found")
+
+        # Если workflow уже существует — возвращаем его
+        for wf in self._approval_workflows.values():
+            if wf.document_id == document_id and wf.status in {"pending", "approved"}:
+                return wf
+
+        workflow = ApprovalWorkflow(
+            document_id=document_id,
+            approver_id=approver_id,
+            status="pending",
+            comments=[comments] if comments else [],
+        )
+        self._approval_workflows[workflow.workflow_id] = workflow
+
+        # Обновляем документ
+        document.approval_status = "pending"
+
+        # Audit log
+        await self._log_audit_event(
+            user_id=user_id,
+            action="approval_requested",
+            payload={
+                "document_id": document_id,
+                "workflow_id": workflow.workflow_id,
+                "approver_id": approver_id,
+            },
+        )
+
+        return workflow
 
     async def asearch_documents(
         self, filters: dict[str, Any], user_id: str

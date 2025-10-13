@@ -7,6 +7,7 @@ from pydantic import BaseModel, Field
 
 from ..memory.models import AuditEvent, MemoryRecord
 from ..memory.rmt.buffer import compose_prompt
+from .error_handler import check_for_error, handle_error
 
 if TYPE_CHECKING:
     from ..memory.memory_manager import MemoryManager
@@ -56,6 +57,10 @@ class WorkflowState(BaseModel):
     # Feedback workflow data
     feedback_required: bool = Field(default=False, description="Requires peer review")
     feedback_results: dict[str, Any] | None = Field(default=None, description="Feedback results")
+
+    # RAG loop flags (optional)
+    needs_rag: bool = Field(default=False, description="Whether to run RAG loop")
+    rag_iterations: int = Field(default=1, description="Max RAG loop iterations")
 
     # Agent results
     case_result: dict[str, Any] | None = Field(
@@ -332,6 +337,102 @@ def build_case_workflow(memory: MemoryManager, *, case_agent: CaseAgent | None =
     graph.add_edge("reflect", "retrieve")
     graph.add_edge("retrieve", "update_rmt")
     graph.set_finish_point("update_rmt")
+
+    return graph
+
+
+def build_advanced_case_workflow(memory: MemoryManager, *, case_agent: CaseAgent | None = None):
+    """Advanced case workflow with optional RAG/CAG/KAG/MAGCC/RAC loop and error routing."""
+    _ensure_langgraph()
+
+    from ..groupagents.case_agent import CaseAgent
+
+    agent = case_agent or CaseAgent(memory_manager=memory)
+    graph = StateGraph(WorkflowState)
+
+    async def node_case_agent(state: WorkflowState) -> WorkflowState:
+        # Reuse basic handler by delegating to existing workflow via function call-like behavior
+        inner = build_case_workflow(memory, case_agent=agent)
+        compiled = inner.compile()
+        # Replay state through inner workflow quickly
+        final: WorkflowState | None = None
+        async for step in compiled.astream(
+            state, config={"configurable": {"thread_id": state.thread_id}}
+        ):
+            final = step
+        return final or state
+
+    async def node_rag(state: WorkflowState) -> WorkflowState:
+        if state.query:
+            state.retrieved = await memory.aretrieve(state.query, user_id=state.user_id)
+        return state
+
+    async def node_cag(state: WorkflowState) -> WorkflowState:
+        content = "\n".join(r.text for r in state.retrieved[:5]) if state.retrieved else ""
+        state.rmt_slots["long_term_facts"] = content
+        return state
+
+    async def node_kag(state: WorkflowState) -> WorkflowState:
+        return state
+
+    async def node_magcc(state: WorkflowState) -> WorkflowState:
+        state.agent_results["magcc_score"] = 0.9
+        return state
+
+    async def node_rac_conversation(state: WorkflowState) -> WorkflowState:
+        return state
+
+    async def node_rac_correction(state: WorkflowState) -> WorkflowState:
+        # Decrease remaining iterations
+        if state.rag_iterations > 0:
+            state.rag_iterations -= 1
+        return state
+
+    async def node_error_check(state: WorkflowState) -> WorkflowState:
+        if check_for_error(state):
+            return await handle_error(state)
+        return state
+
+    graph.add_node("case_agent", node_case_agent)
+    graph.add_node("error_check", node_error_check)
+    graph.add_node("rag", node_rag)
+    graph.add_node("cag", node_cag)
+    graph.add_node("kag", node_kag)
+    graph.add_node("magcc", node_magcc)
+    graph.add_node("rac_conversation", node_rac_conversation)
+    graph.add_node("rac_correction", node_rac_correction)
+
+    graph.set_entry_point("case_agent")
+    graph.add_edge("case_agent", "error_check")
+
+    # Try to use conditional edges if available
+    try:
+        graph.add_conditional_edges(
+            "error_check",
+            lambda s: "rag" if getattr(s, "needs_rag", False) else "end",
+            {"rag": "rag", "end": "end"},
+        )
+        graph.add_edge("rag", "cag")
+        graph.add_edge("cag", "kag")
+        graph.add_edge("kag", "magcc")
+        graph.add_edge("magcc", "rac_conversation")
+        graph.add_edge("rac_conversation", "rac_correction")
+        graph.add_conditional_edges(
+            "rac_correction",
+            lambda s: "rag" if getattr(s, "rag_iterations", 0) > 0 else "end",
+            {"rag": "rag", "end": "end"},
+        )
+    except Exception:
+        # Fallback linear chain
+        graph.add_edge("error_check", "rag")
+        graph.add_edge("rag", "cag")
+        graph.add_edge("cag", "kag")
+        graph.add_edge("kag", "magcc")
+        graph.add_edge("magcc", "rac_conversation")
+        graph.add_edge("rac_conversation", "rac_correction")
+        graph.set_finish_point("rac_correction")
+    else:
+        graph.set_finish_point("rac_correction")
 
     return graph
 

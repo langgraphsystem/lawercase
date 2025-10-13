@@ -68,6 +68,7 @@ class CacheConfig(BaseSettings):
         "env_file_encoding": "utf-8",
         "case_sensitive": False,
         "env_prefix": "CACHE_",
+        "extra": "allow",
     }
 
 

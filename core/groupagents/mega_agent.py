@@ -11,26 +11,53 @@ MegaAgent - Центральный оркестратор системы mega_ag
 
 from __future__ import annotations
 
-import uuid
 from datetime import datetime
 from enum import Enum
 from typing import Any
+import uuid
 
 from pydantic import BaseModel, Field, ValidationError
+from tenacity import retry, retry_if_exception_type, stop_after_attempt, wait_exponential
 
-from ..execution.secure_sandbox import (SandboxPolicy, SandboxRunner,
-                                        SandboxViolation, ensure_tool_allowed)
+from ..execution.secure_sandbox import (
+    SandboxPolicy,
+    SandboxRunner,
+    SandboxViolation,
+    ensure_tool_allowed,
+)
 from ..memory.memory_manager import MemoryManager
 from ..memory.models import AuditEvent
 from ..orchestration.enhanced_workflows import EnhancedWorkflowState
-from ..orchestration.pipeline_manager import (build_enhanced_pipeline,
-                                              build_pipeline)
-from ..orchestration.pipeline_manager import run as run_pipeline
+from ..orchestration.pipeline_manager import (
+    build_enhanced_pipeline,
+    build_pipeline,
+    run as run_pipeline,
+)
 from ..orchestration.workflow_graph import WorkflowState, build_case_workflow
-from ..security import (PromptInjectionResult, get_audit_trail,
-                        get_prompt_detector, get_rbac_manager, security_config)
+from ..security import (
+    PromptInjectionResult,
+    get_audit_trail,
+    get_prompt_detector,
+    get_rbac_manager,
+    security_config,
+)
 from ..tools.tool_registry import get_tool_registry
 from .case_agent import CaseAgent
+from .eb1_agent import EB1Agent
+from .models import (
+    AskPayload,
+    BatchTrainPayload,
+    FeedbackPayload,
+    ImprovePayload,
+    LegalPayload,
+    MemoryLookupPayload,
+    OptimizePayload,
+    RecommendPayload,
+    SearchPayload,
+    ToolCommandPayload,
+    TrainPayload,
+)
+from .validator_agent import ValidationRequest, ValidatorAgent
 from .writer_agent import DocumentRequest, DocumentType, WriterAgent
 
 
@@ -70,6 +97,7 @@ class CommandType(str, Enum):
     WORKFLOW = "workflow"
     ADMIN = "admin"
     TOOL = "tool"
+    EB1 = "eb1"  # EB-1A Immigration petitions
 
 
 class MegaAgentCommand(BaseModel):
@@ -157,6 +185,29 @@ class MegaAgent:
         CommandType.ASK: "supervisor_agent",
         CommandType.WORKFLOW: "workflow_system",
         CommandType.TOOL: "tool_runner",
+        CommandType.EB1: "eb1_agent",
+    }
+
+    # Опциональная валидация payload через Pydantic-модели
+    # COMMAND_MAP: { (command_type, action) -> (handler_name, PayloadModel) }
+    COMMAND_MAP: dict[tuple[CommandType, str], tuple[str, type[BaseModel]]] = {
+        (CommandType.GENERATE, "letter"): ("_handle_writer_command", DocumentRequest),
+        (CommandType.VALIDATE, "document"): ("_handle_validate_command", ValidationRequest),
+        (CommandType.ASK, "*"): ("_handle_ask_command", AskPayload),
+        (CommandType.SEARCH, "*"): ("_handle_search_command", SearchPayload),
+        (CommandType.TOOL, "*"): ("_handle_tool_command", ToolCommandPayload),
+        (CommandType.TRAIN, "*"): ("_handle_train_command", TrainPayload),
+        (CommandType.ADMIN, "batch_train"): ("_handle_batch_train_command", BatchTrainPayload),
+        (CommandType.ADMIN, "optimize"): ("_handle_optimize_command", OptimizePayload),
+        (CommandType.ADMIN, "improve"): ("_handle_improve_command", ImprovePayload),
+        (CommandType.ADMIN, "memory_lookup"): (
+            "_handle_memory_lookup_command",
+            MemoryLookupPayload,
+        ),
+        (CommandType.ADMIN, "recommend"): ("_handle_recommend_command", RecommendPayload),
+        (CommandType.ADMIN, "feedback"): ("_handle_feedback_command", FeedbackPayload),
+        (CommandType.WORKFLOW, "*"): ("_handle_workflow_command", WorkflowState),
+        (CommandType.ADMIN, "legal"): ("_handle_legal_command", LegalPayload),
     }
 
     def __init__(self, memory_manager: MemoryManager | None = None):
@@ -171,6 +222,8 @@ class MegaAgent:
         # Инициализация агентов
         self.case_agent = CaseAgent(memory_manager=self.memory)
         self.writer_agent = WriterAgent(memory_manager=self.memory)
+        self.eb1_agent = EB1Agent(memory_manager=self.memory)
+        self.validator_agent = ValidatorAgent(memory_manager=self.memory)
 
         # Кэш пользователей и их ролей (в реальности из базы данных)
         self._user_roles: dict[str, UserRole] = {}
@@ -279,6 +332,21 @@ class MegaAgent:
 
         self._enforce_permission(user_role, command)
 
+        # Валидируем payload по COMMAND_MAP, если модель указана
+        try:
+            key = (command.command_type, (command.action or "").lower())
+            handler_name, model_cls = self.COMMAND_MAP.get(key, ("", None))  # type: ignore
+            if not model_cls:
+                # Fallback to wildcard mapping for this command type
+                key_any = (command.command_type, "*")
+                handler_name, model_cls = self.COMMAND_MAP.get(key_any, ("", None))  # type: ignore
+            if model_cls is not None:
+                # Провалидировать payload и заменить на dict
+                model_obj = model_cls.model_validate(command.payload)
+                command.payload = model_obj.model_dump()
+        except ValidationError as ve:
+            raise CommandError(f"Payload validation failed: {ve}")
+
         # Маршрутизация к case_agent через LangGraph workflow
         if agent_name == "case_agent":
             return await self._handle_case_command(command)
@@ -300,6 +368,10 @@ class MegaAgent:
         # Базовый SEARCH: прямой поиск по семантической памяти
         if agent_name == "rag_pipeline_agent":
             return await self._handle_search_command(command)
+
+        # EB-1A Immigration петиции
+        if agent_name == "eb1_agent":
+            return await self._handle_eb1_command(command)
 
         # Placeholder для других агентов
         return {
@@ -487,6 +559,126 @@ class MegaAgent:
 
         raise CommandError(f"Unknown writer action: {command.action}")
 
+    async def _handle_train_command(self, command: MegaAgentCommand) -> dict[str, Any]:
+        payload = TrainPayload.model_validate(command.payload)
+        # persist samples into semantic memory
+        records = []
+        for s in payload.samples:
+            text = s.get("text") or s.get("content") or ""
+            if not text:
+                continue
+            records.append(
+                {
+                    "text": text,
+                    "user_id": command.user_id,
+                    "type": "semantic",
+                    "metadata": {"tags": payload.tags},
+                }
+            )
+        if records:
+            await self.memory.awrite(records)  # type: ignore[arg-type]
+        return {"operation": "train", "ingested": len(records)}
+
+    async def _handle_recommend_command(self, command: MegaAgentCommand) -> dict[str, Any]:
+        payload = RecommendPayload.model_validate(command.payload)
+        # simple stub: return topk placeholders
+        recs = [
+            {"id": f"rec_{i+1}", "text": payload.context[:80], "score": 1 - i * 0.1}
+            for i in range(payload.topk or 5)
+        ]
+        return {"operation": "recommend", "items": recs}
+
+    async def _handle_feedback_command(self, command: MegaAgentCommand) -> dict[str, Any]:
+        payload = FeedbackPayload.model_validate(command.payload)
+        await self._log_audit_event(
+            user_id=command.user_id,
+            action="feedback",
+            payload={"target_id": payload.target_id, "rating": payload.rating},
+        )
+        return {"operation": "feedback", "ok": True}
+
+    async def _handle_legal_command(self, command: MegaAgentCommand) -> dict[str, Any]:
+        from ..legal.contract_analyzer import ContractAnalyzer
+        from ..legal.document_parser import DocumentParser
+
+        payload = LegalPayload.model_validate(command.payload)
+        parser = DocumentParser()
+        doc = parser.parse(payload.text)
+
+        if payload.action == "parse":
+            return {"operation": "legal.parse", "doc_type": doc.doc_type.value, "title": doc.title}
+        if payload.action == "analyze":
+            analyzer = ContractAnalyzer()
+            result = analyzer.analyze(doc)
+            return {"operation": "legal.analyze", "risk": result.overall_risk_score}
+        return {"operation": "legal", "doc_type": doc.doc_type.value}
+
+    async def _handle_improve_command(self, command: MegaAgentCommand) -> dict[str, Any]:
+        payload = ImprovePayload.model_validate(command.payload)
+        improved = payload.text.strip()
+        return {"operation": "improve", "goal": payload.goal, "text": improved}
+
+    async def _handle_optimize_command(self, command: MegaAgentCommand) -> dict[str, Any]:
+        payload = OptimizePayload.model_validate(command.payload)
+        optimized = payload.text.strip()
+        return {"operation": "optimize", "target": payload.target, "text": optimized}
+
+    async def _handle_memory_lookup_command(self, command: MegaAgentCommand) -> dict[str, Any]:
+        payload = MemoryLookupPayload.model_validate(command.payload)
+        results = await self.memory.aretrieve(
+            query=payload.query,
+            user_id=command.user_id,
+            topk=payload.topk or 8,
+            filters=payload.filters or {},
+        )
+        return {
+            "operation": "memory_lookup",
+            "count": len(results),
+            "results": [r.model_dump() for r in results],
+        }
+
+    async def _handle_batch_train_command(self, command: MegaAgentCommand) -> dict[str, Any]:
+        payload = BatchTrainPayload.model_validate(command.payload)
+        ingested = 0
+        for batch in payload.batches:
+            sub_cmd = MegaAgentCommand(
+                user_id=command.user_id,
+                command_type=CommandType.TRAIN,
+                action="ingest",
+                payload=batch.model_dump(),
+            )
+            r = await self._handle_train_command(sub_cmd)
+            ingested += int(r.get("ingested", 0))
+        return {"operation": "batch_train", "ingested": ingested}
+
+    async def _handle_validate_command(self, command: MegaAgentCommand) -> dict[str, Any]:
+        """Обработка команд валидации через ValidatorAgent."""
+        action = (command.action or "").lower()
+        payload = dict(command.payload or {})
+
+        if action in {"document", "validate", "avalidate"}:
+            # Ожидаем payload, совместимый с ValidationRequest
+            try:
+                request = ValidationRequest.model_validate(payload)
+            except ValidationError as e:
+                raise CommandError(f"Invalid validation payload: {e}") from e
+
+            report = await self.validator_agent.avalidate_document(request)
+            return {
+                "operation": "validate_document",
+                "report_id": report.report_id,
+                "overall_result": report.overall_result.model_dump(),
+                "issues": [i.model_dump() for i in report.issues],
+            }
+
+        raise CommandError(f"Unknown validate action: {command.action}")
+
+    @retry(
+        retry=retry_if_exception_type(Exception),
+        wait=wait_exponential(multiplier=0.2, min=0.2, max=2.0),
+        stop=stop_after_attempt(3),
+        reraise=True,
+    )
     async def _handle_tool_command(
         self, command: MegaAgentCommand, user_role: UserRole
     ) -> dict[str, Any]:
@@ -622,6 +814,79 @@ class MegaAgent:
                 "issues": detection.issues,
             }
         return response
+
+    async def _handle_eb1_command(self, command: MegaAgentCommand) -> dict[str, Any]:
+        """Обработка EB-1A команд: создание петиций и интерактивный опросник.
+
+        Поддерживаемые действия:
+            - create: Создание новой EB-1A петиции
+            - message: Обработка сообщения пользователя в контексте петиции
+            - status: Получение статуса петиции
+            - get: Получение полных данных петиции
+        """
+        action = (command.action or "").lower()
+        payload = dict(command.payload or {})
+
+        if action == "create":
+            # Создание новой петиции
+            petition, welcome_msg = await self.eb1_agent.create_petition(command.user_id)
+
+            return {
+                "operation": "create_eb1_petition",
+                "petition_id": petition.petition_id,
+                "status": petition.status.value,
+                "message": welcome_msg,
+                "awaiting_input": True,
+            }
+
+        if action == "message":
+            # Обработка сообщения пользователя
+            petition_id = payload.get("petition_id")
+            user_message = payload.get("message", "")
+
+            if not petition_id:
+                raise CommandError("petition_id required for message action")
+
+            bot_response = await self.eb1_agent.process_user_message(
+                petition_id, user_message, command.user_id
+            )
+
+            return {
+                "operation": "eb1_message",
+                "petition_id": petition_id,
+                "bot_response": bot_response,
+                "awaiting_input": True,
+            }
+
+        if action == "status":
+            # Получение статуса
+            petition_id = payload.get("petition_id")
+            if not petition_id:
+                raise CommandError("petition_id required for status action")
+
+            status = await self.eb1_agent.get_petition_status(petition_id)
+
+            return {
+                "operation": "eb1_status",
+                **status,
+            }
+
+        if action == "get":
+            # Получение полных данных
+            petition_id = payload.get("petition_id")
+            if not petition_id:
+                raise CommandError("petition_id required for get action")
+
+            petition = await self.eb1_agent.get_petition(petition_id)
+            if not petition:
+                raise CommandError(f"Petition {petition_id} not found")
+
+            return {
+                "operation": "get_eb1_petition",
+                "petition": petition.model_dump(),
+            }
+
+        raise CommandError(f"Unknown EB1 action: {action}")
 
     async def _run_case_workflow(
         self,

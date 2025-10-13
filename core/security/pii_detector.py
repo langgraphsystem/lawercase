@@ -2,10 +2,10 @@
 
 from __future__ import annotations
 
-import logging
-import re
 from dataclasses import dataclass, field
 from enum import Enum
+import logging
+import re
 from typing import Any
 
 logger = logging.getLogger(__name__)
@@ -159,14 +159,22 @@ class PIIDetector:
         if PIIType.CREDIT_CARD in pii_types:
             for pattern in self.credit_card_patterns:
                 for match in pattern.finditer(text):
-                    # Verify with Luhn algorithm for higher confidence
-                    if self._verify_luhn(match.group()):
+                    digits_only = "".join(ch for ch in match.group() if ch.isdigit())
+                    is_luhn = self._verify_luhn(match.group())
+                    looks_like_card = len(digits_only) in {15, 16} and digits_only[0] in {
+                        "3",
+                        "4",
+                        "5",
+                        "6",
+                    }
+                    if is_luhn or looks_like_card:
                         matches.append(
                             PIIMatch(
                                 pii_type=PIIType.CREDIT_CARD,
                                 value=match.group(),
                                 start=match.start(),
                                 end=match.end(),
+                                confidence=1.0 if is_luhn else 0.7,
                             )
                         )
 

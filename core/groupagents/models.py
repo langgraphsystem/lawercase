@@ -170,3 +170,95 @@ class ValidationResult(_AgentBaseModel):
     score: float | None = Field(None, ge=0.0, le=1.0, description="Оценка качества")
     details: dict[str, Any] = Field(default_factory=dict, description="Детали валидации")
     validated_at: datetime = Field(default_factory=datetime.utcnow)
+
+
+# ---- MegaAgent Command Payloads ----
+
+
+class AskPayload(_AgentBaseModel):
+    """Payload model for /ask command."""
+
+    query: str = Field(..., min_length=1, description="User question or query")
+
+
+class SearchPayload(_AgentBaseModel):
+    """Payload model for /search command."""
+
+    query: str = Field(..., min_length=1)
+    topk: int | None = Field(default=8, ge=1, le=100)
+    filters: dict[str, Any] | None = Field(default=None)
+
+
+class ToolCommandPayload(_AgentBaseModel):
+    """Payload model for /tool command."""
+
+    tool_id: str = Field(..., min_length=1)
+    arguments: dict[str, Any] | None = Field(default_factory=dict)
+    timeout: float | None = Field(default=2.0, ge=0)
+    network: bool | None = Field(default=False)
+    filesystem: bool | None = Field(default=False)
+
+
+class TrainPayload(_AgentBaseModel):
+    """Payload for /train command."""
+
+    samples: list[dict[str, Any]] = Field(default_factory=list, description="Training samples")
+    tags: list[str] = Field(default_factory=list)
+
+
+class RecommendPayload(_AgentBaseModel):
+    """Payload for /recommend command."""
+
+    context: str = Field(..., min_length=1)
+    topk: int | None = Field(default=5, ge=1, le=50)
+
+
+class FeedbackPayload(_AgentBaseModel):
+    """Payload for /feedback command."""
+
+    target_id: str = Field(..., min_length=1)
+    feedback: str = Field(..., min_length=1)
+    rating: int | None = Field(default=None, ge=1, le=5)
+
+
+class WorkflowCommandPayload(_AgentBaseModel):
+    """Payload for /workflow commands."""
+
+    operation: str = Field(..., min_length=1)
+    case_id: str | None = None
+    data: dict[str, Any] = Field(default_factory=dict)
+
+
+class LegalPayload(_AgentBaseModel):
+    """Payload for /legal command."""
+
+    text: str = Field(..., min_length=1)
+    action: str = Field(default="parse")  # parse|analyze|compliance
+
+
+class ImprovePayload(_AgentBaseModel):
+    """Payload for /improve command."""
+
+    text: str = Field(..., min_length=1)
+    goal: str = Field(default="clarity")
+
+
+class OptimizePayload(_AgentBaseModel):
+    """Payload for /optimize command."""
+
+    text: str = Field(..., min_length=1)
+    target: str = Field(default="tokens")
+
+
+class MemoryLookupPayload(_AgentBaseModel):
+    """Payload for /memory_lookup command."""
+
+    query: str = Field(..., min_length=1)
+    topk: int | None = Field(default=8, ge=1, le=50)
+    filters: dict[str, Any] | None = Field(default=None)
+
+
+class BatchTrainPayload(_AgentBaseModel):
+    """Payload for /batch_train command."""
+
+    batches: list[TrainPayload] = Field(default_factory=list)

@@ -2,8 +2,8 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any
 
-from .enhanced_workflows import (EnhancedWorkflowState,
-                                 create_enhanced_orchestration)
+from .eb1a_nodes import build_eb1a_workflow
+from .enhanced_workflows import EnhancedWorkflowState, create_enhanced_orchestration
 from .workflow_graph import WorkflowState, build_memory_workflow
 
 if TYPE_CHECKING:
@@ -40,6 +40,13 @@ def build_pipeline(memory: MemoryManager, *, checkpointer: Any | None = None):
 
 def build_enhanced_pipeline(memory: MemoryManager, *, checkpointer: Any | None = None):
     workflow, _, _, _ = create_enhanced_orchestration(memory)
+    if checkpointer is None:
+        checkpointer = setup_checkpointer(None)
+    return workflow.compile(checkpointer=checkpointer)
+
+
+def build_eb1a_pipeline(*, checkpointer: Any | None = None):
+    workflow = build_eb1a_workflow()
     if checkpointer is None:
         checkpointer = setup_checkpointer(None)
     return workflow.compile(checkpointer=checkpointer)

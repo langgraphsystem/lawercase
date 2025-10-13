@@ -12,10 +12,10 @@ ValidatorAgent - Валидация и проверка качества док�
 
 from __future__ import annotations
 
-import uuid
 from datetime import datetime
 from enum import Enum
 from typing import Any
+import uuid
 
 from pydantic import BaseModel, Field
 
@@ -245,6 +245,19 @@ class ValidatorAgent:
         except Exception as e:
             await self._log_validation_error(request, e)
             raise ValidatorError(f"Validation failed: {e!s}")
+
+    async def avalidate(self, request: ValidationRequest) -> ValidationResult:
+        """
+        Совместимый с ТЗ упрощённый интерфейс: возвращает только ValidationResult.
+
+        Args:
+            request: Запрос на валидацию
+
+        Returns:
+            ValidationResult: Сводный результат валидации
+        """
+        report = await self.avalidate_document(request)
+        return report.overall_result
 
     async def aadd_validation_rule(self, rule_data: dict[str, Any], user_id: str) -> ValidationRule:
         """

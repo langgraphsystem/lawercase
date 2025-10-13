@@ -10,12 +10,12 @@ Integrates with distributed tracing to include trace IDs in logs.
 
 from __future__ import annotations
 
+from datetime import datetime
 import json
 import logging
 import os
-import sys
-from datetime import datetime
 from pathlib import Path
+import sys
 from typing import Any
 
 from .distributed_tracing import get_trace_context
@@ -147,6 +147,7 @@ class LogAggregator:
             log_file,
             maxBytes=10 * 1024 * 1024,  # 10MB
             backupCount=5,
+            delay=True,
         )
         handler.setLevel(self.log_level)
 
@@ -164,10 +165,34 @@ class LogAggregator:
             error_log_file,
             maxBytes=10 * 1024 * 1024,  # 10MB
             backupCount=5,
+            delay=True,
         )
         error_handler.setLevel(logging.ERROR)
         error_handler.setFormatter(formatter)
         logger.addHandler(error_handler)
+
+    def _close_file_handlers(self) -> None:
+        """Close and detach file handlers (helps on Windows temp dirs)."""
+        from logging.handlers import RotatingFileHandler
+
+        root_logger = logging.getLogger()
+        to_remove = []
+        for h in root_logger.handlers:
+            if isinstance(h, RotatingFileHandler):
+                try:
+                    h.flush()
+                except Exception:
+                    pass
+                try:
+                    h.close()
+                except Exception:
+                    pass
+                to_remove.append(h)
+        for h in to_remove:
+            try:
+                root_logger.removeHandler(h)
+            except Exception:
+                pass
 
     def get_logger(self, name: str) -> logging.Logger:
         """
@@ -214,6 +239,9 @@ class LogAggregator:
 
         # Create LogRecord with extra fields
         log_func(message, extra={"extra_fields": extra_fields})
+        # Proactively close file handlers to release temp files (Windows)
+        if self.file_output:
+            self._close_file_handlers()
 
     def log_workflow_event(
         self,
@@ -246,6 +274,8 @@ class LogAggregator:
             event_type=event_type,
             **details,
         )
+        if self.file_output:
+            self._close_file_handlers()
 
     def log_llm_request(
         self,
@@ -285,6 +315,8 @@ class LogAggregator:
             latency_ms=latency_ms,
             **metadata,
         )
+        if self.file_output:
+            self._close_file_handlers()
 
     def log_cache_operation(
         self,

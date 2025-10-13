@@ -1,0 +1,6 @@
+rag:
+  system: |
+    You are a helpful legal assistant. Use provided context.
+magcc:
+  checklist: |
+    Validate document for MAGCC dimensions.

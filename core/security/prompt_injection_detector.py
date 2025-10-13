@@ -2,10 +2,10 @@
 
 from __future__ import annotations
 
-import logging
-import re
 from dataclasses import dataclass, field
 from enum import Enum
+import logging
+import re
 from typing import Any
 
 logger = logging.getLogger(__name__)
@@ -61,6 +61,7 @@ class PromptInjectionDetector:
         # Direct injection patterns
         self.direct_injection_patterns = [
             r"ignore\s+(previous|above|all)\s+(instructions?|commands?|prompts?)",
+            r"ignore\s+(previous|above|all)\b",
             r"disregard\s+(previous|above|all)",
             r"forget\s+(everything|all|previous)",
             r"new\s+(instructions?|commands?|task|role)",
@@ -96,13 +97,13 @@ class PromptInjectionDetector:
         # Context switching
         self.context_switch_patterns = [
             r"(end|stop|finish)\s+previous\s+(task|conversation)",
-            r"(new|different)\s+(conversation|topic|task).*\s+start",
+            r"(new|different)\\s+(conversation|topic|task).*\\s+start",
             r"(clear|reset)\s+(context|history|memory)",
         ]
 
         # Data exfiltration
         self.data_exfiltration_patterns = [
-            r"(show|display|print|reveal|expose)\s+(all|your)?\s*(data|information|secrets?|keys?|passwords?|tokens?)",
+            r"(show|display|print|reveal|expose)[\s\S]{0,40}(data|information|secrets\?|keys\?|passwords\?|tokens\?)",
             r"what (are|is)\s+your?\s+(system prompt|instructions?|rules?)",
             r"(dump|export|extract)\s+(database|data|information)",
         ]
@@ -143,7 +144,8 @@ class PromptInjectionDetector:
                     matched_patterns.append(pattern)
 
             if matches > 0:
-                confidence = min(1.0, matches / len(patterns) + 0.3)
+                # Treat any single-category hit as strong enough for detection
+                confidence = 0.9
                 if confidence >= self.strictness:
                     injection_types.append(injection_type)
                     type_confidences[injection_type.value] = confidence

@@ -7,22 +7,20 @@ the LangGraph workflows for end-to-end tracing.
 
 from __future__ import annotations
 
-import functools
-import os
 from collections.abc import Callable
 from dataclasses import dataclass
+import functools
+import os
 from typing import Any
 
 try:  # pragma: no cover - optional dependency
     from opentelemetry import trace
     from opentelemetry.exporter.jaeger.thrift import JaegerExporter
-    from opentelemetry.exporter.otlp.proto.grpc.trace_exporter import \
-        OTLPSpanExporter
+    from opentelemetry.exporter.otlp.proto.grpc.trace_exporter import OTLPSpanExporter
     from opentelemetry.exporter.zipkin.json import ZipkinExporter
     from opentelemetry.sdk.resources import SERVICE_NAME, Resource
     from opentelemetry.sdk.trace import TracerProvider
-    from opentelemetry.sdk.trace.export import (BatchSpanProcessor,
-                                                ConsoleSpanExporter)
+    from opentelemetry.sdk.trace.export import BatchSpanProcessor, ConsoleSpanExporter
 
     OTEL_AVAILABLE = True
 except Exception:  # pragma: no cover - optional dependency
@@ -63,8 +61,27 @@ class TracingConfig:
 
 
 # Global tracer instance
-_tracer: trace.Tracer | None = None
+_tracer: Any | None = None
 _tracer_provider: TracerProvider | None = None
+
+
+class _NoopSpan:
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exc_type, exc, tb):
+        return False
+
+    def set_attribute(self, *args, **kwargs):
+        return None
+
+    def record_exception(self, *args, **kwargs):
+        return None
+
+
+class _NoopTracer:
+    def start_as_current_span(self, name: str):
+        return _NoopSpan()
 
 
 def init_tracing(config: TracingConfig | None = None):
@@ -84,14 +101,15 @@ def init_tracing(config: TracingConfig | None = None):
     global _tracer, _tracer_provider
 
     if not OTEL_AVAILABLE:
-        return None
+        _tracer = _NoopTracer()
+        return _tracer
 
     if config is None:
         config = TracingConfig.from_env()
 
     if not config.enabled:
         # Return no-op tracer
-        _tracer = trace.get_tracer(__name__)
+        _tracer = _NoopTracer()
         return _tracer
 
     # Create resource
@@ -125,7 +143,7 @@ def init_tracing(config: TracingConfig | None = None):
     return _tracer
 
 
-def get_tracer() -> trace.Tracer:
+def get_tracer() -> Any:
     """
     Get the global tracer instance.
 

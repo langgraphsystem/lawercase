@@ -31,7 +31,8 @@
       "Bash(ruff format:*)",
       "Bash(git fetch:*)",
       "Bash(git pull:*)",
-      "Bash(git rebase:*)"
+      "Bash(git rebase:*)",
+      "Bash(cat:*)"
     ],
     "deny": [],
     "ask": []

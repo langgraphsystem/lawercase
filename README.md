@@ -63,3 +63,55 @@
 - `docker-compose.yml` поднимает Redis и PostgreSQL, а также dev‑экземпляр API (uvicorn с `--reload`).
 - Профили окружения: `env/dev.env`, `env/prod.env`.
 - Запуск: `docker-compose up --build`. Перед продакшеном заполните `.env`/`env/prod.env` реальными ключами и настроите `USE_PROD_MEMORY=true`.
+
+## EB-1A Pipeline — Quickstart
+
+### Переменные окружения
+
+Для работы CLI и LangGraph-узлов убедитесь, что добавили в `.env` значения:
+
+- `DOC_RAPTOR_API_KEY`
+- `ADOBE_OCR_API_KEY`
+- `GEMINI_API_KEY`
+- `EB1A_PDF_MAX_MB`
+- `TMP_DIR`, `OUT_DIR`
+
+### Шаги запуска
+
+```
+# 1. Generate petition text PDF
+python -m recommendation_pipeline.document_generator --html data/Petition.html --css data/styles.css --out out/EB1A_text.pdf
+
+# 2. Convert exhibit images to PDF and capture metadata
+python -m recommendation_pipeline.ocr_runner --images data/exhibit1/*.jpg --out out/Exhibit_1.pdf --provider gemini --analyze-only
+
+# 3. Finalize exhibit OCR (optional)
+python -m recommendation_pipeline.ocr_runner --in out/Exhibit_1.pdf --out out/Exhibit_1_ocr.pdf --provider adobe --finalize
+
+# 4. Build exhibits index
+python -m recommendation_pipeline.index_builder --in "out/Exhibit_*.pdf" --out out/exhibits_index.json
+
+# 5. Assemble master petition PDF
+python -m recommendation_pipeline.pdf_assembler --text out/EB1A_text.pdf --exhibits "out/Exhibit_*.pdf" --index out/exhibits_index.json --out out/EB1A_master.pdf
+
+# 6. Finalize and compress master PDF as needed
+python -m recommendation_pipeline.pdf_finalize --in out/EB1A_master.pdf --ocr adobe --out out/EB1A_master_OCR.pdf
+```
+
+### LangGraph интеграция
+
+Используйте `core.orchestration.pipeline_manager.build_eb1a_pipeline(...)`, чтобы скомпилировать LangGraph workflow, построенный функцией `core.orchestration.eb1a_nodes.build_eb1a_workflow()`. Узлы импортируют и вызывают CLI-пайплайн, сохраняя результаты в `WorkflowState.agent_results["eb1a"]`.
+
+## Telegram Bot
+
+1. Задайте переменные окружения `TELEGRAM_BOT_TOKEN` и (опционально) `TELEGRAM_ALLOWED_USERS` (через запятую) в `.env`.
+2. Запустите бота:
+   ```bash
+   python -m telegram_interface.bot
+   ```
+3. Команды:
+   - `/start` — приветствие и справка.
+   - `/ask <вопрос>` — запрос MegaAgent по памяти.
+   - `/case_get <case_id>` — получить сведения о деле.
+   - `/memory_lookup <запрос>` — поиск в семантической памяти.
+   - `/generate_letter <заголовок>` — сгенерировать шаблон письма.

@@ -5,10 +5,10 @@ Parses legal documents and extracts structured information.
 
 from __future__ import annotations
 
-import re
 from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
+import re
 from typing import Any
 
 
@@ -148,6 +148,10 @@ class DocumentParser:
             re.compile(
                 r"(\d{4}-\d{2}-\d{2})",
             ),
+            re.compile(
+                r"effective\s+(?:date|as\s+of)\s*:?\s*([A-Za-z]+\s+\d{1,2},\s+\d{4})",
+                re.IGNORECASE,
+            ),
         ]
 
         # Party patterns
@@ -222,13 +226,13 @@ class DocumentParser:
         """Detect document type from content."""
         text_lower = text.lower()
 
-        # Check for specific keywords
+        # Check for specific keywords (more specific first)
         type_keywords = {
-            LegalDocumentType.CONTRACT: ["contract", "agreement"],
             LegalDocumentType.NDA: [
                 "non-disclosure agreement",
                 "confidentiality agreement",
             ],
+            LegalDocumentType.CONTRACT: ["contract", "agreement"],
             LegalDocumentType.EMPLOYMENT: [
                 "employment agreement",
                 "employment contract",
