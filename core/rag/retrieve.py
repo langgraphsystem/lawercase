@@ -9,7 +9,8 @@ import numpy as np
 
 from .context import ContextBuilder
 from .hybrid import HybridRetriever, ScoredChunk
-from .ingestion import Document, DocumentChunk, DocumentIngestion, DocumentStore
+from .ingestion import (Document, DocumentChunk, DocumentIngestion,
+                        DocumentStore)
 from .rerank import Reranker
 
 

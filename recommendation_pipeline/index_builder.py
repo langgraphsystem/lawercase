@@ -10,10 +10,10 @@ import asyncio
 import json
 from pathlib import Path
 
-from anyio import to_thread
 import orjson
 import structlog
 import typer
+from anyio import to_thread
 
 from recommendation_pipeline.schemas.exhibits import ExhibitMeta, ExhibitsIndex
 from recommendation_pipeline.utils import io_utils, pdf_utils

@@ -63,13 +63,11 @@ def build_legal_document_workflow(
     # Runtime imports to avoid circular dependencies
     from ..groupagents.case_agent import CaseAgent
     from ..groupagents.feedback_agent import FeedbackAgent, FeedbackRequest
-    from ..groupagents.validator_agent import ValidationLevel, ValidationRequest, ValidatorAgent
-    from ..groupagents.writer_agent import (
-        DocumentFormat,
-        DocumentRequest,
-        DocumentType,
-        WriterAgent,
-    )
+    from ..groupagents.validator_agent import (ValidationLevel,
+                                               ValidationRequest,
+                                               ValidatorAgent)
+    from ..groupagents.writer_agent import (DocumentFormat, DocumentRequest,
+                                            DocumentType, WriterAgent)
 
     # Initialize agents
     case_agent_instance = case_agent or CaseAgent(memory_manager=memory)

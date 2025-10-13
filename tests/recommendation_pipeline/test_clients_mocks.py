@@ -2,12 +2,15 @@ from __future__ import annotations
 
 import httpx
 import pytest
-from pytest import mark
 import respx
+from pytest import mark
 
-from recommendation_pipeline.clients.adobe_pdf_services_client import AdobePDFServices
-from recommendation_pipeline.clients.docraptor_client import DocRaptorClient, DocRaptorError
-from recommendation_pipeline.clients.gemini_ocr_client import GeminiOCR, GeminiOCRError
+from recommendation_pipeline.clients.adobe_pdf_services_client import \
+    AdobePDFServices
+from recommendation_pipeline.clients.docraptor_client import (DocRaptorClient,
+                                                              DocRaptorError)
+from recommendation_pipeline.clients.gemini_ocr_client import (GeminiOCR,
+                                                               GeminiOCRError)
 
 
 @mark.asyncio
@@ -93,9 +96,7 @@ async def test_adobe_pdf_services_success() -> None:
 async def test_gemini_client_error() -> None:
     respx.post(
         "https://generativelanguage.googleapis.com/v1beta/models/gemini-pro-vision:generateContent"
-    ).mock(
-        return_value=httpx.Response(403, json={"error": "denied"})
-    )
+    ).mock(return_value=httpx.Response(403, json={"error": "denied"}))
     client = GeminiOCR(api_key="gemini_key")
     with pytest.raises(GeminiOCRError):
         await client.aanalyze_images([b"\xff\xd8\xff"])

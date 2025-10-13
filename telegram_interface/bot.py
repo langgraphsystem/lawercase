@@ -5,8 +5,8 @@ from __future__ import annotations
 import asyncio
 
 import structlog
-from telegram.ext import Application, ApplicationBuilder, Defaults
 import typer
+from telegram.ext import Application, ApplicationBuilder, Defaults
 
 from config.settings import get_settings
 from core.groupagents.mega_agent import MegaAgent
