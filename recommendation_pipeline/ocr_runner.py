@@ -8,14 +8,6 @@ Examples:
 from __future__ import annotations
 
 import asyncio
-
-<<<<<<< HEAD
-import glob
-
-=======
-from collections.abc import Iterable, Sequence
-
->>>>>>> fb37085 (feat: Production readiness improvements and Telegram bot implementation)
 import json
 from collections.abc import Iterable, Sequence
 from pathlib import Path
@@ -26,8 +18,7 @@ from anyio import to_thread
 
 from config.logging import setup_logging
 from config.settings import AppSettings, get_settings
-from recommendation_pipeline.clients.adobe_pdf_services_client import \
-    AdobePDFServices
+from recommendation_pipeline.clients.adobe_pdf_services_client import AdobePDFServices
 from recommendation_pipeline.clients.gemini_ocr_client import GeminiOCR
 from recommendation_pipeline.utils import io_utils, pdf_utils
 
