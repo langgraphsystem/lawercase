@@ -18,7 +18,8 @@ from anyio import to_thread
 
 from config.logging import setup_logging
 from config.settings import AppSettings, get_settings
-from recommendation_pipeline.clients.adobe_pdf_services_client import AdobePDFServices
+from recommendation_pipeline.clients.adobe_pdf_services_client import \
+    AdobePDFServices
 from recommendation_pipeline.clients.gemini_ocr_client import GeminiOCR
 from recommendation_pipeline.utils import io_utils, pdf_utils
 
