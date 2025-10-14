@@ -8,7 +8,11 @@ Examples:
 from __future__ import annotations
 
 import asyncio
+<<<<<<< HEAD
 import glob
+=======
+from collections.abc import Iterable, Sequence
+>>>>>>> fb37085 (feat: Production readiness improvements and Telegram bot implementation)
 import json
 from collections.abc import Iterable, Sequence
 from pathlib import Path
@@ -17,6 +21,7 @@ import structlog
 import typer
 from anyio import to_thread
 
+from config.logging import setup_logging
 from config.settings import AppSettings, get_settings
 from recommendation_pipeline.clients.adobe_pdf_services_client import \
     AdobePDFServices
@@ -75,7 +80,13 @@ def _resolve_images(pattern_or_dir: str) -> Iterable[Path]:
     path = Path(pattern_or_dir)
     if path.is_dir():
         return sorted(path.glob("*"))
-    return sorted(Path(p) for p in glob.glob(pattern_or_dir))
+    # For glob patterns, use Path.parent with glob
+    base_path = Path(pattern_or_dir).parent
+    pattern = Path(pattern_or_dir).name
+    if base_path.exists() and base_path.is_dir():
+        return sorted(base_path.glob(pattern))
+    # Fallback: try current directory
+    return sorted(Path().glob(pattern_or_dir))
 
 
 @cli.command()
@@ -91,6 +102,7 @@ def main(
 ) -> None:
     """CLI entrypoint."""
     settings = get_settings()
+    setup_logging(settings.log_level)
     try:
         if analyze_only:
             if not images:

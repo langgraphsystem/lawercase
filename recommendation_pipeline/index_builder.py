@@ -15,6 +15,7 @@ import structlog
 import typer
 from anyio import to_thread
 
+from config.logging import setup_logging
 from recommendation_pipeline.schemas.exhibits import ExhibitMeta, ExhibitsIndex
 from recommendation_pipeline.utils import io_utils, pdf_utils
 
@@ -67,6 +68,7 @@ def main(
     out: Path = typer.Option(..., "--out", help="Output exhibits_index.json"),
 ) -> None:
     """CLI entrypoint."""
+    setup_logging()
     try:
         pdf_paths = [Path(p) for p in sorted(Path().glob(input_glob))]
         asyncio.run(build_index(pdf_paths, out))

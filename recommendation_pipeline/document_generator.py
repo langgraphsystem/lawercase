@@ -12,6 +12,7 @@ from pathlib import Path
 import structlog
 import typer
 
+from config.logging import setup_logging
 from config.settings import AppSettings, get_settings
 from recommendation_pipeline.clients.docraptor_client import DocRaptorClient
 from recommendation_pipeline.schemas.exhibits import DocGenRequest
@@ -46,6 +47,7 @@ def main(
 ) -> None:
     """CLI entrypoint."""
     settings = get_settings()
+    setup_logging(settings.log_level)
     try:
         asyncio.run(
             generate_document(DocGenRequest(html_path=html, css_path=css, out_pdf=out), settings)

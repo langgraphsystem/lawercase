@@ -1,124 +1,40 @@
 name: CI
 
 on:
-  pull_request:
   push:
-    branches: [ hardening/roadmap-v1, main, master, develop ]
-  workflow_dispatch:
-
-env:
-  PYTHONIOENCODING: utf-8
-  LC_ALL: C.UTF-8
-  LANG: C.UTF-8
+    branches: [main, master]
+  pull_request:
+    branches: [main, master]
 
 jobs:
-  ruff:
-    name: ruff
+  lint-test:
     runs-on: ubuntu-latest
-    timeout-minutes: 5
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
-        with: { python-version: "3.11" }
-      - name: Set UTF-8 encoding
-        run: |
-          echo "PYTHONIOENCODING=utf-8" >> $GITHUB_ENV
-          echo "LC_ALL=C.UTF-8" >> $GITHUB_ENV
-          echo "LANG=C.UTF-8" >> $GITHUB_ENV
-      - run: python -m pip install --upgrade pip
-      - run: pip install ruff
-      - run: ruff --version
-      - run: ruff check .
-
-  mypy:
-    name: mypy
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
-        with: { python-version: "3.11" }
-      - name: Set UTF-8 encoding
-        run: |
-          echo "PYTHONIOENCODING=utf-8" >> $GITHUB_ENV
-          echo "LC_ALL=C.UTF-8" >> $GITHUB_ENV
-          echo "LANG=C.UTF-8" >> $GITHUB_ENV
-      - run: python -m pip install --upgrade pip
-      - run: |
-          pip install mypy types-requests types-PyYAML
-          if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
-        shell: bash
-      - run: mypy --ignore-missing-imports . || echo "MyPy failed but continuing..."
-        continue-on-error: true
-
-  tests:
-    name: tests
-    runs-on: ubuntu-latest
-    timeout-minutes: 15
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
-        with: { python-version: "3.11" }
-      - name: Set UTF-8 encoding
-        run: |
-          echo "PYTHONIOENCODING=utf-8" >> $GITHUB_ENV
-          echo "LC_ALL=C.UTF-8" >> $GITHUB_ENV
-          echo "LANG=C.UTF-8" >> $GITHUB_ENV
-      - run: python -m pip install --upgrade pip
-      - run: |
-          if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
-          pip install pytest pydantic
-          # Create basic test structure if missing
-          mkdir -p tests
-          if [ ! -f tests/__init__.py ]; then touch tests/__init__.py; fi
-          if [ ! -f tests/test_placeholder.py ]; then
-            cat > tests/test_placeholder.py << 'EOF'
-          def test_placeholder():
-              """Basic placeholder test."""
-              assert True
-          EOF
-          fi
-        shell: bash
-      - run: pytest -q tests/ || echo "Tests failed but continuing..."
-        continue-on-error: true
-
-  coverage:
-    name: coverage
-    runs-on: ubuntu-latest
-    timeout-minutes: 15
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
-        with: { python-version: "3.11" }
-      - name: Set UTF-8 encoding
-        run: |
-          echo "PYTHONIOENCODING=utf-8" >> $GITHUB_ENV
-          echo "LC_ALL=C.UTF-8" >> $GITHUB_ENV
-          echo "LANG=C.UTF-8" >> $GITHUB_ENV
-      - run: python -m pip install --upgrade pip
-      - run: |
-          if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
-          pip install coverage pytest pydantic
-          # Create basic test structure if missing
-          mkdir -p tests
-          if [ ! -f tests/__init__.py ]; then touch tests/__init__.py; fi
-          if [ ! -f tests/test_placeholder.py ]; then
-            cat > tests/test_placeholder.py << 'EOF'
-          def test_placeholder():
-              """Basic placeholder test."""
-              assert True
-          EOF
-          fi
-        shell: bash
-      - run: coverage run -m pytest tests/ || echo "Coverage run failed but continuing..."
-        continue-on-error: true
-      - run: coverage xml || echo "Coverage XML generation failed"
-        continue-on-error: true
-      - name: Upload coverage artifact
-        uses: actions/upload-artifact@v4
-        if: always()
         with:
-          name: coverage-xml
-          path: coverage.xml
-          retention-days: 30
-        continue-on-error: true
+          python-version: "3.11"
+          cache: "pip"
+      - name: Install dependencies
+        run: |
+          pip install --upgrade pip
+          pip install --no-cache-dir -r requirements.txt
+          pip install --no-cache-dir ruff pip-audit
+      - name: Ruff lint
+        run: ruff check .
+      - name: Run tests
+        env:
+          CACHE_USE_FAKEREDIS: "true"
+        run: pytest -q
+      - name: Dependency audit
+        run: pip-audit --progress-spinner off
+
+  secret-scan:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Gitleaks Secret Scan
+        uses: gitleaks/gitleaks-action@v2
+        with:
+          config-path: ""
+          args: "detect --no-banner --redact"

@@ -6,7 +6,6 @@ and improve response times.
 
 from __future__ import annotations
 
-import json
 from typing import Any
 
 from .config import get_cache_config
@@ -75,11 +74,11 @@ class LLMCache:
         params.update(kwargs)
 
         # Create deterministic key
-        key_data = {
+        # Note: key_data could be used for strict matching in future
+        _key_data = {
             "prompt": prompt,
             "params": params,
         }
-        key_str = json.dumps(key_data, sort_keys=True)
         return f"{model}:{prompt}"  # Use prompt directly for semantic matching
 
     async def get(

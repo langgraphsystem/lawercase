@@ -145,9 +145,9 @@ class SupervisorAgent:
             TaskAnalysis: Результат анализа задачи
         """
         # Создание prompt для LLM анализа
-        analysis_prompt = self._build_analysis_prompt(task_description, context)
+        # TODO: В будущем использовать LLM для анализа
+        _ = self._build_analysis_prompt(task_description, context)
 
-        # В реальной реализации здесь будет вызов LLM
         # Пока используем rule-based анализ
         analysis = await self._rule_based_analysis(task_description, context)
 

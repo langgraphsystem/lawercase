@@ -8,6 +8,7 @@ import structlog
 import typer
 from telegram.ext import Application, ApplicationBuilder, Defaults
 
+from config.logging import setup_logging
 from config.settings import get_settings
 from core.groupagents.mega_agent import MegaAgent
 from core.memory.memory_manager import MemoryManager
@@ -19,6 +20,7 @@ cli = typer.Typer(help="Run the MegaAgent Telegram bot.")
 
 async def run_bot(*, poll_interval: float = 0.0) -> None:
     settings = get_settings()
+    setup_logging(settings.log_level)
     if not settings.telegram_bot_token:
         raise RuntimeError("TELEGRAM_BOT_TOKEN is not configured")
 
@@ -52,7 +54,6 @@ def main(
     poll_interval: float = typer.Option(0.0, min=0.0, help="Polling interval in seconds"),
 ) -> None:
     """CLI entrypoint for running the Telegram bot."""
-
     try:
         asyncio.run(run_bot(poll_interval=poll_interval))
     except KeyboardInterrupt:  # pragma: no cover - CLI shutdown

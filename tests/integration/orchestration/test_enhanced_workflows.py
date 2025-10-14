@@ -159,7 +159,7 @@ async def test_human_review_request(review_manager, enhanced_state):
 async def test_human_feedback_approval(review_manager, enhanced_state):
     """Test submitting approval feedback."""
     # Request review
-    state = await review_manager.request_human_review(enhanced_state, "Check quality")
+    _ = await review_manager.request_human_review(enhanced_state, "Check quality")
     review_id = next(iter(review_manager.pending_reviews.keys()))
 
     # Submit approval
@@ -182,7 +182,7 @@ async def test_human_feedback_approval(review_manager, enhanced_state):
 @pytest.mark.asyncio
 async def test_human_feedback_rejection(review_manager, enhanced_state):
     """Test submitting rejection feedback."""
-    state = await review_manager.request_human_review(enhanced_state, "Check quality")
+    _ = await review_manager.request_human_review(enhanced_state, "Check quality")
     review_id = next(iter(review_manager.pending_reviews.keys()))
 
     feedback = HumanFeedback(

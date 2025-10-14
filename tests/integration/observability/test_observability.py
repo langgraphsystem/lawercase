@@ -382,7 +382,7 @@ def test_workflow_timer_context_manager():
     """Test workflow timer context manager."""
     collector = get_metrics_collector()
 
-    with WorkflowTimer(collector, "test_workflow") as timer:
+    with WorkflowTimer(collector, "test_workflow"):
         # Simulate work
         import time
 

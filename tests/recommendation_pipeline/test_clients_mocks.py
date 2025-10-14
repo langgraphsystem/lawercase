@@ -13,7 +13,7 @@ from recommendation_pipeline.clients.gemini_ocr_client import (GeminiOCR,
                                                                GeminiOCRError)
 
 
-@mark.asyncio
+@pytest.mark.asyncio
 @respx.mock
 async def test_docraptor_retries_success() -> None:
     route = respx.post("https://docraptor.com/docs")
@@ -28,7 +28,7 @@ async def test_docraptor_retries_success() -> None:
     assert route.call_count == 2
 
 
-@mark.asyncio
+@pytest.mark.asyncio
 @respx.mock
 async def test_docraptor_client_error() -> None:
     route = respx.post("https://docraptor.com/docs").mock(
@@ -41,7 +41,7 @@ async def test_docraptor_client_error() -> None:
     assert route.called
 
 
-@mark.asyncio
+@pytest.mark.asyncio
 @respx.mock
 async def test_gemini_ocr_success() -> None:
     respx.post(
@@ -59,7 +59,7 @@ async def test_gemini_ocr_success() -> None:
     assert meta["summary"] == "Sample text"
 
 
-@mark.asyncio
+@pytest.mark.asyncio
 @respx.mock
 async def test_gemini_server_error_retry() -> None:
     respx.post(
@@ -79,7 +79,7 @@ async def test_gemini_server_error_retry() -> None:
     assert meta["summary"] == "OK"
 
 
-@mark.asyncio
+@pytest.mark.asyncio
 @respx.mock
 async def test_adobe_pdf_services_success() -> None:
     respx.post("https://api.pdfservices.adobe.com/operation/ocr").mock(
@@ -91,7 +91,7 @@ async def test_adobe_pdf_services_success() -> None:
     assert result.startswith(b"%PDF")
 
 
-@mark.asyncio
+@pytest.mark.asyncio
 @respx.mock
 async def test_gemini_client_error() -> None:
     respx.post(

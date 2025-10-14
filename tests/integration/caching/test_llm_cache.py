@@ -180,14 +180,12 @@ async def test_cache_clear(llm_cache):
 @pytest.mark.asyncio
 async def test_singleton_llm_cache():
     """Test global singleton LLM cache."""
-    cache1 = get_llm_cache("test_llm_singleton")
-    cache2 = get_llm_cache("test_llm_singleton")
-
-    # Should return same instance
-    # Note: Current implementation creates new instances per namespace
-    # This tests that the singleton pattern works
     cache_default = get_llm_cache()
     assert cache_default is not None
+
+    # Test that same namespace returns same instance (singleton pattern)
+    cache_same = get_llm_cache()
+    assert cache_same is cache_default
 
 
 @pytest.mark.asyncio

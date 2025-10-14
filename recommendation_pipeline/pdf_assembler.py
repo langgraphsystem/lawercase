@@ -13,6 +13,7 @@ from pathlib import Path
 import structlog
 import typer
 
+from config.logging import setup_logging
 from recommendation_pipeline.schemas.exhibits import ExhibitsIndex
 from recommendation_pipeline.utils import io_utils, pdf_utils
 
@@ -54,6 +55,7 @@ def main(
     out: Path = typer.Option(..., "--out", help="Output master PDF path"),
 ) -> None:
     """CLI entrypoint."""
+    setup_logging()
     try:
         exhibit_paths = [Path(p) for p in sorted(Path().glob(exhibits))]
         asyncio.run(assemble_master_pdf(text, exhibit_paths, index, out))

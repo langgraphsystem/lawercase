@@ -49,10 +49,10 @@ class AppSettings(BaseSettings):
             return None
         ids: list[int] = []
         for part in self.telegram_allowed_users.split(","):
-            part = part.strip()
-            if part:
+            stripped_part = part.strip()
+            if stripped_part:
                 try:
-                    ids.append(int(part))
+                    ids.append(int(stripped_part))
                 except ValueError:
                     continue
         return ids or None

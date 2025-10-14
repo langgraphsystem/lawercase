@@ -64,6 +64,14 @@
 - Профили окружения: `env/dev.env`, `env/prod.env`.
 - Запуск: `docker-compose up --build`. Перед продакшеном заполните `.env`/`env/prod.env` реальными ключами и настроите `USE_PROD_MEMORY=true`.
 
+### Docker Image
+
+```
+docker build -t mega-agent-pro .
+docker run --env-file=.env mega-agent-pro
+```
+Изображение использует multi-stage сборку (builder/runtime), запускается от `appuser` и по умолчанию стартует Telegram‑бот (`python -m telegram_interface.bot`). Перекройте команду при запуске, если нужно API/CLI.
+
 ## EB-1A Pipeline — Quickstart
 
 ### Переменные окружения
@@ -114,4 +122,14 @@ python -m recommendation_pipeline.pdf_finalize --in out/EB1A_master.pdf --ocr ad
    - `/ask <вопрос>` — запрос MegaAgent по памяти.
    - `/case_get <case_id>` — получить сведения о деле.
    - `/memory_lookup <запрос>` — поиск в семантической памяти.
-   - `/generate_letter <заголовок>` — сгенерировать шаблон письма.
+- `/generate_letter <заголовок>` — сгенерировать шаблон письма.
+
+## CI/CD
+
+GitHub Actions workflow `.github/workflows/ci.yml` выполняет:
+- `ruff check` — линтинг кода.
+- `pytest -q` — полный набор тестов (с Fakeredis для интеграций).
+- `pip-audit` — аудит зависимостей.
+- `gitleaks` — сканирование репозитория на секреты.
+
+Запускается на push/PR в `main|master`. Добавьте дополнительные проверки (deploy, integration) при необходимости.

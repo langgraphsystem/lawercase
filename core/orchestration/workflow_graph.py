@@ -10,6 +10,7 @@ from ..memory.rmt.buffer import compose_prompt
 from .error_handler import check_for_error, handle_error
 
 if TYPE_CHECKING:
+    from ..groupagents.case_agent import CaseAgent
     from ..memory.memory_manager import MemoryManager
 
 # Optional imports that may not be available

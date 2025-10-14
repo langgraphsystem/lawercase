@@ -12,6 +12,7 @@ from pathlib import Path
 import structlog
 import typer
 
+from config.logging import setup_logging
 from config.settings import AppSettings, get_settings
 from recommendation_pipeline.clients.adobe_pdf_services_client import \
     AdobePDFServices
@@ -53,8 +54,10 @@ def main(
     ocr: str | None = typer.Option(None, "--ocr", help="OCR provider (adobe)"),
 ) -> None:
     """CLI entrypoint."""
+    settings = get_settings()
+    setup_logging(settings.log_level)
     try:
-        asyncio.run(finalize_master_pdf(in_pdf, out, provider=ocr))
+        asyncio.run(finalize_master_pdf(in_pdf, out, provider=ocr, settings=settings))
     except Exception as exc:
         logger.exception("pdf_finalize.error", error=str(exc))
         raise typer.Exit(code=1) from exc
