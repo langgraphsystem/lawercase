@@ -3,7 +3,6 @@ from __future__ import annotations
 import httpx
 import pytest
 import respx
-from pytest import mark
 
 from recommendation_pipeline.clients.adobe_pdf_services_client import \
     AdobePDFServices

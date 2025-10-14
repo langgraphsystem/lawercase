@@ -33,9 +33,8 @@ async def get_chat_id():
                 print("-" * 50)
 
             return updates[-1].get("message", {}).get("chat", {}).get("id")
-        else:
-            print("No updates found or error:", data)
-            return None
+        print("No updates found or error:", data)
+        return None
 
 
 async def send_message(chat_id: int, text: str):
@@ -50,9 +49,8 @@ async def send_message(chat_id: int, text: str):
         if data.get("ok"):
             print(f"✅ Message sent successfully to chat {chat_id}")
             return True
-        else:
-            print(f"❌ Failed to send message: {data.get('description')}")
-            return False
+        print(f"❌ Failed to send message: {data.get('description')}")
+        return False
 
 
 async def main():

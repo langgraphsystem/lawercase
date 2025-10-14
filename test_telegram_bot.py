@@ -27,9 +27,8 @@ async def test_bot_info():
             print(f"   Name: {bot_info.get('first_name')}")
             print(f"   ID: {bot_info.get('id')}")
             return True
-        else:
-            print(f"❌ Failed to get bot info: {data.get('description')}")
-            return False
+        print(f"❌ Failed to get bot info: {data.get('description')}")
+        return False
 
 
 async def test_webhook_info():
@@ -72,9 +71,8 @@ async def test_commands():
             for cmd in commands:
                 print(f"   /{cmd['command']} - {cmd['description']}")
             return True
-        else:
-            print(f"❌ Failed to set commands: {data.get('description')}")
-            return False
+        print(f"❌ Failed to set commands: {data.get('description')}")
+        return False
 
 
 async def get_updates():
@@ -126,9 +124,8 @@ async def send_test_message(chat_id: int):
         if data.get("ok"):
             print("✅ Test message sent!")
             return True
-        else:
-            print(f"❌ Failed to send: {data.get('description')}")
-            return False
+        print(f"❌ Failed to send: {data.get('description')}")
+        return False
 
 
 async def main():
