@@ -2,13 +2,13 @@
 
 from __future__ import annotations
 
-import json
-import logging
-import time
 from collections.abc import Callable
 from dataclasses import dataclass, field
 from datetime import datetime
+import json
+import logging
 from pathlib import Path
+import time
 from typing import Any
 
 import numpy as np

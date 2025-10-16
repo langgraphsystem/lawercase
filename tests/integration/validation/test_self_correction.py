@@ -6,11 +6,15 @@ import asyncio
 
 import pytest
 
-from core.groupagents.self_correcting_mixin import (SelfCorrectingAgent,
-                                                    SelfCorrectingMixin)
-from core.validation import (ConfidenceScorer, ConfidenceThreshold,
-                             QualityTracker, RetryConfig, RetryHandler,
-                             RetryStrategy)
+from core.groupagents.self_correcting_mixin import SelfCorrectingAgent, SelfCorrectingMixin
+from core.validation import (
+    ConfidenceScorer,
+    ConfidenceThreshold,
+    QualityTracker,
+    RetryConfig,
+    RetryHandler,
+    RetryStrategy,
+)
 
 
 # Confidence Scoring Tests
@@ -97,7 +101,7 @@ async def test_retry_handler_success_first_try():
 
     config = RetryConfig(max_retries=3, min_confidence=0.5)
 
-    result, metrics, info = await handler.retry_with_validation(
+    _result, metrics, info = await handler.retry_with_validation(
         mock_function,
         config,
         query="test",
@@ -131,7 +135,7 @@ async def test_retry_handler_retry_until_success():
         strategy=RetryStrategy.IMMEDIATE,
     )
 
-    result, metrics, info = await handler.retry_with_validation(
+    _result, metrics, info = await handler.retry_with_validation(
         mock_function_with_improvement,
         config,
         query="test",

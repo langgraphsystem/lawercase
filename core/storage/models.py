@@ -14,8 +14,7 @@ from datetime import datetime
 from uuid import UUID, uuid4
 
 from sqlalchemy import TIMESTAMP, CheckConstraint, Index, String, Text
-from sqlalchemy.dialects.postgresql import ARRAY, JSONB
-from sqlalchemy.dialects.postgresql import UUID as PG_UUID
+from sqlalchemy.dialects.postgresql import ARRAY, JSONB, UUID as PG_UUID
 from sqlalchemy.ext.asyncio import AsyncAttrs
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 

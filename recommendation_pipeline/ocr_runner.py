@@ -8,13 +8,13 @@ Examples:
 from __future__ import annotations
 
 import asyncio
-import json
 from collections.abc import Iterable, Sequence
+import json
 from pathlib import Path
 
+from anyio import to_thread
 import structlog
 import typer
-from anyio import to_thread
 
 from config.logging import setup_logging
 from config.settings import AppSettings, get_settings

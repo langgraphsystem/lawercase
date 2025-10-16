@@ -435,7 +435,7 @@ def build_enhanced_memory_workflow(
                     "hybrid_search": 0.9,  # Highest for hybrid
                 }
 
-                strategy, confidence = await router_optimizer.optimize_routing(
+                strategy, _confidence = await router_optimizer.optimize_routing(
                     state, routing_options
                 )
 
