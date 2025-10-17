@@ -33,15 +33,15 @@ from .press_writer import PressWriter
 from .salary_writer import SalaryWriter
 
 __all__ = [
-    "BaseSectionWriter",
+    "AuthorshipWriter",
     "AwardsWriter",
+    "BaseSectionWriter",
+    "CommercialSuccessWriter",
+    "ContributionsWriter",
+    "ExhibitionsWriter",
+    "JudgingWriter",
+    "LeadingRoleWriter",
     "MembershipWriter",
     "PressWriter",
-    "JudgingWriter",
-    "ContributionsWriter",
-    "AuthorshipWriter",
-    "ExhibitionsWriter",
-    "LeadingRoleWriter",
     "SalaryWriter",
-    "CommercialSuccessWriter",
 ]

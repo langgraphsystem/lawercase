@@ -11,9 +11,7 @@ from __future__ import annotations
 
 import asyncio
 
-from core.groupagents.writer_agent import (
-    WriterAgent,
-)
+from core.groupagents.writer_agent import WriterAgent
 
 
 async def demo_basic_section_generation():

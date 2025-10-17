@@ -4,7 +4,8 @@ from __future__ import annotations
 
 import pytest
 
-from core.security import InjectionType, PromptInjectionDetector, get_prompt_detector
+from core.security import (InjectionType, PromptInjectionDetector,
+                           get_prompt_detector)
 
 
 class TestPromptInjectionDetector:

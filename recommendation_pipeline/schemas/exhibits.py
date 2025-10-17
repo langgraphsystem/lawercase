@@ -5,7 +5,8 @@ from __future__ import annotations
 from datetime import date
 from pathlib import Path
 
-from pydantic import BaseModel, ConfigDict, Field, ValidationInfo, field_validator
+from pydantic import (BaseModel, ConfigDict, Field, ValidationInfo,
+                      field_validator)
 
 
 class ExhibitMeta(BaseModel):

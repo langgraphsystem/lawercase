@@ -3,7 +3,8 @@ from __future__ import annotations
 from fastapi import APIRouter, Depends
 
 from api.deps import get_agent, get_current_user, map_role
-from api.schemas import AgentCommandRequest, AskRequest, SearchRequest, ToolRequest
+from api.schemas import (AgentCommandRequest, AskRequest, SearchRequest,
+                         ToolRequest)
 from core.groupagents.mega_agent import CommandType, MegaAgentCommand
 
 router = APIRouter(prefix="/v1", tags=["agent"])

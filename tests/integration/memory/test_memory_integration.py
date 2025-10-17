@@ -6,10 +6,8 @@ from uuid import uuid4
 
 import pytest
 
-from core.memory.memory_manager_v2 import (
-    create_dev_memory_manager,
-    create_production_memory_manager,
-)
+from core.memory.memory_manager_v2 import (create_dev_memory_manager,
+                                           create_production_memory_manager)
 from core.memory.models import AuditEvent, MemoryRecord
 
 
