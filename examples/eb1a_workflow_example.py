@@ -20,7 +20,7 @@ from core.memory.memory_manager import MemoryManager
 from core.workflows.eb1a import EB1ACoordinator, EB1APetitionRequest
 from core.workflows.eb1a.eb1a_coordinator import EB1ACriterion, EB1AEvidence, EvidenceType
 from core.workflows.eb1a.templates import LanguagePatterns, SectionTemplates
-from core.workflows.eb1a.validators import EB1AValidator
+from core.workflows.eb1a.validators import EB1AValidator, ValidationReportGenerator
 
 
 async def main():
@@ -192,14 +192,33 @@ async def main():
     validation = validator.validate(result)
     print("✓ Validation complete")
     print(f"  - Valid: {validation.is_valid}")
-    print(f"  - Score: {validation.score:.2f}")
-    print(f"  - Passed checks: {len(validation.passed_checks)}")
-    print(f"  - Failed checks: {len(validation.failed_checks)}")
+    print(f"  - Score: {validation.score:.2%}")
+    print(f"  - Pass Rate: {validation.overall_pass_rate:.1%}")
+    print(f"  - Passed checks: {len(validation.passed_checks)}/{validation.total_checks}")
+    print(f"  - Section results: {len(validation.section_results)} sections analyzed")
     print(f"  - Critical issues: {len(validation.critical_issues)}")
     print(f"  - Warnings: {len(validation.warnings)}")
     print()
 
-    # Step 6: Display validation issues
+    # Step 6: Display section-level validation results
+    print("Step 6: Section-Level Validation Results...")
+    if validation.section_results:
+        for criterion, section_result in validation.section_results.items():
+            status = "✅" if section_result.is_valid else "❌"
+            print(f"  {status} {criterion.value}")
+            print(
+                f"     Score: {section_result.score:.2%} | Pass Rate: {section_result.pass_rate:.1%}"
+            )
+            print(
+                f"     Checks: {len(section_result.passed_checks)}/{len(section_result.checks)} passed"
+            )
+            if section_result.failed_checks:
+                print(f"     Failed: {len(section_result.failed_checks)} checks")
+                for check in section_result.failed_checks[:2]:  # Show first 2
+                    print(f"       • {check.description}")
+    print()
+
+    # Step 7: Display validation issues
     if validation.critical_issues:
         print("CRITICAL ISSUES (must fix before filing):")
         for issue in validation.critical_issues:
@@ -209,10 +228,31 @@ async def main():
 
     if validation.warnings:
         print("WARNINGS (recommended to fix):")
-        for issue in validation.warnings[:3]:  # Show top 3
+        for issue in validation.warnings[:5]:  # Show top 5
             print(f"  ⚠️  [{issue.category}] {issue.message}")
             print(f"     → {issue.suggestion}")
         print()
+
+    # Step 8: Generate validation reports
+    print("Step 8: Generating validation reports...")
+    report_generator = ValidationReportGenerator()
+
+    # Print console summary
+    report_generator.print_summary(validation)
+
+    # Save detailed reports
+    try:
+        report_generator.save_markdown_report(validation, "petition_validation.md")
+        print("✓ Saved Markdown report: petition_validation.md")
+    except Exception as e:
+        print(f"  Note: Could not save Markdown report: {e}")
+
+    try:
+        report_generator.save_html_report(validation, "petition_validation.html")
+        print("✓ Saved HTML report: petition_validation.html")
+    except Exception as e:
+        print(f"  Note: Could not save HTML report: {e}")
+    print()
 
     # Step 7: Display petition summary
     print("=" * 80)

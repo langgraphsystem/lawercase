@@ -2,7 +2,25 @@
 
 from __future__ import annotations
 
-from .checklists import ComplianceChecklist
-from .eb1a_validator import EB1AValidator, ValidationResult
+from .checklists import ChecklistItem, ComplianceChecklist
+from .eb1a_validator import (
+    CheckResult,
+    EB1AValidator,
+    SectionValidationResult,
+    ValidationIssue,
+    ValidationResult,
+    ValidationSeverity,
+)
+from .validation_reports import ValidationReportGenerator
 
-__all__ = ["ComplianceChecklist", "EB1AValidator", "ValidationResult"]
+__all__ = [
+    "ChecklistItem",
+    "CheckResult",
+    "ComplianceChecklist",
+    "EB1AValidator",
+    "SectionValidationResult",
+    "ValidationIssue",
+    "ValidationReportGenerator",
+    "ValidationResult",
+    "ValidationSeverity",
+]

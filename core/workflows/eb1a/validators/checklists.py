@@ -270,6 +270,138 @@ class ComplianceChecklist:
                 category="best_practice",
             ),
         ],
+        EB1ACriterion.ARTISTIC_EXHIBITION: [
+            ChecklistItem(
+                item_id="EXHIBITION_DISPLAY",
+                description="Evidence of work displayed at exhibitions/showcases",
+                required=True,
+                category="evidence",
+                reference="8 CFR § 204.5(h)(3)(vii)",
+            ),
+            ChecklistItem(
+                item_id="EXHIBITION_ARTISTIC",
+                description="Exhibitions are artistic in nature",
+                required=True,
+                category="evidence",
+            ),
+            ChecklistItem(
+                item_id="EXHIBITION_FIELD",
+                description="Exhibitions relate to the field",
+                required=True,
+                category="evidence",
+            ),
+            ChecklistItem(
+                item_id="EXHIBITION_VENUE",
+                description="Venue documentation and prestige established",
+                required=False,
+                category="best_practice",
+            ),
+            ChecklistItem(
+                item_id="EXHIBITION_SELECTION",
+                description="Selection/invitation process documented",
+                required=False,
+                category="best_practice",
+            ),
+        ],
+        EB1ACriterion.LEADING_ROLE: [
+            ChecklistItem(
+                item_id="ROLE_LEADING",
+                description="Role was leading or critical (not routine)",
+                required=True,
+                category="evidence",
+                reference="8 CFR § 204.5(h)(3)(viii)",
+            ),
+            ChecklistItem(
+                item_id="ROLE_DISTINGUISHED",
+                description="Organization has distinguished reputation",
+                required=True,
+                category="evidence",
+            ),
+            ChecklistItem(
+                item_id="ROLE_DOCUMENTATION",
+                description="Employment letter or documentation of role provided",
+                required=True,
+                category="evidence",
+            ),
+            ChecklistItem(
+                item_id="ROLE_IMPACT",
+                description="Impact of role on organization demonstrated",
+                required=False,
+                category="best_practice",
+            ),
+            ChecklistItem(
+                item_id="ROLE_REPUTATION",
+                description="Organization's reputation documented with evidence",
+                required=False,
+                category="best_practice",
+            ),
+        ],
+        EB1ACriterion.HIGH_SALARY: [
+            ChecklistItem(
+                item_id="SALARY_HIGH",
+                description="Salary is high relative to field",
+                required=True,
+                category="evidence",
+                reference="8 CFR § 204.5(h)(3)(ix)",
+            ),
+            ChecklistItem(
+                item_id="SALARY_COMPARISON",
+                description="Comparative salary data for field provided",
+                required=True,
+                category="evidence",
+            ),
+            ChecklistItem(
+                item_id="SALARY_DOCUMENTATION",
+                description="Salary documentation (W-2, pay stubs, offer letter)",
+                required=True,
+                category="evidence",
+            ),
+            ChecklistItem(
+                item_id="SALARY_PERCENTILE",
+                description="Percentile ranking in field documented",
+                required=False,
+                category="best_practice",
+            ),
+            ChecklistItem(
+                item_id="SALARY_SOURCES",
+                description="Multiple comparison sources used (BLS, Glassdoor, etc.)",
+                required=False,
+                category="best_practice",
+            ),
+        ],
+        EB1ACriterion.COMMERCIAL_SUCCESS: [
+            ChecklistItem(
+                item_id="COMMERCIAL_SUCCESS",
+                description="Evidence of commercial success in performing arts",
+                required=True,
+                category="evidence",
+                reference="8 CFR § 204.5(h)(3)(x)",
+            ),
+            ChecklistItem(
+                item_id="COMMERCIAL_METRICS",
+                description="Box office receipts or sales figures documented",
+                required=True,
+                category="evidence",
+            ),
+            ChecklistItem(
+                item_id="COMMERCIAL_PERFORMING_ARTS",
+                description="Success is in performing arts specifically",
+                required=True,
+                category="evidence",
+            ),
+            ChecklistItem(
+                item_id="COMMERCIAL_SIGNIFICANCE",
+                description="Commercial significance demonstrated (not marginal)",
+                required=False,
+                category="best_practice",
+            ),
+            ChecklistItem(
+                item_id="COMMERCIAL_COMPARISON",
+                description="Comparison to industry benchmarks provided",
+                required=False,
+                category="best_practice",
+            ),
+        ],
     }
 
     # Filing requirements

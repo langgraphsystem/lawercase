@@ -11,8 +11,10 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from enum import Enum
+import re
 
 from ..eb1a_coordinator import EB1ACriterion, EB1APetitionResult, SectionContent
+from .checklists import ComplianceChecklist
 
 
 class ValidationSeverity(str, Enum):
@@ -36,6 +38,57 @@ class ValidationIssue:
 
 
 @dataclass
+class CheckResult:
+    """Result of a single checklist item validation."""
+
+    check_id: str  # Unique identifier for the check
+    description: str  # What was checked
+    passed: bool  # True if check passed
+    severity: ValidationSeverity = ValidationSeverity.INFO
+    evidence_found: str | None = None  # What evidence was found (if any)
+    suggestion: str | None = None  # How to fix (if failed)
+
+
+@dataclass
+class SectionValidationResult:
+    """Result of validating a single criterion section."""
+
+    criterion: EB1ACriterion
+    section_title: str
+    is_valid: bool  # Overall section validity
+    score: float  # Section quality score 0.0-1.0
+    checks: list[CheckResult] = field(default_factory=list)
+    issues: list[ValidationIssue] = field(default_factory=list)
+    word_count: int = 0
+    evidence_count: int = 0
+    citation_count: int = 0
+
+    @property
+    def passed_checks(self) -> list[CheckResult]:
+        """Get all passed checks."""
+        return [c for c in self.checks if c.passed]
+
+    @property
+    def failed_checks(self) -> list[CheckResult]:
+        """Get all failed checks."""
+        return [c for c in self.checks if not c.passed]
+
+    @property
+    def critical_failures(self) -> list[CheckResult]:
+        """Get failed critical checks."""
+        return [
+            c for c in self.checks if not c.passed and c.severity == ValidationSeverity.CRITICAL
+        ]
+
+    @property
+    def pass_rate(self) -> float:
+        """Calculate check pass rate (0.0-1.0)."""
+        if not self.checks:
+            return 0.0
+        return len(self.passed_checks) / len(self.checks)
+
+
+@dataclass
 class ValidationResult:
     """Result of petition validation."""
 
@@ -44,6 +97,7 @@ class ValidationResult:
     issues: list[ValidationIssue] = field(default_factory=list)
     passed_checks: list[str] = field(default_factory=list)
     failed_checks: list[str] = field(default_factory=list)
+    section_results: dict[EB1ACriterion, SectionValidationResult] = field(default_factory=dict)
 
     @property
     def critical_issues(self) -> list[ValidationIssue]:
@@ -59,6 +113,18 @@ class ValidationResult:
     def info(self) -> list[ValidationIssue]:
         """Get informational issues."""
         return [i for i in self.issues if i.severity == ValidationSeverity.INFO]
+
+    @property
+    def total_checks(self) -> int:
+        """Total number of checks performed."""
+        return len(self.passed_checks) + len(self.failed_checks)
+
+    @property
+    def overall_pass_rate(self) -> float:
+        """Calculate overall pass rate (0.0-1.0)."""
+        if self.total_checks == 0:
+            return 0.0
+        return len(self.passed_checks) / self.total_checks
 
 
 class EB1AValidator:
@@ -102,13 +168,20 @@ class EB1AValidator:
         issues: list[ValidationIssue] = []
         passed: list[str] = []
         failed: list[str] = []
+        section_results: dict[EB1ACriterion, SectionValidationResult] = {}
 
         # 1. Validate minimum criteria requirement
         self._validate_minimum_criteria(petition, issues, passed, failed)
 
-        # 2. Validate each section
+        # 2. Validate each section with detailed checks
         for criterion, section in petition.sections.items():
+            # Basic validation
             self._validate_section(criterion, section, issues, passed, failed)
+            # Detailed checklist validation
+            section_result = self.validate_section_detailed(criterion, section)
+            section_results[criterion] = section_result
+            # Add section issues to overall issues
+            issues.extend(section_result.issues)
 
         # 3. Validate evidence portfolio
         self._validate_evidence_portfolio(petition, issues, passed, failed)
@@ -135,7 +208,262 @@ class EB1AValidator:
             issues=issues,
             passed_checks=passed,
             failed_checks=failed,
+            section_results=section_results,
         )
+
+    def validate_section_detailed(
+        self, criterion: EB1ACriterion, section: SectionContent
+    ) -> SectionValidationResult:
+        """
+        Perform detailed validation of a single criterion section using checklists.
+
+        This method provides granular, checklist-based validation for each criterion,
+        going beyond the basic validation to check specific regulatory requirements.
+
+        Args:
+            criterion: The EB-1A criterion being validated
+            section: The section content to validate
+
+        Returns:
+            Detailed section validation result with all checks
+
+        Example:
+            >>> validator = EB1AValidator()
+            >>> section_result = validator.validate_section_detailed(
+            ...     EB1ACriterion.AWARDS,
+            ...     section_content
+            ... )
+            >>> print(f"Pass rate: {section_result.pass_rate:.1%}")
+            >>> for check in section_result.failed_checks:
+            ...     print(f"Failed: {check.description}")
+        """
+        checks: list[CheckResult] = []
+        issues: list[ValidationIssue] = []
+
+        # Get criterion-specific checklist
+        checklist = ComplianceChecklist.get_criterion_checklist(criterion)
+
+        # Run each checklist item
+        for item in checklist:
+            check_result = self._run_checklist_item(item, section, criterion)
+            checks.append(check_result)
+
+            # Convert failed required checks to issues
+            if not check_result.passed and item.required:
+                severity = (
+                    ValidationSeverity.CRITICAL
+                    if item.category == "regulatory"
+                    else ValidationSeverity.WARNING
+                )
+                issues.append(
+                    ValidationIssue(
+                        severity=severity,
+                        category=item.category,
+                        criterion=criterion,
+                        message=f"Failed: {check_result.description}",
+                        suggestion=check_result.suggestion or "Review and strengthen this aspect",
+                        location=f"Section: {criterion.value}",
+                    )
+                )
+
+        # Calculate section metrics
+        word_count = section.word_count
+        evidence_count = len(section.evidence_references)
+        citation_count = len(section.legal_citations)
+
+        # Calculate section score
+        score = self._calculate_section_score(section, checks)
+
+        # Determine if section is valid (no critical failures)
+        critical_failures = [
+            c for c in checks if not c.passed and c.severity == ValidationSeverity.CRITICAL
+        ]
+        is_valid = len(critical_failures) == 0
+
+        return SectionValidationResult(
+            criterion=criterion,
+            section_title=section.title,
+            is_valid=is_valid,
+            score=score,
+            checks=checks,
+            issues=issues,
+            word_count=word_count,
+            evidence_count=evidence_count,
+            citation_count=citation_count,
+        )
+
+    def _run_checklist_item(
+        self,
+        item: ComplianceChecklist.ChecklistItem,
+        section: SectionContent,
+        criterion: EB1ACriterion,
+    ) -> CheckResult:
+        """
+        Run a single checklist item against section content.
+
+        This method uses pattern matching and heuristics to determine
+        if a checklist requirement is satisfied by the section content.
+
+        Args:
+            item: Checklist item to validate
+            section: Section content to check
+            criterion: Criterion being validated
+
+        Returns:
+            Result of the check with pass/fail and evidence
+        """
+        content = section.content.lower()
+        severity = ValidationSeverity.CRITICAL if item.required else ValidationSeverity.WARNING
+
+        # Evidence-based checks
+        if "evidence" in item.item_id.lower() or "documentation" in item.item_id.lower():
+            if section.evidence_references:
+                return CheckResult(
+                    check_id=item.item_id,
+                    description=item.description,
+                    passed=True,
+                    severity=severity,
+                    evidence_found=f"{len(section.evidence_references)} exhibits referenced",
+                    suggestion=None,
+                )
+            return CheckResult(
+                check_id=item.item_id,
+                description=item.description,
+                passed=False,
+                severity=severity,
+                evidence_found=None,
+                suggestion="Add exhibit references to support this criterion",
+            )
+
+        # Content-based heuristics
+        passed = False
+        evidence_found = None
+
+        # Awards criterion checks
+        if criterion == EB1ACriterion.AWARDS:
+            if "scope" in item.item_id.lower():
+                keywords = ["national", "international", "worldwide", "global"]
+                passed = any(kw in content for kw in keywords)
+                evidence_found = "Scope keywords found" if passed else None
+            elif "excellence" in item.item_id.lower():
+                keywords = ["excellence", "outstanding", "exceptional", "achievement"]
+                passed = any(kw in content for kw in keywords)
+                evidence_found = "Excellence keywords found" if passed else None
+            elif "prestige" in item.item_id.lower():
+                keywords = ["prestigious", "renowned", "recognized", "eminent"]
+                passed = any(kw in content for kw in keywords)
+                evidence_found = "Prestige indicators found" if passed else None
+
+        # Membership criterion checks
+        elif criterion == EB1ACriterion.MEMBERSHIP:
+            if "outstanding" in item.item_id.lower():
+                keywords = ["outstanding", "achievements", "selective", "merit"]
+                passed = any(kw in content for kw in keywords)
+                evidence_found = "Merit-based language found" if passed else None
+            elif "expert" in item.item_id.lower():
+                keywords = ["expert", "peer review", "evaluated", "judged"]
+                passed = any(kw in content for kw in keywords)
+                evidence_found = "Expert evaluation mentioned" if passed else None
+
+        # Press criterion checks
+        elif criterion == EB1ACriterion.PRESS:
+            if "major" in item.item_id.lower():
+                keywords = ["major", "publication", "media", "press", "journal"]
+                passed = any(kw in content for kw in keywords)
+                evidence_found = "Major media mentioned" if passed else None
+            elif "about" in item.item_id.lower():
+                keywords = ["featured", "profiled", "about", "interview", "article about"]
+                passed = any(kw in content for kw in keywords)
+                evidence_found = "Coverage about beneficiary" if passed else None
+            elif "circulation" in item.item_id.lower():
+                # Look for numbers that might be circulation
+                numbers = re.findall(r"\d{1,3}(?:,\d{3})+", section.content)
+                passed = len(numbers) > 0
+                evidence_found = f"Circulation numbers found: {numbers[:2]}" if passed else None
+
+        # Judging criterion checks
+        elif criterion == EB1ACriterion.JUDGING:
+            if "role" in item.item_id.lower():
+                keywords = ["judge", "reviewer", "panel", "committee", "evaluation"]
+                passed = any(kw in content for kw in keywords)
+                evidence_found = "Judging role mentioned" if passed else None
+            elif "field" in item.item_id.lower():
+                # Assume field relevance if criterion is claimed
+                passed = True
+                evidence_found = "Field relevance assumed"
+
+        # Scholarly articles checks
+        elif criterion == EB1ACriterion.SCHOLARLY_ARTICLES:
+            if "author" in item.item_id.lower():
+                keywords = ["author", "published", "co-author"]
+                passed = any(kw in content for kw in keywords)
+                evidence_found = "Authorship mentioned" if passed else None
+            elif "scholarly" in item.item_id.lower():
+                keywords = ["peer-reviewed", "journal", "scholarly", "academic"]
+                passed = any(kw in content for kw in keywords)
+                evidence_found = "Scholarly publication type" if passed else None
+            elif "citation" in item.item_id.lower():
+                # Look for citation metrics
+                citation_keywords = ["citations", "cited", "h-index", "impact factor"]
+                passed = any(kw in content for kw in citation_keywords)
+                evidence_found = "Citation metrics mentioned" if passed else None
+
+        # Original contribution checks
+        elif criterion == EB1ACriterion.ORIGINAL_CONTRIBUTION:
+            if "original" in item.item_id.lower():
+                keywords = ["original", "novel", "innovative", "pioneering", "first"]
+                passed = any(kw in content for kw in keywords)
+                evidence_found = "Originality keywords found" if passed else None
+            elif "major" in item.item_id.lower() or "significance" in item.item_id.lower():
+                keywords = ["significant", "major", "impact", "breakthrough", "transformative"]
+                passed = any(kw in content for kw in keywords)
+                evidence_found = "Significance keywords found" if passed else None
+            elif "impact" in item.item_id.lower():
+                keywords = ["adopted", "used by", "implemented", "influenced"]
+                passed = any(kw in content for kw in keywords)
+                evidence_found = "Impact indicators found" if passed else None
+
+        # Default: check for general content quality
+        if not passed and not evidence_found:
+            # Minimum word count as proxy for addressing the requirement
+            min_words = 50 if item.required else 20
+            passed = len(content.split()) >= min_words
+            evidence_found = f"Content present ({len(content.split())} words)" if passed else None
+
+        suggestion = None if passed else f"Add specific content addressing: {item.description}"
+
+        return CheckResult(
+            check_id=item.item_id,
+            description=item.description,
+            passed=passed,
+            severity=severity,
+            evidence_found=evidence_found,
+            suggestion=suggestion,
+        )
+
+    def _calculate_section_score(self, section: SectionContent, checks: list[CheckResult]) -> float:
+        """Calculate quality score for a section (0.0-1.0)."""
+        if not checks:
+            return section.confidence_score
+
+        # Start with section's confidence score
+        base_score = section.confidence_score
+
+        # Calculate check pass rate
+        passed_count = len([c for c in checks if c.passed])
+        check_pass_rate = passed_count / len(checks) if checks else 0.0
+
+        # Combine scores (60% confidence, 40% checklist completion)
+        combined_score = (base_score * 0.6) + (check_pass_rate * 0.4)
+
+        # Penalty for critical failures
+        critical_failures = [
+            c for c in checks if not c.passed and c.severity == ValidationSeverity.CRITICAL
+        ]
+        critical_penalty = len(critical_failures) * 0.15
+
+        final_score = max(0.0, min(1.0, combined_score - critical_penalty))
+        return final_score
 
     def _validate_minimum_criteria(
         self,
