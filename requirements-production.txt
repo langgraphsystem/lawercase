@@ -1,0 +1,63 @@
+# Production Infrastructure Dependencies
+# Install with: pip install -r requirements-production.txt
+
+# Core dependencies (already in requirements.txt)
+# -r requirements.txt  # Uncomment to include base requirements
+
+# ============================================================================
+# Configuration Management
+# ============================================================================
+pydantic>=2.5.0
+pydantic-settings>=2.1.0
+
+# ============================================================================
+# Logging & Observability
+# ============================================================================
+structlog>=24.4.0
+python-json-logger>=2.0.7
+colorama>=0.4.6  # For colored console output
+
+# ============================================================================
+# Authentication & Security
+# ============================================================================
+PyJWT>=2.8.0
+passlib[bcrypt]>=1.7.4
+python-multipart>=0.0.6  # For form data
+
+# ============================================================================
+# API Framework
+# ============================================================================
+fastapi>=0.109.0
+uvicorn[standard]>=0.27.0
+python-jose[cryptography]>=3.3.0  # JWT library
+
+# ============================================================================
+# Database & Cache
+# ============================================================================
+asyncpg>=0.29.0  # PostgreSQL async driver
+redis>=5.0.1
+aioredis>=2.0.1  # If using older async redis
+
+# ============================================================================
+# Resilience & Monitoring
+# ============================================================================
+tenacity>=8.2.3  # Alternative retry library
+prometheus-client>=0.19.0  # Metrics
+opentelemetry-api>=1.22.0  # Tracing
+opentelemetry-sdk>=1.22.0
+opentelemetry-instrumentation-fastapi>=0.43b0
+
+# ============================================================================
+# Testing
+# ============================================================================
+pytest>=7.4.0
+pytest-asyncio>=0.21.0
+pytest-cov>=4.1.0
+pytest-mock>=3.12.0
+httpx>=0.26.0  # For testing async HTTP
+
+# ============================================================================
+# Production Utilities
+# ============================================================================
+gunicorn>=21.2.0  # Alternative WSGI server
+python-dotenv>=1.0.0  # .env file support

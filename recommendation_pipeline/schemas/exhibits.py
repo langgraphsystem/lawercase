@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from datetime import date
 from pathlib import Path
+from typing import Optional
 
 from pydantic import (BaseModel, ConfigDict, Field, ValidationInfo,
                       field_validator)
@@ -14,9 +15,9 @@ class ExhibitMeta(BaseModel):
 
     exhibit_id: str = Field(..., min_length=1)
     title: str = Field(..., min_length=1)
-    date: date | None = None
-    issuer: str | None = None
-    doc_type: str | None = None
+    date: Optional[date] = None
+    issuer: Optional[str] = None
+    doc_type: Optional[str] = None
     keywords: list[str] = Field(default_factory=list)
     page_start: int = Field(..., ge=1)
     page_end: int = Field(..., ge=1)
@@ -41,5 +42,5 @@ class DocGenRequest(BaseModel):
     model_config = ConfigDict(arbitrary_types_allowed=True, use_enum_values=True)
 
     html_path: Path = Field(...)
-    css_path: Path | None = Field(default=None)
+    css_path: Optional[Path] = Field(default=None)
     out_pdf: Path = Field(...)
