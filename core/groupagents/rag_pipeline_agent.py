@@ -17,8 +17,8 @@ from __future__ import annotations
 from datetime import datetime, timedelta
 from typing import Any
 
-import structlog
 from pydantic import BaseModel, Field
+import structlog
 
 from ..memory.memory_manager import MemoryManager
 from ..memory.models import MemoryRecord
@@ -525,8 +525,8 @@ class RagPipelineAgent:
         text_lower = text.lower()
 
         # Extract keywords (simple: words longer than 3 chars)
-        query_keywords = set(w for w in query_lower.split() if len(w) > 3)
-        text_keywords = set(w for w in text_lower.split() if len(w) > 3)
+        query_keywords = {w for w in query_lower.split() if len(w) > 3}
+        text_keywords = {w for w in text_lower.split() if len(w) > 3}
 
         if not query_keywords:
             return 0.0
@@ -622,7 +622,7 @@ class RagPipelineAgent:
 
     def _extract_matching_criteria(self, query: str, text: str) -> list[str]:
         """Extract matching criteria between query and text."""
-        query_keywords = set(w.lower() for w in query.split() if len(w) > 3)
+        query_keywords = {w.lower() for w in query.split() if len(w) > 3}
         text_lower = text.lower()
 
         matching = []

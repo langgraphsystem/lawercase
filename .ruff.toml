@@ -107,6 +107,9 @@ ignore = [
     "S311",    # Pseudo-random generators OK in tests
     "ARG001",  # Unused function argument in tests
 ]
+"test_*.py" = [
+    "S101",    # Use of assert in test files is OK
+]
 "core/memory/models.py" = [
     "A003",  # id/type field names are intentional in data models
 ]
@@ -116,11 +119,23 @@ ignore = [
 "core/groupagents/writer_agent.py" = [
     "A003",  # 'format' field name is part of API schema
 ]
+"core/groupagents/eb1a_evidence_analyzer.py" = [
+    "A001",  # 'eval' variable name is domain-appropriate for evaluation logic
+]
 "core/caching/*.py" = [
     "A003",  # set method name shadows builtin (Redis API)
 ]
+"core/exceptions.py" = [
+    "A001",  # Custom exception names intentionally shadow builtins for clarity
+]
 "api/schemas.py" = [
     "A003",  # type field name is intentional in API schemas
+]
+"api/main_production.py" = [
+    "S104",  # Bind to 0.0.0.0 is intentional for production deployment
+]
+"mock_server.py" = [
+    "S101",  # Mock server for testing
 ]
 "**/migrations/*" = ["ALL"]  # Ignore all rules in migration files
 "scripts/*" = [
