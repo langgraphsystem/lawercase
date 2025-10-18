@@ -27,7 +27,7 @@ jobs:
       - name: Run tests
         env:
           CACHE_USE_FAKEREDIS: "true"
-        run: pytest -q
+        run: pytest -vv
       - name: Dependency audit
         run: pip-audit --progress-spinner off
 
