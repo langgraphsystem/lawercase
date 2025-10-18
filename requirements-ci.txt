@@ -40,7 +40,5 @@ hypothesis>=6.102.0,<7.0.0
 # Observability dependencies
 opentelemetry-api>=1.20.0,<2.0.0
 opentelemetry-sdk>=1.20.0,<2.0.0
-opentelemetry-exporter-jaeger>=1.20.0,<2.0.0
-opentelemetry-exporter-zipkin-json>=1.20.0,<2.0.0
-opentelemetry-exporter-otlp>=1.20.0,<2.0.0
 networkx>=3.1,<4.0
+# Removed opentelemetry exporters to avoid resolution-too-deep
