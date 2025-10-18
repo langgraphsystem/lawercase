@@ -11,12 +11,13 @@ Tests all stages of text generation and dynamic document loading:
 6. WebSocket communication
 7. Session persistence
 """
+from __future__ import annotations
 
 import asyncio
-import json
-import time
 from datetime import datetime
+import json
 from pathlib import Path
+import time
 
 import httpx
 import websockets
@@ -29,14 +30,15 @@ TIMEOUT = 60  # seconds
 
 class Colors:
     """ANSI color codes for terminal output"""
-    HEADER = '\033[95m'
-    OKBLUE = '\033[94m'
-    OKCYAN = '\033[96m'
-    OKGREEN = '\033[92m'
-    WARNING = '\033[93m'
-    FAIL = '\033[91m'
-    ENDC = '\033[0m'
-    BOLD = '\033[1m'
+
+    HEADER = "\033[95m"
+    OKBLUE = "\033[94m"
+    OKCYAN = "\033[96m"
+    OKGREEN = "\033[92m"
+    WARNING = "\033[93m"
+    FAIL = "\033[91m"
+    ENDC = "\033[0m"
+    BOLD = "\033[1m"
 
 
 def print_header(text):
@@ -68,6 +70,7 @@ def print_warning(text):
 
 class TestResults:
     """Track test results"""
+
     def __init__(self):
         self.passed = 0
         self.failed = 0
@@ -102,6 +105,7 @@ results = TestResults()
 # TEST 1: API ENDPOINTS
 # ═══════════════════════════════════════════════════════════════════════════
 
+
 async def test_api_endpoints():
     """Test all API endpoints are accessible"""
     print_header("TEST 1: API ENDPOINTS")
@@ -130,6 +134,7 @@ async def test_api_endpoints():
 # TEST 2: DOCUMENT GENERATION WORKFLOW
 # ═══════════════════════════════════════════════════════════════════════════
 
+
 async def test_document_generation():
     """Test document generation workflow"""
     print_header("TEST 2: DOCUMENT GENERATION WORKFLOW")
@@ -137,11 +142,14 @@ async def test_document_generation():
     async with httpx.AsyncClient(timeout=30.0) as client:
         # Test 2.1: Start generation
         try:
-            response = await client.post(f"{API_BASE}/generate-petition", json={
-                "case_id": "test-case-001",
-                "document_type": "petition",
-                "user_id": "test-user"
-            })
+            response = await client.post(
+                f"{API_BASE}/generate-petition",
+                json={
+                    "case_id": "test-case-001",
+                    "document_type": "petition",
+                    "user_id": "test-user",
+                },
+            )
             assert response.status_code == 200
             data = response.json()
             assert "thread_id" in data
@@ -160,9 +168,10 @@ async def test_document_generation():
             assert "logs" in preview_data
             assert len(preview_data["sections"]) == 5  # 5 sections
 
-            results.add_pass("2.2 Get initial preview",
-                           f"Sections: {len(preview_data['sections'])}, "
-                           f"Status: {preview_data['status']}")
+            results.add_pass(
+                "2.2 Get initial preview",
+                f"Sections: {len(preview_data['sections'])}, " f"Status: {preview_data['status']}",
+            )
 
             # Test 2.3: Monitor generation progress
             print_info("Monitoring generation progress (waiting 10 seconds)...")
@@ -172,12 +181,14 @@ async def test_document_generation():
             updated_data = response.json()
 
             # Check if at least one section started generating
-            in_progress = sum(1 for s in updated_data["sections"]
-                            if s["status"] in ["in_progress", "completed"])
+            in_progress = sum(
+                1 for s in updated_data["sections"] if s["status"] in ["in_progress", "completed"]
+            )
             assert in_progress > 0
 
-            results.add_pass("2.3 Generation progress",
-                           f"Sections in progress/completed: {in_progress}/5")
+            results.add_pass(
+                "2.3 Generation progress", f"Sections in progress/completed: {in_progress}/5"
+            )
 
             return thread_id
 
@@ -189,6 +200,7 @@ async def test_document_generation():
 # ═══════════════════════════════════════════════════════════════════════════
 # TEST 3: REAL-TIME UPDATES (WebSocket)
 # ═══════════════════════════════════════════════════════════════════════════
+
 
 async def test_websocket_updates(thread_id):
     """Test WebSocket real-time updates"""
@@ -220,13 +232,14 @@ async def test_websocket_updates(thread_id):
                             progress = data["metadata"]["progress_percentage"]
                             print_info(f"  Update received: {progress:.1f}% complete")
 
-            except asyncio.TimeoutError:
+            except TimeoutError:
                 pass
 
             # Verify we received updates
             assert len(updates_received) > 0
-            results.add_pass("3.2 Real-time updates received",
-                           f"Total updates: {len(updates_received)}")
+            results.add_pass(
+                "3.2 Real-time updates received", f"Total updates: {len(updates_received)}"
+            )
 
             # Test ping-pong
             await websocket.send("ping")
@@ -242,6 +255,7 @@ async def test_websocket_updates(thread_id):
 # TEST 4: TEXT GENERATION & DYNAMIC CONTENT
 # ═══════════════════════════════════════════════════════════════════════════
 
+
 async def test_text_generation(thread_id):
     """Test progressive text generation and content updates"""
     print_header("TEST 4: TEXT GENERATION & DYNAMIC CONTENT")
@@ -256,12 +270,13 @@ async def test_text_generation(thread_id):
             print_info("Waiting for Introduction section to complete...")
 
             max_attempts = 20
-            for i in range(max_attempts):
+            for _ in range(max_attempts):
                 response = await client.get(f"{API_BASE}/document/preview/{thread_id}")
                 data = response.json()
 
-                intro_section = next((s for s in data["sections"]
-                                    if s["section_id"] == "intro"), None)
+                intro_section = next(
+                    (s for s in data["sections"] if s["section_id"] == "intro"), None
+                )
 
                 if intro_section and intro_section["status"] == "completed":
                     # Verify HTML content was generated
@@ -270,8 +285,10 @@ async def test_text_generation(thread_id):
                     assert "<h2>" in intro_section["content_html"]
                     assert "<p" in intro_section["content_html"]
 
-                    results.add_pass("4.1 Introduction section generated",
-                                   f"Content length: {len(intro_section['content_html'])} chars")
+                    results.add_pass(
+                        "4.1 Introduction section generated",
+                        f"Content length: {len(intro_section['content_html'])} chars",
+                    )
 
                     # Check for proper formatting
                     assert "PETITION FOR IMMIGRANT CLASSIFICATION" in intro_section["content_html"]
@@ -279,8 +296,9 @@ async def test_text_generation(thread_id):
 
                     # Check tokens used
                     assert intro_section.get("tokens_used", 0) > 0
-                    results.add_pass("4.3 Token usage tracked",
-                                   f"Tokens: {intro_section['tokens_used']}")
+                    results.add_pass(
+                        "4.3 Token usage tracked", f"Tokens: {intro_section['tokens_used']}"
+                    )
                     break
 
                 await asyncio.sleep(2)
@@ -294,6 +312,7 @@ async def test_text_generation(thread_id):
 # ═══════════════════════════════════════════════════════════════════════════
 # TEST 5: HUMAN-IN-THE-LOOP APPROVAL
 # ═══════════════════════════════════════════════════════════════════════════
+
 
 async def test_human_approval(thread_id):
     """Test human-in-the-loop approval workflow"""
@@ -311,26 +330,25 @@ async def test_human_approval(thread_id):
             max_attempts = 25
             approval_detected = False
 
-            for i in range(max_attempts):
+            for _ in range(max_attempts):
                 response = await client.get(f"{API_BASE}/document/preview/{thread_id}")
                 data = response.json()
 
                 if data["status"] == "pending_approval":
                     approval_detected = True
-                    results.add_pass("5.1 Approval request detected",
-                                   f"Status: {data['status']}")
+                    results.add_pass("5.1 Approval request detected", f"Status: {data['status']}")
 
                     # Get pending approval details
-                    approval_response = await client.get(
-                        f"{API_BASE}/pending-approval/{thread_id}"
-                    )
+                    approval_response = await client.get(f"{API_BASE}/pending-approval/{thread_id}")
                     assert approval_response.status_code == 200
                     approval_data = approval_response.json()
 
                     assert "section_id" in approval_data
                     assert "content_html" in approval_data
-                    results.add_pass("5.2 Approval details retrieved",
-                                   f"Section: {approval_data['section_name']}")
+                    results.add_pass(
+                        "5.2 Approval details retrieved",
+                        f"Section: {approval_data['section_name']}",
+                    )
 
                     # Test approval
                     print_info("Simulating user approval...")
@@ -338,15 +356,16 @@ async def test_human_approval(thread_id):
                         f"{API_BASE}/approve/{thread_id}",
                         json={
                             "approved": True,
-                            "comments": "Automated test approval - content looks good"
-                        }
+                            "comments": "Automated test approval - content looks good",
+                        },
                     )
                     assert approve_response.status_code == 200
                     approve_data = approve_response.json()
-                    assert approve_data["accepted"] == True
+                    assert approve_data["accepted"] is True
 
-                    results.add_pass("5.3 Approval submitted successfully",
-                                   f"Message: {approve_data['message']}")
+                    results.add_pass(
+                        "5.3 Approval submitted successfully", f"Message: {approve_data['message']}"
+                    )
 
                     # Verify generation continues
                     await asyncio.sleep(3)
@@ -360,8 +379,7 @@ async def test_human_approval(thread_id):
                 await asyncio.sleep(2)
 
             if not approval_detected:
-                results.add_fail("5.x HITL approval",
-                               "Approval not triggered within expected time")
+                results.add_fail("5.x HITL approval", "Approval not triggered within expected time")
 
         except Exception as e:
             results.add_fail("5.x HITL approval", e)
@@ -370,6 +388,7 @@ async def test_human_approval(thread_id):
 # ═══════════════════════════════════════════════════════════════════════════
 # TEST 6: EXHIBIT UPLOAD
 # ═══════════════════════════════════════════════════════════════════════════
+
 
 async def test_exhibit_upload(thread_id):
     """Test exhibit file upload and display"""
@@ -392,38 +411,35 @@ async def test_exhibit_upload(thread_id):
                 data = {"exhibit_id": "2.1.TEST"}
 
                 response = await client.post(
-                    f"{API_BASE}/upload-exhibit/{thread_id}",
-                    data=data,
-                    files=files
+                    f"{API_BASE}/upload-exhibit/{thread_id}", data=data, files=files
                 )
 
             assert response.status_code == 200
             upload_data = response.json()
-            assert upload_data["success"] == True
+            assert upload_data["success"] is True
             assert upload_data["exhibit_id"] == "2.1.TEST"
 
-            results.add_pass("6.1 Exhibit uploaded successfully",
-                           f"File: {upload_data['filename']}")
+            results.add_pass(
+                "6.1 Exhibit uploaded successfully", f"File: {upload_data['filename']}"
+            )
 
             # Verify exhibit appears in document preview
             response = await client.get(f"{API_BASE}/document/preview/{thread_id}")
             preview_data = response.json()
 
             uploaded_exhibit = next(
-                (e for e in preview_data["exhibits"] if e["exhibit_id"] == "2.1.TEST"),
-                None
+                (e for e in preview_data["exhibits"] if e["exhibit_id"] == "2.1.TEST"), None
             )
             assert uploaded_exhibit is not None
             assert uploaded_exhibit["file_size"] == len(test_content)
 
-            results.add_pass("6.2 Exhibit appears in document",
-                           f"Size: {uploaded_exhibit['file_size']} bytes")
+            results.add_pass(
+                "6.2 Exhibit appears in document", f"Size: {uploaded_exhibit['file_size']} bytes"
+            )
 
             # Check logs for upload event
             upload_log = next(
-                (log for log in preview_data["logs"]
-                 if "2.1.TEST" in log["message"]),
-                None
+                (log for log in preview_data["logs"] if "2.1.TEST" in log["message"]), None
             )
             assert upload_log is not None
             results.add_pass("6.3 Upload logged in event log")
@@ -439,6 +455,7 @@ async def test_exhibit_upload(thread_id):
 # TEST 7: PAUSE/RESUME
 # ═══════════════════════════════════════════════════════════════════════════
 
+
 async def test_pause_resume():
     """Test pause and resume functionality"""
     print_header("TEST 7: PAUSE/RESUME WORKFLOW")
@@ -446,11 +463,14 @@ async def test_pause_resume():
     async with httpx.AsyncClient(timeout=30.0) as client:
         try:
             # Start new generation for this test
-            response = await client.post(f"{API_BASE}/generate-petition", json={
-                "case_id": "test-pause-001",
-                "document_type": "petition",
-                "user_id": "test-user"
-            })
+            response = await client.post(
+                f"{API_BASE}/generate-petition",
+                json={
+                    "case_id": "test-pause-001",
+                    "document_type": "petition",
+                    "user_id": "test-user",
+                },
+            )
             thread_id = response.json()["thread_id"]
 
             # Wait a bit for generation to start
@@ -491,6 +511,7 @@ async def test_pause_resume():
 # TEST 8: COMPLETE WORKFLOW
 # ═══════════════════════════════════════════════════════════════════════════
 
+
 async def test_complete_workflow():
     """Test complete end-to-end workflow"""
     print_header("TEST 8: COMPLETE END-TO-END WORKFLOW")
@@ -498,11 +519,14 @@ async def test_complete_workflow():
     async with httpx.AsyncClient(timeout=60.0) as client:
         try:
             # Start generation
-            response = await client.post(f"{API_BASE}/generate-petition", json={
-                "case_id": "test-complete-001",
-                "document_type": "petition",
-                "user_id": "test-user"
-            })
+            response = await client.post(
+                f"{API_BASE}/generate-petition",
+                json={
+                    "case_id": "test-complete-001",
+                    "document_type": "petition",
+                    "user_id": "test-user",
+                },
+            )
             thread_id = response.json()["thread_id"]
             start_time = time.time()
 
@@ -519,10 +543,10 @@ async def test_complete_workflow():
                 # Handle approval if needed
                 if data["status"] == "pending_approval":
                     print_info("  Handling approval request...")
-                    await client.post(f"{API_BASE}/approve/{thread_id}", json={
-                        "approved": True,
-                        "comments": "Automated approval"
-                    })
+                    await client.post(
+                        f"{API_BASE}/approve/{thread_id}",
+                        json={"approved": True, "comments": "Automated approval"},
+                    )
 
                 # Check if completed
                 if data["status"] == "completed":
@@ -535,23 +559,22 @@ async def test_complete_workflow():
                     )
                     assert completed_sections == 5
 
-                    results.add_pass("8.1 All sections generated",
-                                   f"Time: {elapsed:.1f}s")
+                    results.add_pass("8.1 All sections generated", f"Time: {elapsed:.1f}s")
 
                     # Verify metadata
                     assert data["metadata"]["progress_percentage"] == 100
                     assert data["metadata"]["total_tokens"] > 0
-                    results.add_pass("8.2 Metadata complete",
-                                   f"Tokens: {data['metadata']['total_tokens']}")
+                    results.add_pass(
+                        "8.2 Metadata complete", f"Tokens: {data['metadata']['total_tokens']}"
+                    )
 
                     # Test PDF download
-                    pdf_response = await client.get(
-                        f"{API_BASE}/download-petition-pdf/{thread_id}"
-                    )
+                    pdf_response = await client.get(f"{API_BASE}/download-petition-pdf/{thread_id}")
                     assert pdf_response.status_code == 200
                     assert b"%PDF" in pdf_response.content
-                    results.add_pass("8.3 PDF download successful",
-                                   f"Size: {len(pdf_response.content)} bytes")
+                    results.add_pass(
+                        "8.3 PDF download successful", f"Size: {len(pdf_response.content)} bytes"
+                    )
 
                     break
 
@@ -567,6 +590,7 @@ async def test_complete_workflow():
 # ═══════════════════════════════════════════════════════════════════════════
 # MAIN TEST RUNNER
 # ═══════════════════════════════════════════════════════════════════════════
+
 
 async def run_all_tests():
     """Run all tests in sequence"""
@@ -608,7 +632,7 @@ async def run_all_tests():
         "passed": results.passed,
         "failed": results.failed,
         "success_rate": f"{(results.passed/(results.passed + results.failed)*100):.1f}%",
-        "tests": results.tests
+        "tests": results.tests,
     }
 
     report_path.write_text(json.dumps(report_data, indent=2))
@@ -618,14 +642,17 @@ async def run_all_tests():
 
 
 if __name__ == "__main__":
+    import sys
+
     try:
         success = asyncio.run(run_all_tests())
-        exit(0 if success else 1)
+        sys.exit(0 if success else 1)
     except KeyboardInterrupt:
         print_warning("\n\nTests interrupted by user")
-        exit(130)
+        sys.exit(130)
     except Exception as e:
         print_error(f"\n\nUnexpected error: {e}")
         import traceback
+
         traceback.print_exc()
-        exit(1)
+        sys.exit(1)
