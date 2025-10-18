@@ -8,9 +8,9 @@ supporting the frontend monitoring dashboard (index.html).
 from __future__ import annotations
 
 from datetime import datetime
-from typing import Any, List, Literal
+from typing import Any, Literal
 
-from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form
+from fastapi import APIRouter, File, Form, HTTPException, UploadFile
 from pydantic import BaseModel, Field
 
 # TODO: Import your actual dependencies
@@ -78,10 +78,10 @@ class DocumentPreviewResponse(BaseModel):
 
     thread_id: str
     status: Literal["idle", "generating", "paused", "completed", "error"]
-    sections: List[SectionSchema]
-    exhibits: List[ExhibitSchema]
+    sections: list[SectionSchema]
+    exhibits: list[ExhibitSchema]
     metadata: MetadataSchema
-    logs: List[LogSchema]
+    logs: list[LogSchema]
 
 
 class StartGenerationRequest(BaseModel):
@@ -463,7 +463,9 @@ def calculate_metadata(state: Any) -> MetadataSchema:
     total = len(sections)
 
     # Calculate elapsed time
-    started_at = datetime.fromisoformat(state.document_data.get("started_at", datetime.now().isoformat()))
+    started_at = datetime.fromisoformat(
+        state.document_data.get("started_at", datetime.now().isoformat())
+    )
     elapsed = int((datetime.now() - started_at).total_seconds())
 
     # Estimate remaining time (simple linear projection)
@@ -491,7 +493,7 @@ def calculate_metadata(state: Any) -> MetadataSchema:
     )
 
 
-def get_section_definitions(document_type: str) -> List[dict[str, Any]]:
+def get_section_definitions(document_type: str) -> list[dict[str, Any]]:
     """
     Get section definitions for a document type.
 
@@ -505,9 +507,24 @@ def get_section_definitions(document_type: str) -> List[dict[str, Any]]:
     if document_type == "petition":
         return [
             {"id": "intro", "name": "I. INTRODUCTION", "order": 1, "status": "pending"},
-            {"id": "background", "name": "II. BENEFICIARY BACKGROUND", "order": 2, "status": "pending"},
-            {"id": "awards", "name": "III. CRITERION 2.1 - AWARDS", "order": 3, "status": "pending"},
-            {"id": "membership", "name": "IV. CRITERION 2.2 - MEMBERSHIPS", "order": 4, "status": "pending"},
+            {
+                "id": "background",
+                "name": "II. BENEFICIARY BACKGROUND",
+                "order": 2,
+                "status": "pending",
+            },
+            {
+                "id": "awards",
+                "name": "III. CRITERION 2.1 - AWARDS",
+                "order": 3,
+                "status": "pending",
+            },
+            {
+                "id": "membership",
+                "name": "IV. CRITERION 2.2 - MEMBERSHIPS",
+                "order": 4,
+                "status": "pending",
+            },
             {
                 "id": "publications",
                 "name": "V. CRITERION 2.6 - SCHOLARLY ARTICLES",
@@ -516,23 +533,21 @@ def get_section_definitions(document_type: str) -> List[dict[str, Any]]:
             },
             # Add more sections as needed
         ]
-    elif document_type == "letter":
+    if document_type == "letter":
         return [
             {"id": "header", "name": "Header", "order": 1, "status": "pending"},
             {"id": "body", "name": "Body", "order": 2, "status": "pending"},
             {"id": "closing", "name": "Closing", "order": 3, "status": "pending"},
         ]
-    else:
-        return [
-            {"id": "memo", "name": "Memorandum", "order": 1, "status": "pending"},
-        ]
+    return [
+        {"id": "memo", "name": "Memorandum", "order": 1, "status": "pending"},
+    ]
 
 
 # TODO: Implement these storage functions
 async def save_workflow_state(thread_id: str, state: Any) -> None:
     """Save workflow state to persistent storage."""
     # Example: await memory_manager.save_state(thread_id, state)
-    pass
 
 
 async def load_workflow_state(thread_id: str) -> Any | None:
@@ -547,7 +562,6 @@ async def log_event(thread_id: str, log_data: dict[str, Any]) -> None:
     # state = await load_workflow_state(thread_id)
     # state.document_data["logs"].append(log_data)
     # await save_workflow_state(thread_id, state)
-    pass
 
 
 # TODO: PDF generation helper
@@ -575,4 +589,3 @@ async def generate_pdf(state: Any, thread_id: str):
 
     return pdf_path
     """
-    pass
