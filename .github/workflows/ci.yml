@@ -27,11 +27,7 @@ jobs:
       - name: Run tests
         env:
           CACHE_USE_FAKEREDIS: "true"
-        run: |
-          pytest -q \
-            --ignore=tests/telegram_interface \
-            --ignore=tests/integration/knowledge_graph \
-            -k "not spacy and not telegram"
+        run: pytest -q
       - name: Dependency audit
         run: pip-audit --progress-spinner off
 

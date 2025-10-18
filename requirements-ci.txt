@@ -49,8 +49,34 @@ structlog>=24.4.0,<24.5.0
 # Security & Authentication (for API tests)
 python-jose[cryptography]>=3.3.0,<4.0.0
 
-# Optional: Telegram bot (for telegram tests)
-# python-telegram-bot>=21.4,<22.0.0  # Commented out - heavy dependency
+# PDF processing (for recommendation pipeline tests)
+PyPDF2>=3.0.1,<4.0.0
+pikepdf>=9.0.0,<10.0.0
+img2pdf>=0.5.1,<1.0.0
 
-# Optional: SpaCy (for NLP tests)
-# spacy>=3.7.2,<4.0.0  # Commented out - very heavy dependency (~100MB)
+# CLI and utilities
+typer>=0.12.3,<1.0.0
+requests>=2.31.0,<3.0.0
+
+# Testing frameworks
+hypothesis>=6.102.0,<7.0.0
+
+# Observability (for observability tests)
+opentelemetry-api>=1.20.0,<2.0.0
+opentelemetry-sdk>=1.20.0,<2.0.0
+opentelemetry-exporter-jaeger>=1.20.0,<2.0.0
+opentelemetry-exporter-zipkin-json>=1.20.0,<2.0.0
+opentelemetry-exporter-otlp>=1.20.0,<2.0.0
+
+# Monitoring
+prometheus-client>=0.20.0,<1.0.0
+
+# Graph processing (for knowledge graph tests)
+networkx>=3.1,<4.0
+
+# Telegram bot (for telegram tests) - kept light
+python-telegram-bot>=21.4,<22.0.0
+
+# NLP - SpaCy (heavy but needed for some tests)
+# Note: This is ~100MB download but required for several test suites
+spacy>=3.7.2,<4.0.0
