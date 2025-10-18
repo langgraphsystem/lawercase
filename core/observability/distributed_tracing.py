@@ -7,27 +7,47 @@ the LangGraph workflows for end-to-end tracing.
 
 from __future__ import annotations
 
-import functools
-import os
 from collections.abc import Callable
 from dataclasses import dataclass
+import functools
+import os
 from typing import Any
 
 try:  # pragma: no cover - optional dependency
     from opentelemetry import trace
-    from opentelemetry.exporter.jaeger.thrift import JaegerExporter
-    from opentelemetry.exporter.otlp.proto.grpc.trace_exporter import \
-        OTLPSpanExporter
-    from opentelemetry.exporter.zipkin.json import ZipkinExporter
     from opentelemetry.sdk.resources import SERVICE_NAME, Resource
     from opentelemetry.sdk.trace import TracerProvider
-    from opentelemetry.sdk.trace.export import (BatchSpanProcessor,
-                                                ConsoleSpanExporter)
+    from opentelemetry.sdk.trace.export import BatchSpanProcessor, ConsoleSpanExporter
 
     OTEL_AVAILABLE = True
 except Exception:  # pragma: no cover - optional dependency
     OTEL_AVAILABLE = False
     trace = None  # type: ignore
+
+# Optional exporters - may not be installed in all environments
+try:
+    from opentelemetry.exporter.jaeger.thrift import JaegerExporter
+
+    JAEGER_AVAILABLE = True
+except Exception:
+    JAEGER_AVAILABLE = False
+    JaegerExporter = None  # type: ignore
+
+try:
+    from opentelemetry.exporter.zipkin.json import ZipkinExporter
+
+    ZIPKIN_AVAILABLE = True
+except Exception:
+    ZIPKIN_AVAILABLE = False
+    ZipkinExporter = None  # type: ignore
+
+try:
+    from opentelemetry.exporter.otlp.proto.grpc.trace_exporter import OTLPSpanExporter
+
+    OTLP_AVAILABLE = True
+except Exception:
+    OTLP_AVAILABLE = False
+    OTLPSpanExporter = None  # type: ignore
 
 
 @dataclass
@@ -120,17 +140,17 @@ def init_tracing(config: TracingConfig | None = None):
     # Create tracer provider
     _tracer_provider = TracerProvider(resource=resource)
 
-    # Configure exporter
-    if config.exporter_type == "jaeger":
+    # Configure exporter (fall back to console if specific exporter not available)
+    if config.exporter_type == "jaeger" and JAEGER_AVAILABLE:
         exporter = JaegerExporter(
             agent_host_name=config.jaeger_host,
             agent_port=config.jaeger_port,
         )
-    elif config.exporter_type == "zipkin":
+    elif config.exporter_type == "zipkin" and ZIPKIN_AVAILABLE:
         exporter = ZipkinExporter(endpoint=config.zipkin_endpoint)
-    elif config.exporter_type == "otlp":
+    elif config.exporter_type == "otlp" and OTLP_AVAILABLE:
         exporter = OTLPSpanExporter(endpoint=config.otlp_endpoint)
-    else:  # console
+    else:  # console (always available as fallback)
         exporter = ConsoleSpanExporter()
 
     # Add span processor
