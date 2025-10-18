@@ -2,11 +2,10 @@
 
 from __future__ import annotations
 
-from datetime import date
+from datetime import date as date_type
 from pathlib import Path
 
-from pydantic import (BaseModel, ConfigDict, Field, ValidationInfo,
-                      field_validator)
+from pydantic import BaseModel, ConfigDict, Field, ValidationInfo, field_validator
 
 
 class ExhibitMeta(BaseModel):
@@ -14,7 +13,7 @@ class ExhibitMeta(BaseModel):
 
     exhibit_id: str = Field(..., min_length=1)
     title: str = Field(..., min_length=1)
-    date: date | None = None
+    date: date_type | None = None
     issuer: str | None = None
     doc_type: str | None = None
     keywords: list[str] = Field(default_factory=list)
