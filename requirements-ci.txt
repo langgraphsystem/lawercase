@@ -1,82 +1,46 @@
-# Minimal CI Dependencies - optimized for fast installation
-# Uses version ranges instead of pinning to avoid deep resolution conflicts
-
-# Core framework
 python-dotenv>=1.0.1,<2.0.0
-pydantic>=2.7.0,<2.10.0
-pydantic-settings>=2.2.0,<2.6.0
-
-# LangChain ecosystem - let pip resolve compatible versions
-langchain>=0.2.0,<0.3.0
+pydantic>=2.7.0,<3.0.0
+pydantic-settings>=2.2.0,<3.0.0
+langchain>=0.2.0,<0.4.0
 langgraph>=0.2.30,<0.3.0
-
-# LLM SDKs
-anthropic>=0.40.0,<0.50.0
-openai>=1.50.0,<1.60.0
-google-generativeai>=0.8.0,<0.9.0
-
-# Core utilities
 typing-extensions>=4.10.0,<5.0.0
-httpx>=0.27.0,<0.28.0
-tenacity>=8.1.0,<9.0.0
-orjson>=3.9.0,<3.10.0
-python-dateutil>=2.8.0,<3.0.0
+google-generativeai>=0.8.0,<1.0.0
+anthropic>=0.40.0,<1.0.0
+openai>=1.58.0,<2.0.0
+spacy>=3.7.2,<4.0.0
 dateparser>=1.2.0,<2.0.0
-
-# Testing infrastructure
-pytest>=8.0.0,<8.3.0
-pytest-asyncio>=0.23.0,<0.24.0
-pytest-cov>=5.0.0,<5.1.0
-pytest-mock>=3.12.0,<3.15.0
-respx>=0.20.0,<0.21.0
-
-# FastAPI for API tests
-fastapi>=0.110.0,<0.115.0
-uvicorn>=0.29.0,<0.31.0
-python-multipart>=0.0.6,<0.1.0
-
-# Redis mocking
-redis>=5.0.0,<5.1.0
-fakeredis>=2.23.0,<2.25.0
-
-# Additional test dependencies
-numpy>=1.26.0,<1.27.0
-freezegun>=1.5.0,<1.6.0
-
-# Minimal observability
-structlog>=24.4.0,<24.5.0
-
-# Security & Authentication (for API tests)
-python-jose[cryptography]>=3.3.0,<4.0.0
-
-# PDF processing (for recommendation pipeline tests)
-PyPDF2>=3.0.1,<4.0.0
-pikepdf>=9.0.0,<10.0.0
-img2pdf>=0.5.1,<1.0.0
-
-# CLI and utilities
+httpx>=0.27.0,<1.0.0
 typer>=0.12.3,<1.0.0
-requests>=2.31.0,<3.0.0
+pikepdf>=9.0.0,<10.0.0
+PyPDF2>=3.0.1,<4.0.0
+img2pdf>=0.5.1,<1.0.0
+orjson>=3.9.15,<4.0.0
+python-telegram-bot>=21.4,<22.0.0
 
-# Testing frameworks
+tenacity>=9.0.0,<10.0.0
+redis[hiredis]>=5.0.1,<6.0.0
+structlog>=24.4.0,<25.0.0
+fakeredis>=2.23.2,<3.0.0
+
+# Test dependencies
+pytest>=8.0.0,<9.0.0
+pytest-cov>=5.0.0,<6.0.0
+pytest-asyncio>=0.23.0,<1.0.0
+pytest-mock>=3.12.0,<4.0.0
+fastapi>=0.110.0,<1.0.0
+uvicorn>=0.29.0,<1.0.0
+python-jose[cryptography]>=3.3.0,<4.0.0
+numpy>=1.26.0,<2.0.0
+requests>=2.31.0,<3.0.0
+prometheus-client>=0.20.0,<1.0.0
+respx>=0.20.2,<1.0.0
+freezegun>=1.5.1,<2.0.0
 hypothesis>=6.102.0,<7.0.0
 
-# Observability (for observability tests)
+# Observability dependencies
 opentelemetry-api>=1.20.0,<2.0.0
 opentelemetry-sdk>=1.20.0,<2.0.0
 opentelemetry-exporter-jaeger>=1.20.0,<2.0.0
 opentelemetry-exporter-zipkin-json>=1.20.0,<2.0.0
 opentelemetry-exporter-otlp>=1.20.0,<2.0.0
-
-# Monitoring
-prometheus-client>=0.20.0,<1.0.0
-
-# Graph processing (for knowledge graph tests)
 networkx>=3.1,<4.0
-
-# Telegram bot (for telegram tests) - kept light
-python-telegram-bot>=21.4,<22.0.0
-
-# NLP - SpaCy (heavy but needed for some tests)
-# Note: This is ~100MB download but required for several test suites
-spacy>=3.7.2,<4.0.0
