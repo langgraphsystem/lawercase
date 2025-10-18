@@ -15,16 +15,16 @@ Usage:
 from __future__ import annotations
 
 import asyncio
-import time
 from datetime import datetime
-from typing import Any, Dict, List
+from typing import Any
 from uuid import uuid4
 
-from fastapi import FastAPI, HTTPException, UploadFile, File, Form, WebSocket, WebSocketDisconnect
+from fastapi import (FastAPI, File, Form, HTTPException, UploadFile, WebSocket,
+                     WebSocketDisconnect)
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse, StreamingResponse
+from fastapi.responses import StreamingResponse
 from fastapi.staticfiles import StaticFiles
-from pydantic import BaseModel, Field
+from pydantic import BaseModel
 
 # ═══════════════════════════════════════════════════════════════════════════
 # MODELS
@@ -71,10 +71,10 @@ class LogSchema(BaseModel):
 class DocumentPreviewResponse(BaseModel):
     thread_id: str
     status: str  # idle, generating, paused, completed, error
-    sections: List[SectionSchema]
-    exhibits: List[ExhibitSchema]
+    sections: list[SectionSchema]
+    exhibits: list[ExhibitSchema]
     metadata: MetadataSchema
-    logs: List[LogSchema]
+    logs: list[LogSchema]
 
 
 class StartGenerationRequest(BaseModel):
@@ -99,7 +99,7 @@ class UploadExhibitResponse(BaseModel):
 class HumanFeedbackRequest(BaseModel):
     approved: bool
     comments: str | None = None
-    suggested_changes: Dict[str, Any] | None = None
+    suggested_changes: dict[str, Any] | None = None
 
 
 class HumanFeedbackResponse(BaseModel):
@@ -116,8 +116,8 @@ class WorkflowStateStore:
     """In-memory storage for workflow states."""
 
     def __init__(self):
-        self.states: Dict[str, Dict[str, Any]] = {}
-        self.pending_approvals: Dict[str, Dict[str, Any]] = {}
+        self.states: dict[str, dict[str, Any]] = {}
+        self.pending_approvals: dict[str, dict[str, Any]] = {}
 
     def create_state(self, thread_id: str, case_id: str, user_id: str) -> None:
         """Create initial workflow state."""
@@ -182,7 +182,7 @@ class WorkflowStateStore:
             ],
         }
 
-    def get_state(self, thread_id: str) -> Dict[str, Any] | None:
+    def get_state(self, thread_id: str) -> dict[str, Any] | None:
         """Get workflow state."""
         return self.states.get(thread_id)
 
@@ -269,7 +269,7 @@ class WorkflowStateStore:
 state_store = WorkflowStateStore()
 
 # WebSocket connections
-websocket_connections: Dict[str, List[WebSocket]] = {}
+websocket_connections: dict[str, list[WebSocket]] = {}
 
 # ═══════════════════════════════════════════════════════════════════════════
 # BACKGROUND TASK: SIMULATE DOCUMENT GENERATION
@@ -507,7 +507,7 @@ async def get_preview(thread_id: str):
     return build_preview_response(thread_id, state)
 
 
-def build_preview_response(thread_id: str, state: Dict[str, Any]) -> DocumentPreviewResponse:
+def build_preview_response(thread_id: str, state: dict[str, Any]) -> DocumentPreviewResponse:
     """Build DocumentPreviewResponse from state."""
     sections = [SectionSchema(**s) for s in state["sections"]]
     exhibits = [ExhibitSchema(**e) for e in state["exhibits"]]
