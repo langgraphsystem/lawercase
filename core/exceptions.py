@@ -11,7 +11,7 @@ This module provides:
 from __future__ import annotations
 
 from enum import Enum
-from typing import Any, Optional
+from typing import Any
 
 
 class ErrorCode(str, Enum):
@@ -101,10 +101,10 @@ class MegaAgentError(Exception):
         message: str,
         code: ErrorCode = ErrorCode.UNKNOWN_ERROR,
         category: ErrorCategory = ErrorCategory.SYSTEM,
-        details: Optional[dict[str, Any]] = None,
-        user_message: Optional[str] = None,
+        details: dict[str, Any] | None = None,
+        user_message: str | None = None,
         recoverable: bool = False,
-        cause: Optional[Exception] = None,
+        cause: Exception | None = None,
     ):
         self.message = message
         self.code = code
@@ -149,8 +149,8 @@ class ValidationError(MegaAgentError):
     def __init__(
         self,
         message: str,
-        field: Optional[str] = None,
-        value: Optional[Any] = None,
+        field: str | None = None,
+        value: Any | None = None,
         **kwargs: Any,
     ):
         details = kwargs.pop("details", {})
@@ -227,7 +227,7 @@ class PermissionDeniedError(MegaAgentError):
     def __init__(
         self,
         message: str = "Permission denied",
-        required_permission: Optional[str] = None,
+        required_permission: str | None = None,
         **kwargs: Any,
     ):
         details = kwargs.pop("details", {})
@@ -276,7 +276,7 @@ class ConnectionError(DatabaseError):
 class ExternalServiceError(MegaAgentError):
     """External service error."""
 
-    def __init__(self, message: str, service_name: Optional[str] = None, **kwargs: Any):
+    def __init__(self, message: str, service_name: str | None = None, **kwargs: Any):
         details = kwargs.pop("details", {})
         if service_name:
             details["service"] = service_name
@@ -298,8 +298,8 @@ class LLMError(ExternalServiceError):
     def __init__(
         self,
         message: str,
-        model: Optional[str] = None,
-        provider: Optional[str] = None,
+        model: str | None = None,
+        provider: str | None = None,
         **kwargs: Any,
     ):
         details = kwargs.pop("details", {})
@@ -321,7 +321,7 @@ class LLMTimeoutError(LLMError):
     """LLM request timeout."""
 
     def __init__(
-        self, message: str = "LLM request timed out", timeout: Optional[int] = None, **kwargs: Any
+        self, message: str = "LLM request timed out", timeout: int | None = None, **kwargs: Any
     ):
         details = kwargs.pop("details", {})
         if timeout:
@@ -341,7 +341,7 @@ class LLMRateLimitError(LLMError):
     def __init__(
         self,
         message: str = "LLM rate limit exceeded",
-        retry_after: Optional[int] = None,
+        retry_after: int | None = None,
         **kwargs: Any,
     ):
         details = kwargs.pop("details", {})
@@ -360,7 +360,7 @@ class LLMRateLimitError(LLMError):
 class AgentError(MegaAgentError):
     """Agent operation error."""
 
-    def __init__(self, message: str, agent_name: Optional[str] = None, **kwargs: Any):
+    def __init__(self, message: str, agent_name: str | None = None, **kwargs: Any):
         details = kwargs.pop("details", {})
         if agent_name:
             details["agent"] = agent_name
@@ -382,8 +382,8 @@ class WorkflowError(AgentError):
     def __init__(
         self,
         message: str,
-        workflow_name: Optional[str] = None,
-        node_name: Optional[str] = None,
+        workflow_name: str | None = None,
+        node_name: str | None = None,
         **kwargs: Any,
     ):
         details = kwargs.pop("details", {})
@@ -443,7 +443,7 @@ class RAGError(AgentError):
 class FileError(MegaAgentError):
     """File operation error."""
 
-    def __init__(self, message: str, file_path: Optional[str] = None, **kwargs: Any):
+    def __init__(self, message: str, file_path: str | None = None, **kwargs: Any):
         details = kwargs.pop("details", {})
         if file_path:
             details["file_path"] = file_path
@@ -462,7 +462,7 @@ class FileError(MegaAgentError):
 class FileNotFoundError(FileError):
     """File not found."""
 
-    def __init__(self, message: str, file_path: Optional[str] = None, **kwargs: Any):
+    def __init__(self, message: str, file_path: str | None = None, **kwargs: Any):
         super().__init__(
             message=message,
             file_path=file_path,
@@ -478,8 +478,8 @@ class FileTooLargeError(FileError):
     def __init__(
         self,
         message: str,
-        file_size: Optional[int] = None,
-        max_size: Optional[int] = None,
+        file_size: int | None = None,
+        max_size: int | None = None,
         **kwargs: Any,
     ):
         details = kwargs.pop("details", {})
@@ -506,8 +506,8 @@ class InvalidFileTypeError(FileError):
     def __init__(
         self,
         message: str,
-        file_type: Optional[str] = None,
-        allowed_types: Optional[list[str]] = None,
+        file_type: str | None = None,
+        allowed_types: list[str] | None = None,
         **kwargs: Any,
     ):
         details = kwargs.pop("details", {})
@@ -563,8 +563,8 @@ class RateLimitExceededError(MegaAgentError):
     def __init__(
         self,
         message: str = "Rate limit exceeded",
-        retry_after: Optional[int] = None,
-        limit: Optional[int] = None,
+        retry_after: int | None = None,
+        limit: int | None = None,
         **kwargs: Any,
     ):
         details = kwargs.pop("details", {})
@@ -594,8 +594,8 @@ class NotFoundError(MegaAgentError):
     def __init__(
         self,
         message: str,
-        resource_type: Optional[str] = None,
-        resource_id: Optional[str] = None,
+        resource_type: str | None = None,
+        resource_id: str | None = None,
         **kwargs: Any,
     ):
         details = kwargs.pop("details", {})
@@ -621,8 +621,8 @@ class AlreadyExistsError(MegaAgentError):
     def __init__(
         self,
         message: str,
-        resource_type: Optional[str] = None,
-        resource_id: Optional[str] = None,
+        resource_type: str | None = None,
+        resource_id: str | None = None,
         **kwargs: Any,
     ):
         details = kwargs.pop("details", {})

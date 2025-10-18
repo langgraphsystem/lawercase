@@ -11,18 +11,15 @@ This module provides:
 from __future__ import annotations
 
 import asyncio
+import logging
+import time
 from collections.abc import Awaitable, Callable
 from enum import Enum
 from functools import wraps
-import logging
-import time
-from typing import Any, Optional, TypeVar
+from typing import Any, TypeVar
 
-from core.exceptions import (
-    ExternalServiceError,
-    LLMRateLimitError,
-    LLMTimeoutError,
-)
+from core.exceptions import (ExternalServiceError, LLMRateLimitError,
+                             LLMTimeoutError)
 
 logger = logging.getLogger(__name__)
 
@@ -89,7 +86,7 @@ class CircuitBreaker:
         self.half_open_max_calls = half_open_max_calls
 
         self._failure_count = 0
-        self._last_failure_time: Optional[float] = None
+        self._last_failure_time: float | None = None
         self._state = CircuitState.CLOSED
         self._half_open_calls = 0
 
@@ -222,7 +219,7 @@ class RetryConfig:
 async def retry_async(
     func: Callable[..., Awaitable[T]],
     *args: Any,
-    config: Optional[RetryConfig] = None,
+    config: RetryConfig | None = None,
     **kwargs: Any,
 ) -> T:
     """Retry async function with exponential backoff.
@@ -249,7 +246,7 @@ async def retry_async(
     if config is None:
         config = RetryConfig()
 
-    last_exception: Optional[Exception] = None
+    last_exception: Exception | None = None
 
     for attempt in range(config.max_attempts):
         try:
@@ -333,7 +330,7 @@ class Timeout:
         """
         self.seconds = seconds
         self.operation = operation
-        self._task: Optional[asyncio.Task] = None
+        self._task: asyncio.Task | None = None
 
     async def __aenter__(self) -> Timeout:
         """Enter timeout context."""
@@ -347,7 +344,7 @@ class Timeout:
         """Run coroutine with timeout."""
         try:
             return await asyncio.wait_for(coro, timeout=self.seconds)
-        except asyncio.TimeoutError:
+        except TimeoutError:
             raise LLMTimeoutError(
                 message=f"{self.operation} timed out after {self.seconds} seconds",
                 timeout=int(self.seconds),
@@ -502,7 +499,7 @@ class CircuitBreakers:
         return cls._breakers[name]
 
     @classmethod
-    def reset(cls, name: Optional[str] = None) -> None:
+    def reset(cls, name: str | None = None) -> None:
         """Reset circuit breaker(s)."""
         if name:
             if name in cls._breakers:

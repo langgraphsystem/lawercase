@@ -10,10 +10,10 @@ This module provides:
 from __future__ import annotations
 
 import asyncio
+import time
 from datetime import datetime
 from enum import Enum
-import time
-from typing import Any, Optional
+from typing import Any
 
 from fastapi import APIRouter, Depends, status
 from pydantic import BaseModel
@@ -44,8 +44,8 @@ class DependencyHealth(BaseModel):
 
     name: str
     status: HealthStatus
-    response_time_ms: Optional[float] = None
-    message: Optional[str] = None
+    response_time_ms: float | None = None
+    message: str | None = None
     details: dict[str, Any] = {}
 
 
@@ -177,13 +177,12 @@ async def check_llm_health(settings: AppSettings) -> DependencyHealth:
                 response_time_ms=response_time,
                 message="LLM provider configured",
             )
-        else:
-            return DependencyHealth(
-                name="llm_provider",
-                status=HealthStatus.DEGRADED,
-                response_time_ms=response_time,
-                message="No LLM API keys configured",
-            )
+        return DependencyHealth(
+            name="llm_provider",
+            status=HealthStatus.DEGRADED,
+            response_time_ms=response_time,
+            message="No LLM API keys configured",
+        )
 
     except Exception as e:
         response_time = (time.perf_counter() - start_time) * 1000
