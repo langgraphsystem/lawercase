@@ -14,10 +14,10 @@ Tests all stages of text generation and dynamic document loading:
 from __future__ import annotations
 
 import asyncio
-from datetime import datetime
 import json
-from pathlib import Path
 import time
+from datetime import datetime
+from pathlib import Path
 
 import httpx
 import websockets
