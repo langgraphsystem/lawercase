@@ -6,19 +6,16 @@ from datetime import datetime
 
 import pytest
 
-from core.groupagents.eb1a_evidence_analyzer import (
-    CaseStrengthAnalysis,
-    CriterionEvaluation,
-    EB1AEvidenceAnalyzer,
-    EvidenceAnalysisResult,
-    EvidenceQualityMetrics,
-    ImpactLevel,
-    RelevanceLevel,
-    RiskLevel,
-    SourceCredibility,
-)
+from core.groupagents.eb1a_evidence_analyzer import (CaseStrengthAnalysis,
+                                                     CriterionEvaluation,
+                                                     EB1AEvidenceAnalyzer,
+                                                     EvidenceAnalysisResult,
+                                                     ImpactLevel,
+                                                     RelevanceLevel, RiskLevel,
+                                                     SourceCredibility)
 from core.memory.memory_manager import MemoryManager
-from core.workflows.eb1a.eb1a_coordinator import EB1ACriterion, EB1AEvidence, EvidenceType
+from core.workflows.eb1a.eb1a_coordinator import (EB1ACriterion, EB1AEvidence,
+                                                  EvidenceType)
 
 
 @pytest.fixture
@@ -253,9 +250,7 @@ class TestCriterionEvaluation:
 
         evidence_list = [strong_award_evidence, evidence2]
 
-        result = await analyzer.evaluate_criterion_satisfaction(
-            EB1ACriterion.AWARDS, evidence_list
-        )
+        result = await analyzer.evaluate_criterion_satisfaction(EB1ACriterion.AWARDS, evidence_list)
 
         assert isinstance(result, CriterionEvaluation)
         assert result.criterion == EB1ACriterion.AWARDS
@@ -328,9 +323,7 @@ class TestCriterionEvaluation:
             source="Regional Committee",
         )
 
-        result = await analyzer.evaluate_criterion_satisfaction(
-            EB1ACriterion.AWARDS, [local_award]
-        )
+        result = await analyzer.evaluate_criterion_satisfaction(EB1ACriterion.AWARDS, [local_award])
 
         # Should identify lack of international recognition
         assert any("international" in gap.lower() for gap in result.missing_elements)
@@ -409,8 +402,12 @@ class TestCaseStrengthAnalysis:
         assert result.satisfied_criteria_count == 3
 
         # Should have warning about being at minimum
-        assert any("minimum" in risk.lower() or "minimum" in rec.lower()
-                   for risk in result.risks + result.priority_recommendations + result.secondary_recommendations)
+        assert any(
+            "minimum" in risk.lower() or "minimum" in rec.lower()
+            for risk in result.risks
+            + result.priority_recommendations
+            + result.secondary_recommendations
+        )
 
     @pytest.mark.asyncio
     async def test_case_with_no_evidence(self, analyzer):
@@ -443,7 +440,9 @@ class TestCaseStrengthAnalysis:
         assert strong_result.approval_probability > weak_result.approval_probability
 
     @pytest.mark.asyncio
-    async def test_risk_level_determination(self, analyzer, strong_award_evidence, weak_award_evidence):
+    async def test_risk_level_determination(
+        self, analyzer, strong_award_evidence, weak_award_evidence
+    ):
         """Test risk level classification."""
         # Critical risk - below minimum criteria
         critical_case = {EB1ACriterion.AWARDS: [weak_award_evidence]}
@@ -619,8 +618,9 @@ class TestEdgeCases:
     async def test_all_criteria_satisfied(self, analyzer, strong_award_evidence):
         """Test case where all 10 criteria are satisfied."""
         # Create evidence for all criteria
-        evidence_by_criterion = {criterion: [strong_award_evidence, strong_award_evidence]
-                                for criterion in EB1ACriterion}
+        evidence_by_criterion = {
+            criterion: [strong_award_evidence, strong_award_evidence] for criterion in EB1ACriterion
+        }
 
         result = await analyzer.calculate_case_strength(evidence_by_criterion)
 

@@ -10,9 +10,9 @@ This module provides:
 
 from __future__ import annotations
 
-from collections.abc import Callable
 import time
 import uuid
+from collections.abc import Callable
 
 from fastapi import Request, Response
 from starlette.middleware.base import BaseHTTPMiddleware
@@ -187,9 +187,8 @@ class TokenBucketRateLimiter:
             # Calculate retry after time
             retry_after = (1.0 - bucket["allowance"]) * (self.per / self.rate)
             return False, retry_after
-        else:
-            bucket["allowance"] -= 1.0
-            return True, 0.0
+        bucket["allowance"] -= 1.0
+        return True, 0.0
 
 
 class EnhancedRateLimitMiddleware(BaseHTTPMiddleware):

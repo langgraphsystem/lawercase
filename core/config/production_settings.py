@@ -10,12 +10,12 @@ This module provides:
 
 from __future__ import annotations
 
+import os
+import secrets
 from enum import Enum
 from functools import lru_cache
-import os
 from pathlib import Path
-import secrets
-from typing import Any, Optional
+from typing import Any
 
 from pydantic import Field, SecretStr, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -57,7 +57,7 @@ class DatabaseSettings(BaseSettings):
     postgres_user: str = Field(default="megaagent")
     postgres_password: SecretStr = Field(default=SecretStr("changeme"))
     postgres_db: str = Field(default="megaagent_pro")
-    postgres_dsn: Optional[str] = Field(default=None, alias="POSTGRES_DSN")
+    postgres_dsn: str | None = Field(default=None, alias="POSTGRES_DSN")
 
     # Connection pool
     pool_size: int = Field(default=10, ge=1, le=100)
@@ -92,8 +92,8 @@ class RedisSettings(BaseSettings):
     host: str = Field(default="localhost")
     port: int = Field(default=6379, ge=1, le=65535)
     db: int = Field(default=0, ge=0, le=15)
-    password: Optional[SecretStr] = Field(default=None)
-    url: Optional[str] = Field(default=None, alias="REDIS_URL")
+    password: SecretStr | None = Field(default=None)
+    url: str | None = Field(default=None, alias="REDIS_URL")
 
     # Connection settings
     max_connections: int = Field(default=50, ge=1)
@@ -145,7 +145,7 @@ class SecuritySettings(BaseSettings):
     cors_allow_credentials: bool = Field(default=True)
 
     # Encryption
-    encryption_key: Optional[SecretStr] = Field(default=None)
+    encryption_key: SecretStr | None = Field(default=None)
 
 
 class LLMSettings(BaseSettings):
@@ -160,10 +160,10 @@ class LLMSettings(BaseSettings):
     )
 
     # Provider API Keys
-    openai_api_key: Optional[SecretStr] = Field(default=None, alias="OPENAI_API_KEY")
-    anthropic_api_key: Optional[SecretStr] = Field(default=None, alias="ANTHROPIC_API_KEY")
-    gemini_api_key: Optional[SecretStr] = Field(default=None, alias="GEMINI_API_KEY")
-    cohere_api_key: Optional[SecretStr] = Field(default=None, alias="COHERE_API_KEY")
+    openai_api_key: SecretStr | None = Field(default=None, alias="OPENAI_API_KEY")
+    anthropic_api_key: SecretStr | None = Field(default=None, alias="ANTHROPIC_API_KEY")
+    gemini_api_key: SecretStr | None = Field(default=None, alias="GEMINI_API_KEY")
+    cohere_api_key: SecretStr | None = Field(default=None, alias="COHERE_API_KEY")
 
     # Default models
     default_model: str = Field(default="gpt-4")
@@ -189,11 +189,11 @@ class TelegramSettings(BaseSettings):
     )
 
     bot_token: SecretStr = Field(default=SecretStr(""), alias="TELEGRAM_BOT_TOKEN")
-    allowed_users: Optional[str] = Field(default=None, alias="TELEGRAM_ALLOWED_USERS")
-    webhook_url: Optional[str] = Field(default=None)
-    webhook_secret: Optional[SecretStr] = Field(default=None)
+    allowed_users: str | None = Field(default=None, alias="TELEGRAM_ALLOWED_USERS")
+    webhook_url: str | None = Field(default=None)
+    webhook_secret: SecretStr | None = Field(default=None)
 
-    def get_allowed_user_ids(self) -> Optional[list[int]]:
+    def get_allowed_user_ids(self) -> list[int] | None:
         """Parse allowed user IDs from comma-separated string."""
         if not self.allowed_users:
             return None
@@ -224,7 +224,7 @@ class ObservabilitySettings(BaseSettings):
     tracing_enabled: bool = Field(default=False)
     tracing_exporter: str = Field(default="console")
     tracing_service_name: str = Field(default="megaagent-pro")
-    tracing_endpoint: Optional[str] = Field(default=None)
+    tracing_endpoint: str | None = Field(default=None)
 
     # Metrics
     metrics_enabled: bool = Field(default=False)
@@ -233,7 +233,7 @@ class ObservabilitySettings(BaseSettings):
     # Logging
     log_level: LogLevel = Field(default=LogLevel.INFO)
     log_format: str = Field(default="json")
-    log_file: Optional[Path] = Field(default=None)
+    log_file: Path | None = Field(default=None)
     log_rotation: str = Field(default="1 day")
     log_retention: str = Field(default="30 days")
 
@@ -297,8 +297,8 @@ class AppSettings(BaseSettings):
     app_name: str = Field(default="MegaAgent Pro")
     app_version: str = Field(default="1.0.0")
     api_prefix: str = Field(default="/api/v1")
-    docs_url: Optional[str] = Field(default="/docs")
-    redoc_url: Optional[str] = Field(default="/redoc")
+    docs_url: str | None = Field(default="/docs")
+    redoc_url: str | None = Field(default="/redoc")
 
     # Paths
     tmp_dir: Path = Field(default=Path("tmp"))
@@ -403,7 +403,7 @@ class AppSettings(BaseSettings):
 
 
 # Singleton pattern for settings
-_settings: Optional[AppSettings] = None
+_settings: AppSettings | None = None
 
 
 @lru_cache

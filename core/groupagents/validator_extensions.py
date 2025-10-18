@@ -501,17 +501,16 @@ def _estimate_petition_time_to_ready(
     """Estimate days until petition is filing-ready."""
     if readiness_score >= 90.0:
         return 14  # 2 weeks for final polish
-    elif readiness_score >= 80.0:
+    if readiness_score >= 80.0:
         return 30  # 1 month for improvements
-    elif readiness_score >= 70.0:
+    if readiness_score >= 70.0:
         return 60 + (critical_issue_count * 7)  # 2+ months
-    elif readiness_score >= 60.0:
+    if readiness_score >= 60.0:
         return 90 + (critical_issue_count * 14)  # 3+ months
-    else:
-        base = 120
-        criteria_penalty = max(0, (3 - criteria_count) * 30)
-        issue_penalty = critical_issue_count * 14
-        return base + criteria_penalty + issue_penalty
+    base = 120
+    criteria_penalty = max(0, (3 - criteria_count) * 30)
+    issue_penalty = critical_issue_count * 14
+    return base + criteria_penalty + issue_penalty
 
 
 async def _log_self_correction(self, result: SelfCorrectionResult, user_id: str) -> None:

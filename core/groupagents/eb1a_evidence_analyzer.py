@@ -15,8 +15,8 @@ from datetime import datetime
 from enum import Enum
 from typing import Any
 
-from pydantic import BaseModel, Field
 import structlog
+from pydantic import BaseModel, Field
 
 from ..memory.memory_manager import MemoryManager
 from ..workflows.eb1a.eb1a_coordinator import EB1ACriterion, EB1AEvidence
@@ -858,12 +858,11 @@ class EB1AEvidenceAnalyzer:
 
         if approval_probability >= 0.75:
             return RiskLevel.LOW
-        elif approval_probability >= 0.55:
+        if approval_probability >= 0.55:
             return RiskLevel.MODERATE
-        elif approval_probability >= 0.35:
+        if approval_probability >= 0.35:
             return RiskLevel.HIGH
-        else:
-            return RiskLevel.CRITICAL
+        return RiskLevel.CRITICAL
 
     def _identify_case_strengths(
         self,

@@ -10,27 +10,27 @@ This module provides:
 
 from __future__ import annotations
 
-from collections.abc import Awaitable, Callable
 import contextvars
-from datetime import datetime
-from functools import wraps
 import logging
-from pathlib import Path
 import sys
 import time
 import traceback
-from typing import Any, Optional, TypeVar
+from collections.abc import Awaitable, Callable
+from datetime import datetime
+from functools import wraps
+from pathlib import Path
+from typing import Any, TypeVar
 
-from pythonjsonlogger import jsonlogger
 import structlog
+from pythonjsonlogger import jsonlogger
 
 from core.exceptions import MegaAgentError
 
 # Context variables for request tracking
-request_id_var: contextvars.ContextVar[Optional[str]] = contextvars.ContextVar(
+request_id_var: contextvars.ContextVar[str | None] = contextvars.ContextVar(
     "request_id", default=None
 )
-user_id_var: contextvars.ContextVar[Optional[str]] = contextvars.ContextVar("user_id", default=None)
+user_id_var: contextvars.ContextVar[str | None] = contextvars.ContextVar("user_id", default=None)
 
 T = TypeVar("T")
 
@@ -38,7 +38,7 @@ T = TypeVar("T")
 def setup_logging(
     level: str = "INFO",
     log_format: str = "json",
-    log_file: Optional[Path] = None,
+    log_file: Path | None = None,
     service_name: str = "megaagent-pro",
 ) -> None:
     """Setup structured logging.
@@ -147,7 +147,7 @@ class LogContext:
 def log_error(
     logger: structlog.BoundLogger,
     error: Exception,
-    context: Optional[dict[str, Any]] = None,
+    context: dict[str, Any] | None = None,
     include_traceback: bool = True,
 ) -> None:
     """Log error with full context.
@@ -189,7 +189,7 @@ def log_performance(
     logger: structlog.BoundLogger,
     operation: str,
     duration_ms: float,
-    metadata: Optional[dict[str, Any]] = None,
+    metadata: dict[str, Any] | None = None,
 ) -> None:
     """Log performance metrics.
 
@@ -262,7 +262,7 @@ class PerformanceLogger:
 
 
 def log_function_call(
-    logger: Optional[structlog.BoundLogger] = None,
+    logger: structlog.BoundLogger | None = None,
     include_args: bool = False,
     include_result: bool = False,
 ) -> Callable[[Callable[..., Awaitable[T]]], Callable[..., Awaitable[T]]]:
@@ -332,7 +332,7 @@ class AuditLogger:
         )
     """
 
-    def __init__(self, logger: Optional[structlog.BoundLogger] = None):
+    def __init__(self, logger: structlog.BoundLogger | None = None):
         """Initialize audit logger.
 
         Args:
@@ -343,11 +343,11 @@ class AuditLogger:
     def log_action(
         self,
         action: str,
-        user_id: Optional[str] = None,
-        resource_type: Optional[str] = None,
-        resource_id: Optional[str] = None,
+        user_id: str | None = None,
+        resource_type: str | None = None,
+        resource_id: str | None = None,
         status: str = "success",
-        details: Optional[dict[str, Any]] = None,
+        details: dict[str, Any] | None = None,
     ) -> None:
         """Log audit event.
 
@@ -396,7 +396,7 @@ class ErrorTracker:
     def track_error(
         self,
         error: Exception,
-        context: Optional[dict[str, Any]] = None,
+        context: dict[str, Any] | None = None,
         severity: str = "error",
     ) -> None:
         """Track error occurrence.
@@ -449,7 +449,7 @@ class ErrorTracker:
 
 
 # Global error tracker instance
-_error_tracker: Optional[ErrorTracker] = None
+_error_tracker: ErrorTracker | None = None
 
 
 def get_error_tracker() -> ErrorTracker:
@@ -467,7 +467,7 @@ def set_request_id(request_id: str) -> None:
     structlog.contextvars.bind_contextvars(request_id=request_id)
 
 
-def get_request_id() -> Optional[str]:
+def get_request_id() -> str | None:
     """Get request ID from context."""
     return request_id_var.get()
 
@@ -478,7 +478,7 @@ def set_user_id(user_id: str) -> None:
     structlog.contextvars.bind_contextvars(user_id=user_id)
 
 
-def get_user_id() -> Optional[str]:
+def get_user_id() -> str | None:
     """Get user ID from context."""
     return user_id_var.get()
 
@@ -491,7 +491,7 @@ class RequestContext:
             await process_request()
     """
 
-    def __init__(self, request_id: str, user_id: Optional[str] = None):
+    def __init__(self, request_id: str, user_id: str | None = None):
         """Initialize request context.
 
         Args:
@@ -500,8 +500,8 @@ class RequestContext:
         """
         self.request_id = request_id
         self.user_id = user_id
-        self._old_request_id: Optional[str] = None
-        self._old_user_id: Optional[str] = None
+        self._old_request_id: str | None = None
+        self._old_user_id: str | None = None
 
     def __enter__(self) -> RequestContext:
         """Enter context."""

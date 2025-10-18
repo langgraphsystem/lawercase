@@ -20,13 +20,11 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.gzip import GZipMiddleware
 from fastapi.responses import JSONResponse
 
-from api.middleware_production import (
-    EnhancedRateLimitMiddleware,
-    ErrorHandlingMiddleware,
-    PerformanceMiddleware,
-    RequestIDMiddleware,
-    SecurityHeadersMiddleware,
-)
+from api.middleware_production import (EnhancedRateLimitMiddleware,
+                                       ErrorHandlingMiddleware,
+                                       PerformanceMiddleware,
+                                       RequestIDMiddleware,
+                                       SecurityHeadersMiddleware)
 from core.config.production_settings import get_settings
 from core.logging_utils import get_logger, setup_logging
 

@@ -478,7 +478,9 @@ def build_eb1a_complete_workflow(memory: MemoryManager):
     _ensure_langgraph()
 
     from ..groupagents.eb1a_evidence_analyzer import EB1AEvidenceAnalyzer
-    from ..groupagents.validator_agent import ValidationLevel, ValidationRequest, ValidatorAgent
+    from ..groupagents.validator_agent import (ValidationLevel,
+                                               ValidationRequest,
+                                               ValidatorAgent)
     from ..workflows.eb1a.eb1a_coordinator import EB1ACriterion
 
     analyzer = EB1AEvidenceAnalyzer(memory_manager=memory)
@@ -832,10 +834,10 @@ def build_eb1a_complete_workflow(memory: MemoryManager):
         decision = state.agent_results.get("eligibility", {}).get("decision", "insufficient")
         if decision == "proceed":
             return "gather_evidence"
-        elif decision == "insufficient":
+        if decision == "insufficient":
             return "finalize"  # End workflow
-        else:  # need_more_info
-            return "finalize"
+        # need_more_info
+        return "finalize"
 
     def route_after_strength(state: WorkflowState) -> str:
         decision = state.agent_results.get("readiness_decision", "not_ready")
@@ -856,10 +858,10 @@ def build_eb1a_complete_workflow(memory: MemoryManager):
         decision = state.agent_results.get("human_decision", "pending")
         if decision == "approve":
             return "finalize"
-        elif decision == "revise":
+        if decision == "revise":
             return "identify_gaps"  # Loop back
-        else:  # reject or pending
-            return "finalize"
+        # reject or pending
+        return "finalize"
 
     # === BUILD GRAPH ===
     graph.add_node("validate_eligibility", node_validate_eligibility)

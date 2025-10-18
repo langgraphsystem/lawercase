@@ -11,21 +11,17 @@ from __future__ import annotations
 
 import secrets
 from datetime import datetime, timedelta
-from typing import Annotated, Optional
+from typing import Annotated
 
 import jwt
-from fastapi import Depends, Header, HTTPException, Security, status
-from fastapi.security import APIKeyHeader, HTTPAuthorizationCredentials, HTTPBearer
+from fastapi import Depends, HTTPException, status
+from fastapi.security import (APIKeyHeader, HTTPAuthorizationCredentials,
+                              HTTPBearer)
 from passlib.context import CryptContext
 from pydantic import BaseModel
 
 from core.config.production_settings import AppSettings, get_settings
-from core.exceptions import (
-    AuthenticationError,
-    InvalidTokenError,
-    PermissionDeniedError,
-    TokenExpiredError,
-)
+from core.exceptions import InvalidTokenError, TokenExpiredError
 
 # Password hashing
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
@@ -63,7 +59,7 @@ class TokenResponse(BaseModel):
     """Token response model."""
 
     access_token: str
-    refresh_token: Optional[str] = None
+    refresh_token: str | None = None
     token_type: str = "bearer"
     expires_in: int
 
@@ -92,7 +88,7 @@ def create_access_token(
     user_id: str,
     email: str,
     role: str = "user",
-    settings: Optional[AppSettings] = None,
+    settings: AppSettings | None = None,
 ) -> str:
     """Create JWT access token.
 
@@ -108,9 +104,7 @@ def create_access_token(
     if settings is None:
         settings = get_settings()
 
-    expire = datetime.utcnow() + timedelta(
-        minutes=settings.security.jwt_expiration_minutes
-    )
+    expire = datetime.utcnow() + timedelta(minutes=settings.security.jwt_expiration_minutes)
 
     payload = {
         "user_id": user_id,
@@ -129,9 +123,7 @@ def create_access_token(
     return token
 
 
-def create_refresh_token(
-    user_id: str, settings: Optional[AppSettings] = None
-) -> str:
+def create_refresh_token(user_id: str, settings: AppSettings | None = None) -> str:
     """Create JWT refresh token.
 
     Args:
@@ -144,9 +136,7 @@ def create_refresh_token(
     if settings is None:
         settings = get_settings()
 
-    expire = datetime.utcnow() + timedelta(
-        days=settings.security.jwt_refresh_expiration_days
-    )
+    expire = datetime.utcnow() + timedelta(days=settings.security.jwt_refresh_expiration_days)
 
     payload = {
         "user_id": user_id,
@@ -163,7 +153,7 @@ def create_refresh_token(
     return token
 
 
-def verify_token(token: str, settings: Optional[AppSettings] = None) -> TokenData:
+def verify_token(token: str, settings: AppSettings | None = None) -> TokenData:
     """Verify and decode JWT token.
 
     Args:
@@ -200,7 +190,7 @@ def verify_token(token: str, settings: Optional[AppSettings] = None) -> TokenDat
     except jwt.ExpiredSignatureError:
         raise TokenExpiredError("Token has expired")
     except jwt.InvalidTokenError as e:
-        raise InvalidTokenError(f"Invalid token: {str(e)}")
+        raise InvalidTokenError(f"Invalid token: {e!s}")
 
 
 # ============================================================================
@@ -208,7 +198,7 @@ def verify_token(token: str, settings: Optional[AppSettings] = None) -> TokenDat
 # ============================================================================
 
 
-def generate_api_key(settings: Optional[AppSettings] = None) -> str:
+def generate_api_key(settings: AppSettings | None = None) -> str:
     """Generate new API key.
 
     Args:
@@ -254,9 +244,7 @@ def verify_api_key(api_key: str) -> bool:
 
 
 async def get_current_user_from_token(
-    credentials: Annotated[
-        Optional[HTTPAuthorizationCredentials], Depends(bearer_scheme)
-    ] = None,
+    credentials: Annotated[HTTPAuthorizationCredentials | None, Depends(bearer_scheme)] = None,
     settings: Annotated[AppSettings, Depends(get_settings)] = None,
 ) -> User:
     """Get current user from JWT token.
@@ -305,7 +293,7 @@ async def get_current_user_from_token(
 
 
 async def get_current_user_from_api_key(
-    api_key: Annotated[Optional[str], Depends(api_key_scheme)] = None,
+    api_key: Annotated[str | None, Depends(api_key_scheme)] = None,
 ) -> User:
     """Get current user from API key.
 
@@ -342,10 +330,8 @@ async def get_current_user_from_api_key(
 
 
 async def get_current_user(
-    token_user: Annotated[Optional[User], Depends(get_current_user_from_token)] = None,
-    api_key_user: Annotated[
-        Optional[User], Depends(get_current_user_from_api_key)
-    ] = None,
+    token_user: Annotated[User | None, Depends(get_current_user_from_token)] = None,
+    api_key_user: Annotated[User | None, Depends(get_current_user_from_api_key)] = None,
     settings: Annotated[AppSettings, Depends(get_settings)] = None,
 ) -> User:
     """Get current user from either JWT token or API key.
@@ -441,11 +427,9 @@ require_user = RoleChecker(["admin", "service", "user"])
 
 
 async def get_optional_user(
-    credentials: Annotated[
-        Optional[HTTPAuthorizationCredentials], Depends(bearer_scheme)
-    ] = None,
-    api_key: Annotated[Optional[str], Depends(api_key_scheme)] = None,
-) -> Optional[User]:
+    credentials: Annotated[HTTPAuthorizationCredentials | None, Depends(bearer_scheme)] = None,
+    api_key: Annotated[str | None, Depends(api_key_scheme)] = None,
+) -> User | None:
     """Get user if authenticated, None otherwise.
 
     Useful for endpoints that have different behavior for authenticated users.
