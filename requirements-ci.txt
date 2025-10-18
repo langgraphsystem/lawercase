@@ -45,3 +45,12 @@ freezegun>=1.5.0,<1.6.0
 
 # Minimal observability
 structlog>=24.4.0,<24.5.0
+
+# Security & Authentication (for API tests)
+python-jose[cryptography]>=3.3.0,<4.0.0
+
+# Optional: Telegram bot (for telegram tests)
+# python-telegram-bot>=21.4,<22.0.0  # Commented out - heavy dependency
+
+# Optional: SpaCy (for NLP tests)
+# spacy>=3.7.2,<4.0.0  # Commented out - very heavy dependency (~100MB)
