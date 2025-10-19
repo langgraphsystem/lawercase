@@ -174,6 +174,7 @@ async def test_dev_memory_in_memory():
     # Check that stores are in-memory (OrderedDict with LRU/TTL)
     assert hasattr(memory.semantic, "_items"), "Should be in-memory store"
     from collections import OrderedDict
+
     assert isinstance(memory.semantic._items, OrderedDict), "Should use OrderedDict for LRU"
 
     # Test basic operations
