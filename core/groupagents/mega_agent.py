@@ -31,8 +31,14 @@ from ..orchestration.pipeline_manager import (build_enhanced_pipeline,
                                               build_pipeline)
 from ..orchestration.pipeline_manager import run as run_pipeline
 from ..orchestration.workflow_graph import WorkflowState, build_case_workflow
-from ..security import (PromptInjectionResult, get_audit_trail,
-                        get_prompt_detector, get_rbac_manager, security_config)
+from ..retry import with_retry
+from ..security import (
+    PromptInjectionResult,
+    get_audit_trail,
+    get_prompt_detector,
+    get_rbac_manager,
+    security_config,
+)
 from ..tools.tool_registry import get_tool_registry
 from .case_agent import CaseAgent
 from .eb1_agent import EB1Agent
@@ -682,12 +688,7 @@ class MegaAgent:
 
         raise CommandError(f"Unknown validate action: {command.action}")
 
-    @retry(
-        retry=retry_if_exception_type(Exception),
-        wait=wait_exponential(multiplier=0.2, min=0.2, max=2.0),
-        stop=stop_after_attempt(3),
-        reraise=True,
-    )
+    @with_retry(max_attempts=3, exceptions=(Exception,), wait_min=0.2, wait_max=2.0)
     async def _handle_tool_command(
         self, command: MegaAgentCommand, user_role: UserRole
     ) -> dict[str, Any]:
