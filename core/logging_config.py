@@ -21,23 +21,14 @@ from typing import Any
 
 # Import comprehensive logging utilities (optional)
 try:
-    from core.logging_utils import (
-        AuditLogger,
-        ErrorTracker,
-        LogContext,
-        PerformanceLogger,
-        RequestContext,
-        get_error_tracker,
-        get_logger as get_structlog_logger,
-        get_request_id,
-        get_user_id,
-        log_error,
-        log_function_call,
-        log_performance,
-        set_request_id,
-        set_user_id,
-        setup_logging as setup_comprehensive_logging,
-    )
+    from core.logging_utils import (AuditLogger, ErrorTracker, LogContext,
+                                    PerformanceLogger, RequestContext,
+                                    get_error_tracker)
+    from core.logging_utils import get_logger as get_structlog_logger
+    from core.logging_utils import (get_request_id, get_user_id, log_error,
+                                    log_function_call, log_performance,
+                                    set_request_id, set_user_id)
+    from core.logging_utils import setup_logging as setup_comprehensive_logging
 
     COMPREHENSIVE_LOGGING_AVAILABLE = True
 except ImportError:
