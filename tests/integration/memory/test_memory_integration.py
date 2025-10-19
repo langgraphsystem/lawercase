@@ -171,9 +171,10 @@ async def test_dev_memory_in_memory():
     """Test that dev memory uses in-memory stores."""
     memory = create_dev_memory_manager()
 
-    # Check that stores are in-memory
+    # Check that stores are in-memory (OrderedDict with LRU/TTL)
     assert hasattr(memory.semantic, "_items"), "Should be in-memory store"
-    assert isinstance(memory.semantic._items, list)
+    from collections import OrderedDict
+    assert isinstance(memory.semantic._items, OrderedDict), "Should use OrderedDict for LRU"
 
     # Test basic operations
     record = MemoryRecord(user_id="test", text="test memory", type="semantic", source="test")
