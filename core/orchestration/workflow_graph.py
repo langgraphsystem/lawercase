@@ -3,7 +3,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Any
 from uuid import uuid4
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 from ..memory.models import AuditEvent, MemoryRecord
 from ..memory.rmt.buffer import compose_prompt
@@ -25,6 +25,8 @@ except ImportError:
 
 class WorkflowState(BaseModel):
     """State carried through LangGraph workflows (memory + case operations)."""
+
+    model_config = ConfigDict(use_enum_values=True)
 
     thread_id: str = Field(..., description="Conversation or workflow thread id")
     user_id: str | None = Field(default=None)
@@ -92,6 +94,12 @@ class WorkflowState(BaseModel):
 
     # Error handling
     error: str | None = None
+
+    def model_dump(self, *args, **kwargs):  # type: ignore[override]
+        """Serialize with JSON mode for consistent enum handling."""
+        if "mode" not in kwargs:
+            kwargs["mode"] = "json"
+        return super().model_dump(*args, **kwargs)
 
 
 def _ensure_langgraph() -> None:
@@ -478,9 +486,7 @@ def build_eb1a_complete_workflow(memory: MemoryManager):
     _ensure_langgraph()
 
     from ..groupagents.eb1a_evidence_analyzer import EB1AEvidenceAnalyzer
-    from ..groupagents.validator_agent import (ValidationLevel,
-                                               ValidationRequest,
-                                               ValidatorAgent)
+    from ..groupagents.validator_agent import ValidationLevel, ValidationRequest, ValidatorAgent
     from ..workflows.eb1a.eb1a_coordinator import EB1ACriterion
 
     analyzer = EB1AEvidenceAnalyzer(memory_manager=memory)
