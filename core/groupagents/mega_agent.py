@@ -18,8 +18,6 @@ from enum import Enum
 from typing import Any
 
 from pydantic import BaseModel, Field, ValidationError
-from tenacity import (retry, retry_if_exception_type, stop_after_attempt,
-                      wait_exponential)
 
 from ..exceptions import AgentError, MegaAgentError
 from ..execution.secure_sandbox import (SandboxPolicy, SandboxRunner,
@@ -32,13 +30,8 @@ from ..orchestration.pipeline_manager import (build_enhanced_pipeline,
 from ..orchestration.pipeline_manager import run as run_pipeline
 from ..orchestration.workflow_graph import WorkflowState, build_case_workflow
 from ..retry import with_retry
-from ..security import (
-    PromptInjectionResult,
-    get_audit_trail,
-    get_prompt_detector,
-    get_rbac_manager,
-    security_config,
-)
+from ..security import (PromptInjectionResult, get_audit_trail,
+                        get_prompt_detector, get_rbac_manager, security_config)
 from ..tools.tool_registry import get_tool_registry
 from .case_agent import CaseAgent
 from .eb1_agent import EB1Agent

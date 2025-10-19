@@ -19,26 +19,16 @@ Usage:
 
 from __future__ import annotations
 
+import logging
 from collections.abc import Callable
 from functools import wraps
-import logging
 from typing import TypeVar
 
-from tenacity import (
-    before_sleep_log,
-    retry,
-    retry_if_exception_type,
-    stop_after_attempt,
-    wait_exponential,
-)
+from tenacity import (before_sleep_log, retry, retry_if_exception_type,
+                      stop_after_attempt, wait_exponential)
 
-from core.exceptions import (
-    DatabaseError,
-    ExternalServiceError,
-    LLMError,
-    LLMRateLimitError,
-    LLMTimeoutError,
-)
+from core.exceptions import (DatabaseError, ExternalServiceError, LLMError,
+                             LLMRateLimitError, LLMTimeoutError)
 
 logger = logging.getLogger(__name__)
 
@@ -159,15 +149,9 @@ def with_database_retry(func: Callable[..., T]) -> Callable[..., T]:
 
 # Legacy compatibility - import from resilience.py if needed
 try:
-    from core.resilience import (
-        CircuitBreaker,
-        RateLimiter,
-        RetryConfig,
-        Timeout,
-        get_database_circuit_breaker,
-        get_llm_circuit_breaker,
-        retry_async,
-    )
+    from core.resilience import (CircuitBreaker, RateLimiter, RetryConfig,
+                                 Timeout, get_database_circuit_breaker,
+                                 get_llm_circuit_breaker, retry_async)
 
     __all__ = [
         # Simple decorators
@@ -185,7 +169,7 @@ try:
     ]
 except ImportError:
     __all__ = [
-        "with_retry",
-        "with_llm_retry",
         "with_database_retry",
+        "with_llm_retry",
+        "with_retry",
     ]
