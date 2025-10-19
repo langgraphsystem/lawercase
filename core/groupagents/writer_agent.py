@@ -14,12 +14,14 @@ WriterAgent - Генерация документов и писем.
 
 from __future__ import annotations
 
-import json
-import uuid
 from datetime import datetime
 from enum import Enum
+import html
+import json
 from pathlib import Path
+from string import Template
 from typing import Any
+import uuid
 
 from pydantic import BaseModel, Field, ValidationError, field_validator
 
@@ -941,15 +943,26 @@ class WriterAgent:
     async def _generate_content(
         self, request: DocumentRequest, template: DocumentTemplate, user_id: str
     ) -> str:
-        """Генерация содержимого документа"""
+        """Генерация содержимого документа с безопасной обработкой переменных"""
 
-        # Замена переменных в шаблоне
-        content = template.template_content
-
-        # Обработка переменных
+        # Безопасная замена переменных через string.Template
+        # Используем $ вместо {} для совместимости с Template
+        safe_template_content = template.template_content
         for var in template.variables:
-            value = request.content_data.get(var, f"[{var}]")
-            content = content.replace(f"{{{var}}}", str(value))
+            safe_template_content = safe_template_content.replace(f"{{{var}}}", f"${var}")
+
+        safe_template = Template(safe_template_content)
+
+        # Sanitize all values to prevent injection attacks
+        safe_values = {
+            var: html.escape(str(request.content_data.get(var, f"[{var}]")))
+            for var in template.variables
+        }
+
+        try:
+            content = safe_template.safe_substitute(**safe_values)
+        except (KeyError, ValueError) as e:
+            raise WriterError(f"Template rendering failed: {e}") from e
 
         # Применение стиля тона
         content = await self._apply_tone_style(content, request.tone, request.language)
