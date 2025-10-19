@@ -11,13 +11,20 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Any
 
-from ..exceptions import AgentError, NotFoundError
-from ..exceptions import ValidationError as MegaValidationError
+from ..exceptions import AgentError, NotFoundError, ValidationError as MegaValidationError
+from ..logging_config import StructuredLogger
 from ..memory.memory_manager import MemoryManager
 from ..memory.models import AuditEvent, MemoryRecord
-from .models import (CaseExhibit, CaseOperationResult, CaseQuery, CaseRecord,
-                     CaseStatus, CaseVersion, CaseWorkflowState,
-                     ValidationResult)
+from .models import (
+    CaseExhibit,
+    CaseOperationResult,
+    CaseQuery,
+    CaseRecord,
+    CaseStatus,
+    CaseVersion,
+    CaseWorkflowState,
+    ValidationResult,
+)
 
 
 class CaseNotFoundError(NotFoundError):
@@ -86,6 +93,7 @@ class CaseAgent:
         Args:
             memory_manager: Экземпляр MemoryManager для persistence
         """
+        self.logger = StructuredLogger("core.groupagents.case_agent")
         self.memory = memory_manager or MemoryManager()
         self._cases_store: dict[str, CaseRecord] = {}
         self._versions_store: dict[str, list[CaseVersion]] = {}
@@ -109,6 +117,13 @@ class CaseAgent:
         Raises:
             CaseValidationError: При ошибках валидации
         """
+        self.logger.info(
+            "Creating case",
+            user_id=user_id,
+            case_type=case_data.get("case_type"),
+            created_by=created_by or user_id,
+        )
+
         try:
             # Создание записи дела
             case_data["created_by"] = created_by or user_id
@@ -146,6 +161,13 @@ class CaseAgent:
 
             # Сохранение в семантическую память
             await self._store_case_memory(case_record, user_id)
+
+            self.logger.info(
+                "Case created successfully",
+                user_id=user_id,
+                case_id=case_record.case_id,
+                case_type=case_record.case_type,
+            )
 
             return case_record
 
