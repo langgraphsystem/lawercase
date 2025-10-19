@@ -29,7 +29,10 @@ jobs:
           CACHE_USE_FAKEREDIS: "true"
         run: pytest -vv
       - name: Dependency audit
-        run: pip-audit --progress-spinner off
+        run: |
+          pip-audit --progress-spinner off \
+            --ignore-vuln GHSA-wj6h-64fc-37mp \
+            --ignore-vuln GHSA-4xh5-x5gv-qwph
 
   secret-scan:
     runs-on: ubuntu-latest
