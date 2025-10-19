@@ -11,23 +11,69 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Any
 
+from ..exceptions import (
+    AgentError,
+    NotFoundError,
+    ValidationError as MegaValidationError,
+)
 from ..memory.memory_manager import MemoryManager
 from ..memory.models import AuditEvent, MemoryRecord
-from .models import (CaseExhibit, CaseOperationResult, CaseQuery, CaseRecord,
-                     CaseStatus, CaseVersion, CaseWorkflowState,
-                     ValidationResult)
+from .models import (
+    CaseExhibit,
+    CaseOperationResult,
+    CaseQuery,
+    CaseRecord,
+    CaseStatus,
+    CaseVersion,
+    CaseWorkflowState,
+    ValidationResult,
+)
 
 
-class CaseNotFoundError(Exception):
-    """Исключение для случаев, когда дело не найдено"""
+class CaseNotFoundError(NotFoundError):
+    """Case not found error."""
+
+    def __init__(self, case_id: str, **kwargs):
+        super().__init__(
+            message=f"Case with ID {case_id} not found",
+            resource_type="Case",
+            resource_id=case_id,
+            **kwargs,
+        )
 
 
-class CaseValidationError(Exception):
-    """Исключение для ошибок валидации дела"""
+class CaseValidationError(MegaValidationError):
+    """Case validation error."""
+
+    def __init__(self, message: str, errors: list[str] | None = None, **kwargs):
+        details = kwargs.pop("details", {})
+        if errors:
+            details["validation_errors"] = errors
+        super().__init__(message=message, details=details, **kwargs)
 
 
-class CaseVersionConflictError(Exception):
-    """Исключение для конфликтов версий дела"""
+class CaseVersionConflictError(AgentError):
+    """Case version conflict error."""
+
+    def __init__(
+        self,
+        case_id: str,
+        expected_version: int,
+        current_version: int,
+        **kwargs,
+    ):
+        super().__init__(
+            message=f"Version conflict for case {case_id}: expected {expected_version}, current {current_version}",
+            agent_name="CaseAgent",
+            details={
+                "case_id": case_id,
+                "expected_version": expected_version,
+                "current_version": current_version,
+            },
+            user_message="The case has been modified by someone else. Please refresh and try again.",
+            recoverable=True,
+            **kwargs,
+        )
 
 
 class CaseAgent:
@@ -81,7 +127,11 @@ class CaseAgent:
             # Валидация
             validation = await self._validate_case_data(case_record)
             if not validation.is_valid:
-                raise CaseValidationError(f"Validation failed: {validation.errors}")
+                raise CaseValidationError(
+                    message="Case validation failed",
+                    errors=validation.errors,
+                    details={"user_id": user_id, "case_data": case_data},
+                )
 
             # Сохранение в локальное хранилище
             self._cases_store[case_record.case_id] = case_record
@@ -109,6 +159,8 @@ class CaseAgent:
 
             return case_record
 
+        except (CaseValidationError, AgentError):
+            raise  # Re-raise known errors
         except Exception as e:
             await self._log_audit_event(
                 user_id=user_id,
@@ -116,7 +168,12 @@ class CaseAgent:
                 case_id=None,
                 payload={"error": str(e), "case_data": case_data},
             )
-            raise
+            raise AgentError(
+                message=f"Failed to create case: {e!s}",
+                agent_name="CaseAgent",
+                details={"user_id": user_id, "error_type": type(e).__name__},
+                cause=e,
+            ) from e
 
     async def aget_case(self, case_id: str, user_id: str | None = None) -> CaseRecord:
         """
@@ -140,7 +197,7 @@ class CaseAgent:
                     case_id=case_id,
                     payload={"error": "Case not found"},
                 )
-            raise CaseNotFoundError(f"Case with ID {case_id} not found")
+            raise CaseNotFoundError(case_id=case_id)
 
         case_record = self._cases_store[case_id]
 
@@ -184,7 +241,9 @@ class CaseAgent:
         # Проверка версии для optimistic locking
         if expected_version is not None and current_case.version != expected_version:
             raise CaseVersionConflictError(
-                f"Version conflict: expected {expected_version}, current {current_case.version}"
+                case_id=case_id,
+                expected_version=expected_version,
+                current_version=current_case.version,
             )
 
         # Создание обновленной копии

@@ -11,34 +11,57 @@ MegaAgent - Центральный оркестратор системы mega_ag
 
 from __future__ import annotations
 
-import time
-import uuid
 from datetime import datetime
 from enum import Enum
+import time
 from typing import Any
+import uuid
 
 from pydantic import BaseModel, Field, ValidationError
-from tenacity import (retry, retry_if_exception_type, stop_after_attempt,
-                      wait_exponential)
+from tenacity import retry, retry_if_exception_type, stop_after_attempt, wait_exponential
 
-from ..execution.secure_sandbox import (SandboxPolicy, SandboxRunner,
-                                        SandboxViolation, ensure_tool_allowed)
+from ..exceptions import (
+    AgentError,
+    MegaAgentError,
+)
+from ..execution.secure_sandbox import (
+    SandboxPolicy,
+    SandboxRunner,
+    SandboxViolation,
+    ensure_tool_allowed,
+)
 from ..memory.memory_manager import MemoryManager
 from ..memory.models import AuditEvent
 from ..orchestration.enhanced_workflows import EnhancedWorkflowState
-from ..orchestration.pipeline_manager import (build_enhanced_pipeline,
-                                              build_pipeline)
-from ..orchestration.pipeline_manager import run as run_pipeline
+from ..orchestration.pipeline_manager import (
+    build_enhanced_pipeline,
+    build_pipeline,
+    run as run_pipeline,
+)
 from ..orchestration.workflow_graph import WorkflowState, build_case_workflow
-from ..security import (PromptInjectionResult, get_audit_trail,
-                        get_prompt_detector, get_rbac_manager, security_config)
+from ..security import (
+    PromptInjectionResult,
+    get_audit_trail,
+    get_prompt_detector,
+    get_rbac_manager,
+    security_config,
+)
 from ..tools.tool_registry import get_tool_registry
 from .case_agent import CaseAgent
 from .eb1_agent import EB1Agent
-from .models import (AskPayload, BatchTrainPayload, FeedbackPayload,
-                     ImprovePayload, LegalPayload, MemoryLookupPayload,
-                     OptimizePayload, RecommendPayload, SearchPayload,
-                     ToolCommandPayload, TrainPayload)
+from .models import (
+    AskPayload,
+    BatchTrainPayload,
+    FeedbackPayload,
+    ImprovePayload,
+    LegalPayload,
+    MemoryLookupPayload,
+    OptimizePayload,
+    RecommendPayload,
+    SearchPayload,
+    ToolCommandPayload,
+    TrainPayload,
+)
 from .validator_agent import ValidationRequest, ValidatorAgent
 from .writer_agent import DocumentRequest, DocumentType, WriterAgent
 
@@ -107,12 +130,35 @@ class MegaAgentResponse(BaseModel):
     timestamp: datetime = Field(default_factory=datetime.utcnow)
 
 
-class SecurityError(Exception):
-    """Исключение для ошибок безопасности"""
+class SecurityError(MegaAgentError):
+    """Security error in MegaAgent."""
+
+    def __init__(self, message: str, **kwargs):
+        from ..exceptions import ErrorCategory, ErrorCode
+
+        super().__init__(
+            message=message,
+            code=ErrorCode.PERMISSION_DENIED,
+            category=ErrorCategory.AUTHENTICATION,
+            user_message="Access denied due to security policy.",
+            **kwargs,
+        )
 
 
-class CommandError(Exception):
-    """Исключение для ошибок команд"""
+class CommandError(AgentError):
+    """Command execution error."""
+
+    def __init__(self, message: str, command_type: str | None = None, **kwargs):
+        details = kwargs.pop("details", {})
+        if command_type:
+            details["command_type"] = command_type
+        super().__init__(
+            message=message,
+            agent_name="MegaAgent",
+            details=details,
+            user_message="Command execution failed. Please try again.",
+            **kwargs,
+        )
 
 
 class MegaAgent:

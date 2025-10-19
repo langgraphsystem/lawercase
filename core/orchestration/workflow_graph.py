@@ -104,8 +104,9 @@ class WorkflowState(BaseModel):
 
 def _ensure_langgraph() -> None:
     if not LANGGRAPH_AVAILABLE:  # pragma: no cover - import-time guard
-        raise RuntimeError(
-            "LangGraph is required for workflow execution. Install with: pip install langgraph"
+        raise ConfigurationError(
+            "LangGraph is required for workflow execution. Install with: pip install langgraph",
+            details={"missing_package": "langgraph"},
         )
 
 
@@ -193,7 +194,7 @@ def build_case_workflow(memory: MemoryManager, *, case_agent: CaseAgent | None =
             elif operation == "get":
                 case_id = state.case_id or payload.get("case_id")
                 if not case_id:
-                    raise ValueError("case_id is required for get operation")
+                    raise ValidationError("case_id is required for get operation", field="case_id")
                 record = await agent.aget_case(case_id=case_id, user_id=state.user_id)
                 state.case_id = record.case_id
                 state.case_result = {"operation": "get", "case": record.model_dump()}
@@ -201,7 +202,9 @@ def build_case_workflow(memory: MemoryManager, *, case_agent: CaseAgent | None =
             elif operation == "update":
                 case_id = state.case_id or payload.get("case_id")
                 if not case_id:
-                    raise ValueError("case_id is required for update operation")
+                    raise ValidationError(
+                        "case_id is required for update operation", field="case_id"
+                    )
                 updates_payload = payload.get("updates")
                 if updates_payload is None:
                     updates = {k: v for k, v in payload.items() if k != "case_id"}
@@ -216,7 +219,9 @@ def build_case_workflow(memory: MemoryManager, *, case_agent: CaseAgent | None =
             elif operation == "delete":
                 case_id = state.case_id or payload.get("case_id")
                 if not case_id:
-                    raise ValueError("case_id is required for delete operation")
+                    raise ValidationError(
+                        "case_id is required for delete operation", field="case_id"
+                    )
                 result = await agent.adelete_case(case_id=case_id, user_id=state.user_id)
                 state.case_result = {"operation": "delete", "result": result.model_dump()}
 
@@ -235,13 +240,17 @@ def build_case_workflow(memory: MemoryManager, *, case_agent: CaseAgent | None =
             elif operation == "start_workflow":
                 case_id = state.case_id or payload.get("case_id")
                 if not case_id:
-                    raise ValueError("case_id is required for start_workflow operation")
+                    raise ValidationError(
+                        "case_id is required for start_workflow operation", field="case_id"
+                    )
                 result = await agent.astart_workflow(case_id=case_id, user_id=state.user_id)
                 state.case_id = case_id
                 state.case_result = {"operation": "start_workflow", "workflow": result}
 
             else:
-                raise ValueError(f"Unsupported case operation: {operation}")
+                raise WorkflowError(
+                    f"Unsupported case operation: {operation}", workflow_name="case_workflow"
+                )
 
             state.agent_results["case_agent"] = state.case_result
 
@@ -452,8 +461,10 @@ try:
 except ImportError:
     # Fallback if legal_workflow module is not available
     def build_legal_document_workflow(*_args, **_kwargs):
-        raise NotImplementedError(
-            "Legal document workflow not available - missing legal_workflow module"
+        raise WorkflowError(
+            "Legal document workflow not available - missing legal_workflow module",
+            workflow_name="legal_document",
+            details={"reason": "missing_module"},
         )
 
 
@@ -486,9 +497,7 @@ def build_eb1a_complete_workflow(memory: MemoryManager):
     _ensure_langgraph()
 
     from ..groupagents.eb1a_evidence_analyzer import EB1AEvidenceAnalyzer
-    from ..groupagents.validator_agent import (ValidationLevel,
-                                               ValidationRequest,
-                                               ValidatorAgent)
+    from ..groupagents.validator_agent import ValidationLevel, ValidationRequest, ValidatorAgent
     from ..workflows.eb1a.eb1a_coordinator import EB1ACriterion
 
     analyzer = EB1AEvidenceAnalyzer(memory_manager=memory)

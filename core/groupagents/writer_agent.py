@@ -14,17 +14,21 @@ WriterAgent - Генерация документов и писем.
 
 from __future__ import annotations
 
-import html
-import json
-import uuid
 from datetime import datetime
 from enum import Enum
+import html
+import json
 from pathlib import Path
 from string import Template
 from typing import Any
+import uuid
 
 from pydantic import BaseModel, Field, ValidationError, field_validator
 
+from ..exceptions import (
+    AgentError,
+    DocumentGenerationError,
+)
 from ..memory.memory_manager import MemoryManager
 from ..memory.models import AuditEvent
 
@@ -214,12 +218,27 @@ class GeneratedSection(_WriterBaseModel):
     generated_at: datetime = Field(default_factory=datetime.utcnow)
 
 
-class WriterError(Exception):
-    """Исключение для ошибок WriterAgent"""
+class WriterError(DocumentGenerationError):
+    """Writer agent error."""
+
+    def __init__(self, message: str, **kwargs):
+        super().__init__(message=message, **kwargs)
 
 
-class TemplateError(Exception):
-    """Исключение для ошибок шаблонов"""
+class TemplateError(AgentError):
+    """Template processing error."""
+
+    def __init__(self, message: str, template_id: str | None = None, **kwargs):
+        details = kwargs.pop("details", {})
+        if template_id:
+            details["template_id"] = template_id
+        super().__init__(
+            message=message,
+            agent_name="WriterAgent",
+            details=details,
+            user_message="Template processing failed. Please check your template.",
+            **kwargs,
+        )
 
 
 # === Few-Shot Learning Libraries ===
