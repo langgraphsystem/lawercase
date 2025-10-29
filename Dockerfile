@@ -58,22 +58,26 @@ ENV PATH="/opt/venv/bin:$PATH" \
 # Copy application code
 COPY --from=builder /app /app
 
+# Copy start script
+COPY start_api.sh /app/start_api.sh
+
 # Create app user and directories
 RUN useradd --create-home --shell /bin/bash appuser \
     && mkdir -p /app/logs /app/tmp /app/out /app/data \
+    && chmod +x /app/start_api.sh \
     && chown -R appuser:appuser /app
 
 USER appuser
 
-# Expose API port
+# Expose API port (Railway will override with $PORT)
 EXPOSE 8000
 
-# Health check for API
+# Health check for API (Railway uses healthcheckPath instead)
 HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
-    CMD curl -f http://localhost:8000/health || exit 1
+    CMD curl -f http://localhost:${PORT:-8000}/health || exit 1
 
-# Run API server with uvicorn
-CMD ["uvicorn", "api.main_production:app", "--host", "0.0.0.0", "--port", "8000", "--workers", "4", "--log-level", "info"]
+# Run API server with dynamic port support
+CMD ["/bin/bash", "/app/start_api.sh"]
 
 
 # ============================================================================

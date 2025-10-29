@@ -1,0 +1,121 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyc
+*$py.class
+*.so
+.Python
+*.egg-info/
+dist/
+build/
+*.egg
+.pytest_cache/
+.coverage
+htmlcov/
+.tox/
+.hypothesis/
+
+# Virtual environments
+.venv/
+venv/
+ENV/
+env/
+
+# IDEs
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Git
+.git/
+.gitignore
+.gitattributes
+
+# Documentation
+*.md
+docs/
+ADVANCED_FEATURES_COMPLETE.md
+ANALYSIS_REPORT_*.md
+BOT_*.md
+DEPLOYMENT_GUIDE.md
+DOCUMENT_MONITOR_*.md
+FIX_*.md
+GPT5_*.md
+IMPLEMENTATION_*.md
+INTEGRATION_*.md
+PRODUCTION_*.md
+PROJECT_*.md
+QUICK_START*.md
+README*.md
+REDIS_*.md
+SECURITY_*.md
+TELEGRAM_*.md
+
+# Tests
+tests/
+test_*.py
+*_test.py
+pytest.ini
+.pytest_cache/
+benchmarks/
+
+# Examples
+examples/
+
+# Development files
+.env
+.env.local
+.env.development
+.env.test
+*.log
+logs/
+*.pid
+bot.pid
+bot_output.log
+
+# Temporary files
+tmp/
+temp/
+out/
+data/
+*.tmp
+*.bak
+*.swp
+nul
+
+# Dependencies (will be installed in Docker)
+deps/rssnews/
+
+# Docker
+docker-compose.dev.yml
+Dockerfile.dev
+
+# CI/CD
+.github/
+.gitlab-ci.yml
+.travis.yml
+
+# Kubernetes (not needed in image)
+k8s/
+deployment/
+
+# Scripts
+start_bot*.py
+restart_bot.py
+test_*.py
+send_test_message.py
+simple_bot_test.py
+start_document_monitor.bat
+start_document_monitor.sh
+smoke_test.py
+
+# Nginx
+nginx/
+
+# Other
+*.sqlite
+*.db
+.coverage.*

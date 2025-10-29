@@ -100,7 +100,8 @@
       "Bash(pkill:*)",
       "Bash(timeout 20 python:*)",
       "Bash(SKIP=ruff,bandit git commit:*)",
-      "Bash(tasklist:*)"
+      "Bash(tasklist:*)",
+      "Bash(docker --version:*)"
     ],
     "deny": [],
     "ask": []
