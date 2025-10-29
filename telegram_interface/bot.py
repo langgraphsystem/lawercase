@@ -2,11 +2,10 @@
 
 from __future__ import annotations
 
-import asyncio
-
 import structlog
-import typer
+from telegram import Update
 from telegram.ext import Application, ApplicationBuilder, Defaults
+import typer
 
 from config.logging import setup_logging
 from config.settings import get_settings
@@ -18,7 +17,8 @@ logger = structlog.get_logger(__name__)
 cli = typer.Typer(help="Run the MegaAgent Telegram bot.")
 
 
-async def run_bot(*, poll_interval: float = 0.0) -> None:
+def run_bot(*, poll_interval: float = 0.0) -> None:
+    """Run the Telegram bot using synchronous entry point."""
     settings = get_settings()
     setup_logging(settings.log_level)
     if not settings.telegram_bot_token:
@@ -38,15 +38,8 @@ async def run_bot(*, poll_interval: float = 0.0) -> None:
     register_handlers(application, mega_agent=mega_agent, settings=settings)
 
     logger.info("telegram.bot.starting")
-    await application.initialize()
-    await application.start()
-    await application.start_polling(poll_interval=poll_interval)
-    try:
-        await application.wait_until_closed()
-    finally:
-        await application.stop()
-        await application.shutdown()
-        logger.info("telegram.bot.stopped")
+    # Use run_polling which handles event loop, initialization, start, and cleanup
+    application.run_polling(poll_interval=poll_interval, allowed_updates=Update.ALL_TYPES)
 
 
 @cli.command()
@@ -55,7 +48,7 @@ def main(
 ) -> None:
     """CLI entrypoint for running the Telegram bot."""
     try:
-        asyncio.run(run_bot(poll_interval=poll_interval))
+        run_bot(poll_interval=poll_interval)
     except KeyboardInterrupt:  # pragma: no cover - CLI shutdown
         logger.info("telegram.bot.interrupted")
     except Exception as exc:
