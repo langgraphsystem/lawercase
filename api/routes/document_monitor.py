@@ -32,6 +32,9 @@ router = APIRouter(prefix="/api", tags=["document-monitor"])
 # Get workflow store instance
 workflow_store = get_document_workflow_store()
 
+# Store background tasks to prevent garbage collection
+background_tasks: set[asyncio.Task] = set()
+
 
 # ═══════════════════════════════════════════════════════════════════════════
 # SCHEMAS
@@ -180,7 +183,9 @@ async def start_document_generation(
         await workflow_store.save_state(thread_id, initial_state)
 
         # Start background document generation workflow
-        _task = asyncio.create_task(_run_document_generation_workflow(thread_id, request))
+        task = asyncio.create_task(_run_document_generation_workflow(thread_id, request))
+        background_tasks.add(task)
+        task.add_done_callback(background_tasks.discard)
 
         logger.info(
             "document_generation_started",
@@ -574,9 +579,11 @@ async def resume_generation(
             document_type=state.get("document_type", "petition"),
             user_id=state.get("user_id", ""),
         )
-        _task = asyncio.create_task(
+        task = asyncio.create_task(
             _run_document_generation_workflow(thread_id, request_data, resume=True)
         )
+        background_tasks.add(task)
+        task.add_done_callback(background_tasks.discard)
 
         logger.info("workflow_resumed", thread_id=thread_id)
 
