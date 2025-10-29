@@ -70,6 +70,11 @@ async def ask_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
     response = await bot_context.mega_agent.handle_command(command, user_role=UserRole.LAWYER)
     if response.success and response.result:
         result = response.result
+        llm_answer = result.get("llm_response")
+        if llm_answer:
+            await message.reply_text(llm_answer)
+            return
+        # Fallback: show prompt analysis and retrieved memory summary
         retrieved = result.get("retrieved", [])
         text = result.get("prompt_analysis", {}).get("issues") or "✅ Query processed."
         if retrieved:

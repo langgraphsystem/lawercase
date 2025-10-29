@@ -11,34 +11,54 @@ MegaAgent - Центральный оркестратор системы mega_ag
 
 from __future__ import annotations
 
-import time
-import uuid
 from datetime import datetime
 from enum import Enum
+import time
 from typing import Any
+import uuid
 
 from pydantic import BaseModel, Field, ValidationError
 
 from ..exceptions import AgentError, MegaAgentError
-from ..execution.secure_sandbox import (SandboxPolicy, SandboxRunner,
-                                        SandboxViolation, ensure_tool_allowed)
+from ..execution.secure_sandbox import (
+    SandboxPolicy,
+    SandboxRunner,
+    SandboxViolation,
+    ensure_tool_allowed,
+)
 from ..memory.memory_manager import MemoryManager
 from ..memory.models import AuditEvent
 from ..orchestration.enhanced_workflows import EnhancedWorkflowState
-from ..orchestration.pipeline_manager import (build_enhanced_pipeline,
-                                              build_pipeline)
-from ..orchestration.pipeline_manager import run as run_pipeline
+from ..orchestration.pipeline_manager import (
+    build_enhanced_pipeline,
+    build_pipeline,
+    run as run_pipeline,
+)
 from ..orchestration.workflow_graph import WorkflowState, build_case_workflow
 from ..retry import with_retry
-from ..security import (PromptInjectionResult, get_audit_trail,
-                        get_prompt_detector, get_rbac_manager, security_config)
+from ..security import (
+    PromptInjectionResult,
+    get_audit_trail,
+    get_prompt_detector,
+    get_rbac_manager,
+    security_config,
+)
 from ..tools.tool_registry import get_tool_registry
 from .case_agent import CaseAgent
 from .eb1_agent import EB1Agent
-from .models import (AskPayload, BatchTrainPayload, FeedbackPayload,
-                     ImprovePayload, LegalPayload, MemoryLookupPayload,
-                     OptimizePayload, RecommendPayload, SearchPayload,
-                     ToolCommandPayload, TrainPayload)
+from .models import (
+    AskPayload,
+    BatchTrainPayload,
+    FeedbackPayload,
+    ImprovePayload,
+    LegalPayload,
+    MemoryLookupPayload,
+    OptimizePayload,
+    RecommendPayload,
+    SearchPayload,
+    ToolCommandPayload,
+    TrainPayload,
+)
 from .validator_agent import ValidationRequest, ValidatorAgent
 from .writer_agent import DocumentRequest, DocumentType, WriterAgent
 
@@ -771,7 +791,7 @@ class MegaAgent:
         )
         final = await run_pipeline(graph_exec, initial)
 
-        response = {
+        response: dict[str, Any] = {
             "operation": "ask",
             "thread_id": final.thread_id,
             "rmt_slots": final.rmt_slots,
@@ -783,6 +803,94 @@ class MegaAgent:
                 "score": detection.score,
                 "issues": detection.issues,
             }
+
+        # Optional: generate a natural-language answer using configured LLM
+        # Prefer OpenAI, then Anthropic, then Gemini. If no keys configured, skip.
+        try:
+            import os
+
+            openai_key = os.getenv("OPENAI_API_KEY")
+            anthropic_key = os.getenv("ANTHROPIC_API_KEY")
+            gemini_key = os.getenv("GEMINI_API_KEY") or os.getenv("GOOGLE_API_KEY")
+
+            provider_used = None
+            llm_text: str | None = None
+
+            # Build concise context for the model from retrieved memory
+            if final.retrieved:
+                top_facts = []
+                for rec in final.retrieved[:5]:
+                    try:
+                        top_facts.append(
+                            getattr(rec, "text", "") or rec.model_dump().get("text", "")
+                        )
+                    except Exception:
+                        continue
+                context_blob = "\n".join(f"- {t}" for t in top_facts if t)
+            else:
+                context_blob = ""
+
+            prompt = (
+                "You are MegaAgent Pro assistant. Answer the user question clearly and concisely.\n"
+                "If helpful, use the provided context. If context is insufficient, answer generally and state any assumptions.\n\n"
+                f"User question: {query}\n\n"
+                f"Context (may be empty):\n{context_blob}"
+            ).strip()
+
+            if openai_key:
+                # OpenAI
+                try:
+                    from core.llm_interface.openai_client import OpenAIClient
+
+                    client = OpenAIClient(
+                        model=OpenAIClient.GPT_5,
+                        api_key=openai_key,
+                        temperature=0.2,
+                        verbosity="medium",
+                        reasoning_effort="medium",
+                    )
+                    result = await client.acomplete(prompt, max_completion_tokens=800)
+                    llm_text = result.get("output") or result.get("response")
+                    provider_used = result.get("provider", "openai")
+                except Exception as e:  # pragma: no cover - external dependency branch
+                    response.setdefault("llm_error", str(e))
+            elif anthropic_key:
+                # Anthropic
+                try:
+                    from core.llm_interface.anthropic_client import AnthropicClient
+
+                    client = AnthropicClient(
+                        model=AnthropicClient.CLAUDE_HAIKU_3_5,
+                        api_key=anthropic_key,
+                        temperature=0.2,
+                    )
+                    result = await client.acomplete(prompt, max_tokens=800)
+                    llm_text = result.get("output") or result.get("response")
+                    provider_used = result.get("provider", "anthropic")
+                except Exception as e:  # pragma: no cover
+                    response.setdefault("llm_error", str(e))
+            elif gemini_key:
+                # Google Gemini
+                try:
+                    from core.llm_interface.gemini_client import GeminiClient
+
+                    client = GeminiClient(
+                        model=GeminiClient.GEMINI_2_5_FLASH, api_key=gemini_key, temperature=0.2
+                    )
+                    result = await client.acomplete(prompt, max_output_tokens=800)
+                    llm_text = result.get("output") or result.get("response")
+                    provider_used = result.get("provider", "gemini")
+                except Exception as e:  # pragma: no cover
+                    response.setdefault("llm_error", str(e))
+
+            if llm_text:
+                response["llm_response"] = llm_text
+                response["llm_provider"] = provider_used
+
+        except Exception as e:  # pragma: no cover - defensive guard
+            # Don't fail ASK due to LLM errors
+            response.setdefault("llm_error", str(e))
+
         return response
 
     async def _handle_search_command(self, command: MegaAgentCommand) -> dict[str, Any]:

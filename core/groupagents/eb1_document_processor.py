@@ -9,17 +9,22 @@ EB-1A Document Processor
 
 from __future__ import annotations
 
-import re
-import uuid
 from datetime import datetime
 from pathlib import Path
+import re
 from typing import Any
+import uuid
 
-from .eb1_documents import (COVER_LETTER_TEMPLATE, CRITERION_SECTION_TEMPLATES,
-                            RECOMMENDATION_LETTER_TEMPLATE,
-                            USCIS_KEYWORDS_BY_CRITERION, EB1DocumentType,
-                            GeneratedDocument, RecommendationLetterData,
-                            UploadedDocument)
+from .eb1_documents import (
+    COVER_LETTER_TEMPLATE,
+    CRITERION_SECTION_TEMPLATES,
+    RECOMMENDATION_LETTER_TEMPLATE,
+    USCIS_KEYWORDS_BY_CRITERION,
+    EB1DocumentType,
+    GeneratedDocument,
+    RecommendationLetterData,
+    UploadedDocument,
+)
 from .eb1_models import EB1Criterion, EB1PetitionData
 
 
@@ -136,8 +141,8 @@ class EB1DocumentProcessor:
     async def _extract_text_from_image(self, file_path: str) -> str:
         """Извлечение текста из изображения (OCR с использованием pytesseract)"""
         try:
-            import pytesseract
             from PIL import Image
+            import pytesseract
 
             image = Image.open(file_path)
             text = pytesseract.image_to_string(image)
@@ -474,7 +479,7 @@ Generate the complete recommendation letter now:
         Использует переданный llm_client для генерации документа.
         Поддерживает:
         - Anthropic Claude (claude-sonnet-4-5-20250929, claude-opus-4-1-20250805)
-        - OpenAI GPT (gpt-4.1, gpt-4.1-mini, o3-mini)
+        - OpenAI GPT (gpt-5, gpt-5-mini, gpt-5-nano, o3-mini, o4-mini)
         - Google Gemini (gemini-2.5-pro, gemini-2.5-flash)
 
         Args:
