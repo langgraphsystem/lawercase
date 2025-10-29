@@ -3,9 +3,9 @@
 from __future__ import annotations
 
 import structlog
+import typer
 from telegram import Update
 from telegram.ext import Application, ApplicationBuilder, Defaults
-import typer
 
 from config.logging import setup_logging
 from config.settings import get_settings
