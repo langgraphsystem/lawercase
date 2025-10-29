@@ -22,8 +22,7 @@ from pydantic import BaseModel
 
 # Import production settings (optional, comprehensive)
 try:
-    from .config.production_settings import \
-        get_settings as get_production_settings_internal
+    from .config.production_settings import get_settings as get_production_settings_internal
 
     PRODUCTION_SETTINGS_AVAILABLE = True
 except ImportError:

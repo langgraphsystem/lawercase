@@ -12,15 +12,14 @@ additional evidence for EB-1A petitions, including:
 
 from __future__ import annotations
 
-import re
 from datetime import datetime
+import re
 from typing import Any
 
 from pydantic import BaseModel, Field
 
 from ....memory.memory_manager import MemoryManager
-from ..eb1a_coordinator import (EB1ACriterion, EB1AEvidence,
-                                EB1APetitionRequest, EvidenceType)
+from ..eb1a_coordinator import EB1ACriterion, EB1AEvidence, EB1APetitionRequest, EvidenceType
 
 # === New Models for Research ===
 

@@ -205,6 +205,30 @@
       background: rgba(255, 255, 255, 0.3);
     }
 
+    .header-toggle {
+      display: none;
+      align-items: center;
+      gap: var(--spacing-xs);
+      background: rgba(255, 255, 255, 0.2);
+      border: none;
+      color: white;
+      padding: var(--spacing-sm) var(--spacing-md);
+      border-radius: 4px;
+      cursor: pointer;
+      transition: background var(--transition-fast);
+      font-size: 13px;
+      font-weight: 500;
+    }
+
+    .header-toggle:hover {
+      background: rgba(255, 255, 255, 0.35);
+    }
+
+    .header-toggle:focus-visible {
+      outline: 2px solid rgba(255, 255, 255, 0.7);
+      outline-offset: 2px;
+    }
+
     /* Main content area */
     .app-main {
       display: flex;
@@ -214,7 +238,9 @@
 
     /* Left Sidebar */
     .sidebar {
-      width: var(--sidebar-width);
+      flex: 0 0 25%;
+      max-width: 25%;
+      min-width: 260px;
       background: var(--color-bg-light);
       border-right: 1px solid var(--color-border);
       overflow-y: auto;
@@ -353,7 +379,9 @@
 
     /* Main Content Area */
     .main-content {
-      flex: 1;
+      flex: 1 1 55%;
+      max-width: 55%;
+      min-width: 0;
       overflow-y: auto;
       background: var(--color-bg-gray);
       padding: var(--spacing-xl);
@@ -361,13 +389,13 @@
 
     /* Document Preview Container */
     #document-preview {
-      font-family: var(--font-document);
+      font-family: 'Times New Roman', serif;
       font-size: 11pt;
       line-height: 1.5;
       color: #000;
       background: white;
-      box-shadow: var(--shadow-xl);
-      margin: 0 auto;
+      box-shadow: 0 0 10px rgba(0,0,0,0.1);
+      margin: 20px auto;
       padding: 96px; /* 1 inch */
       max-width: 816px; /* 8.5 inch */
       min-height: 1056px; /* 11 inch */
@@ -389,7 +417,6 @@
       font-weight: bold;
       margin: 24pt 0 12pt 0;
       text-transform: uppercase;
-      letter-spacing: 0.5pt;
     }
 
     #document-preview h2 {
@@ -504,6 +531,17 @@
       color: var(--color-danger);
     }
 
+    .section-pending {
+      padding: var(--spacing-xl);
+      text-align: center;
+      border: 2px dashed var(--color-border);
+      border-radius: 8px;
+      margin: var(--spacing-lg) 0;
+      background: rgba(108, 117, 125, 0.08);
+      color: var(--color-text-medium);
+      font-family: var(--font-ui);
+    }
+
     .spinner {
       display: inline-block;
       width: 32px;
@@ -541,7 +579,9 @@
 
     /* Right Controls Panel */
     .controls-panel {
-      width: var(--controls-width);
+      flex: 0 0 20%;
+      max-width: 20%;
+      min-width: 260px;
       background: var(--color-bg-light);
       border-left: 1px solid var(--color-border);
       overflow-y: auto;
@@ -818,6 +858,15 @@
        ═══════════════════════════════════════════════════════════════════════ */
 
     @media (max-width: 1200px) {
+      .app-main {
+        position: relative;
+      }
+
+      .main-content {
+        flex: 1 1 100%;
+        max-width: 100%;
+      }
+
       .controls-panel {
         position: fixed;
         right: -100%;
@@ -826,6 +875,8 @@
         z-index: 90;
         box-shadow: var(--shadow-xl);
         transition: right var(--transition-medium);
+        max-width: 320px;
+        width: 320px;
       }
 
       .controls-panel.open {
@@ -833,11 +884,20 @@
       }
 
       .controls-toggle {
-        display: block;
+        display: inline-flex;
+      }
+
+      .header-actions {
+        gap: var(--spacing-sm);
       }
     }
 
     @media (max-width: 768px) {
+      .main-content {
+        flex: 1 1 100%;
+        max-width: 100%;
+      }
+
       .sidebar {
         position: fixed;
         left: -100%;
@@ -850,6 +910,14 @@
 
       .sidebar.open {
         left: 0;
+      }
+
+      .sidebar-toggle {
+        display: inline-flex;
+      }
+
+      .header-actions {
+        gap: var(--spacing-xs);
       }
 
       .main-content {
@@ -917,6 +985,24 @@
       display: none !important;
     }
 
+    .app-overlay {
+      position: fixed;
+      top: var(--header-height);
+      left: 0;
+      width: 100%;
+      height: calc(100vh - var(--header-height));
+      background: rgba(0, 0, 0, 0.35);
+      z-index: 85;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity var(--transition-medium);
+    }
+
+    .app-overlay.visible {
+      opacity: 1;
+      pointer-events: auto;
+    }
+
     .text-center {
       text-align: center;
     }
@@ -951,6 +1037,22 @@
       </h1>
 
       <div class="header-actions">
+        <button
+          class="header-toggle sidebar-toggle"
+          id="sidebar-toggle"
+          aria-controls="sidebar"
+          aria-expanded="false"
+        >
+          📋 Навигация
+        </button>
+        <button
+          class="header-toggle controls-toggle"
+          id="controls-toggle"
+          aria-controls="controls-panel"
+          aria-expanded="false"
+        >
+          ⚙️ Панель
+        </button>
         <button class="btn btn-sm btn-outline" id="mock-data-btn" style="background: rgba(255,255,255,0.2); color: white; border: 1px solid rgba(255,255,255,0.3);">
           🧪 Use Mock Data
         </button>
@@ -959,6 +1061,8 @@
         </button>
       </div>
     </header>
+
+    <div class="app-overlay" id="app-overlay" aria-hidden="true"></div>
 
     <!-- Main Content -->
     <main class="app-main">
@@ -1126,9 +1230,11 @@
 
     const CONFIG = {
       API_BASE: '/api',
-      POLL_INTERVAL: 2000, // ms
+      POLL_INTERVAL: 2000, // ms (fallback for when WebSocket unavailable)
       MAX_POLL_ERRORS: 5,
       MOCK_MODE: false,
+      USE_WEBSOCKET: true, // Use WebSocket for real-time updates instead of polling
+      WS_RECONNECT_INTERVAL: 3000, // ms
     };
 
     const API_ENDPOINTS = {
@@ -1138,7 +1244,45 @@
       downloadPDF: (threadId) => `${CONFIG.API_BASE}/download-petition-pdf/${threadId}`,
       pauseGeneration: (threadId) => `${CONFIG.API_BASE}/pause/${threadId}`,
       resumeGeneration: (threadId) => `${CONFIG.API_BASE}/resume/${threadId}`,
+      websocket: (threadId) => {
+        const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+        const host = window.location.host;
+        return `${protocol}//${host}${CONFIG.API_BASE}/ws/document/${threadId}`;
+      },
     };
+
+    const delay = (ms) => new Promise(resolve => setTimeout(resolve, ms));
+
+    const uploadWithProgress = (url, formData, onProgress) => new Promise((resolve, reject) => {
+      const xhr = new XMLHttpRequest();
+      xhr.open('POST', url, true);
+
+      xhr.upload.addEventListener('progress', (event) => {
+        if (event.lengthComputable && typeof onProgress === 'function') {
+          const percent = Math.round((event.loaded / event.total) * 100);
+          onProgress(percent);
+        }
+      });
+
+      xhr.onreadystatechange = () => {
+        if (xhr.readyState === XMLHttpRequest.DONE) {
+          if (xhr.status >= 200 && xhr.status < 300) {
+            try {
+              const response = xhr.responseText ? JSON.parse(xhr.responseText) : {};
+              resolve(response);
+            } catch (error) {
+              resolve({});
+            }
+          } else {
+            reject(new Error(`HTTP ${xhr.status}: ${xhr.statusText}`));
+          }
+        }
+      };
+
+      xhr.onerror = () => reject(new Error('Network error during upload'));
+
+      xhr.send(formData);
+    });
 
     /* ═════════════════════════════════════════════════════════════════════════
        MOCK DATA FOR TESTING
@@ -1287,7 +1431,8 @@
         this.isPolling = false;
         this.pollTimer = null;
         this.pollErrorCount = 0;
-        this.startTime = Date.now();
+        this.startTime = null;
+        this.hasStarted = false;
         this.mockMode = options.mockMode || CONFIG.MOCK_MODE;
 
         // Track which sections we've already rendered
@@ -1295,9 +1440,23 @@
       }
 
       async startPolling() {
+        if (this.isPolling) {
+          return;
+        }
+
         this.isPolling = true;
-        this.startTime = Date.now();
-        UI.addLog('info', 'Starting real-time monitoring', 'DocumentMonitor');
+
+        if (!this.hasStarted) {
+          this.hasStarted = true;
+          this.startTime = Date.now();
+          UI.addLog('info', 'Starting real-time monitoring', 'DocumentMonitor');
+        } else {
+          if (!this.startTime) {
+            this.startTime = Date.now();
+          }
+          UI.addLog('info', 'Resuming real-time monitoring', 'DocumentMonitor');
+        }
+
         await this.poll();
       }
 
@@ -1452,146 +1611,241 @@
       // Update sidebar sections list
       updateSidebar(sections, exhibits) {
         const sectionList = document.getElementById('section-list');
+        if (!sectionList) return;
 
-        if (!sections || sections.length === 0) return;
+        if (!Array.isArray(sections) || sections.length === 0) {
+          if (!sectionList.querySelector('.empty-state')) {
+            sectionList.innerHTML = `
+              <li class="empty-state">
+                <div class="icon">📝</div>
+                <p>Секции появятся после начала генерации</p>
+              </li>
+            `;
+          }
+          this.updateExhibits(exhibits);
+          return;
+        }
 
-        // Clear empty state if exists
-        const emptyState = sectionList.querySelector('.empty-state');
-        if (emptyState) {
+        const sortedSections = [...sections].sort((a, b) => (a.section_order ?? 0) - (b.section_order ?? 0));
+        const seenIds = new Set();
+
+        if (sectionList.querySelector('.empty-state')) {
           sectionList.innerHTML = '';
         }
 
-        sections.forEach(section => {
-          let item = document.getElementById(`sidebar-section-${section.section_id}`);
+        sortedSections.forEach((section, index) => {
+          const sectionLabel = section.section_id ?? `section-${section.section_order ?? index}`;
+          const sectionId = this.sanitizeId(sectionLabel, `section-${index}`);
+          const sectionName = section.section_name || `Раздел ${section.section_order ?? index + 1}`;
+          const status = section.status || 'pending';
+
+          seenIds.add(sectionId);
+
+          let item = document.getElementById(`sidebar-section-${sectionId}`);
 
           if (!item) {
-            // Create new section item
             item = document.createElement('li');
             item.className = 'section-item';
-            item.id = `sidebar-section-${section.section_id}`;
-            item.dataset.sectionId = section.section_id;
+            item.id = `sidebar-section-${sectionId}`;
+            item.dataset.sectionId = sectionId;
             item.setAttribute('role', 'button');
             item.setAttribute('tabindex', '0');
 
             item.addEventListener('click', () => {
-              this.scrollToSection(section.section_id);
+              this.scrollToSection(sectionId);
             });
 
             item.addEventListener('keypress', (e) => {
               if (e.key === 'Enter' || e.key === ' ') {
-                this.scrollToSection(section.section_id);
+                this.scrollToSection(sectionId);
               }
             });
 
             sectionList.appendChild(item);
           }
 
-          // Update content
-          const statusIcon = this.getStatusIcon(section.status);
+          item.dataset.sectionId = sectionId;
+
+          const statusIcon = this.getStatusIcon(status);
           const timeAgo = this.formatTimeAgo(section.updated_at);
 
           item.innerHTML = `
-            <span class="status-icon status-${section.status} ${section.status === 'in_progress' ? 'rotating' : ''}"
-                  aria-label="${section.status}">
+            <span class="status-icon status-${status} ${status === 'in_progress' ? 'rotating' : ''}"
+                  aria-label="${status}">
               ${statusIcon}
             </span>
-            <span class="section-name">${section.section_name}</span>
+            <span class="section-name">${sectionName}</span>
             <span class="section-time">${timeAgo}</span>
           `;
         });
 
-        // Update exhibits
-        if (exhibits && exhibits.length > 0) {
-          this.updateExhibits(exhibits);
-        }
+        sectionList.querySelectorAll('.section-item').forEach(item => {
+          if (!seenIds.has(item.dataset.sectionId)) {
+            item.remove();
+          }
+        });
+
+        this.updateExhibits(exhibits);
       },
 
       updateExhibits(exhibits) {
         const exhibitList = document.getElementById('exhibit-list');
+        if (!exhibitList) return;
 
-        // Clear empty state
-        const emptyState = exhibitList.querySelector('.empty-state');
-        if (emptyState) {
+        if (!Array.isArray(exhibits) || exhibits.length === 0) {
+          exhibitList.innerHTML = `
+            <li class="empty-state">
+              <div class="icon">📁</div>
+              <p>Загруженные файлы появятся здесь</p>
+            </li>
+          `;
+          return;
+        }
+
+        if (exhibitList.querySelector('.empty-state')) {
           exhibitList.innerHTML = '';
         }
 
-        exhibits.forEach(exhibit => {
-          let item = document.getElementById(`exhibit-${exhibit.exhibit_id}`);
+        const seenIds = new Set();
+
+        exhibits.forEach((exhibit, index) => {
+          const exhibitLabel = exhibit.exhibit_id ?? `exhibit-${index + 1}`;
+          const exhibitId = this.sanitizeId(exhibitLabel, `exhibit-${index}`);
+          const filename = exhibit.filename || 'Файл';
+          const filePath = exhibit.file_path || '#';
+          const fileIcon = this.getFileIcon(exhibit.mime_type || '');
+          const fileSize = this.formatFileSize(exhibit.file_size);
+
+          seenIds.add(exhibitId);
+
+          let item = document.getElementById(`exhibit-${exhibitId}`);
 
           if (!item) {
             item = document.createElement('li');
             item.className = 'exhibit-item';
-            item.id = `exhibit-${exhibit.exhibit_id}`;
+            item.id = `exhibit-${exhibitId}`;
+            item.dataset.exhibitId = exhibitId;
             exhibitList.appendChild(item);
           }
 
-          const fileIcon = this.getFileIcon(exhibit.mime_type);
-          const fileSize = this.formatFileSize(exhibit.file_size);
+          item.dataset.exhibitId = exhibitId;
 
           item.innerHTML = `
             <div class="exhibit-header">
               <span>${fileIcon}</span>
-              <span class="exhibit-id">${exhibit.exhibit_id}</span>
-              <a href="${exhibit.file_path}" class="exhibit-name"
-                 download="${exhibit.filename}"
-                 title="${exhibit.filename}">
-                ${exhibit.filename}
+              <span class="exhibit-id">${exhibitLabel}</span>
+              <a href="${filePath}" class="exhibit-name"
+                 download="${filename}"
+                 title="${filename}">
+                ${filename}
               </a>
             </div>
             <div class="exhibit-meta">${fileSize}</div>
           `;
+        });
+
+        exhibitList.querySelectorAll('.exhibit-item').forEach(item => {
+          if (!seenIds.has(item.dataset.exhibitId)) {
+            item.remove();
+          }
         });
       },
 
       // Update main document content
       updateMainContent(sections) {
         const container = document.getElementById('document-preview');
+        if (!container) return;
 
-        // Remove empty state on first section
+        const hasSections = Array.isArray(sections) && sections.length > 0;
         const emptyState = document.getElementById('empty-state');
-        if (emptyState && sections && sections.length > 0) {
+        if (emptyState && hasSections) {
           emptyState.remove();
         }
 
-        if (!sections || sections.length === 0) return;
+        if (!hasSections) {
+          if (!emptyState) {
+            container.innerHTML = `
+              <div class="empty-state" id="empty-state">
+                <div class="icon">📄</div>
+                <h3>Готов к генерации документа</h3>
+                <p>Нажмите "Начать генерацию" чтобы запустить процесс создания петиции EB-1A</p>
+                <p class="text-muted mt-md">
+                  Или используйте "🧪 Use Mock Data" для тестирования интерфейса
+                </p>
+              </div>
+            `;
+          }
+          container.querySelectorAll('.document-section').forEach(section => section.remove());
+          return;
+        }
 
-        sections.forEach(section => {
-          let sectionElement = document.getElementById(`section-${section.section_id}`);
+        const sortedSections = [...sections].sort((a, b) => (a.section_order ?? 0) - (b.section_order ?? 0));
+        const renderedIds = new Set();
+
+        sortedSections.forEach((section, index) => {
+          const sectionLabel = section.section_id ?? `section-${section.section_order ?? index}`;
+          const sectionId = this.sanitizeId(sectionLabel, `section-${index}`);
+          const elementId = `section-${sectionId}`;
+          const order = Number(section.section_order ?? index);
+          const sectionName = section.section_name || `Раздел ${order + 1}`;
+          const status = section.status || 'pending';
+
+          renderedIds.add(sectionId);
+
+          let sectionElement = document.getElementById(elementId);
 
           if (!sectionElement) {
-            // Create new section
             sectionElement = document.createElement('div');
             sectionElement.className = 'document-section fade-in';
-            sectionElement.id = `section-${section.section_id}`;
-            sectionElement.dataset.order = section.section_order;
-
-            // Insert in correct order
-            this.insertSectionInOrder(container, sectionElement, section.section_order);
+            sectionElement.id = elementId;
+            sectionElement.dataset.order = String(order);
+            sectionElement.dataset.sectionId = sectionId;
+            this.insertSectionInOrder(container, sectionElement, order);
+          } else {
+            sectionElement.dataset.sectionId = sectionId;
+            const currentOrder = Number(sectionElement.dataset.order ?? order);
+            if (currentOrder !== order) {
+              sectionElement.dataset.order = String(order);
+              this.insertSectionInOrder(container, sectionElement, order);
+            }
           }
 
-          // Update content based on status
-          if (section.status === 'in_progress') {
+          if (status === 'in_progress') {
             sectionElement.innerHTML = `
               <div class="section-loading">
                 <div class="spinner"></div>
                 <p class="center" style="font-family: var(--font-ui); margin-top: 1em;">
-                  Генерируется ${section.section_name}...
+                  Генерируется ${sectionName}...
                 </p>
               </div>
             `;
-          } else if (section.status === 'completed' && section.content_html) {
+          } else if (status === 'completed' && section.content_html) {
             sectionElement.innerHTML = section.content_html;
-          } else if (section.status === 'error') {
+          } else if (status === 'error') {
+            const errorMessage = section.error_message || 'Неизвестная ошибка';
             sectionElement.innerHTML = `
               <div class="section-error">
                 <p class="center bold" style="font-family: var(--font-ui);">
-                  ❌ Ошибка генерации ${section.section_name}
+                  ❌ Ошибка генерации ${sectionName}
                 </p>
                 <p class="center" style="font-family: var(--font-ui); font-size: 12px;">
-                  ${section.error_message || 'Неизвестная ошибка'}
+                  ${errorMessage}
                 </p>
               </div>
             `;
+          } else {
+            sectionElement.innerHTML = `
+              <div class="section-pending">
+                🕒 ${sectionName} ожидает генерации
+              </div>
+            `;
+          }
+        });
+
+        container.querySelectorAll('.document-section').forEach(sectionElement => {
+          const sectionId = sectionElement.dataset.sectionId;
+          if (sectionId && !renderedIds.has(sectionId)) {
+            sectionElement.remove();
           }
         });
       },
@@ -1618,30 +1872,46 @@
 
       // Update statistics panel
       updateStatistics(metadata) {
-        if (!metadata) return;
-
-        document.getElementById('stat-progress').textContent =
-          `${metadata.completed_sections}/${metadata.total_sections}`;
-
-        const progressBar = document.getElementById('progress-bar-overall');
-        progressBar.style.width = `${metadata.progress_percentage}%`;
-        if (metadata.progress_percentage === 100) {
-          progressBar.classList.add('success');
+        const totalSections = Number(metadata?.total_sections ?? 0);
+        const completedSections = Number(metadata?.completed_sections ?? 0);
+        const progressLabel = document.getElementById('stat-progress');
+        if (progressLabel) {
+          progressLabel.textContent = `${completedSections}/${totalSections}`;
         }
 
-        document.getElementById('stat-elapsed').textContent =
-          this.formatDuration(metadata.elapsed_time);
+        const progressBar = document.getElementById('progress-bar-overall');
+        const rawProgress = Number(metadata?.progress_percentage ?? 0);
+        const progress = Number.isFinite(rawProgress)
+          ? Math.min(100, Math.max(0, rawProgress))
+          : 0;
+        if (progressBar) {
+          progressBar.style.width = `${progress}%`;
+          progressBar.classList.toggle('success', progress === 100);
+        }
 
-        document.getElementById('stat-eta').textContent =
-          metadata.estimated_remaining > 0
-            ? this.formatDuration(metadata.estimated_remaining)
-            : '--:--';
+        const elapsedSeconds = Number(metadata?.elapsed_time ?? 0);
+        const elapsedLabel = document.getElementById('stat-elapsed');
+        if (elapsedLabel) {
+          elapsedLabel.textContent = this.formatDuration(elapsedSeconds);
+        }
 
-        document.getElementById('stat-tokens').textContent =
-          metadata.total_tokens.toLocaleString();
+        const etaSeconds = Number(metadata?.estimated_remaining ?? 0);
+        const etaLabel = document.getElementById('stat-eta');
+        if (etaLabel) {
+          etaLabel.textContent = etaSeconds > 0 ? this.formatDuration(etaSeconds) : '--:--';
+        }
 
-        document.getElementById('stat-cost').textContent =
-          `$${metadata.estimated_cost.toFixed(2)}`;
+        const totalTokens = Number(metadata?.total_tokens ?? 0);
+        const tokensLabel = document.getElementById('stat-tokens');
+        if (tokensLabel) {
+          tokensLabel.textContent = Number.isFinite(totalTokens) ? totalTokens.toLocaleString() : '0';
+        }
+
+        const estimatedCost = Number(metadata?.estimated_cost ?? 0);
+        const costLabel = document.getElementById('stat-cost');
+        if (costLabel) {
+          costLabel.textContent = Number.isFinite(estimatedCost) ? `$${estimatedCost.toFixed(2)}` : '$0.00';
+        }
       },
 
       // Update logs
@@ -1652,17 +1922,25 @@
 
         logs.forEach(log => {
           // Check if log already exists
-          const logId = `log-${new Date(log.timestamp).getTime()}`;
+          const timestampValue = log.timestamp ? new Date(log.timestamp).getTime() : Date.now();
+          const safeTimestamp = Number.isNaN(timestampValue) ? Date.now() : timestampValue;
+          const messageFragment = (log.message || '')
+            .toString()
+            .slice(0, 24)
+            .replace(/\s+/g, '-')
+            .replace(/[^a-zA-Zа-яА-Я0-9-_]/g, '')
+            || 'log';
+          const logId = `log-${safeTimestamp}-${messageFragment}`;
           if (document.getElementById(logId)) return;
 
           const entry = document.createElement('div');
           entry.className = `log-entry ${log.level}`;
           entry.id = logId;
 
-          const time = new Date(log.timestamp).toLocaleTimeString('ru-RU');
+          const timeString = new Date(safeTimestamp).toLocaleTimeString('ru-RU');
 
           entry.innerHTML = `
-            <span class="log-time">${time}</span>
+            <span class="log-time">${timeString}</span>
             ${log.agent ? `<span class="log-agent">[${log.agent}]</span>` : ''}
             <span class="log-message">${log.message}</span>
           `;
@@ -1690,25 +1968,53 @@
         const startBtn = document.getElementById('start-btn');
         const downloadBtn = document.getElementById('download-btn');
 
+        if (!startBtn || !downloadBtn) {
+          return;
+        }
+
+        let normalizedStatus = 'idle';
         if (status === 'generating' || status === 'in_progress') {
-          startBtn.innerHTML = '⏸️ Приостановить';
-          startBtn.disabled = false;
-        } else if (status === 'completed') {
-          startBtn.innerHTML = '✅ Завершено';
-          startBtn.disabled = true;
-          downloadBtn.disabled = false;
+          normalizedStatus = 'generating';
         } else if (status === 'paused') {
-          startBtn.innerHTML = '▶️ Продолжить';
-          startBtn.disabled = false;
-        } else {
-          startBtn.innerHTML = '🚀 Начать генерацию';
-          startBtn.disabled = false;
+          normalizedStatus = 'paused';
+        } else if (status === 'completed') {
+          normalizedStatus = 'completed';
+        } else if (status === 'error') {
+          normalizedStatus = 'error';
+        }
+
+        startBtn.dataset.status = normalizedStatus;
+        downloadBtn.disabled = true;
+
+        switch (normalizedStatus) {
+          case 'generating':
+            startBtn.innerHTML = '⏸️ Приостановить';
+            startBtn.disabled = false;
+            break;
+          case 'paused':
+            startBtn.innerHTML = '▶️ Продолжить';
+            startBtn.disabled = false;
+            break;
+          case 'completed':
+            startBtn.innerHTML = '✅ Завершено';
+            startBtn.disabled = true;
+            downloadBtn.disabled = false;
+            break;
+          case 'error':
+            startBtn.innerHTML = '⚠️ Ошибка – повторите';
+            startBtn.disabled = false;
+            break;
+          default:
+            startBtn.innerHTML = '🚀 Начать генерацию';
+            startBtn.disabled = false;
+            break;
         }
       },
 
       // Utility: Scroll to section
       scrollToSection(sectionId) {
-        const section = document.getElementById(`section-${sectionId}`);
+        const safeId = this.sanitizeId(sectionId);
+        const section = document.getElementById(`section-${safeId}`);
         if (section) {
           section.scrollIntoView({ behavior: 'smooth', block: 'start' });
 
@@ -1716,8 +2022,30 @@
           document.querySelectorAll('.section-item').forEach(item => {
             item.classList.remove('active');
           });
-          document.getElementById(`sidebar-section-${sectionId}`)?.classList.add('active');
+          document.getElementById(`sidebar-section-${safeId}`)?.classList.add('active');
         }
+      },
+
+      // Utility: Sanitize identifier for DOM usage
+      sanitizeId(value, fallbackPrefix = 'id') {
+        const normalize = (input) => String(input ?? '')
+          .trim()
+          .normalize('NFKD')
+          .replace(/[\u0300-\u036f]/g, '')
+          .replace(/\s+/g, '-')
+          .replace(/[^a-zA-Z0-9-_]/g, '-')
+          .replace(/-+/g, '-')
+          .replace(/^-|-$/g, '')
+          .toLowerCase();
+
+        let sanitized = normalize(value);
+        if (!sanitized) {
+          sanitized = normalize(fallbackPrefix);
+        }
+        if (!sanitized) {
+          sanitized = `id-${Date.now()}`;
+        }
+        return sanitized;
       },
 
       // Utility: Get status icon
@@ -1733,29 +2061,36 @@
 
       // Utility: Get file icon
       getFileIcon(mimeType) {
-        if (mimeType.includes('pdf')) return '📄';
-        if (mimeType.includes('image')) return '🖼️';
-        if (mimeType.includes('word') || mimeType.includes('document')) return '📊';
+        const type = (mimeType || '').toLowerCase();
+        if (type.includes('pdf')) return '📄';
+        if (type.includes('image')) return '🖼️';
+        if (type.includes('word') || type.includes('document')) return '📊';
         return '📎';
       },
 
       // Utility: Format file size
       formatFileSize(bytes) {
-        if (bytes < 1024) return `${bytes} B`;
-        if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
-        return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+        const value = Number(bytes);
+        if (!Number.isFinite(value) || value < 0) return '—';
+        if (value < 1024) return `${value} B`;
+        if (value < 1024 * 1024) return `${(value / 1024).toFixed(1)} KB`;
+        return `${(value / (1024 * 1024)).toFixed(1)} MB`;
       },
 
       // Utility: Format duration
       formatDuration(seconds) {
-        const mins = Math.floor(seconds / 60);
-        const secs = seconds % 60;
+        const totalSeconds = Math.max(0, Math.floor(Number(seconds) || 0));
+        const mins = Math.floor(totalSeconds / 60);
+        const secs = totalSeconds % 60;
         return `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
       },
 
       // Utility: Format time ago
       formatTimeAgo(timestamp) {
-        const seconds = Math.floor((Date.now() - new Date(timestamp)) / 1000);
+        if (!timestamp) return '—';
+        const parsed = new Date(timestamp);
+        if (Number.isNaN(parsed.getTime())) return '—';
+        const seconds = Math.max(0, Math.floor((Date.now() - parsed.getTime()) / 1000));
 
         if (seconds < 60) return `${seconds}с назад`;
         if (seconds < 3600) return `${Math.floor(seconds / 60)}м назад`;
@@ -1772,41 +2107,189 @@
        EVENT HANDLERS
        ═══════════════════════════════════════════════════════════════════════ */
 
+    const LayoutController = (() => {
+      const sidebar = document.getElementById('sidebar');
+      const controlsPanel = document.getElementById('controls-panel');
+      const overlay = document.getElementById('app-overlay');
+      const sidebarToggle = document.getElementById('sidebar-toggle');
+      const controlsToggle = document.getElementById('controls-toggle');
+      let previousOverflow = '';
+
+      const setOverlayVisible = (visible) => {
+        if (!overlay) return;
+        overlay.classList.toggle('visible', visible);
+        overlay.setAttribute('aria-hidden', String(!visible));
+        if (visible) {
+          previousOverflow = document.body.style.overflow;
+          document.body.style.overflow = 'hidden';
+        } else {
+          document.body.style.overflow = previousOverflow || '';
+        }
+      };
+
+      const syncAria = () => {
+        if (sidebarToggle) {
+          const isOpen = !!sidebar && sidebar.classList.contains('open');
+          sidebarToggle.setAttribute('aria-expanded', String(isOpen));
+        }
+        if (controlsToggle) {
+          const isOpen = !!controlsPanel && controlsPanel.classList.contains('open');
+          controlsToggle.setAttribute('aria-expanded', String(isOpen));
+        }
+      };
+
+      const closeAll = () => {
+        sidebar?.classList.remove('open');
+        controlsPanel?.classList.remove('open');
+        setOverlayVisible(false);
+        syncAria();
+      };
+
+      const openSidebar = () => {
+        if (!sidebar) return;
+        sidebar.classList.add('open');
+        controlsPanel?.classList.remove('open');
+        setOverlayVisible(true);
+        syncAria();
+      };
+
+      const openControls = () => {
+        if (!controlsPanel) return;
+        controlsPanel.classList.add('open');
+        sidebar?.classList.remove('open');
+        setOverlayVisible(true);
+        syncAria();
+      };
+
+      sidebarToggle?.addEventListener('click', (event) => {
+        event.preventDefault();
+        const isOpen = sidebar?.classList.contains('open');
+        if (isOpen) {
+          closeAll();
+        } else {
+          openSidebar();
+        }
+      });
+
+      controlsToggle?.addEventListener('click', (event) => {
+        event.preventDefault();
+        const isOpen = controlsPanel?.classList.contains('open');
+        if (isOpen) {
+          closeAll();
+        } else {
+          openControls();
+        }
+      });
+
+      overlay?.addEventListener('click', closeAll);
+
+      document.addEventListener('keydown', (event) => {
+        if (event.key === 'Escape') {
+          closeAll();
+        }
+      });
+
+      window.addEventListener('resize', () => {
+        if (window.innerWidth > 1200) {
+          closeAll();
+        }
+      });
+
+      return { closeAll };
+    })();
+
     let currentMonitor = null;
 
     // Start generation button
     document.getElementById('start-btn').addEventListener('click', async function() {
+      LayoutController?.closeAll?.();
       const btn = this;
       const currentStatus = btn.dataset.status || 'idle';
+      const threadId = sessionStorage.getItem('current_thread_id');
 
       if (currentStatus === 'generating') {
-        // Pause
+        if (!threadId) {
+          UI.showNotification('Нет активного процесса для паузы', 'warning');
+          UI.addLog('warning', 'Pause requested without active thread', 'UI');
+          return;
+        }
+
         btn.innerHTML = '⏳ Приостановка...';
         btn.disabled = true;
-        // TODO: Call pause API
-        setTimeout(() => {
-          btn.innerHTML = '▶️ Продолжить';
-          btn.dataset.status = 'paused';
-          btn.disabled = false;
+
+        try {
+          if (CONFIG.MOCK_MODE) {
+            await delay(400);
+          } else {
+            const response = await fetch(API_ENDPOINTS.pauseGeneration(threadId), {
+              method: 'POST',
+            });
+            if (!response.ok) {
+              throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+            }
+          }
+
+          if (currentMonitor) {
+            currentMonitor.stopPolling();
+          }
+
+          UI.updateControlButtons('paused');
           UI.addLog('info', 'Generation paused', 'User');
-        }, 500);
+          UI.showNotification('Процесс генерации приостановлен', 'info');
+        } catch (error) {
+          console.error('Pause generation error:', error);
+          UI.addLog('error', `Failed to pause generation: ${error.message}`, 'System');
+          UI.showNotification('Не удалось приостановить генерацию', 'error');
+          UI.updateControlButtons('generating');
+        } finally {
+          btn.disabled = false;
+        }
+
         return;
       }
 
       if (currentStatus === 'paused') {
-        // Resume
+        if (!threadId) {
+          UI.showNotification('Нет активного процесса для возобновления', 'warning');
+          UI.addLog('warning', 'Resume requested without active thread', 'UI');
+          return;
+        }
+
         btn.innerHTML = '⏳ Возобновление...';
         btn.disabled = true;
-        // TODO: Call resume API
-        setTimeout(() => {
-          btn.innerHTML = '⏸️ Приостановить';
-          btn.dataset.status = 'generating';
-          btn.disabled = false;
-          UI.addLog('info', 'Generation resumed', 'User');
-          if (currentMonitor) {
-            currentMonitor.startPolling();
+
+        try {
+          if (CONFIG.MOCK_MODE) {
+            await delay(400);
+          } else {
+            const response = await fetch(API_ENDPOINTS.resumeGeneration(threadId), {
+              method: 'POST',
+            });
+            if (!response.ok) {
+              throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+            }
           }
-        }, 500);
+
+          if (!currentMonitor) {
+            currentMonitor = new DocumentMonitor(threadId, {
+              mockMode: CONFIG.MOCK_MODE,
+            });
+          }
+
+          currentMonitor.startPolling();
+
+          UI.updateControlButtons('generating');
+          UI.addLog('info', 'Generation resumed', 'User');
+          UI.showNotification('Процесс генерации возобновлён', 'success');
+        } catch (error) {
+          console.error('Resume generation error:', error);
+          UI.addLog('error', `Failed to resume generation: ${error.message}`, 'System');
+          UI.showNotification('Не удалось возобновить генерацию', 'error');
+          UI.updateControlButtons('paused');
+        } finally {
+          btn.disabled = false;
+        }
+
         return;
       }
 
@@ -1851,8 +2334,7 @@
         });
         currentMonitor.startPolling();
 
-        btn.innerHTML = '⏸️ Приостановить';
-        btn.dataset.status = 'generating';
+        UI.updateControlButtons('generating');
         btn.disabled = false;
 
       } catch (error) {
@@ -1865,6 +2347,7 @@
 
     // Download PDF button
     document.getElementById('download-btn').addEventListener('click', function() {
+      LayoutController?.closeAll?.();
       const threadId = sessionStorage.getItem('current_thread_id');
       if (!threadId) {
         UI.showNotification('No active document to download', 'warning');
@@ -1882,6 +2365,7 @@
 
     // Restart button
     document.getElementById('restart-btn').addEventListener('click', function() {
+      LayoutController?.closeAll?.();
       if (!confirm('Вы уверены, что хотите перезапустить генерацию? Текущий прогресс будет потерян.')) {
         return;
       }
@@ -1955,6 +2439,11 @@
         return;
       }
 
+      if (!threadId && !CONFIG.MOCK_MODE) {
+        alert('Сначала запустите генерацию документа, чтобы привязать приложение');
+        return;
+      }
+
       const progressContainer = document.getElementById('upload-progress-container');
       const progressBar = document.getElementById('upload-progress-bar');
 
@@ -1966,7 +2455,7 @@
         if (CONFIG.MOCK_MODE) {
           // Simulate upload
           for (let i = 0; i <= 100; i += 10) {
-            await new Promise(resolve => setTimeout(resolve, 100));
+            await delay(120);
             progressBar.style.width = `${i}%`;
             progressBar.textContent = `${i}%`;
           }
@@ -1991,19 +2480,25 @@
           formData.append('exhibit_id', exhibitId);
           formData.append('file', file);
 
-          const response = await fetch(API_ENDPOINTS.uploadExhibit(threadId), {
-            method: 'POST',
-            body: formData,
-          });
-
-          if (!response.ok) {
-            throw new Error(`Upload failed: ${response.statusText}`);
-          }
+          const response = await uploadWithProgress(
+            API_ENDPOINTS.uploadExhibit(threadId),
+            formData,
+            (percent) => {
+              progressBar.style.width = `${percent}%`;
+              progressBar.textContent = `${percent}%`;
+            },
+          );
 
           progressBar.style.width = '100%';
           progressBar.textContent = '100%';
 
           UI.addLog('success', `Uploaded exhibit ${exhibitId}: ${file.name}`, 'User');
+
+          if (Array.isArray(response?.exhibits)) {
+            UI.updateExhibits(response.exhibits);
+          } else if (response?.exhibit) {
+            UI.updateExhibits([response.exhibit]);
+          }
         }
 
         // Reset form

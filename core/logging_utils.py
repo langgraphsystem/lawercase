@@ -10,19 +10,19 @@ This module provides:
 
 from __future__ import annotations
 
+from collections.abc import Awaitable, Callable
 import contextvars
+from datetime import datetime
+from functools import wraps
 import logging
+from pathlib import Path
 import sys
 import time
 import traceback
-from collections.abc import Awaitable, Callable
-from datetime import datetime
-from functools import wraps
-from pathlib import Path
 from typing import Any, TypeVar
 
-import structlog
 from pythonjsonlogger import jsonlogger
+import structlog
 
 from core.exceptions import MegaAgentError
 

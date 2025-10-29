@@ -12,15 +12,26 @@ from enum import Enum
 from typing import Any
 
 from ..memory.memory_manager import MemoryManager
-from ..workflows.eb1a.eb1a_coordinator import (EB1ACriterion, EB1AEvidence,
-                                               EB1APetitionRequest,
-                                               SectionContent)
-from ..workflows.eb1a.eb1a_workflow.evidence_researcher import \
-    EvidenceResearcher
+from ..workflows.eb1a.eb1a_coordinator import (
+    EB1ACriterion,
+    EB1AEvidence,
+    EB1APetitionRequest,
+    SectionContent,
+)
+from ..workflows.eb1a.eb1a_workflow.evidence_researcher import EvidenceResearcher
 from ..workflows.eb1a.eb1a_workflow.section_writers import (
-    AuthorshipWriter, AwardsWriter, BaseSectionWriter, CommercialSuccessWriter,
-    ContributionsWriter, ExhibitionsWriter, JudgingWriter, LeadingRoleWriter,
-    MembershipWriter, PressWriter, SalaryWriter)
+    AuthorshipWriter,
+    AwardsWriter,
+    BaseSectionWriter,
+    CommercialSuccessWriter,
+    ContributionsWriter,
+    ExhibitionsWriter,
+    JudgingWriter,
+    LeadingRoleWriter,
+    MembershipWriter,
+    PressWriter,
+    SalaryWriter,
+)
 
 
 class DocumentType(str, Enum):

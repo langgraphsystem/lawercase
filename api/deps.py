@@ -8,8 +8,10 @@ from jose import jwt
 from starlette.status import HTTP_401_UNAUTHORIZED, HTTP_403_FORBIDDEN
 
 from core.groupagents.mega_agent import MegaAgent, UserRole
-from core.memory.memory_manager_v2 import (create_dev_memory_manager,
-                                           create_production_memory_manager)
+from core.memory.memory_manager_v2 import (
+    create_dev_memory_manager,
+    create_production_memory_manager,
+)
 from core.security.config import SecurityConfig
 
 auth_scheme = HTTPBearer(auto_error=True)

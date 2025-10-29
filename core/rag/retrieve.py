@@ -9,20 +9,26 @@ import numpy as np
 
 from .context import ContextBuilder
 from .hybrid import HybridRetriever, ScoredChunk
-from .ingestion import (Document, DocumentChunk, DocumentIngestion,
-                        DocumentStore)
+from .ingestion import Document, DocumentChunk, DocumentIngestion, DocumentStore
 from .rerank import Reranker
 
 
 class SimpleEmbedder:
-    """Simple random embedder used for development/testing."""
+    """Deterministic hash-based embedder used for development/testing."""
 
     def __init__(self, embedding_dim: int = 384) -> None:
         self.embedding_dim = embedding_dim
 
     async def aembed(self, texts: list[str]) -> list[list[float]]:
-        rng = np.random.default_rng(seed=42)
-        return rng.random((len(texts), self.embedding_dim)).tolist()
+        vectors: list[list[float]] = []
+        for text in texts:
+            import hashlib
+
+            digest = hashlib.sha256(text.encode("utf-8")).digest()
+            seed = int.from_bytes(digest[:8], byteorder="little", signed=False) or 13
+            rng = np.random.default_rng(seed=seed)
+            vectors.append(rng.random(self.embedding_dim, dtype=np.float32).tolist())
+        return vectors
 
 
 @dataclass

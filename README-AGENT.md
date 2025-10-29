@@ -2,12 +2,12 @@
 
 ## 📋 БАЗОВАЯ ИНФОРМАЦИЯ
 
-**Проект**: mega_agent_pro - Advanced Multi-Agent System для юридической сферы
-**Тип**: LangGraph/LangChain на основе асинхронного Python
-**Статус**: 🚧 В разработке (базовая memory система готова)
-**Технологии**: Python 3.11+, LangGraph, Pydantic v2, PostgreSQL, Redis
-**База данных**: PostgreSQL (для checkpointing), In-memory stores (для development)
-**Деплойтмент**: Docker + Kubernetes (планируется)
+**Проект**: mega_agent_pro — Advanced Multi-Agent System для юридической сферы  
+**Тип**: LangGraph/LangChain на основе асинхронного Python  
+**Статус**: ✅ Основные агенты, воркфлоу и безопасность готовы; идёт расширение RAG и прод-профилей  
+**Технологии**: Python 3.11+, LangGraph, Pydantic v2, PostgreSQL, Redis, Prometheus  
+**База данных**: PostgreSQL (prod) / in-memory (dev)  
+**Деплоймент**: Docker (мультистейдж образы), Docker Compose, Kubernetes манифесты (api/worker/bot)
 
 ## 🏗️ АРХИТЕКТУРА
 
@@ -41,15 +41,15 @@ graph TD
 - `SemanticStore` - Семантическое хранение фактов
 - `WorkingMemory` - RMT буфер для контекста
 
-**2. Orchestration Layer (БАЗОВОЕ)**
-- `WorkflowState` - Состояние LangGraph workflow
-- `pipeline_manager` - Управление checkpointing
-- `workflow_graph` - Простой граф: log→reflect→retrieve→rmt
+**2. Orchestration Layer (РАСШИРЕННО)**
+- `WorkflowState` / `EnhancedWorkflowState` — LangGraph состояние с мульти-агентной координацией
+- `pipeline_manager` — управление checkpointing (in-memory/SQLite/Pinecone)
+- `workflow_graph` и `enhanced_workflows` — маршрутизация log→reflect→retrieve→RAG→validation
 
-**3. Agents (ПЛАНИРУЕТСЯ)**
-- `MegaAgent` - Центральный оркестратор
-- `SupervisorAgent` - Динамическая маршрутизация
-- Специализированные агенты по спецификации
+**3. Agents (ГОТОВО / В РАБОТЕ)**
+- `MegaAgent`, `SupervisorAgent`, `CaseAgent`, `WriterAgent`, `ValidatorAgent`, `RagPipelineAgent`
+- EB1A-пакет: `EB1Agent`, `EB1EvidenceAnalyzer`, валидаторы/координаторы
+- Подсистема обратной связи и self-correction (`FeedbackAgent`, `ValidatorExtensions`)
 
 ### Паттерны проектирования
 - **Memory Pattern**: Трехуровневая система памяти (эпизодическая, семантическая, рабочая)
@@ -61,28 +61,21 @@ graph TD
 
 ```
 mega_agent_pro_codex_handoff/
-├── app_demo.py                    # 🟢 Демо приложение (готово)
-├── codex_spec.json               # 🟢 Спецификация системы
-├── enhanced_codex_spec.json      # 🟢 Расширенная спецификация
+├── app_demo.py                        # Асинхронный демо-сценарий LangGraph
+├── api/                               # FastAPI слой (main/main_production, маршруты, auth)
+├── config/                            # Pydantic settings + secrets manager + профили
 ├── core/
-│   ├── memory/                   # 🟢 Система памяти (готова)
-│   │   ├── memory_manager.py     # Главный фасад
-│   │   ├── models.py             # Pydantic модели
-│   │   ├── stores/               # Хранилища данных
-│   │   │   ├── episodic_store.py
-│   │   │   ├── semantic_store.py
-│   │   │   └── working_memory.py
-│   │   ├── policies/             # Политики обработки
-│   │   │   └── reflection.py
-│   │   └── rmt/                  # RMT buffer система
-│   │       └── buffer.py
-│   └── orchestration/            # 🟡 Базовая оркестрация
-│       ├── pipeline_manager.py   # Управление pipeline
-│       └── workflow_graph.py     # LangGraph workflow
-├── LANGGRAPH_MIGRATION_GUIDE.md  # 🟢 Руководство по миграции
-├── IMPLEMENTATION_CHECKLIST.md   # 🟢 Чеклист реализации
-├── LANGGRAPH_ARCHITECTURE_PATTERNS.md # 🟢 Архитектурные паттерны
-└── README-AGENT.md               # 🟢 Этот файл
+│   ├── groupagents/                   # Все агенты (MegaAgent, CaseAgent, RagPipelineAgent, WriterAgent…)
+│   ├── memory/                        # MemoryManager v2, stores, policies, embedders
+│   ├── orchestration/                 # Workflow graphs, pipeline manager, EB1A узлы
+│   ├── rag/                           # Интегрированная RAG подсистема (ingestion, hybrid, rerank, context)
+│   ├── security/                      # RBAC, prompt detector, audit trail, security config
+│   ├── workers/                       # Асинхронный worker + CLI
+│   └── observability/                 # Metrics, tracing, logging интеграция
+├── deployment/                        # Docker/K8s скрипты, smoke-test
+├── docs/                              # Гайды по EB1A, валидации, архитектуре
+├── tests/                             # Unit/Integration/Workflows + новые smoke/секьюрити тесты
+└── README*.md                         # Документация для агентов, мониторинга, миграций
 ```
 
 **Легенда:**
@@ -92,68 +85,27 @@ mega_agent_pro_codex_handoff/
 
 ## 📊 ТЕКУЩЕЕ СОСТОЯНИЕ
 
-### ✅ ЧТО УЖЕ РЕАЛИЗОВАНО
+### ✅ Реализовано
+- Многоуровневая память: DeterministicEmbedder для dev, Pinecone/Postgres адаптеры для prod, LangGraph интеграция.
+- Агентный слой: MegaAgent + Supervisor/Case/Writer/Validator/EB1A/RAG/Feedback агенты со связью через EnhancedWorkflowState.
+- Подсистема RAG: ingestion/hybrid/rerank/context, LangGraph-узлы RAGPipelineAgent, новые тесты.
+- Безопасность: RBAC загрузчик из политики, Prompt Injection Detector с конфигурируемым порогом, immutable audit trail.
+- Инфраструктура: Docker (api/bot/worker), Compose профиль worker, Kubernetes deployment, smoke-test скрипт.
 
-**Memory System (100%)**
-- ✅ MemoryManager с полным API
-- ✅ EpisodicStore для аудита событий
-- ✅ SemanticStore для фактов (with embeddings support)
-- ✅ WorkingMemory для RMT буфера
-- ✅ Reflection policies для извлечения фактов
-- ✅ Pydantic v2 модели данных
+### 🚧 В работе
+- Расширение RAG коннекторов (внешние коллекции, Pinecone namespaces).
+- Дополнительные workflow-шаблоны (fan-out/fan-in, error recovery) и прод-Launch плейбуки.
+- Наращивание тестового покрытия для писем/валидации и нагрузочные сценарии.
 
-**Basic Orchestration (60%)**
-- ✅ LangGraph StateGraph integration
-- ✅ PostgreSQL/SQLite checkpointing
-- ✅ Простой workflow: log→reflect→retrieve→rmt
-- ✅ WorkflowState с error handling
+### 🗺️ Дорожная карта
+- Интеграция real-time уведомлений и human-in-the-loop.
+- Полная замена placeholder-инструментов (http.get) на боевые реализации.
+- Оптимизации производительности и комплексные наблюдаемость дешборды.
 
-**Documentation (90%)**
-- ✅ Полная техническая спецификация
-- ✅ LangGraph migration guide
-- ✅ Архитектурные паттерны
-- ✅ Implementation checklist
-
-### 🚧 ЧТО В ПРОЦЕССЕ
-
-**Enhanced Workflows**
-- 🚧 Supervisor Pattern реализация
-- 🚧 Conditional routing логика
-- 🚧 Fan-out/Fan-in patterns
-- 🚧 Error recovery mechanisms
-
-### ❌ ЧТО ЕЩЕ НУЖНО СДЕЛАТЬ
-
-**Core Agents (0%)**
-- ❌ MegaAgent orchestrator
-- ❌ CaseAgent для управления делами
-- ❌ WriterAgent для генерации документов
-- ❌ ValidatorAgent с self-correction
-- ❌ RAGPipelineAgent для поиска
-- ❌ LegalResearchAgent
-
-**Advanced Features (0%)**
-- ❌ Hybrid RAG система
-- ❌ Context Engineering
-- ❌ Self-correcting agents
-- ❌ Human-in-the-loop workflows
-- ❌ Security middleware (RBAC, audit)
-- ❌ Performance optimization
-
-**Infrastructure (0%)**
-- ❌ Docker containerization
-- ❌ Kubernetes deployment
-- ❌ Monitoring и alerting
-- ❌ CI/CD pipeline
-
-### 🐛 ИЗВЕСТНЫЕ ПРОБЛЕМЫ
-
-1. **LangGraph Dependency**: Требует установки `pip install langgraph`
-2. **Embeddings**: Базовая заглушка, нужна интеграция с Gemini/OpenAI
-3. **Error Handling**: Минимальная обработка ошибок
-4. **Testing**: Отсутствуют unit и integration тесты
-5. **Production Config**: Только development конфигурация
-
+### 🐛 Известные особенности
+1. Плейсхолдерные HTTP-инструменты и метрики — необходимые заглушки до внедрения реальных провайдеров.
+2. RAG-пайплайн опирается на in-memory хранилище; для prod требуется миграция на Pinecone/Postgres.
+3. Kubernetes yaml ожидает наличие секрета megaagent-secrets; необходимо синхронизировать с новым secrets manager.
 ## 🎯 СТАНДАРТЫ КОДА
 
 ### Стиль кодирования

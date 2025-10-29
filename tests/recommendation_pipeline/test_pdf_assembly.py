@@ -3,8 +3,8 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-import pytest
 from PyPDF2 import PdfReader, PdfWriter
+import pytest
 
 from recommendation_pipeline.pdf_assembler import assemble_master_pdf
 from recommendation_pipeline.schemas.exhibits import ExhibitMeta, ExhibitsIndex

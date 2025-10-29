@@ -119,6 +119,39 @@ services:
     restart: unless-stopped
 
   # ============================================================================
+  # Background Worker
+  # ============================================================================
+  worker:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: worker
+    container_name: megaagent-worker
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    environment:
+      ENV: ${ENV:-production}
+      DB_POSTGRES_HOST: postgres
+      DB_POSTGRES_PORT: 5432
+      DB_POSTGRES_USER: ${DB_POSTGRES_USER:-megaagent}
+      DB_POSTGRES_PASSWORD: ${DB_POSTGRES_PASSWORD:-changeme_in_production}
+      DB_POSTGRES_DB: ${DB_POSTGRES_DB:-megaagent_pro}
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      REDIS_PASSWORD: ${REDIS_PASSWORD:-changeme_in_production}
+    volumes:
+      - ./logs:/app/logs
+      - ./tmp:/app/tmp
+    networks:
+      - megaagent-network
+    restart: unless-stopped
+    profiles:
+      - worker
+
+  # ============================================================================
   # Telegram Bot (Optional)
   # ============================================================================
   bot:

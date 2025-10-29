@@ -62,7 +62,7 @@ spec:
 
       containers:
         - name: api
-          image: megaagent/api:latest
+          image: mega-agent-pro-api:latest
           imagePullPolicy: Always
 
           ports:

@@ -463,20 +463,39 @@ class CaseAgent:
         # Базовая валидация уже выполнена Pydantic
         # Дополнительная бизнес-логика валидации
 
-        if len(case_record.title.strip()) < 3:
-            errors.append("Case title must be at least 3 characters long")
+        # Title validation (minimum 5 characters for meaningful title)
+        if len(case_record.title.strip()) < 5:
+            errors.append("Case title must be at least 5 characters long for clarity")
 
+        # Description validation
         if len(case_record.description.strip()) < 10:
-            warnings.append("Case description is quite short")
+            warnings.append("Case description is quite short. Consider adding more details.")
 
-        if not case_record.client_id:
-            errors.append("Client ID is required")
+        # Client ID validation - ensure it's not just empty
+        if not case_record.client_id or case_record.client_id.strip() == "":
+            errors.append("Client ID is required and cannot be empty")
+
+        # Status and assigned lawyer consistency
+        if case_record.status == "in_progress" and not case_record.assigned_lawyer:
+            warnings.append("Case is in progress but no lawyer is assigned")
+
+        if case_record.status == "closed" and case_record.assigned_lawyer:
+            # This is okay but worth noting
+            pass
+
+        # Calculate score based on errors and warnings
+        if len(errors) > 0:
+            score = 0.0
+        elif len(warnings) > 0:
+            score = 0.7
+        else:
+            score = 1.0
 
         return ValidationResult(
             is_valid=len(errors) == 0,
             errors=errors,
             warnings=warnings,
-            score=1.0 if len(errors) == 0 else 0.5,
+            score=score,
         )
 
     def _matches_query(self, case_record: CaseRecord, query: CaseQuery) -> bool:

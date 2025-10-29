@@ -17,11 +17,12 @@ from __future__ import annotations
 from datetime import datetime, timedelta
 from typing import Any
 
-import structlog
 from pydantic import BaseModel, Field
+import structlog
 
 from ..memory.memory_manager import MemoryManager
 from ..memory.models import MemoryRecord
+from ..rag import Document, RAGPipeline, RAGResult
 
 logger = structlog.get_logger(__name__)
 
@@ -102,6 +103,7 @@ class RagPipelineAgent:
     def __init__(
         self,
         memory_manager: MemoryManager | None = None,
+        rag_pipeline: RAGPipeline | None = None,
         cache_ttl_seconds: int = 3600,
     ):
         """
@@ -112,6 +114,7 @@ class RagPipelineAgent:
             cache_ttl_seconds: TTL for query cache (default 1 hour)
         """
         self.memory = memory_manager or MemoryManager()
+        self.rag_pipeline = rag_pipeline or RAGPipeline()
         self.cache_ttl = cache_ttl_seconds
         self.logger = logger.bind(agent="rag_pipeline")
 
@@ -125,6 +128,11 @@ class RagPipelineAgent:
             "cache_misses": 0,
             "avg_retrieval_time_ms": 0.0,
         }
+
+    async def aload_documents(self, documents: list[Document]) -> list[str]:
+        """Ingest external documents into the RAG pipeline store."""
+        chunks = await self.rag_pipeline.ingest(documents)
+        return [chunk.chunk_id for chunk in chunks]
 
     async def arag(
         self,
@@ -173,18 +181,32 @@ class RagPipelineAgent:
 
         self._stats["cache_misses"] += 1
 
-        # Phase 1: Keyword-based retrieval
         retrieval_start = datetime.utcnow()
-        retrieved_records = await self.memory.aretrieve(query=question, user_id=user_id, k=topk)
+
+        pipeline_results: list[RAGResult] = []
+        pipeline_context: dict[str, Any] | None = None
+        store_chunks = self.rag_pipeline.store.iter_chunks()
+        if store_chunks:
+            pipeline_payload = await self.rag_pipeline.query(question, top_k=topk)
+            pipeline_results = pipeline_payload.get("results", [])
+            pipeline_context = pipeline_payload.get("context")
+
+        retrieved_records = await self.memory.aretrieve(query=question, user_id=user_id, topk=topk)
         retrieval_time = (datetime.utcnow() - retrieval_start).total_seconds() * 1000
 
-        # Convert to sources
-        sources = self._convert_to_sources(retrieved_records, question)
+        pipeline_sources = self._convert_pipeline_results(pipeline_results)
+        memory_sources = self._convert_to_sources(retrieved_records, question)
+
+        sources = pipeline_sources + memory_sources
 
         # Build context for LLM
         context_parts = []
         if context:
             context_parts.append(f"Additional Context:\n{context}\n")
+
+        if pipeline_context and pipeline_context.get("text"):
+            context_parts.append("RAG Pipeline Context:")
+            context_parts.append(pipeline_context["text"])
 
         if sources:
             context_parts.append("Retrieved Information:")
@@ -481,6 +503,20 @@ class RagPipelineAgent:
             )
             for key, _ in sorted_items[:100]:
                 del self._query_cache[key]
+
+    def _convert_pipeline_results(self, results: list[RAGResult]) -> list[RagSource]:
+        sources: list[RagSource] = []
+        for result in results:
+            sources.append(
+                RagSource(
+                    source_id=result.chunk_id,
+                    source_type=result.metadata.get("source_type", "rag"),
+                    content=result.text,
+                    relevance_score=result.score,
+                    metadata=result.metadata,
+                )
+            )
+        return sources
 
     def _convert_to_sources(
         self,

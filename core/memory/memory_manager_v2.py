@@ -11,6 +11,7 @@ from typing import TYPE_CHECKING, Any, Protocol
 if TYPE_CHECKING:
     from collections.abc import Iterable
 
+from .embedders import DeterministicEmbedder
 from .models import AuditEvent, ConsolidateStats, MemoryRecord, RetrievalQuery
 from .policies import select_salient_facts
 
@@ -20,13 +21,6 @@ class Embedder(Protocol):
 
     async def aembed(self, texts: list[str]) -> list[list[float]]:  # pragma: no cover
         ...
-
-
-class _NoOpEmbedder:
-    """Fallback embedder that returns empty vectors."""
-
-    async def aembed(self, texts: list[str]) -> list[list[float]]:
-        return [[] for _ in texts]
 
 
 class MemoryManager:
@@ -67,10 +61,8 @@ class MemoryManager:
         if use_production:
             # Auto-initialize production stores
             from ..llm.voyage_embedder import create_voyage_embedder
-            from ..storage.postgres_stores import (PostgresEpisodicStore,
-                                                   PostgresWorkingMemory)
-            from .stores.pinecone_semantic_store import \
-                PineconeSemanticStoreAdapter
+            from ..storage.postgres_stores import PostgresEpisodicStore, PostgresWorkingMemory
+            from .stores.pinecone_semantic_store import PineconeSemanticStoreAdapter
 
             self.semantic = semantic or PineconeSemanticStoreAdapter()
             self.episodic = episodic or PostgresEpisodicStore()
@@ -83,7 +75,7 @@ class MemoryManager:
             self.semantic = semantic or SemanticStore()
             self.episodic = episodic or EpisodicStore()
             self.working = working or WorkingMemory()
-            self.embedder = embedder or _NoOpEmbedder()
+            self.embedder = embedder or DeterministicEmbedder()
 
         self._is_production = use_production
 
@@ -353,8 +345,7 @@ def create_production_memory_manager(
         >>> # Now uses Pinecone, PostgreSQL, and Voyage AI
     """
     from ..llm.voyage_embedder import create_voyage_embedder
-    from ..storage.postgres_stores import (PostgresEpisodicStore,
-                                           PostgresWorkingMemory)
+    from ..storage.postgres_stores import PostgresEpisodicStore, PostgresWorkingMemory
     from .stores.pinecone_semantic_store import PineconeSemanticStoreAdapter
 
     return MemoryManager(

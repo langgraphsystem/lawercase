@@ -16,14 +16,21 @@ from typing import Any
 
 from pydantic import BaseModel, Field
 
+from config.secrets_manager import secrets_manager
+
+
+def _default_jwt_secret() -> str:
+    return secrets_manager.get("SECURITY_JWT_SECRET_KEY") or os.getenv(
+        "JWT_SECRET_KEY", "dev-secret-change-in-production"
+    )
+
 
 class SecurityConfig(BaseModel):
     """Central security configuration."""
 
     # Authentication
     jwt_secret_key: str = Field(
-        default_factory=lambda: os.getenv("JWT_SECRET_KEY", "dev-secret-change-in-production"),
-        description="JWT signing key",
+        default_factory=lambda: _default_jwt_secret(), description="JWT signing key"
     )
     jwt_algorithm: str = Field(default="HS256", description="JWT signing algorithm")
     jwt_expiration_hours: int = Field(default=24, description="JWT token expiration in hours")
@@ -75,7 +82,7 @@ class SecurityConfig(BaseModel):
         default=True, description="Enable security monitoring"
     )
     audit_log_path: str = Field(
-        default_factory=lambda: os.getenv("AUDIT_LOG_PATH", "audits/immutable_audit.log"),
+        default_factory=lambda: secrets_manager.get("AUDIT_LOG_PATH", "audits/immutable_audit.log"),
         description="Path for immutable audit trail",
     )
     audit_hash_algorithm: str = Field(
@@ -86,7 +93,7 @@ class SecurityConfig(BaseModel):
     rbac_strict_mode: bool = Field(default=True, description="Enable strict RBAC enforcement")
     rbac_cache_ttl_seconds: int = Field(default=300, description="RBAC cache TTL in seconds")
     rbac_policy_path: str | None = Field(
-        default_factory=lambda: os.getenv("RBAC_POLICY_PATH"),
+        default_factory=lambda: secrets_manager.get("RBAC_POLICY_PATH"),
         description="Optional path to custom RBAC policy JSON",
     )
 

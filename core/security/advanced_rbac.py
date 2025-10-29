@@ -2,10 +2,12 @@
 
 from __future__ import annotations
 
-import logging
 from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
+import json
+import logging
+from pathlib import Path
 from typing import Any
 
 logger = logging.getLogger(__name__)
@@ -364,6 +366,49 @@ class RBACManager:
         self.register_user(user)
         return user
 
+    def load_policy(self, policy: dict[str, Any]) -> None:
+        """Load role and user assignments from policy dictionary."""
+        roles = policy.get("roles", {})
+        for role_name, permissions in roles.items():
+            try:
+                role = Role(role_name)
+            except ValueError:
+                logger.warning("Unknown role in policy: %s", role_name)
+                continue
+            if permissions == ["*"]:
+                self.role_permissions[role] = set(Permission)
+            else:
+                mapped = {Permission(permission) for permission in permissions}
+                self.role_permissions[role] = mapped
+
+        for user_data in policy.get("users", []):
+            try:
+                user = User(
+                    user_id=user_data["user_id"],
+                    username=user_data.get("username", user_data["user_id"]),
+                    roles=[Role(role) for role in user_data.get("roles", [])],
+                    custom_permissions=[
+                        Permission(p) for p in user_data.get("custom_permissions", [])
+                    ],
+                    denied_permissions=[
+                        Permission(p) for p in user_data.get("denied_permissions", [])
+                    ],
+                    metadata=user_data.get("metadata", {}),
+                    is_active=user_data.get("is_active", True),
+                )
+            except KeyError as exc:
+                logger.error("Invalid user entry in RBAC policy: missing %s", exc)
+                continue
+            self.register_user(user)
+
+    def load_policy_file(self, path: str | Path) -> None:
+        """Load policy JSON file and apply it."""
+        policy_path = Path(path)
+        if not policy_path.exists():
+            raise FileNotFoundError(f"RBAC policy file not found: {policy_path}")
+        policy = json.loads(policy_path.read_text(encoding="utf-8"))
+        self.load_policy(policy)
+
 
 # Global instance
 _rbac_manager: RBACManager | None = None
@@ -379,3 +424,14 @@ def get_rbac_manager() -> RBACManager:
     if _rbac_manager is None:
         _rbac_manager = RBACManager()
     return _rbac_manager
+
+
+def initialize_rbac_from_policy(path: str | None) -> RBACManager:
+    """Initialize RBAC manager using an optional policy path."""
+    manager = get_rbac_manager()
+    if path:
+        try:
+            manager.load_policy_file(path)
+        except FileNotFoundError:
+            logger.error("RBAC policy file %s not found", path)
+    return manager

@@ -13,20 +13,26 @@ from __future__ import annotations
 
 from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
+from pathlib import Path
 
 from fastapi import FastAPI, Request, status
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.gzip import GZipMiddleware
 from fastapi.responses import JSONResponse
+from fastapi.staticfiles import StaticFiles
 
-from api.middleware_production import (EnhancedRateLimitMiddleware,
-                                       ErrorHandlingMiddleware,
-                                       PerformanceMiddleware,
-                                       RequestIDMiddleware,
-                                       SecurityHeadersMiddleware)
+from api.middleware_production import (
+    EnhancedRateLimitMiddleware,
+    ErrorHandlingMiddleware,
+    PerformanceMiddleware,
+    RequestIDMiddleware,
+    SecurityHeadersMiddleware,
+)
 from core.config.production_settings import get_settings
 from core.logging_utils import get_logger, setup_logging
+from core.security import configure_security
+from core.security.config import SecurityConfig
 
 logger = get_logger(__name__)
 
@@ -53,6 +59,9 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
         log_file=settings.observability.log_file,
         service_name=settings.observability.tracing_service_name,
     )
+
+    # Security primitives (RBAC, prompt detector)
+    configure_security(SecurityConfig())
 
     # Additional startup tasks
     # - Database connections
@@ -219,6 +228,11 @@ def create_app() -> FastAPI:
 
     app.include_router(admin_routes.router, prefix=f"{settings.api_prefix}/admin", tags=["Admin"])
 
+    # Document Monitor endpoints
+    from api.routes import document_monitor as document_monitor_routes
+
+    app.include_router(document_monitor_routes.router, tags=["Document Monitor"])
+
     # ========================================================================
     # Root endpoint
     # ========================================================================
@@ -234,6 +248,15 @@ def create_app() -> FastAPI:
             "docs_url": settings.docs_url,
         }
 
+    # ========================================================================
+    # Static Files (serve index.html and other static assets)
+    # ========================================================================
+
+    static_dir = Path(__file__).parent.parent  # Go up to project root
+    if (static_dir / "index.html").exists():
+        # Mount static files at /static to avoid conflicts with API routes
+        app.mount("/static", StaticFiles(directory=str(static_dir), html=True), name="static")
+
     return app
 
 
@@ -248,7 +271,7 @@ if __name__ == "__main__":
 
     uvicorn.run(
         "api.main_production:app",
-        host="0.0.0.0",
+        host="0.0.0.0",  # nosec B104 - Binding to all interfaces for Docker/K8s
         port=8000,
         reload=settings.is_development,
         log_level=settings.observability.log_level.value.lower(),

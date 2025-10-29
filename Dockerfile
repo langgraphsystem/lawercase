@@ -132,5 +132,9 @@ RUN useradd --create-home --shell /bin/bash appuser \
 
 USER appuser
 
+# Worker health-check ensures background loop can execute a smoke run.
+HEALTHCHECK --interval=60s --timeout=10s --retries=3 \
+    CMD python -m core.workers.task_worker smoke || exit 1
+
 # Run background worker (if needed)
-CMD ["python", "-m", "core.workers.task_worker"]
+CMD ["python", "-m", "core.workers.task_worker", "start"]

@@ -5,6 +5,7 @@ from uuid import uuid4
 
 from pydantic import BaseModel, ConfigDict, Field
 
+from ..exceptions import ConfigurationError, ValidationError, WorkflowError
 from ..memory.models import AuditEvent, MemoryRecord
 from ..memory.rmt.buffer import compose_prompt
 from .error_handler import check_for_error, handle_error
@@ -497,9 +498,7 @@ def build_eb1a_complete_workflow(memory: MemoryManager):
     _ensure_langgraph()
 
     from ..groupagents.eb1a_evidence_analyzer import EB1AEvidenceAnalyzer
-    from ..groupagents.validator_agent import (ValidationLevel,
-                                               ValidationRequest,
-                                               ValidatorAgent)
+    from ..groupagents.validator_agent import ValidationLevel, ValidationRequest, ValidatorAgent
     from ..workflows.eb1a.eb1a_coordinator import EB1ACriterion
 
     analyzer = EB1AEvidenceAnalyzer(memory_manager=memory)

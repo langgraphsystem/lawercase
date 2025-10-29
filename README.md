@@ -3,10 +3,13 @@
 Этот пакет добавляет минимальный рабочий пайплайн на базе LangGraph, интегрированный с существующим `MemoryManager` (эпизодическая/семантическая память и RMT буфер).
 
 ## Что добавлено
-- `core/orchestration/workflow_graph.py` — узлы графа: логирование события → рефлексия фактов → поиск релевантной памяти → обновление RMT слотов.
-- `core/orchestration/pipeline_manager.py` — сборка/компиляция графа и запуск с чекпоинтером (in‑memory/SQLite).
-- `app_demo.py` — простой асинхронный демо-сценарий запуска пайплайна.
-- `requirements.txt` — зависимости (LangGraph/LangChain/Pydantic v2).
+- `core/orchestration/` — LangGraph workflow graph + enhanced pipeline manager.
+- `core/rag/` — ingestion, гибридный поиск, rerенк и контекст для RagPipelineAgent.
+- `core/workers/task_worker.py` — фоновые проверки памяти + CLI/healthcheck.
+- `core/memory/embedders.py` — DeterministicEmbedder для dev/test и интеграция с prod.
+- `api/middleware.py`, `api/routes/metrics.py`, `api/startup.py` — базовые middleware, метрики и встроенные инструменты.
+- `config/secrets_manager.py`, `config/profiles/` — secrets loader и прод-профили (Pinecone, R2, LLM).
+- `deployment/docker/smoke_test.py` — smoke-тест Docker образов.
 
 ## Установка
 1. Python 3.11+
@@ -60,18 +63,18 @@
 - Текущая реализация фокусируется на интеграции с памятью и оркестрацией. Полный функционал из `codex_spec.json` можно наращивать пошагово: добавить `MegaAgent`, специализированных агентов, RAG‑индексацию, роутинг LLM и пр.
 
 ## Docker Compose
-- `docker-compose.yml` поднимает Redis и PostgreSQL, а также dev‑экземпляр API (uvicorn с `--reload`).
-- Профили окружения: `env/dev.env`, `env/prod.env`.
-- Запуск: `docker-compose up --build`. Перед продакшеном заполните `.env`/`env/prod.env` реальными ключами и настроите `USE_PROD_MEMORY=true`.
-
+- docker-compose.yml поднимает PostgreSQL, Redis, API (profile default), worker (profile worker) и опционально Telegram bot (profile telegram).
+- Для запуска API+worker: docker-compose up --build api worker. Прод-значения храните в .env/env/prod.env и secrets manager.
+- Рабочий контейнер использует core.workers.task_worker и готов к healthcheck через docker inspect/docker ps.
 ### Docker Image
 
-```
-docker build -t mega-agent-pro .
-docker run --env-file=.env mega-agent-pro
-```
-Изображение использует multi-stage сборку (builder/runtime), запускается от `appuser` и по умолчанию стартует Telegram‑бот (`python -m telegram_interface.bot`). Перекройте команду при запуске, если нужно API/CLI.
-
+`
+docker build --target api -t mega-agent-pro-api .
+docker build --target worker -t mega-agent-pro-worker .
+python deployment/docker/smoke_test.py mega-agent-pro-worker
+docker run --env-file=.env mega-agent-pro-api
+`
+Изображения запускаются от ppuser, worker имеет встроенный healthcheck (python -m core.workers.task_worker smoke).
 ## EB-1A Pipeline — Quickstart
 
 ### Переменные окружения
@@ -110,6 +113,12 @@ python -m recommendation_pipeline.pdf_finalize --in out/EB1A_master.pdf --ocr ad
 
 Используйте `core.orchestration.pipeline_manager.build_eb1a_pipeline(...)`, чтобы скомпилировать LangGraph workflow, построенный функцией `core.orchestration.eb1a_nodes.build_eb1a_workflow()`. Узлы импортируют и вызывают CLI-пайплайн, сохраняя результаты в `WorkflowState.agent_results["eb1a"]`.
 
+## Production Configuration & Secrets
+- Используйте `config/secrets_manager.py` для загрузки секретов (ENV > JSON).
+- Prod-профиль: `config/profiles/production.py`, `core/config/production_settings.py` (Pinecone, R2, LLM, Redis, Postgres).
+- Для K8s требуется секрет `megaagent-secrets` с ключами (`postgres-user`, `redis-password`, `openai-api-key`, ...).
+- `configure_security` активирует RBAC-политику и Prompt Detector согласно окружению.
+
 ## Telegram Bot
 
 1. Задайте переменные окружения `TELEGRAM_BOT_TOKEN` и (опционально) `TELEGRAM_ALLOWED_USERS` (через запятую) в `.env`.
@@ -133,3 +142,4 @@ GitHub Actions workflow `.github/workflows/ci.yml` выполняет:
 - `gitleaks` — сканирование репозитория на секреты.
 
 Запускается на push/PR в `main|master`. Добавьте дополнительные проверки (deploy, integration) при необходимости.
+

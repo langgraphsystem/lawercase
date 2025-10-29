@@ -13,8 +13,12 @@ from datetime import datetime
 from pathlib import Path
 
 from ..eb1a_coordinator import EB1ACriterion
-from .eb1a_validator import (SectionValidationResult, ValidationIssue,
-                             ValidationResult, ValidationSeverity)
+from .eb1a_validator import (
+    SectionValidationResult,
+    ValidationIssue,
+    ValidationResult,
+    ValidationSeverity,
+)
 
 
 class ValidationReportGenerator:

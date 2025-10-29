@@ -14,8 +14,7 @@ from datetime import datetime
 
 from core.groupagents.eb1a_evidence_analyzer import EB1AEvidenceAnalyzer
 from core.memory.memory_manager import MemoryManager
-from core.workflows.eb1a.eb1a_coordinator import (EB1ACriterion, EB1AEvidence,
-                                                  EvidenceType)
+from core.workflows.eb1a.eb1a_coordinator import EB1ACriterion, EB1AEvidence, EvidenceType
 
 
 async def main():

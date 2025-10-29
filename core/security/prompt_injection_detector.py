@@ -2,10 +2,10 @@
 
 from __future__ import annotations
 
-import logging
-import re
 from dataclasses import dataclass, field
 from enum import Enum
+import logging
+import re
 from typing import Any
 
 logger = logging.getLogger(__name__)
@@ -54,6 +54,7 @@ class PromptInjectionDetector:
         """
         self.strictness = max(0.0, min(1.0, strictness))
         self._compile_patterns()
+        self.enabled: bool = True
         logger.info(f"PromptInjectionDetector initialized with strictness={self.strictness}")
 
     def _compile_patterns(self) -> None:
@@ -117,6 +118,15 @@ class PromptInjectionDetector:
         Returns:
             PromptInjectionResult with detection details
         """
+        if not getattr(self, "enabled", True):
+            return PromptInjectionResult(
+                is_injection=False,
+                injection_types=[],
+                confidence=0.0,
+                details={"reason": "detector-disabled"},
+                sanitized_prompt=prompt,
+            )
+
         injection_types: list[InjectionType] = []
         type_confidences: dict[str, float] = {}
         matched_patterns: list[str] = []
@@ -280,7 +290,7 @@ class PromptInjectionDetector:
 _detector: PromptInjectionDetector | None = None
 
 
-def get_prompt_detector(strictness: float = 0.7) -> PromptInjectionDetector:
+def get_prompt_detector(strictness: float | None = None) -> PromptInjectionDetector:
     """Get or create global prompt injection detector.
 
     Args:
@@ -291,5 +301,24 @@ def get_prompt_detector(strictness: float = 0.7) -> PromptInjectionDetector:
     """
     global _detector
     if _detector is None:
-        _detector = PromptInjectionDetector(strictness=strictness)
+        baseline = 0.7 if strictness is None else strictness
+        _detector = PromptInjectionDetector(strictness=baseline)
+    elif strictness is not None:
+        _detector.strictness = max(0.0, min(1.0, strictness))
     return _detector
+
+
+def configure_prompt_detector(enabled: bool, threshold: float) -> PromptInjectionDetector:
+    detector = get_prompt_detector(threshold)
+    detector.enabled = enabled
+    detector.strictness = max(0.0, min(1.0, threshold))
+    return detector
+
+
+__all__ = [
+    "InjectionType",
+    "PromptInjectionDetector",
+    "PromptInjectionResult",
+    "configure_prompt_detector",
+    "get_prompt_detector",
+]

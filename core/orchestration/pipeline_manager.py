@@ -3,8 +3,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Any
 
 from .eb1a_nodes import build_eb1a_workflow
-from .enhanced_workflows import (EnhancedWorkflowState,
-                                 create_enhanced_orchestration)
+from .enhanced_workflows import EnhancedWorkflowState, create_enhanced_orchestration
 from .workflow_graph import WorkflowState, build_memory_workflow
 
 if TYPE_CHECKING:

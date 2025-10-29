@@ -10,11 +10,11 @@ This module provides:
 
 from __future__ import annotations
 
-import os
-import secrets
 from enum import Enum
 from functools import lru_cache
+import os
 from pathlib import Path
+import secrets
 from typing import Any
 
 from pydantic import Field, SecretStr, field_validator, model_validator
@@ -113,6 +113,41 @@ class RedisSettings(BaseSettings):
         return f"redis://{self.host}:{self.port}/{self.db}"
 
 
+class PineconeSettings(BaseSettings):
+    """Pinecone vector store configuration."""
+
+    model_config = SettingsConfigDict(
+        env_prefix="PINECONE_",
+        env_file=".env",
+        env_file_encoding="utf-8",
+        case_sensitive=False,
+        extra="ignore",
+    )
+
+    api_key: SecretStr | None = Field(default=None)
+    environment: str | None = Field(default=None)
+    index_name: str = Field(default="mega-agent-semantic")
+    namespace: str | None = Field(default=None)
+
+
+class R2Settings(BaseSettings):
+    """Cloudflare R2 object storage configuration."""
+
+    model_config = SettingsConfigDict(
+        env_prefix="R2_",
+        env_file=".env",
+        env_file_encoding="utf-8",
+        case_sensitive=False,
+        extra="ignore",
+    )
+
+    account_id: str | None = Field(default=None)
+    access_key_id: SecretStr | None = Field(default=None)
+    secret_access_key: SecretStr | None = Field(default=None)
+    bucket_name: str | None = Field(default=None)
+    endpoint: str | None = Field(default=None)
+
+
 class SecuritySettings(BaseSettings):
     """Security configuration."""
 
@@ -125,10 +160,29 @@ class SecuritySettings(BaseSettings):
     )
 
     # JWT
-    jwt_secret_key: SecretStr = Field(default_factory=lambda: SecretStr(secrets.token_urlsafe(32)))
+    # WARNING: In production, jwt_secret_key MUST be set via environment variable (SECURITY_JWT_SECRET_KEY)
+    # Auto-generation is only for development/testing. In distributed systems, all instances must share the same secret.
+    jwt_secret_key: SecretStr | None = Field(default=None)
     jwt_algorithm: str = Field(default="HS256")
     jwt_expiration_minutes: int = Field(default=60, ge=1)
     jwt_refresh_expiration_days: int = Field(default=7, ge=1)
+
+    @field_validator("jwt_secret_key", mode="after")
+    @classmethod
+    def generate_jwt_secret_if_missing(cls, v: SecretStr | None) -> SecretStr:
+        """Generate JWT secret if not provided (development only)."""
+        if v is None:
+            # Auto-generate ONLY for development/testing
+            import warnings
+
+            warnings.warn(
+                "JWT secret key is auto-generated. This is INSECURE for production. "
+                "Set SECURITY_JWT_SECRET_KEY environment variable.",
+                UserWarning,
+                stacklevel=2,
+            )
+            return SecretStr(secrets.token_urlsafe(32))
+        return v
 
     # API Keys
     api_key_length: int = Field(default=32, ge=16, le=64)
@@ -141,7 +195,7 @@ class SecuritySettings(BaseSettings):
 
     # CORS
     cors_enabled: bool = Field(default=True)
-    cors_origins: list[str] = Field(default_factory=lambda: ["*"])
+    cors_origins: list[str] = Field(default_factory=lambda: ["http://localhost:3000"])
     cors_allow_credentials: bool = Field(default=True)
 
     # Encryption
@@ -313,6 +367,8 @@ class AppSettings(BaseSettings):
     # Nested settings
     database: DatabaseSettings = Field(default_factory=DatabaseSettings)
     redis: RedisSettings = Field(default_factory=RedisSettings)
+    pinecone: PineconeSettings = Field(default_factory=PineconeSettings)
+    r2: R2Settings = Field(default_factory=R2Settings)
     security: SecuritySettings = Field(default_factory=SecuritySettings)
     llm: LLMSettings = Field(default_factory=LLMSettings)
     telegram: TelegramSettings = Field(default_factory=TelegramSettings)
@@ -330,8 +386,46 @@ class AppSettings(BaseSettings):
             if not self.security.jwt_secret_key.get_secret_value():
                 raise ValueError("JWT secret key is required in production")
 
-            if self.security.cors_origins == ["*"]:
-                raise ValueError("CORS must be restricted in production")
+            # Strict CORS validation - must be explicit origins, not wildcards
+            if "*" in self.security.cors_origins:
+                raise ValueError(
+                    "CORS wildcard (*) is not allowed in production. Specify explicit origins."
+                )
+
+            # Validate required API keys in production
+            if (
+                not self.llm.openai_api_key
+                and not self.llm.anthropic_api_key
+                and not self.llm.gemini_api_key
+            ):
+                raise ValueError(
+                    "At least one LLM API key (OpenAI, Anthropic, or Gemini) is required in production"
+                )
+
+            if not self.pinecone.api_key or not self.pinecone.environment:
+                raise ValueError("Pinecone API key and environment are required in production")
+
+            if not (
+                self.r2.bucket_name
+                and self.r2.account_id
+                and self.r2.access_key_id
+                and self.r2.secret_access_key
+            ):
+                raise ValueError(
+                    "R2 storage requires account id, bucket name, access key id, and secret in production"
+                )
+
+            # Validate database configuration
+            if not self.database.postgres_dsn and not all(
+                [
+                    self.database.postgres_host,
+                    self.database.postgres_user,
+                    self.database.postgres_password.get_secret_value(),
+                ]
+            ):
+                raise ValueError(
+                    "Database configuration (postgres_dsn or host/user/password) is required in production"
+                )
 
         return self
 

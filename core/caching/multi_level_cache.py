@@ -7,9 +7,9 @@ This module layers an in-process L0 cache on top of the existing Redis +
 semantic cache infrastructure exposed through `LLMCache`.
 """
 
+from collections import OrderedDict
 import json
 import time
-from collections import OrderedDict
 from typing import Any
 
 from .llm_cache import LLMCache, get_llm_cache
