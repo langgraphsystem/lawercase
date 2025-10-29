@@ -7,12 +7,12 @@ and optional Neo4j backends for production deployments.
 
 from __future__ import annotations
 
-from collections.abc import Mapping, Sequence
-from dataclasses import dataclass
-from datetime import datetime
 import json
 import logging
 import threading
+from collections.abc import Mapping, Sequence
+from dataclasses import dataclass
+from datetime import datetime
 from typing import Any
 
 import networkx as nx
@@ -21,7 +21,9 @@ from .entities import KGEdge, KGNode, KnowledgeTriple
 
 try:  # Optional dependency – only required for RDF import/export.
     import rdflib
-    from rdflib import BNode, Graph as RDFGraph, Literal, Namespace
+    from rdflib import BNode
+    from rdflib import Graph as RDFGraph
+    from rdflib import Literal, Namespace
     from rdflib.namespace import RDF, RDFS
 except ImportError:  # pragma: no cover - exercised in environments without rdflib
     rdflib = None  # type: ignore

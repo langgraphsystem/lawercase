@@ -11,7 +11,8 @@ from __future__ import annotations
 
 import asyncio
 
-from core.knowledge_graph import GraphConstructor, GraphRAGQuery, GraphStore, HybridRAG
+from core.knowledge_graph import (GraphConstructor, GraphRAGQuery, GraphStore,
+                                  HybridRAG)
 
 # Sample legal documents for demo
 LEGAL_DOCUMENTS = [

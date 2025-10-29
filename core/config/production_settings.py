@@ -10,11 +10,11 @@ This module provides:
 
 from __future__ import annotations
 
+import os
+import secrets
 from enum import Enum
 from functools import lru_cache
-import os
 from pathlib import Path
-import secrets
 from typing import Any
 
 from pydantic import Field, SecretStr, field_validator, model_validator

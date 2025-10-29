@@ -10,9 +10,9 @@ This module provides:
 
 from __future__ import annotations
 
-from collections.abc import Callable
 import time
 import uuid
+from collections.abc import Callable
 
 from fastapi import Request, Response
 from starlette.middleware.base import BaseHTTPMiddleware

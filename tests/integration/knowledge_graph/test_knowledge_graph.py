@@ -4,15 +4,9 @@ from __future__ import annotations
 
 import pytest
 
-from core.knowledge_graph import (
-    EntityExtractor,
-    GraphConstructor,
-    GraphRAGQuery,
-    GraphStore,
-    HybridRAG,
-    KnowledgeTriple,
-    RelationExtractor,
-)
+from core.knowledge_graph import (EntityExtractor, GraphConstructor,
+                                  GraphRAGQuery, GraphStore, HybridRAG,
+                                  KnowledgeTriple, RelationExtractor)
 
 
 @pytest.fixture

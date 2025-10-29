@@ -6,7 +6,8 @@ from dataclasses import dataclass
 from typing import Any
 
 from config.secrets_manager import secrets_manager
-from core.config.production_settings import AppSettings, get_production_settings
+from core.config.production_settings import (AppSettings,
+                                             get_production_settings)
 from core.security.config import SecurityConfig
 
 

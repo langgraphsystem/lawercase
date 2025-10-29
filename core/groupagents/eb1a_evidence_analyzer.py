@@ -15,8 +15,8 @@ from datetime import datetime
 from enum import Enum
 from typing import Any
 
-from pydantic import BaseModel, Field
 import structlog
+from pydantic import BaseModel, Field
 
 from ..memory.memory_manager import MemoryManager
 from ..workflows.eb1a.eb1a_coordinator import EB1ACriterion, EB1AEvidence

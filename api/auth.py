@@ -9,13 +9,14 @@ This module provides:
 
 from __future__ import annotations
 
-from datetime import datetime, timedelta
 import secrets
+from datetime import datetime, timedelta
 from typing import Annotated
 
-from fastapi import Depends, HTTPException, status
-from fastapi.security import APIKeyHeader, HTTPAuthorizationCredentials, HTTPBearer
 import jwt
+from fastapi import Depends, HTTPException, status
+from fastapi.security import (APIKeyHeader, HTTPAuthorizationCredentials,
+                              HTTPBearer)
 from passlib.context import CryptContext
 from pydantic import BaseModel
 

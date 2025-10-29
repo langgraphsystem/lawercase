@@ -13,7 +13,8 @@ Modules:
 
 from __future__ import annotations
 
-from .eb1a_coordinator import EB1ACoordinator, EB1APetitionRequest, EB1APetitionResult
+from .eb1a_coordinator import (EB1ACoordinator, EB1APetitionRequest,
+                               EB1APetitionResult)
 
 __all__ = [
     "EB1ACoordinator",

@@ -18,9 +18,11 @@ from datetime import datetime
 
 from core.memory.memory_manager import MemoryManager
 from core.workflows.eb1a import EB1ACoordinator, EB1APetitionRequest
-from core.workflows.eb1a.eb1a_coordinator import EB1ACriterion, EB1AEvidence, EvidenceType
+from core.workflows.eb1a.eb1a_coordinator import (EB1ACriterion, EB1AEvidence,
+                                                  EvidenceType)
 from core.workflows.eb1a.templates import LanguagePatterns, SectionTemplates
-from core.workflows.eb1a.validators import EB1AValidator, ValidationReportGenerator
+from core.workflows.eb1a.validators import (EB1AValidator,
+                                            ValidationReportGenerator)
 
 
 async def main():
