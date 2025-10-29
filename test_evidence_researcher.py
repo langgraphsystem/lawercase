@@ -14,10 +14,8 @@ import asyncio
 from datetime import datetime
 
 from core.memory.memory_manager import MemoryManager
-from core.workflows.eb1a.eb1a_coordinator import (EB1ACriterion, EB1AEvidence,
-                                                  EvidenceType)
-from core.workflows.eb1a.eb1a_workflow.evidence_researcher import \
-    EvidenceResearcher
+from core.workflows.eb1a.eb1a_coordinator import EB1ACriterion, EB1AEvidence, EvidenceType
+from core.workflows.eb1a.eb1a_workflow.evidence_researcher import EvidenceResearcher
 
 
 async def demo_organization_research():
@@ -383,7 +381,7 @@ async def main():
 
         print("\nReady for:")
         print("  • Web Search API integration (Google/Bing/DuckDuckGo)")
-        print("  • LLM-based data extraction (GPT-4/Claude)")
+        print("  • LLM-based data extraction (GPT-5/Claude)")
         print("  • Scraping with Beautiful Soup")
         print("  • Named Entity Recognition")
         print("  • Structured data extraction")

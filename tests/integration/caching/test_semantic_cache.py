@@ -22,7 +22,7 @@ async def cache():
 async def test_exact_match_cache(cache):
     """Test exact match caching (L1)."""
     query = "What is contract law?"
-    response = {"content": "Contract law governs agreements...", "model": "gpt-4"}
+    response = {"content": "Contract law governs agreements...", "model": "gpt-5-mini"}
 
     # Set
     await cache.set(query, response)
@@ -43,7 +43,7 @@ async def test_semantic_similarity_cache(cache):
     """Test semantic similarity matching (L2)."""
     query1 = "What is contract law?"
     query2 = "Explain contract law to me"  # Similar query
-    response = {"content": "Contract law governs agreements...", "model": "gpt-4"}
+    response = {"content": "Contract law governs agreements...", "model": "gpt-5-mini"}
 
     # Cache first query
     await cache.set(query1, response, ttl=300)
@@ -78,7 +78,7 @@ async def test_cache_miss(cache):
 async def test_cache_delete(cache):
     """Test deleting cached entries."""
     query = "What is immigration law?"
-    response = {"content": "Immigration law...", "model": "gpt-4"}
+    response = {"content": "Immigration law...", "model": "gpt-5-mini"}
 
     # Set and verify
     await cache.set(query, response)
@@ -99,7 +99,7 @@ async def test_cache_ttl_expiration():
     """Test that cache entries expire after TTL."""
     cache = SemanticCache(namespace=f"test_ttl_{uuid4().hex[:8]}")
     query = "Test TTL query"
-    response = {"content": "Test response", "model": "gpt-4"}
+    response = {"content": "Test response", "model": "gpt-5-mini"}
 
     # Set with short TTL
     await cache.set(query, response, ttl=1)
@@ -165,7 +165,7 @@ async def test_semantic_cache_disabled():
 
     query1 = "What is contract law?"
     query2 = "Explain contract law"
-    response = {"content": "Contract law...", "model": "gpt-4"}
+    response = {"content": "Contract law...", "model": "gpt-5-mini"}
 
     await cache.set(query1, response)
 

@@ -3,9 +3,9 @@
 from __future__ import annotations
 
 import structlog
-import typer
 from telegram import Update
-from telegram.ext import Application, ApplicationBuilder, Defaults
+from telegram.ext import Application, ApplicationBuilder, ContextTypes, Defaults
+import typer
 
 from config.logging import setup_logging
 from config.settings import get_settings
@@ -36,6 +36,23 @@ def run_bot(*, poll_interval: float = 0.0) -> None:
     )
 
     register_handlers(application, mega_agent=mega_agent, settings=settings)
+
+    async def on_error(update: object, context: ContextTypes.DEFAULT_TYPE) -> None:  # type: ignore[valid-type]
+        # Central error logger to avoid silent failures that can block handlers
+        try:
+            user_id = None
+            if isinstance(update, Update) and update.effective_user:
+                user_id = update.effective_user.id
+            logger.exception(
+                "telegram.error",
+                user_id=user_id,
+                error=str(context.error) if getattr(context, "error", None) else "unknown",
+            )
+        except Exception:  # pragma: no cover - defensive
+            logger.exception("telegram.error_handler_failed")
+
+    # Capture unhandled exceptions from handlers
+    application.add_error_handler(on_error)
 
     logger.info("telegram.bot.starting")
     # Use run_polling which handles event loop, initialization, start, and cleanup

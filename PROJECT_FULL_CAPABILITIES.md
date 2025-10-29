@@ -306,7 +306,7 @@ POST /api/v1/memory/write          # Прямая запись фактов
    - generate_petition()      # Петиция EB-1A
    - generate_letter()        # Сопроводительные письма
    - generate_memo()          # Меморандумы
-   # Использует шаблоны + LLM (GPT-4/Claude)
+   # Использует шаблоны + LLM (GPT-5/Claude)
    ```
 
    **ValidatorAgent:**
@@ -343,7 +343,7 @@ POST /api/v1/memory/write          # Прямая запись фактов
 # Защита от сбоев внешних сервисов
 if llm_failures > 5:
     switch_to_backup_llm()
-    # GPT-4 → Claude → Gemini
+    # GPT-5 → Claude → Gemini
 ```
 
 **Retry with Exponential Backoff:**
@@ -743,7 +743,7 @@ quality_assessment = {
 
 **LLM Providers:**
 ```
-- OpenAI (GPT-4, GPT-3.5-turbo)
+- OpenAI (GPT-5 family)
 - Anthropic (Claude 3)
 - Google (Gemini)
 - Intelligent routing между провайдерами

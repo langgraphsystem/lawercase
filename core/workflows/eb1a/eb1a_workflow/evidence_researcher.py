@@ -12,15 +12,14 @@ additional evidence for EB-1A petitions, including:
 
 from __future__ import annotations
 
-import re
 from datetime import datetime
+import re
 from typing import Any
 
 from pydantic import BaseModel, Field
 
 from ....memory.memory_manager import MemoryManager
-from ..eb1a_coordinator import (EB1ACriterion, EB1AEvidence,
-                                EB1APetitionRequest, EvidenceType)
+from ..eb1a_coordinator import EB1ACriterion, EB1AEvidence, EB1APetitionRequest, EvidenceType
 
 # === New Models for Research ===
 
@@ -744,7 +743,7 @@ class EvidenceResearcher:
         Извлечение данных организации из результатов поиска.
 
         В реальной реализации использовал бы:
-        - LLM для extraction (GPT-4, Claude)
+        - LLM для extraction (GPT-5, Claude)
         - Named Entity Recognition
         - Structured data extraction
 

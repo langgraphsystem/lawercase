@@ -249,7 +249,7 @@ class EvidenceResearcher:
 
 ## 2. LLM Integration for Data Extraction
 
-### Option A: OpenAI GPT-4
+### Option A: OpenAI GPT-5
 
 **Использование для structured data extraction:**
 
@@ -303,7 +303,7 @@ Only include information you can verify from the search results. Use null for un
 
         try:
             response = await self.openai_client.chat.completions.create(
-                model="gpt-4-turbo-preview",
+                model="gpt-5-mini",
                 messages=[
                     {
                         "role": "system",
@@ -336,7 +336,7 @@ Only include information you can verify from the search results. Use null for un
                 selectivity_indicators=extracted_data.get("selectivity_indicators", []),
                 metadata={
                     "research_date": datetime.utcnow().isoformat(),
-                    "extraction_method": "gpt-4-turbo",
+                    "extraction_method": "gpt-5-mini",
                     "raw_search_results": search_results
                 }
             )
@@ -400,7 +400,7 @@ Extract the following information in JSON format:
 
     try:
         response = await self.openai_client.chat.completions.create(
-            model="gpt-4-turbo-preview",
+            model="gpt-5-mini",
             messages=[
                 {"role": "system", "content": "Extract structured competition data. Return valid JSON."},
                 {"role": "user", "content": prompt}
@@ -426,7 +426,7 @@ Extract the following information in JSON format:
             organizing_body=data.get("organizing_body"),
             metadata={
                 "research_date": datetime.utcnow().isoformat(),
-                "extraction_method": "gpt-4-turbo"
+                "extraction_method": "gpt-5-mini"
             }
         )
 
@@ -994,7 +994,7 @@ class EvidenceResearcher:
         await self.llm_limiter.acquire()
 
         response = await self.openai_client.chat.completions.create(
-            model="gpt-4-turbo-preview",
+            model="gpt-5-mini",
             messages=[
                 {"role": "system", "content": "Extract structured data. Return valid JSON."},
                 {"role": "user", "content": prompt}
@@ -1054,7 +1054,7 @@ class EvidenceResearcher:
 | Google CSE | 100 calls/day | $5/1000 calls | ~$150 |
 | Bing Search | 1000 calls/month | $7/1000 calls | ~$0-70 |
 | DuckDuckGo | Unlimited | Free | $0 |
-| OpenAI GPT-4 | - | $0.01/1K input, $0.03/1K output | ~$200 |
+| OpenAI GPT-5-mini | - | $0.01/1K input, $0.03/1K output | ~$200 |
 | Redis Cloud | 30MB free | $7/month | $0-7 |
 
 **Рекомендация:**

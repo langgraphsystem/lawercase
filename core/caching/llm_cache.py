@@ -27,10 +27,10 @@ class LLMCache:
         >>> cache = LLMCache()
         >>>
         >>> # Check cache before LLM call
-        >>> cached = await cache.get("What is contract law?", model="gpt-4")
+        >>> cached = await cache.get("What is contract law?", model="gpt-5-mini")
         >>> if cached is None:
         >>>     response = await llm_client.complete("What is contract law?")
-        >>>     await cache.set("What is contract law?", response, model="gpt-4")
+        >>>     await cache.set("What is contract law?", response, model="gpt-5-mini")
         >>>     result = response
         >>> else:
         >>>     result = cached
@@ -230,7 +230,7 @@ def get_llm_cache(namespace: str = "llm_cache") -> LLMCache:
 
     Example:
         >>> cache = get_llm_cache()
-        >>> await cache.set("prompt", response, model="gpt-4")
+        >>> await cache.set("prompt", response, model="gpt-5-mini")
     """
     global _llm_cache
     if _llm_cache is None:

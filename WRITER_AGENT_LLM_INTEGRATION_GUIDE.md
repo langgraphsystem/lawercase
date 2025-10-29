@@ -9,7 +9,7 @@
 ## 📋 Содержание
 
 1. [Overview](#1-overview)
-2. [OpenAI GPT-4 Integration](#2-openai-gpt-4-integration)
+2. [OpenAI GPT-5 Integration](#2-openai-gpt-5-integration)
 3. [Anthropic Claude Integration](#3-anthropic-claude-integration)
 4. [Prompt Engineering Best Practices](#4-prompt-engineering-best-practices)
 5. [Quality Assurance & Validation](#5-quality-assurance--validation)
@@ -82,7 +82,7 @@ async def _generate_with_llm(
 
 ---
 
-## 2. OpenAI GPT-4 Integration
+## 2. OpenAI GPT-5 Integration
 
 ### Setup
 
@@ -95,7 +95,7 @@ pip install openai>=1.0.0
 ```bash
 # .env
 OPENAI_API_KEY=your_openai_api_key_here
-OPENAI_MODEL=gpt-4-turbo-preview  # or gpt-4-0125-preview
+OPENAI_MODEL=gpt-5-mini
 ```
 
 ### Implementation
@@ -120,7 +120,7 @@ class WriterAgent:
         self.openai_client = AsyncOpenAI(
             api_key=os.getenv("OPENAI_API_KEY")
         )
-        self.openai_model = os.getenv("OPENAI_MODEL", "gpt-4-turbo-preview")
+        self.openai_model = os.getenv("OPENAI_MODEL", "gpt-5-mini")
 
         # Tracking
         self._generated_sections: Dict[str, GeneratedSection] = {}
@@ -401,16 +401,16 @@ class WriterAgent:
 
     async def _calculate_llm_cost(self) -> Dict[str, float]:
         """Calculate estimated LLM costs."""
-        # GPT-4 pricing (as of 2024)
+        # GPT-5 pricing (as of 2025)
         pricing = {
-            "gpt-4-turbo-preview": {
+            "gpt-5-mini": {
                 "input": 0.01,   # per 1K tokens
                 "output": 0.03   # per 1K tokens
             }
         }
 
         tokens = await self._get_total_tokens_used()
-        model_pricing = pricing.get(self.openai_model, pricing["gpt-4-turbo-preview"])
+        model_pricing = pricing.get(self.openai_model, pricing["gpt-5-mini"])
 
         input_cost = (tokens["prompt_tokens"] / 1000) * model_pricing["input"]
         output_cost = (tokens["completion_tokens"] / 1000) * model_pricing["output"]
@@ -463,11 +463,11 @@ class WriterAgent:
         section_type: str,
         client_data: Dict[str, Any]
     ) -> str:
-        """Generate with Claude or GPT-4."""
+        """Generate with Claude or GPT-5."""
         if self.use_anthropic:
             return await self._generate_with_claude(context, section_type, client_data)
         else:
-            return await self._generate_with_gpt4(context, section_type, client_data)
+            return await self._generate_with_gpt5(context, section_type, client_data)
 
     async def _generate_with_claude(
         self,
@@ -994,7 +994,7 @@ class WriterAgent:
             by_user[user_id]["output"] += tokens.get("completion", 0)
             by_user[user_id]["count"] += 1
 
-        # Calculate USD costs (GPT-4 pricing)
+        # Calculate USD costs (GPT-5 pricing)
         input_cost = (total_tokens["input"] / 1000) * 0.01
         output_cost = (total_tokens["output"] / 1000) * 0.03
         total_cost = input_cost + output_cost
@@ -1179,18 +1179,18 @@ async def test_cost_tracking():
 
 | Model | Input Tokens | Output Tokens | Cost per Section |
 |-------|-------------|---------------|------------------|
-| GPT-4 Turbo | ~1500 | ~500 | $0.015 + $0.015 = **$0.03** |
-| GPT-4 | ~1500 | ~500 | $0.045 + $0.030 = **$0.075** |
+| GPT-5-mini | ~1500 | ~500 | $0.015 + $0.015 = **$0.03** |
+| GPT-5 | ~1500 | ~500 | $0.045 + $0.030 = **$0.075** |
 | Claude 3.5 Sonnet | ~1500 | ~500 | $0.0045 + $0.0225 = **$0.027** |
 | Claude 3 Opus | ~1500 | ~500 | $0.0225 + $0.1125 = **$0.135** |
 
 **Monthly costs (1000 sections):**
-- GPT-4 Turbo: $30/month
-- GPT-4: $75/month
+- GPT-5-mini: $30/month
+- GPT-5: $75/month
 - Claude 3.5 Sonnet: $27/month
 - Claude 3 Opus: $135/month
 
-**Recommendation:** Use GPT-4 Turbo or Claude 3.5 Sonnet for best cost/quality balance.
+**Recommendation:** Use GPT-5-mini or Claude 3.5 Sonnet for best cost/quality balance.
 
 ---
 

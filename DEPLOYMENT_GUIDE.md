@@ -37,7 +37,7 @@ Complete guide for deploying MegaAgent Pro to production.
 ### API Keys
 
 Required:
-- OpenAI API key (GPT-4 access) OR
+- OpenAI API key (GPT-5 access) OR
 - Anthropic API key (Claude access) OR
 - Google Gemini API key
 

@@ -105,3 +105,5 @@ dmypy.json
 
 # Pyre type checker
 .pyre/
+test_gpt5_models.py
+test_gpt5_direct.py

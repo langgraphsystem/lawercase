@@ -3,7 +3,7 @@ LLM Integration Demo - All Providers (2025)
 
 Demonstrates how to use all three LLM clients with latest models:
 - Anthropic Claude (Sonnet 4.5, Opus 4.1, Haiku 3.5)
-- OpenAI GPT (GPT-4.1, o3-mini, gpt-4o)
+- OpenAI GPT (GPT-5 family, o3-mini)
 - Google Gemini (Gemini 2.5 Pro, Flash, Flash-Lite)
 
 Requirements:
@@ -115,10 +115,10 @@ async def demo_openai_gpt():
         print("❌ OPENAI_API_KEY not set. Skipping OpenAI demo.")
         return
 
-    print("\n--- Model 1: GPT-4.1 (Latest with 1M context) ---")
+    print("\n--- Model 1: GPT-5 (400K context) ---")
     try:
-        client_gpt41 = OpenAIClient(
-            model=OpenAIClient.GPT_4_1,
+        client_gpt5 = OpenAIClient(
+            model=OpenAIClient.GPT_5,
             temperature=0.7,
             max_completion_tokens=2048,
             top_p=0.9,
@@ -127,7 +127,7 @@ async def demo_openai_gpt():
         prompt = """Generate a professional recommendation letter opening paragraph
         for an EB-1A petition in the field of artificial intelligence research."""
 
-        result = await client_gpt41.acomplete(prompt)
+        result = await client_gpt5.acomplete(prompt)
 
         print(f"✓ Model: {result['model']}")
         print(f"✓ Provider: {result['provider']}")
@@ -138,7 +138,7 @@ async def demo_openai_gpt():
         print(f"\n📄 Generated Text:\n{result['output']}")
 
     except Exception as e:
-        print(f"❌ Error with GPT-4.1: {e}")
+        print(f"❌ Error with GPT-5: {e}")
 
     print("\n--- Model 2: o3-mini (Reasoning Model with STEM focus) ---")
     try:
@@ -161,10 +161,10 @@ async def demo_openai_gpt():
     except Exception as e:
         print(f"❌ Error with o3-mini: {e}")
 
-    print("\n--- Model 3: GPT-4o-mini (Cost-Efficient Multimodal) ---")
+    print("\n--- Model 3: O3-mini (Reasoning) ---")
     try:
         client_4o_mini = OpenAIClient(
-            model=OpenAIClient.GPT_4O_MINI,
+            model=OpenAIClient.O3_MINI,
             temperature=0.5,
             max_completion_tokens=512,
             frequency_penalty=0.3,  # Reduce repetition
@@ -179,7 +179,7 @@ async def demo_openai_gpt():
         print(f"\n📄 Keywords:\n{result['output']}")
 
     except Exception as e:
-        print(f"❌ Error with GPT-4o-mini: {e}")
+        print(f"❌ Error with O3-mini: {e}")
 
 
 async def demo_google_gemini():
@@ -265,9 +265,13 @@ async def demo_eb1_document_generation():
 
     from core.groupagents.eb1_document_processor import EB1DocumentProcessor
     from core.groupagents.eb1_documents import RecommendationLetterData
-    from core.groupagents.eb1_models import (EB1Criterion, EB1FieldOfExpertise,
-                                             EB1PersonalInfo, EB1PetitionData,
-                                             EB1PetitionStatus)
+    from core.groupagents.eb1_models import (
+        EB1Criterion,
+        EB1FieldOfExpertise,
+        EB1PersonalInfo,
+        EB1PetitionData,
+        EB1PetitionStatus,
+    )
 
     # Choose provider based on available API keys
     llm_client = None
@@ -277,9 +281,9 @@ async def demo_eb1_document_generation():
             model=AnthropicClient.CLAUDE_SONNET_4_5, temperature=0.3, max_tokens=8192
         )
     elif os.getenv("OPENAI_API_KEY"):
-        print("✓ Using OpenAI GPT-4.1 for document generation")
+        print("✓ Using OpenAI GPT-5 for document generation")
         llm_client = OpenAIClient(
-            model=OpenAIClient.GPT_4_1, temperature=0.3, max_completion_tokens=8192
+            model=OpenAIClient.GPT_5, temperature=0.3, max_completion_tokens=8192
         )
     elif os.getenv("GEMINI_API_KEY") or os.getenv("GOOGLE_API_KEY"):
         print("✓ Using Google Gemini 2.5 Pro for document generation")

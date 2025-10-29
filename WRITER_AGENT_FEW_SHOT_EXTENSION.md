@@ -506,7 +506,7 @@ async def _generate_with_patterns(self, context, section_type, client_data):
 
     # Вызов LLM (OpenAI, Anthropic, etc.)
     response = await self.llm_client.chat.completions.create(
-        model="gpt-4",
+        model="gpt-5-mini",
         messages=[
             {"role": "system", "content": "You are an expert EB-1A petition writer."},
             {"role": "user", "content": prompt}
@@ -674,7 +674,7 @@ await writer._section_patterns.add_pattern(tech_opening_pattern)
 ### Ближайшие Улучшения
 
 1. **Интеграция с LLM**
-   - Подключение OpenAI GPT-4
+   - Подключение OpenAI GPT-5
    - Anthropic Claude
    - Azure OpenAI
 

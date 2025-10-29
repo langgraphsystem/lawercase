@@ -244,7 +244,7 @@ async def _generate_with_patterns(self, context, section_type, client_data):
 
     # Replace simulation with real LLM call:
     response = await llm_client.chat.completions.create(
-        model="gpt-4-turbo",
+        model="gpt-5-mini",
         messages=[
             {"role": "system", "content": "Expert EB-1A petition writer"},
             {"role": "user", "content": prompt}

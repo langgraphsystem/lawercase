@@ -6,6 +6,6 @@
   },
   "models": {
     "gemini": {"name": "gemini-pro"},
-    "openai": {"name": "gpt-4o-mini"}
+    "openai": {"name": "gpt-5-mini"}
   }
 }

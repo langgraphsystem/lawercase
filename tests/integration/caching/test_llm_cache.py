@@ -22,7 +22,7 @@ async def llm_cache():
 async def test_deterministic_query_caching(llm_cache):
     """Test caching of deterministic queries (temperature=0)."""
     prompt = "What is the capital of France?"
-    model = "gpt-4"
+    model = "gpt-5-mini"
     response = {
         "content": "The capital of France is Paris.",
         "usage": {"prompt_tokens": 8, "completion_tokens": 7},
@@ -42,7 +42,7 @@ async def test_deterministic_query_caching(llm_cache):
 async def test_non_deterministic_not_cached(llm_cache):
     """Test that high-temperature queries are not cached."""
     prompt = "Write a creative story"
-    model = "gpt-4"
+    model = "gpt-5-mini"
     response = {"content": "Once upon a time..."}
 
     # Try to cache with high temperature
@@ -57,19 +57,19 @@ async def test_non_deterministic_not_cached(llm_cache):
 async def test_model_specific_caching(llm_cache):
     """Test that cache is model-specific."""
     prompt = "What is AI?"
-    response_gpt4 = {"content": "AI is artificial intelligence (GPT-4)"}
+    response_gpt4 = {"content": "AI is artificial intelligence (GPT-5-mini)"}
     response_claude = {"content": "AI is artificial intelligence (Claude)"}
 
     # Cache for different models
-    await llm_cache.set(prompt, response_gpt4, model="gpt-4", temperature=0.0)
+    await llm_cache.set(prompt, response_gpt4, model="gpt-5-mini", temperature=0.0)
     await llm_cache.set(prompt, response_claude, model="claude-3", temperature=0.0)
 
     # Retrieve model-specific
-    cached_gpt4 = await llm_cache.get(prompt, model="gpt-4", temperature=0.0)
+    cached_gpt4 = await llm_cache.get(prompt, model="gpt-5-mini", temperature=0.0)
     cached_claude = await llm_cache.get(prompt, model="claude-3", temperature=0.0)
 
     assert cached_gpt4["content"] != cached_claude["content"]
-    assert "GPT-4" in cached_gpt4["content"]
+    assert "GPT-5-mini" in cached_gpt4["content"]
     assert "Claude" in cached_claude["content"]
 
 
@@ -78,7 +78,7 @@ async def test_semantic_similarity_for_llm(llm_cache):
     """Test semantic similarity matching for LLM responses."""
     prompt1 = "What is machine learning?"
     prompt2 = "Explain machine learning to me"
-    model = "gpt-4"
+    model = "gpt-5-mini"
     response = {"content": "Machine learning is a subset of AI..."}
 
     # Cache first prompt
@@ -102,7 +102,7 @@ async def test_semantic_similarity_for_llm(llm_cache):
 async def test_cache_delete(llm_cache):
     """Test deleting LLM cache entries."""
     prompt = "What is NLP?"
-    model = "gpt-4"
+    model = "gpt-5-mini"
     response = {"content": "NLP is natural language processing"}
 
     # Cache and verify
@@ -123,7 +123,7 @@ async def test_cache_delete(llm_cache):
 async def test_cache_ttl(llm_cache):
     """Test LLM cache TTL expiration."""
     prompt = "Test TTL"
-    model = "gpt-4"
+    model = "gpt-5-mini"
     response = {"content": "Test response"}
 
     # Set with short TTL
@@ -146,7 +146,7 @@ async def test_cache_ttl(llm_cache):
 @pytest.mark.asyncio
 async def test_cache_stats(llm_cache):
     """Test LLM cache statistics."""
-    model = "gpt-4"
+    model = "gpt-5-mini"
 
     # Generate hits and misses
     await llm_cache.set("query1", {"content": "response1"}, model=model)
@@ -161,7 +161,7 @@ async def test_cache_stats(llm_cache):
 @pytest.mark.asyncio
 async def test_cache_clear(llm_cache):
     """Test clearing LLM cache."""
-    model = "gpt-4"
+    model = "gpt-5-mini"
 
     # Add entries
     for i in range(3):
@@ -192,7 +192,7 @@ async def test_singleton_llm_cache():
 async def test_cache_with_additional_params(llm_cache):
     """Test caching with additional parameters."""
     prompt = "Translate to French"
-    model = "gpt-4"
+    model = "gpt-5-mini"
     response = {"content": "Bonjour"}
 
     # Cache with additional params

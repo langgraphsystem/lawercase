@@ -49,7 +49,13 @@ async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
     bot_context = _bot_context(context)
     if not _is_authorized(bot_context, update):
         return
-    await update.effective_message.reply_text(HELP_TEXT)
+    user_id = update.effective_user.id if update.effective_user else None
+    logger.info("telegram.help_command.received", user_id=user_id)
+    try:
+        await update.effective_message.reply_text(HELP_TEXT)
+        logger.info("telegram.help_command.sent", user_id=user_id)
+    except Exception as e:  # pragma: no cover - network/runtime
+        logger.exception("telegram.help_command.error", user_id=user_id, error=str(e))
 
 
 async def ask_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:

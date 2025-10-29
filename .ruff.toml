@@ -146,6 +146,10 @@ ignore = [
     "T201",    # print() OK in demos
     "S311",    # Pseudo-random generators OK in demos
 ]
+"restart_bot.py" = [
+    "S603",
+]
+
 "*_demo.py" = [
     "T201",    # print() OK in demo files
 ]

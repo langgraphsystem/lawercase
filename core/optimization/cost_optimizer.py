@@ -62,29 +62,30 @@ DEFAULT_MODEL_COSTS = {
         avg_latency_ms=800,
         quality_score=0.85,
     ),
-    "gpt-4": ModelCost(
-        model_name="gpt-4",
+    # OpenAI GPT-5 family (2025 pricing; approximate)
+    "gpt-5": ModelCost(
+        model_name="gpt-5",
         tier=ModelTier.ULTRA,
-        cost_per_1k_input_tokens=0.03,
-        cost_per_1k_output_tokens=0.06,
-        avg_latency_ms=2500,
-        quality_score=0.93,
+        cost_per_1k_input_tokens=0.00125,  # $1.25 / 1M
+        cost_per_1k_output_tokens=0.010,  # $10 / 1M
+        avg_latency_ms=2000,
+        quality_score=0.97,
     ),
-    "gpt-4-turbo": ModelCost(
-        model_name="gpt-4-turbo",
+    "gpt-5-mini": ModelCost(
+        model_name="gpt-5-mini",
         tier=ModelTier.HIGH,
-        cost_per_1k_input_tokens=0.01,
-        cost_per_1k_output_tokens=0.03,
-        avg_latency_ms=1800,
-        quality_score=0.92,
+        cost_per_1k_input_tokens=0.00025,  # $0.25 / 1M
+        cost_per_1k_output_tokens=0.002,  # $2 / 1M
+        avg_latency_ms=1200,
+        quality_score=0.94,
     ),
-    "gpt-3.5-turbo": ModelCost(
-        model_name="gpt-3.5-turbo",
+    "gpt-5-nano": ModelCost(
+        model_name="gpt-5-nano",
         tier=ModelTier.MEDIUM,
-        cost_per_1k_input_tokens=0.0005,
-        cost_per_1k_output_tokens=0.0015,
-        avg_latency_ms=600,
-        quality_score=0.80,
+        cost_per_1k_input_tokens=0.00005,  # $0.05 / 1M
+        cost_per_1k_output_tokens=0.0004,  # $0.40 / 1M
+        avg_latency_ms=800,
+        quality_score=0.90,
     ),
 }
 
@@ -445,8 +446,8 @@ class CostOptimizer:
             ):
                 if model_cost.quality_score >= required_quality:
                     return model_name
-            # Ultimate fallback
-            return "gpt-3.5-turbo"
+            # Ultimate fallback: cheapest GPT-5 tier
+            return "gpt-5-nano"
 
         # Sort by cost (prefer cheaper)
         candidates.sort(key=lambda x: x[2])

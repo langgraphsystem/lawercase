@@ -24,7 +24,7 @@ class CachedLLMRouter(LLMRouter):
 
     Example:
         >>> providers = [
-        >>>     LLMProvider("gpt-4", cost_per_token=0.03),
+        >>>     LLMProvider("gpt-5-mini", cost_per_token=0.002),
         >>>     LLMProvider("claude-3", cost_per_token=0.015),
         >>> ]
         >>> router = CachedLLMRouter(providers, initial_budget=10.0)
@@ -229,7 +229,7 @@ def create_cached_router(
         >>> from core.llm.cached_router import create_cached_router
         >>>
         >>> providers = [
-        >>>     LLMProvider("gpt-4", cost_per_token=0.03),
+        >>>     LLMProvider("gpt-5-mini", cost_per_token=0.002),
         >>>     LLMProvider("claude-3", cost_per_token=0.015),
         >>> ]
         >>>

@@ -157,10 +157,10 @@ kubectl config set-context --current --namespace=megaagent-prod
 ```bash
 # Create secrets from .env file
 kubectl create secret generic megaagent-secrets \
-    --from-literal=database-url="postgresql://user:password@postgres-service:5432/megaagent" \
-    --from-literal=secret-key="your-secret-key" \
-    --from-literal=openai-api-key="sk-..." \
-    --from-literal=anthropic-api-key="sk-ant-..."
+    --from-literal=database-url="postgresql://user:password@postgres-service:5432/megaagent" \  # pragma: allowlist secret
+    --from-literal=secret-key="your-secret-key" \  # pragma: allowlist secret
+    --from-literal=openai-api-key="sk-..." \  # pragma: allowlist secret
+    --from-literal=anthropic-api-key="sk-ant-..."  # pragma: allowlist secret
 
 # Verify
 kubectl get secrets
@@ -234,7 +234,7 @@ cache:
   redis_db: 0
 
 llm:
-  default_model: gpt-4
+  default_model: gpt-5
   timeout: 60
   max_retries: 3
   rate_limit: 100

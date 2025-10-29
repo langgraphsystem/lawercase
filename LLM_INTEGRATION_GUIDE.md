@@ -5,7 +5,7 @@
 This guide documents the complete LLM integration for the MegaAgent Pro system, featuring the latest models from all major providers as of 2025:
 
 - **Anthropic Claude**: Sonnet 4.5, Opus 4.1, Haiku 3.5
-- **OpenAI GPT**: GPT-4.1, o3-mini, o4-mini, GPT-4o
+- **OpenAI GPT**: GPT-5, GPT-5-mini, GPT-5-nano, o3-mini, o4-mini
 - **Google Gemini**: Gemini 2.5 Pro, Flash, Flash-Lite
 
 All three clients implement a unified `acomplete()` async interface for seamless integration.
@@ -142,16 +142,16 @@ client_haiku = AnthropicClient(model=AnthropicClient.CLAUDE_HAIKU_3_5)
 
 | Model ID | Name | Context | Parameters | Cost | Best For |
 |----------|------|---------|------------|------|----------|
-| `gpt-4.1` | GPT-4.1 | 1M tokens | Standard | TBD | Coding, instruction following, long context |
-| `gpt-4.1-mini` | GPT-4.1 Mini | 1M tokens | Standard | TBD | Cost-efficient GPT-4.1 |
+| `gpt-5` | GPT-5 | 400K tokens | Standard | See pricing | Coding, instruction, long context |
+| `gpt-5-mini` | GPT-5 Mini | 400K tokens | Standard | See pricing | Balanced price/performance |
+| `gpt-5-nano` | GPT-5 Nano | 400K tokens | Standard | See pricing | Low cost, high throughput |
 | `o3-mini` | O3-Mini | - | Reasoning | TBD | STEM reasoning, math, coding |
 | `o4-mini` | O4-Mini | - | Reasoning | TBD | Next-gen reasoning |
-| `gpt-4o` | GPT-4o | - | Multimodal | TBD | Vision, audio, text |
-| `gpt-4o-mini` | GPT-4o Mini | - | Multimodal | TBD | Cost-efficient multimodal |
+
 
 ### API Parameters
 
-**Standard Models (GPT-4.1, GPT-4o):**
+**Standard Models (GPT-5 family):**
 - **temperature** (0.0-2.0): Randomness
 - **max_completion_tokens** (int): Max tokens in completion (preferred over `max_tokens`)
 - **top_p** (0.0-1.0): Nucleus sampling
@@ -171,7 +171,7 @@ from core.llm_interface.openai_client import OpenAIClient
 
 # Standard model
 client_gpt = OpenAIClient(
-    model=OpenAIClient.GPT_4_1,
+    model=OpenAIClient.GPT_5,
     temperature=0.7,
     max_completion_tokens=4096,
 )
@@ -195,11 +195,11 @@ result = await client_o3.acomplete(
 ### All Available Models
 
 ```python
-# Latest GPT-4.1 with 1M context
-client_gpt41 = OpenAIClient(model=OpenAIClient.GPT_4_1)
+# Latest GPT-5 with 400K context
+client_gpt5 = OpenAIClient(model=OpenAIClient.GPT_5)
 
 # Cost-efficient variant
-client_gpt41_mini = OpenAIClient(model=OpenAIClient.GPT_4_1_MINI)
+client_gpt5_mini = OpenAIClient(model=OpenAIClient.GPT_5_MINI)
 
 # Reasoning model (STEM focus)
 client_o3 = OpenAIClient(
@@ -210,11 +210,7 @@ client_o3 = OpenAIClient(
 # Next-gen reasoning
 client_o4 = OpenAIClient(model=OpenAIClient.O4_MINI)
 
-# Multimodal (vision + audio)
-client_4o = OpenAIClient(model=OpenAIClient.GPT_4O)
-
-# Cost-efficient multimodal
-client_4o_mini = OpenAIClient(model=OpenAIClient.GPT_4O_MINI)
+# (Multimodal examples removed; use Gemini section for vision/audio)
 ```
 
 ---
@@ -342,9 +338,9 @@ llm_client = AnthropicClient(
     max_tokens=8192,
 )
 
-# Option 2: OpenAI GPT-4.1 (strong at instruction following)
+# Option 2: OpenAI GPT-5 (strong at instruction following)
 llm_client = OpenAIClient(
-    model=OpenAIClient.GPT_4_1,
+    model=OpenAIClient.GPT_5,
     temperature=0.3,
     max_completion_tokens=8192,
 )
@@ -380,7 +376,7 @@ python llm_demo.py
 
 The demo includes:
 1. ✅ All Anthropic Claude models (Sonnet 4.5, Opus 4.1, Haiku 3.5)
-2. ✅ All OpenAI GPT models (GPT-4.1, o3-mini, GPT-4o-mini)
+2. ✅ All OpenAI GPT models (GPT-5 family, o3-mini, o4-mini)
 3. ✅ All Google Gemini models (2.5 Pro, Flash, Flash-Lite)
 4. ✅ Complete EB-1A document generation workflow
 
@@ -445,10 +441,10 @@ asyncio.run(generate_eb1a_letter())
 | Use Case | Recommended Model | Reason |
 |----------|------------------|---------|
 | **EB-1A Legal Documents** | Claude Sonnet 4.5 | Highest intelligence, best at following complex instructions |
-| **Complex Legal Analysis** | GPT-4.1 or o3-mini | Strong reasoning, 1M context |
+| **Complex Legal Analysis** | GPT-5 or o3-mini | Strong reasoning, long context |
 | **High Volume Processing** | Gemini 2.5 Flash | Best price-performance, fast |
 | **Cost Optimization** | Claude Haiku 3.5 or Gemini Flash-Lite | Lowest cost per token |
-| **Multimodal (images/video)** | GPT-4o or Gemini 2.5 Pro | Native multimodal support |
+| **Multimodal (images/video)** | Gemini 2.5 Pro | Native multimodal support |
 | **Mathematical/STEM Analysis** | o3-mini (high reasoning) | Specialized reasoning model |
 
 ### By Budget
@@ -458,13 +454,12 @@ asyncio.run(generate_eb1a_letter())
 - Claude Sonnet 4.5: $3/$15 per MTok
 
 **Balanced** (quality + cost):
-- GPT-4.1: Competitive pricing, 1M context
+- GPT-5: Competitive pricing, 400K context
 - Gemini 2.5 Pro: Good balance
 
 **Budget** (cost-optimized):
 - Claude Haiku 3.5: $0.80/$4 per MTok
 - Gemini 2.5 Flash-Lite: Ultra low cost
-- GPT-4o-mini: Cost-efficient multimodal
 
 ---
 
@@ -670,7 +665,7 @@ async def acomplete(
 ### 2025-10-12
 
 - ✅ Implemented Anthropic Claude client (Sonnet 4.5, Opus 4.1, Haiku 3.5)
-- ✅ Implemented OpenAI GPT client (GPT-4.1, o3-mini, o4-mini, GPT-4o)
+- ✅ Implemented OpenAI GPT client (GPT-5 family, o3-mini, o4-mini)
 - ✅ Implemented Google Gemini client (Gemini 2.5 Pro, Flash, Flash-Lite)
 - ✅ Integrated LLM generation into EB1DocumentProcessor
 - ✅ Created comprehensive demo script (llm_demo.py)

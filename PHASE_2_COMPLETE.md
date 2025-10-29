@@ -95,7 +95,7 @@ docs/
         ▼                            ▼
 ┌──────────────┐          ┌──────────────────┐
 │  LLMCache    │          │  LLM Providers   │
-│  (Model-     │          │  (GPT-4, Claude) │
+│  (Model-     │          │  (GPT-5, Claude) │
 │   specific)  │          └──────────────────┘
 └──────────────┘
         │
@@ -126,7 +126,7 @@ docs/
 
 ### 2. **Smart Caching Decisions**
 - Only caches deterministic queries (temperature ≤ 0.1)
-- Model-specific caching (GPT-4 vs Claude cached separately)
+- Model-specific caching (GPT-5-mini vs Claude cached separately)
 - Configurable similarity threshold (default 0.95)
 - Automatic TTL management
 
@@ -226,7 +226,7 @@ CACHE_SEMANTIC_CACHE_THRESHOLD=0.95
 from core.llm.router import LLMProvider
 from core.llm.cached_router import create_cached_router
 
-providers = [LLMProvider("gpt-4", cost_per_token=0.03)]
+providers = [LLMProvider("gpt-5-mini", cost_per_token=0.002)]
 router = create_cached_router(providers, initial_budget=10.0)
 
 # First call - cache miss
@@ -305,7 +305,7 @@ class MegaAgent:
         # Add cached router
         self.llm_router = create_cached_router(
             providers=[
-                LLMProvider("gpt-4", cost_per_token=0.03),
+                LLMProvider("gpt-5-mini", cost_per_token=0.002),
                 LLMProvider("claude-3", cost_per_token=0.015),
             ],
             initial_budget=100.0,

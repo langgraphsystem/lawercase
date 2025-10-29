@@ -403,7 +403,7 @@ Context Dictionary
 ┌──────────────────┐            ┌──────────────────┐
 │ LLM APIs         │            │ Memory Manager   │
 │                  │            │                  │
-│ • OpenAI GPT-4   │            │ • alog_audit()   │
+│ • OpenAI GPT-5   │            │ • alog_audit()   │
 │ • Anthropic      │            │ • Context store  │
 │   Claude         │            │ • Vector search  │
 │ • Azure OpenAI   │            │                  │

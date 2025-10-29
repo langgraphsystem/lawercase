@@ -31,8 +31,7 @@ class OpenAIClient:
     - o4-mini: Next-generation reasoning
 
     Multimodal Models:
-    - gpt-4o: Vision, audio support
-    - gpt-4o-mini: Cost-efficient multimodal
+    - (4o family deprecated in this project docs)
 
     API Parameters (GPT-5 Models):
     - temperature (float, 0.0-2.0): Randomness (default 1.0)
@@ -54,9 +53,7 @@ class OpenAIClient:
     O3_MINI = "o3-mini"
     O4_MINI = "o4-mini"
 
-    # Multimodal models
-    GPT_4O = "gpt-4o"
-    GPT_4O_MINI = "gpt-4o-mini"
+    # Multimodal models intentionally omitted
 
     # GPT-5 models that support verbosity parameter
     GPT5_MODELS = {GPT_5, GPT_5_MINI, GPT_5_NANO, GPT_5_CHAT_LATEST}

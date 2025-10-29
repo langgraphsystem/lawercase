@@ -14,7 +14,7 @@ from core.llm.router import LLMProvider
 def providers():
     """Create test LLM providers."""
     return [
-        LLMProvider("gpt-4", cost_per_token=0.03),
+        LLMProvider("gpt-5-mini", cost_per_token=0.002),
         LLMProvider("claude-3", cost_per_token=0.015),
     ]
 
@@ -48,7 +48,7 @@ async def test_cache_miss_first_call(router):
 
     assert result is not None
     assert result["cached"] is False
-    assert result["provider"] in ["gpt-4", "claude-3"]
+    assert result["provider"] in ["gpt-5-mini", "claude-3"]
     assert result["cost"] > 0
 
     # Check cache stats

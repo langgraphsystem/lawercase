@@ -122,7 +122,7 @@ from core.llm.cached_router import create_cached_router
 
 # Create providers
 providers = [
-    LLMProvider("gpt-4", cost_per_token=0.03),
+    LLMProvider("gpt-5-mini", cost_per_token=0.002),
     LLMProvider("claude-3", cost_per_token=0.015),
 ]
 
@@ -161,7 +161,7 @@ from core.caching import get_semantic_cache
 cache = get_semantic_cache(namespace="my_app")
 
 # Set
-await cache.set("query", {"content": "response", "model": "gpt-4"}, ttl=3600)
+await cache.set("query", {"content": "response", "model": "gpt-5-mini"}, ttl=3600)
 
 # Get exact match
 result = await cache.get("query")
@@ -182,14 +182,14 @@ from core.caching import get_llm_cache
 cache = get_llm_cache()
 
 # Check cache before LLM call
-cached = await cache.get("What is AI?", model="gpt-4", temperature=0.0)
+cached = await cache.get("What is AI?", model="gpt-5-mini", temperature=0.0)
 
 if cached is None:
     # Call LLM
     response = await llm_client.complete("What is AI?")
 
     # Cache result
-    await cache.set("What is AI?", response, model="gpt-4")
+    await cache.set("What is AI?", response, model="gpt-5-mini")
 else:
     response = cached
 ```
@@ -206,7 +206,7 @@ else:
 ### 2. **Smart Cache Decisions**
 
 - Only caches deterministic responses (temperature ≤ 0.1)
-- Model-specific caching (GPT-4 vs Claude responses cached separately)
+- Model-specific caching (GPT-5-mini vs Claude responses cached separately)
 - Configurable similarity threshold (default 0.95)
 
 ### 3. **Automatic Budget Tracking**
@@ -343,7 +343,7 @@ pytest tests/integration/caching/test_cached_router.py -v
 |----------|---------|------|-------------|
 | **Exact Match** | ~1ms | $0 | Identical query cached |
 | **Semantic Match** | ~10ms | $0 | Similar query (cosine > 0.95) |
-| **Cache Miss** | ~500ms | $0.03 | New query, calls GPT-4 |
+| **Cache Miss** | ~500ms | $0.002 | New query, calls GPT-5-mini |
 
 ### Budget Savings Example
 
@@ -375,7 +375,7 @@ class MegaAgent:
     def __init__(self):
         # Create cached router
         providers = [
-            LLMProvider("gpt-4", cost_per_token=0.03),
+            LLMProvider("gpt-5-mini", cost_per_token=0.002),
             LLMProvider("claude-3", cost_per_token=0.015),
         ]
 

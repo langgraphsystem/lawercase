@@ -19,16 +19,26 @@ Usage:
 
 from __future__ import annotations
 
-import logging
 from collections.abc import Callable
 from functools import wraps
+import logging
 from typing import TypeVar
 
-from tenacity import (before_sleep_log, retry, retry_if_exception_type,
-                      stop_after_attempt, wait_exponential)
+from tenacity import (
+    before_sleep_log,
+    retry,
+    retry_if_exception_type,
+    stop_after_attempt,
+    wait_exponential,
+)
 
-from core.exceptions import (DatabaseError, ExternalServiceError, LLMError,
-                             LLMRateLimitError, LLMTimeoutError)
+from core.exceptions import (
+    DatabaseError,
+    ExternalServiceError,
+    LLMError,
+    LLMRateLimitError,
+    LLMTimeoutError,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -92,10 +102,11 @@ def with_llm_retry(func: Callable[..., T]) -> Callable[..., T]:
 
     Example:
         @with_llm_retry
-        async def analyze_with_gpt4(text: str) -> str:
-            llm = ChatOpenAI(model="gpt-4")
-            response = await llm.ainvoke([HumanMessage(content=text)])
-            return response.content
+        async def analyze_with_gpt5(text: str) -> str:
+            from core.llm_interface.openai_client import OpenAIClient
+            client = OpenAIClient(model="gpt-5-mini")
+            result = await client.acomplete(text)
+            return result.get("output", "")
     """
 
     @with_retry(
@@ -149,9 +160,15 @@ def with_database_retry(func: Callable[..., T]) -> Callable[..., T]:
 
 # Legacy compatibility - import from resilience.py if needed
 try:
-    from core.resilience import (CircuitBreaker, RateLimiter, RetryConfig,
-                                 Timeout, get_database_circuit_breaker,
-                                 get_llm_circuit_breaker, retry_async)
+    from core.resilience import (
+        CircuitBreaker,
+        RateLimiter,
+        RetryConfig,
+        Timeout,
+        get_database_circuit_breaker,
+        get_llm_circuit_breaker,
+        retry_async,
+    )
 
     __all__ = [
         # Simple decorators

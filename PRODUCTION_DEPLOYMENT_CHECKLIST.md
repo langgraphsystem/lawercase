@@ -43,7 +43,7 @@ POSTGRES_DSN=postgresql+asyncpg://user:password@host:port/megaagent  # pragma: a
 # ================================
 # Option 1: OpenAI
 OPENAI_API_KEY=sk-...  # pragma: allowlist secret
-OPENAI_MODEL=gpt-4-turbo-preview
+OPENAI_MODEL=gpt-5-mini
 
 # Option 2: Anthropic (альтернатива)
 ANTHROPIC_API_KEY=sk-ant-...  # pragma: allowlist secret
@@ -109,7 +109,7 @@ SENTRY_DSN=https://...@sentry.io/...  # pragma: allowlist secret (optional)
 **Checklist:**
 - [ ] Установлен `openai>=1.0.0` или `anthropic>=0.18.0`
 - [ ] API ключ добавлен в `.env`
-- [ ] Заменён метод `_simulate_llm_generation()` на `_generate_with_gpt4()` или `_generate_with_claude()`
+- [ ] Заменён метод `_simulate_llm_generation()` на `_generate_with_gpt5()` или `_generate_with_claude()`
 - [ ] Добавлена инициализация клиента в `__init__()`
 - [ ] Протестирована генерация одной секции
 - [ ] Добавлен error handling для API сбоев
@@ -787,7 +787,7 @@ jobs:
 
 | Service | Provider | Estimated Cost |
 |---------|----------|----------------|
-| LLM API | OpenAI GPT-4 Turbo | $300-500 |
+| LLM API | OpenAI GPT-5 family | $300-500 |
 | Web Search | Bing Search API | $0-70 |
 | Database | PostgreSQL (RDS/managed) | $50-200 |
 | Redis Cache | ElastiCache/managed | $20-100 |
@@ -797,7 +797,7 @@ jobs:
 
 **Optimization Tips:**
 - Используйте DuckDuckGo вместо Bing/Google для search (бесплатно)
-- Используйте Claude 3.5 Sonnet вместо GPT-4 (-10% cost)
+- Используйте Claude 3.5 Sonnet вместо GPT-5-mini при необходимости (-10% cost)
 - Включите aggressive caching (60%+ hit rate = -40% LLM costs)
 - Используйте self-hosted Redis вместо managed (-70% cache cost)
 

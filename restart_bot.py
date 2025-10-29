@@ -1,150 +1,221 @@
-"""Script to properly restart Telegram bot and clear pending updates."""
+"""Supervisor script to run and auto-restart the Telegram bot with logging.
+
+Usage:
+  python restart_bot.py --poll-interval 0.0 --max-restarts 0
+
+Features:
+- Loads environment from .env if available
+- Streams child stdout/stderr to console and to rotating log files
+- Auto-restarts on non-zero exit with exponential backoff
+- Separate supervisor and bot stream logs
+"""
 
 from __future__ import annotations
 
-import asyncio
+import argparse
+from datetime import datetime
+import logging
+from logging.handlers import TimedRotatingFileHandler
 import os
-import subprocess
+from pathlib import Path
+import queue
+import subprocess  # nosec B404
 import sys
+import threading
+import time
 
-import psutil
-from dotenv import load_dotenv
-from telegram import Bot
-
-load_dotenv()
+LOGGER = logging.getLogger(__name__)
 
 
-def kill_bot_processes():
-    """Kill all running telegram bot processes."""
-    print("🔍 Searching for running bot processes...")
-    killed = 0
-    for proc in psutil.process_iter(["pid", "name", "cmdline"]):
+def load_env() -> None:
+    try:
+        from dotenv import load_dotenv
+
+        load_dotenv()
+    except Exception as exc:  # pragma: no cover - defensive logging
+        LOGGER.warning("failed to load .env", exc_info=exc)
+
+
+def setup_logging(log_dir: Path) -> tuple[logging.Logger, logging.Logger]:
+    log_dir.mkdir(parents=True, exist_ok=True)
+
+    supervisor_log = log_dir / "restart_bot.log"
+    bot_log = log_dir / "telegram_bot.log"
+
+    # Supervisor logger
+    sup_logger = logging.getLogger("restart_bot")
+    sup_logger.setLevel(logging.INFO)
+    sup_handler = TimedRotatingFileHandler(
+        supervisor_log.as_posix(), when="midnight", backupCount=14, encoding="utf-8"
+    )
+    sup_stream = logging.StreamHandler(sys.stdout)
+    fmt = logging.Formatter("%(asctime)s | %(levelname)s | %(message)s")
+    sup_handler.setFormatter(fmt)
+    sup_stream.setFormatter(fmt)
+    sup_logger.addHandler(sup_handler)
+    sup_logger.addHandler(sup_stream)
+
+    # Bot stream logger
+    bot_logger = logging.getLogger("bot_stream")
+    bot_logger.setLevel(logging.INFO)
+    bot_handler = TimedRotatingFileHandler(
+        bot_log.as_posix(), when="midnight", backupCount=7, encoding="utf-8"
+    )
+    bot_handler.setFormatter(fmt)
+    bot_logger.addHandler(bot_handler)
+
+    return sup_logger, bot_logger
+
+
+def enqueue_output(out, q: queue.Queue[str]):
+    try:
+        for line in iter(out.readline, b""):
+            try:
+                q.put(line.decode("utf-8", errors="replace"))
+            except Exception as exc:  # pragma: no cover - defensive logging
+                # Fallback to raw repr
+                LOGGER.debug("failed to decode bot output line", exc_info=exc)
+                q.put(repr(line))
+    finally:
         try:
-            cmdline = proc.info.get("cmdline") or []
-            cmdline_str = " ".join(cmdline)
-            if "telegram_interface.bot" in cmdline_str and "python" in proc.info["name"].lower():
-                print(f"   ⚠️  Found process PID {proc.info['pid']}: {cmdline_str[:80]}")
-                proc.kill()
-                killed += 1
-                print(f"   ✅ Killed PID {proc.info['pid']}")
-        except (psutil.NoSuchProcess, psutil.AccessDenied):
-            pass
-
-    if killed == 0:
-        print("   ✅ No running bot processes found")
-    else:
-        print(f"   ✅ Killed {killed} process(es)")
-    print()
+            out.close()
+        except Exception as exc:  # pragma: no cover - defensive logging
+            LOGGER.debug("failed to close bot stdout", exc_info=exc)
 
 
-async def clear_pending_updates():
-    """Clear all pending updates from Telegram."""
-    print("🧹 Clearing pending updates...")
-    token = os.getenv("TELEGRAM_BOT_TOKEN")
-    if not token:
-        print("   ❌ TELEGRAM_BOT_TOKEN not found")
-        return False
+def run_child(
+    cmd: list[str], env: dict[str, str], bot_logger: logging.Logger, sup_logger: logging.Logger
+) -> int:
+    # Launch child process; command list is fixed and shell disabled.
+    proc = subprocess.Popen(
+        cmd,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.STDOUT,
+        env=env,
+        bufsize=1,
+        shell=False,
+    )  # nosec B603
 
-    bot = Bot(token=token)
-    try:
-        # Get pending update count
-        updates = await bot.get_updates()
-        count = len(updates)
+    q: queue.Queue[str] = queue.Queue()
+    t = threading.Thread(target=enqueue_output, args=(proc.stdout, q), daemon=True)  # type: ignore[arg-type]
+    t.start()
 
-        if count == 0:
-            print("   ✅ No pending updates")
-        else:
-            print(f"   Found {count} pending update(s)")
-            # Mark all as read by getting updates with offset
-            if updates:
-                last_update_id = updates[-1].update_id
-                await bot.get_updates(offset=last_update_id + 1, timeout=1)
-                print(f"   ✅ Cleared {count} pending update(s)")
-        print()
-        return True
-    except Exception as e:
-        print(f"   ❌ Error: {e}")
-        print()
-        return False
-
-
-def start_bot():
-    """Start the Telegram bot."""
-    print("🚀 Starting Telegram bot...")
-    try:
-        # Start bot as subprocess
-        process = subprocess.Popen(  # nosec B603 - Controlled input from sys.executable
-            [sys.executable, "-m", "telegram_interface.bot"],
-            stdout=subprocess.PIPE,
-            stderr=subprocess.STDOUT,
-            text=True,
-            bufsize=1,
-        )
-
-        print(f"   ✅ Bot started with PID {process.pid}")
-        print("   📝 Showing startup logs...\n")
-        print("   " + "=" * 60)
-
-        # Show first few lines of output
-        for i, line in enumerate(process.stdout):
-            if i < 10:
-                print(f"   {line.rstrip()}")
-            elif "Application started" in line:
-                print(f"   {line.rstrip()}")
+    # Drain output until process exits
+    while True:
+        try:
+            line = q.get(timeout=0.2)
+        except queue.Empty:
+            if proc.poll() is not None:
                 break
+            continue
+        ts = datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
+        line_s = line.rstrip()
+        # Mirror to console and file
+        print(f"{ts} | BOT | {line_s}")
+        bot_logger.info(line_s)
 
-        print("   " + "=" * 60)
-        print()
-        print("✅ Bot is running!")
-        print(f"   PID: {process.pid}")
-        print(f"   To stop: kill {process.pid}")
-        print("   Or use: python restart_bot.py --stop")
-        print()
-        print("💡 Now try sending /start to @lawercasebot in Telegram")
-        print()
-
-        # Keep process running
+    # Flush remaining lines
+    while True:
         try:
-            process.wait()
-        except KeyboardInterrupt:
-            print("\n⚠️  Stopping bot...")
-            process.terminate()
-            process.wait(timeout=5)
-            print("✅ Bot stopped")
+            line = q.get_nowait()
+        except queue.Empty:
+            break
+        ts = datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
+        line_s = line.rstrip()
+        print(f"{ts} | BOT | {line_s}")
+        bot_logger.info(line_s)
 
+    ret = proc.wait()
+    sup_logger.info("child exited", extra={})
+    return ret
+
+
+def main() -> int:
+    parser = argparse.ArgumentParser(description="Run and auto-restart Telegram bot with logging")
+    parser.add_argument(
+        "--poll-interval",
+        type=float,
+        default=0.0,
+        help="Polling interval passed to telegram_interface.bot",
+    )
+    parser.add_argument(
+        "--max-restarts",
+        type=int,
+        default=0,
+        help="Maximum number of restarts (0 = unlimited)",
+    )
+    parser.add_argument(
+        "--backoff-initial",
+        type=float,
+        default=2.0,
+        help="Initial backoff seconds before restart",
+    )
+    parser.add_argument(
+        "--backoff-max",
+        type=float,
+        default=60.0,
+        help="Maximum backoff seconds",
+    )
+    parser.add_argument(
+        "--python",
+        type=str,
+        default=sys.executable,
+        help="Python executable to use for child",
+    )
+    args = parser.parse_args()
+
+    load_env()
+
+    # Ensure token present to avoid restart loop from config error
+    if not os.getenv("TELEGRAM_BOT_TOKEN"):
+        print("ERROR: TELEGRAM_BOT_TOKEN is not set in environment/.env", file=sys.stderr)
+        return 2
+
+    logs_dir = Path("logs")
+    sup_logger, bot_logger = setup_logging(logs_dir)
+    sup_logger.info("restart supervisor starting", extra={})
+
+    restarts = 0
+    backoff = max(0.0, args.backoff_initial)
+
+    cmd = [
+        args.python,
+        "-m",
+        "telegram_interface.bot",
+        "--poll-interval",
+        str(args.poll_interval),
+    ]
+
+    # Child inherits current env
+    child_env = os.environ.copy()
+
+    try:
+        while True:
+            rc = run_child(cmd, child_env, bot_logger, sup_logger)
+            if rc == 0:
+                sup_logger.info("child exited cleanly; not restarting")
+                return 0
+
+            restarts += 1
+            sup_logger.warning(
+                "child crashed; scheduling restart",
+            )
+
+            if args.max_restarts and restarts > args.max_restarts:
+                sup_logger.error("max restarts reached; exiting")
+                return 1
+
+            sup_logger.info("sleeping before restart", extra={})
+            time.sleep(backoff)
+            backoff = min(args.backoff_max, backoff * 2 if backoff > 0 else 2.0)
+
+    except KeyboardInterrupt:
+        sup_logger.info("supervisor interrupted by user")
+        return 0
     except Exception as e:
-        print(f"   ❌ Error starting bot: {e}")
-
-
-def main():
-    """Main entry point."""
-    print("\n" + "=" * 70)
-    print("🤖 TELEGRAM BOT RESTART UTILITY")
-    print("=" * 70 + "\n")
-
-    # Check for --stop flag
-    if "--stop" in sys.argv:
-        kill_bot_processes()
-        return
-
-    # Step 1: Kill existing processes
-    kill_bot_processes()
-
-    # Step 2: Clear pending updates
-    success = asyncio.run(clear_pending_updates())
-    if not success:
-        print("❌ Failed to clear updates. Exiting.")
-        return
-
-    # Step 3: Start bot
-    start_bot()
+        sup_logger.exception("supervisor fatal error: %s", e)
+        return 1
 
 
 if __name__ == "__main__":
-    try:
-        main()
-    except KeyboardInterrupt:
-        print("\n⚠️  Interrupted by user")
-    except Exception as e:
-        print(f"\n❌ Error: {e}")
-        sys.exit(1)
+    raise SystemExit(main())

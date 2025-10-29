@@ -30,7 +30,7 @@ async def example_1_semantic_cache():
     query = "What is contract law?"
     response = {
         "content": "Contract law governs agreements between parties...",
-        "model": "gpt-4",
+        "model": "gpt-5-mini",
         "tokens_used": 150,
     }
 
@@ -69,13 +69,13 @@ async def example_2_llm_cache():
     # Cache responses for different models
     prompt = "What is artificial intelligence?"
 
-    # GPT-4 response
-    gpt4_response = {
-        "content": "AI is the simulation of human intelligence by machines (GPT-4)",
+    # GPT-5-mini response
+    gpt5mini_response = {
+        "content": "AI is the simulation of human intelligence by machines (GPT-5-mini)",
         "usage": {"prompt_tokens": 6, "completion_tokens": 12},
     }
-    await cache.set(prompt, gpt4_response, model="gpt-4", temperature=0.0)
-    print("✓ Cached GPT-4 response")
+    await cache.set(prompt, gpt5mini_response, model="gpt-5-mini", temperature=0.0)
+    print("✓ Cached GPT-5-mini response")
 
     # Claude response
     claude_response = {
@@ -86,11 +86,11 @@ async def example_2_llm_cache():
     print("✓ Cached Claude response")
 
     # Retrieve model-specific
-    gpt4_cached = await cache.get(prompt, model="gpt-4", temperature=0.0)
+    gpt5mini_cached = await cache.get(prompt, model="gpt-5-mini", temperature=0.0)
     claude_cached = await cache.get(prompt, model="claude-3", temperature=0.0)
 
     print("\nModel-Specific Retrieval:")
-    print(f"  GPT-4: {gpt4_cached['content'][:50]}...")
+    print(f"  GPT-5-mini: {gpt5mini_cached['content'][:50]}...")
     print(f"  Claude: {claude_cached['content'][:50]}...")
 
     # Cleanup
@@ -105,7 +105,7 @@ async def example_3_cached_router():
 
     # Create providers
     providers = [
-        LLMProvider("gpt-4", cost_per_token=0.03),
+        LLMProvider("gpt-5-mini", cost_per_token=0.002),
         LLMProvider("claude-3", cost_per_token=0.015),
     ]
 
@@ -190,15 +190,14 @@ async def example_5_full_integration():
 
     # This example requires Phase 1 storage to be configured
     try:
-        from core.memory.memory_manager_v2 import \
-            create_production_memory_manager
+        from core.memory.memory_manager_v2 import create_production_memory_manager
         from core.memory.models import MemoryRecord
 
         # Create components
         memory = create_production_memory_manager(namespace="example")
 
         providers = [
-            LLMProvider("gpt-4", cost_per_token=0.03),
+            LLMProvider("gpt-5-mini", cost_per_token=0.002),
         ]
         router = create_cached_router(providers, initial_budget=5.0)
 

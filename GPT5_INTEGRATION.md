@@ -201,32 +201,28 @@ max_completion_tokens=800
 | Heavy usage | 2000 | 1000 | gpt-5 | **~$80** |
 | Mixed (recommended) | 1000 | 700 | auto-select | **~$25** |
 
-## Migration from GPT-4.1
+## Integration Notes
 
 ### Changes Made:
 
 1. **OpenAIClient Updated**
-   - Default model: `GPT_4_1` → `GPT_5`
+   - Default model set to `GPT_5`
    - Added `verbosity` parameter
-   - Added GPT-5 specific handling
+   - Added GPT‑5 specific handling
 
 2. **MegaAgent Updated**
-   - `_handle_ask_command`: GPT_4_1 → GPT_5
-   - Added `verbosity="medium"`
-   - Added `reasoning_effort="medium"`
-   - Increased max_tokens: 600 → 800
+   - `/ask` now uses `GPT_5` with memory context
+   - `verbosity="medium"`, `reasoning_effort="medium"`
+   - Max completion tokens set to 800
 
 3. **Documentation Updated**
-   - All references to GPT-4.1 removed
-   - GPT-5 specifications added
+   - Legacy references to older models removed
+   - GPT‑5 specifications added
 
-### Backward Compatibility:
+### Usage:
 
 ```python
-# Old code still works (with deprecation warning)
-client = OpenAIClient(model="gpt-4o")
-
-# New recommended way
+from core.llm_interface.openai_client import OpenAIClient
 client = OpenAIClient(model=OpenAIClient.GPT_5)
 ```
 

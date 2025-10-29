@@ -10,11 +10,11 @@ This module provides:
 
 from __future__ import annotations
 
-import os
-import secrets
 from enum import Enum
 from functools import lru_cache
+import os
 from pathlib import Path
+import secrets
 from typing import Any
 
 from pydantic import Field, SecretStr, field_validator, model_validator
@@ -219,10 +219,10 @@ class LLMSettings(BaseSettings):
     gemini_api_key: SecretStr | None = Field(default=None, alias="GEMINI_API_KEY")
     cohere_api_key: SecretStr | None = Field(default=None, alias="COHERE_API_KEY")
 
-    # Default models
-    default_model: str = Field(default="gpt-4")
-    fast_model: str = Field(default="gpt-3.5-turbo")
-    embedding_model: str = Field(default="text-embedding-ada-002")
+    # Default models (updated for GPT-5)
+    default_model: str = Field(default="gpt-5")
+    fast_model: str = Field(default="gpt-5-mini")
+    embedding_model: str = Field(default="text-embedding-3-large")
 
     # Request settings
     max_tokens: int = Field(default=4096, ge=1)

@@ -199,7 +199,7 @@ Production Readiness               [█████████░]  95% ✅
 - **Message Queue**: (optional for scaling)
 
 ### AI/ML Stack
-- **LLM Providers**: OpenAI (GPT-4), Anthropic (Claude)
+- **LLM Providers**: OpenAI (GPT-5 family), Anthropic (Claude)
 - **Embeddings**: OpenAI, Sentence Transformers
 - **Vector Search**: FAISS, Pinecone
 - **NLP**: spaCy, Transformers
