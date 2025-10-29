@@ -13,16 +13,16 @@ Features:
 from __future__ import annotations
 
 import argparse
-from datetime import datetime
 import logging
-from logging.handlers import TimedRotatingFileHandler
 import os
-from pathlib import Path
 import queue
 import subprocess  # nosec B404
 import sys
 import threading
 import time
+from datetime import datetime
+from logging.handlers import TimedRotatingFileHandler
+from pathlib import Path
 
 LOGGER = logging.getLogger(__name__)
 
