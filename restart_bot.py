@@ -7,8 +7,8 @@ import os
 import subprocess
 import sys
 
-from dotenv import load_dotenv
 import psutil
+from dotenv import load_dotenv
 from telegram import Bot
 
 load_dotenv()
