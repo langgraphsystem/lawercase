@@ -30,6 +30,7 @@ python-multipart>=0.0.6,<1.0.0  # For form data
 fastapi>=0.110.0,<1.0.0
 uvicorn[standard]>=0.29.0,<1.0.0
 python-jose[cryptography]>=3.3.0,<4.0.0  # JWT library
+aiofiles>=23.2.1,<24.0.0  # Async file operations for document_monitor
 
 # ============================================================================
 # Database & Cache
