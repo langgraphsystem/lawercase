@@ -28,29 +28,57 @@ def _is_authorized(bot_context: BotContext, update: Update) -> bool:
 
 
 async def generate_letter(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    user_id = update.effective_user.id if update.effective_user else None
+    logger.info("telegram.generate_letter.received", user_id=user_id)
+
     bot_context = _bot_context(context)
     if not _is_authorized(bot_context, update):
+        logger.warning("telegram.generate_letter.unauthorized", user_id=user_id)
         return
+
     message = update.effective_message
     if not context.args:
+        logger.warning("telegram.generate_letter.no_args", user_id=user_id)
         await message.reply_text("Usage: /generate_letter <title>")
         return
+
     title = " ".join(context.args)
-    payload = {"document_type": "letter", "content_data": {"title": title}}
-    command = MegaAgentCommand(
-        user_id=str(update.effective_user.id),
-        command_type=CommandType.GENERATE,
-        action="letter",
-        payload=payload,
-    )
-    response = await bot_context.mega_agent.handle_command(command, user_role=UserRole.LAWYER)
-    if response.success and response.result:
-        document = response.result.get("document", {})
-        await message.reply_text(
-            f"📝 Letter generated:\nTitle: {document.get('title', title)}\nFormat: {document.get('format', 'markdown')}"
+    logger.info("telegram.generate_letter.processing", user_id=user_id, title_length=len(title))
+
+    try:
+        payload = {"document_type": "letter", "content_data": {"title": title}}
+        command = MegaAgentCommand(
+            user_id=str(update.effective_user.id),
+            command_type=CommandType.GENERATE,
+            action="letter",
+            payload=payload,
         )
-    else:
-        await message.reply_text(f"❌ Error: {response.error or 'generation failed'}")
+        logger.info(
+            "telegram.generate_letter.command_created",
+            user_id=user_id,
+            command_id=command.command_id,
+        )
+
+        response = await bot_context.mega_agent.handle_command(command, user_role=UserRole.LAWYER)
+        logger.info(
+            "telegram.generate_letter.response_received", user_id=user_id, success=response.success
+        )
+
+        if response.success and response.result:
+            document = response.result.get("document", {})
+            await message.reply_text(
+                f"📝 Letter generated:\nTitle: {document.get('title', title)}\nFormat: {document.get('format', 'markdown')}"
+            )
+            logger.info(
+                "telegram.generate_letter.sent", user_id=user_id, format=document.get("format")
+            )
+        else:
+            error_msg = response.error or "generation failed"
+            await message.reply_text(f"❌ Error: {error_msg}")
+            logger.error("telegram.generate_letter.failed", user_id=user_id, error=error_msg)
+    except Exception as e:
+        logger.exception("telegram.generate_letter.exception", user_id=user_id, error=str(e))
+        await message.reply_text(f"❌ Exception: {e!s}")
 
 
 def get_handlers(bot_context: BotContext):
