@@ -1,11 +1,6 @@
 # Nixpacks configuration for Railway deployment
-# Use minimal bot dependencies instead of full requirements.txt
-
-[phases.install]
-cmds = [
-    "pip install --upgrade pip setuptools wheel",
-    "pip install --no-cache-dir -r requirements-bot.txt"
-]
+# requirements.txt now contains minimal bot dependencies
+# Full dependencies are in requirements-full.txt
 
 [start]
 cmd = "python start_bot.py"
