@@ -21,14 +21,23 @@ from typing import Any
 
 # Import comprehensive logging utilities (optional)
 try:
-    from core.logging_utils import (AuditLogger, ErrorTracker, LogContext,
-                                    PerformanceLogger, RequestContext,
-                                    get_error_tracker)
-    from core.logging_utils import get_logger as get_structlog_logger
-    from core.logging_utils import (get_request_id, get_user_id, log_error,
-                                    log_function_call, log_performance,
-                                    set_request_id, set_user_id)
-    from core.logging_utils import setup_logging as setup_comprehensive_logging
+    from core.logging_utils import (
+        AuditLogger,
+        ErrorTracker,
+        LogContext,
+        PerformanceLogger,
+        RequestContext,
+        get_error_tracker,
+        get_logger as get_structlog_logger,
+        get_request_id,
+        get_user_id,
+        log_error,
+        log_function_call,
+        log_performance,
+        set_request_id,
+        set_user_id,
+        setup_logging as setup_comprehensive_logging,
+    )
 
     COMPREHENSIVE_LOGGING_AVAILABLE = True
 except ImportError:
@@ -58,24 +67,24 @@ except ImportError:
     set_user_id = None
 
 __all__ = [
-    # Simple API
-    "setup_logging",
-    "StructuredLogger",
     # Advanced API from logging_utils
-    "get_structlog_logger",
-    "LogContext",
-    "log_error",
-    "log_performance",
-    "log_function_call",
-    "PerformanceLogger",
     "AuditLogger",
     "ErrorTracker",
-    "get_error_tracker",
+    "LogContext",
+    "PerformanceLogger",
     "RequestContext",
-    "set_request_id",
+    "StructuredLogger",
+    "get_error_tracker",
     "get_request_id",
-    "set_user_id",
+    "get_structlog_logger",
     "get_user_id",
+    "log_error",
+    "log_function_call",
+    "log_performance",
+    "set_request_id",
+    "set_user_id",
+    # Simple API
+    "setup_logging",
 ]
 
 

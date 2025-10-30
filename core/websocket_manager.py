@@ -9,8 +9,8 @@ from __future__ import annotations
 
 from typing import Any
 
-import structlog
 from fastapi import WebSocket
+import structlog
 
 logger = structlog.get_logger(__name__)
 

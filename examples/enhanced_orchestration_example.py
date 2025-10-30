@@ -16,9 +16,15 @@ from datetime import datetime
 from core.memory.memory_manager import MemoryManager
 from core.memory.models import AuditEvent
 from core.orchestration.enhanced_workflows import (
-    EnhancedWorkflowState, ErrorRecoveryManager, HumanFeedback,
-    HumanReviewManager, RetryStrategy, RouterOptimizer,
-    create_enhanced_orchestration, execute_parallel_agents)
+    EnhancedWorkflowState,
+    ErrorRecoveryManager,
+    HumanFeedback,
+    HumanReviewManager,
+    RetryStrategy,
+    RouterOptimizer,
+    create_enhanced_orchestration,
+    execute_parallel_agents,
+)
 
 # ============================================================================
 # EXAMPLE 1: Error Recovery with Retry

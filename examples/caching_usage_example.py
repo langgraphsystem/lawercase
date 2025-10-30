@@ -190,8 +190,7 @@ async def example_5_full_integration():
 
     # This example requires Phase 1 storage to be configured
     try:
-        from core.memory.memory_manager_v2 import \
-            create_production_memory_manager
+        from core.memory.memory_manager_v2 import create_production_memory_manager
         from core.memory.models import MemoryRecord
 
         # Create components

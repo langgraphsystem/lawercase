@@ -1,9 +1,9 @@
 from __future__ import annotations
 
-import time
-import uuid
 from collections import OrderedDict
+import time
 from typing import TYPE_CHECKING
+import uuid
 
 if TYPE_CHECKING:
     from collections.abc import Iterable

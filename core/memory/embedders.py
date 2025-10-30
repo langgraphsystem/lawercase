@@ -2,8 +2,8 @@
 
 from __future__ import annotations
 
-import hashlib
 from collections.abc import Sequence
+import hashlib
 
 import numpy as np
 

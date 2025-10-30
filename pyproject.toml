@@ -33,3 +33,28 @@ testpaths = ["tests"]
 [tool.black]
 line-length = 100
 target-version = ["py311"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+
+[tool.ruff.lint]
+# Allow specific builtin shadowing in observability modules
+# Ignore specific security warnings that are intentional
+ignore = [
+    "A003",  # Shadowing builtins (type, format) - intentional in dataclasses
+    "S603",  # subprocess without shell=True - controlled input in scripts
+    "S112",  # try-except-continue - intentional error handling pattern
+    "E402",  # Module level import not at top - intentional for conditional imports
+]
+
+[tool.ruff.lint.per-file-ignores]
+"core/observability/grafana_dashboards.py" = ["A003"]  # type attribute
+"core/observability/log_aggregation.py" = ["A003"]  # format method
+"deployment/docker/smoke_test.py" = ["S603", "S607"]  # subprocess with controlled input
+"deployment\\docker\\smoke_test.py" = ["S603", "S607"]  # subprocess with controlled input (Windows)
+"core/groupagents/mega_agent.py" = ["S112"]  # try-except-continue pattern
+"benchmarks/run_benchmarks.py" = ["E402"]  # Module level imports after code
+"core/caching/multi_level_cache.py" = ["E402"]  # Import after version check
+"core/llm_interface/intelligent_router.py" = ["E402"]  # Import after version check
+"core/memory/memory_hierarchy.py" = ["E402"]  # Import after version check

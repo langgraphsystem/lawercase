@@ -8,8 +8,8 @@ directly into Grafana.
 from __future__ import annotations
 
 import argparse
-import json
 from dataclasses import dataclass, field
+import json
 from pathlib import Path
 from typing import Any
 

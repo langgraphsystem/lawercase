@@ -8,10 +8,14 @@ from __future__ import annotations
 
 import asyncio
 
-from core.groupagents.self_correcting_mixin import (SelfCorrectingAgent,
-                                                    SelfCorrectingMixin)
-from core.validation import (ConfidenceScorer, QualityTracker, RetryConfig,
-                             RetryHandler, RetryStrategy)
+from core.groupagents.self_correcting_mixin import SelfCorrectingAgent, SelfCorrectingMixin
+from core.validation import (
+    ConfidenceScorer,
+    QualityTracker,
+    RetryConfig,
+    RetryHandler,
+    RetryStrategy,
+)
 
 
 # Example 1: Basic Confidence Scoring

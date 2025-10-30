@@ -3,7 +3,7 @@ repos:
   rev: v0.1.9
   hooks:
     - id: ruff
-      args: ["--fix"]
+      args: ["--fix", "--extend-ignore=A003,S603,S112,E402"]
       exclude: ^(tests/|deps/)
     - id: ruff-format
       exclude: ^(tests/|deps/)

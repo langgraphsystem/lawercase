@@ -14,8 +14,7 @@ import typer
 
 from config.logging import setup_logging
 from config.settings import AppSettings, get_settings
-from recommendation_pipeline.clients.adobe_pdf_services_client import \
-    AdobePDFServices
+from recommendation_pipeline.clients.adobe_pdf_services_client import AdobePDFServices
 from recommendation_pipeline.utils import io_utils
 
 logger = structlog.get_logger(__name__)

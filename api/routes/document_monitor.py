@@ -14,11 +14,10 @@ from typing import Any, Literal
 from uuid import uuid4
 
 import aiofiles
-import structlog
-from fastapi import (APIRouter, File, Form, HTTPException, UploadFile,
-                     WebSocket, WebSocketDisconnect)
+from fastapi import APIRouter, File, Form, HTTPException, UploadFile, WebSocket, WebSocketDisconnect
 from fastapi.responses import FileResponse
 from pydantic import BaseModel, Field
+import structlog
 
 from core.storage.document_workflow_store import get_document_workflow_store
 from core.websocket_manager import manager as ws_manager
@@ -718,8 +717,7 @@ async def _run_document_generation_workflow(
     try:
         # Try to use real LangGraph workflow
         try:
-            from core.orchestration.document_generation_workflow import \
-                run_document_generation
+            from core.orchestration.document_generation_workflow import run_document_generation
 
             logger.info(
                 "using_real_workflow",

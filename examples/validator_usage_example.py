@@ -11,17 +11,21 @@ from __future__ import annotations
 
 import asyncio
 
-from core.groupagents.validator_agent import (ValidationCategory,
-                                              ValidationLevel,
-                                              ValidationRequest,
-                                              ValidationRuleType,
-                                              ValidatorAgent)
-from core.groupagents.validator_extensions import (PetitionValidationResult,
-                                                   SelfCorrectionResult)
+from core.groupagents.validator_agent import (
+    ValidationCategory,
+    ValidationLevel,
+    ValidationRequest,
+    ValidationRuleType,
+    ValidatorAgent,
+)
+from core.groupagents.validator_extensions import PetitionValidationResult, SelfCorrectionResult
 from core.memory.memory_manager import MemoryManager
-from core.workflows.eb1a.eb1a_coordinator import (EB1ACriterion, EB1AEvidence,
-                                                  EB1APetitionRequest,
-                                                  EvidenceType)
+from core.workflows.eb1a.eb1a_coordinator import (
+    EB1ACriterion,
+    EB1AEvidence,
+    EB1APetitionRequest,
+    EvidenceType,
+)
 
 
 async def example_1_basic_validation():

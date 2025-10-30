@@ -14,10 +14,8 @@ import asyncio
 from datetime import datetime
 
 from core.memory.memory_manager import MemoryManager
-from core.workflows.eb1a.eb1a_coordinator import (EB1ACriterion, EB1AEvidence,
-                                                  EvidenceType)
-from core.workflows.eb1a.eb1a_workflow.evidence_researcher import \
-    EvidenceResearcher
+from core.workflows.eb1a.eb1a_coordinator import EB1ACriterion, EB1AEvidence, EvidenceType
+from core.workflows.eb1a.eb1a_workflow.evidence_researcher import EvidenceResearcher
 
 
 async def demo_organization_research():

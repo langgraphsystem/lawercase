@@ -6,15 +6,15 @@ Usage:
 
 from __future__ import annotations
 
+from collections.abc import Sequence
 import subprocess
 import sys
-from collections.abc import Sequence
 
 
 def run_command(command: Sequence[str]) -> int:
-    process = subprocess.run(
+    process = subprocess.run(  # nosec B603
         command, check=False
-    )  # nosec B603 - Smoke test script with controlled input
+    )  # Smoke test script with controlled input
     return process.returncode
 
 

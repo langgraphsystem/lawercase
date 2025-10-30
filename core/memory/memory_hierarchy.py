@@ -19,11 +19,9 @@ from .models import AuditEvent, MemoryRecord
 # We favour the production-ready MemoryManager v2 when available, but fall back
 # to the original implementation to keep backwards compatibility for tests.
 try:
-    from .memory_manager_v2 import MemoryManager as _BaseMemoryManager
-    from .memory_manager_v2 import create_dev_memory_manager
+    from .memory_manager_v2 import MemoryManager as _BaseMemoryManager, create_dev_memory_manager
 except ImportError:  # pragma: no cover - defensive in environments without v2
-    from .memory_manager import \
-        MemoryManager as _BaseMemoryManager  # type: ignore
+    from .memory_manager import MemoryManager as _BaseMemoryManager  # type: ignore
 
     def create_dev_memory_manager() -> _BaseMemoryManager:
         return _BaseMemoryManager()
