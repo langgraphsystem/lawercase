@@ -37,12 +37,22 @@ def _is_authorized(bot_context: BotContext, update: Update) -> bool:
 
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    user_id = update.effective_user.id if update.effective_user else None
+    username = update.effective_user.username if update.effective_user else None
+    logger.info("telegram.start.received", user_id=user_id, username=username)
+
     bot_context = _bot_context(context)
     if not _is_authorized(bot_context, update):
+        logger.warning("telegram.start.unauthorized", user_id=user_id)
         return
-    await update.effective_message.reply_text(
-        "👋 Welcome to MegaAgent EB-1A assistant! Use /help to see available commands."
-    )
+
+    try:
+        await update.effective_message.reply_text(
+            "👋 Welcome to MegaAgent EB-1A assistant! Use /help to see available commands."
+        )
+        logger.info("telegram.start.sent", user_id=user_id)
+    except Exception as e:
+        logger.exception("telegram.start.error", user_id=user_id, error=str(e))
 
 
 async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -59,65 +69,120 @@ async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
 
 
 async def ask_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    user_id = update.effective_user.id if update.effective_user else None
+    username = update.effective_user.username if update.effective_user else None
+    logger.info("telegram.ask.received", user_id=user_id, username=username)
+
     bot_context = _bot_context(context)
     if not _is_authorized(bot_context, update):
+        logger.warning("telegram.ask.unauthorized", user_id=user_id)
         return
+
     message = update.effective_message
     if not context.args:
+        logger.warning("telegram.ask.no_args", user_id=user_id)
         await message.reply_text("Usage: /ask <question>")
         return
+
     question = " ".join(context.args)
-    command = MegaAgentCommand(
-        user_id=str(update.effective_user.id),
-        command_type=CommandType.ASK,
-        action="ask",
-        payload={"query": question},
-    )
-    response = await bot_context.mega_agent.handle_command(command, user_role=UserRole.LAWYER)
-    if response.success and response.result:
-        result = response.result
-        llm_answer = result.get("llm_response")
-        if llm_answer:
-            await message.reply_text(llm_answer)
-            return
-        # Fallback: show prompt analysis and retrieved memory summary
-        retrieved = result.get("retrieved", [])
-        text = result.get("prompt_analysis", {}).get("issues") or "✅ Query processed."
-        if retrieved:
-            summary = "\n".join(f"• {item.get('text', '')}" for item in retrieved[:5])
-            await message.reply_text(f"{text}\n{summary}")
+    logger.info("telegram.ask.processing", user_id=user_id, question_length=len(question))
+
+    try:
+        command = MegaAgentCommand(
+            user_id=str(update.effective_user.id),
+            command_type=CommandType.ASK,
+            action="ask",
+            payload={"query": question},
+        )
+        logger.info("telegram.ask.command_created", user_id=user_id, command_id=command.command_id)
+
+        response = await bot_context.mega_agent.handle_command(command, user_role=UserRole.LAWYER)
+        logger.info(
+            "telegram.ask.response_received",
+            user_id=user_id,
+            success=response.success,
+            command_id=command.command_id,
+        )
+
+        if response.success and response.result:
+            result = response.result
+            llm_answer = result.get("llm_response")
+            if llm_answer:
+                await message.reply_text(llm_answer)
+                logger.info("telegram.ask.sent", user_id=user_id, response_length=len(llm_answer))
+                return
+            # Fallback: show prompt analysis and retrieved memory summary
+            retrieved = result.get("retrieved", [])
+            text = result.get("prompt_analysis", {}).get("issues") or "✅ Query processed."
+            if retrieved:
+                summary = "\n".join(f"• {item.get('text', '')}" for item in retrieved[:5])
+                await message.reply_text(f"{text}\n{summary}")
+                logger.info(
+                    "telegram.ask.sent_with_memory", user_id=user_id, retrieved_count=len(retrieved)
+                )
+            else:
+                await message.reply_text(text)
+                logger.info("telegram.ask.sent_fallback", user_id=user_id)
         else:
-            await message.reply_text(text)
-    else:
-        await message.reply_text(f"❌ Error: {response.error or 'unknown'}")
+            error_msg = response.error or "unknown"
+            await message.reply_text(f"❌ Error: {error_msg}")
+            logger.error("telegram.ask.failed", user_id=user_id, error=error_msg)
+    except Exception as e:
+        logger.exception("telegram.ask.exception", user_id=user_id, error=str(e))
+        await message.reply_text(f"❌ Exception: {e!s}")
 
 
 async def memory_lookup_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    user_id = update.effective_user.id if update.effective_user else None
+    username = update.effective_user.username if update.effective_user else None
+    logger.info("telegram.memory_lookup.received", user_id=user_id, username=username)
+
     bot_context = _bot_context(context)
     if not _is_authorized(bot_context, update):
+        logger.warning("telegram.memory_lookup.unauthorized", user_id=user_id)
         return
+
     message = update.effective_message
     if not context.args:
+        logger.warning("telegram.memory_lookup.no_args", user_id=user_id)
         await message.reply_text("Usage: /memory_lookup <query>")
         return
+
     query = " ".join(context.args)
-    command = MegaAgentCommand(
-        user_id=str(update.effective_user.id),
-        command_type=CommandType.ADMIN,
-        action="memory_lookup",
-        payload={"query": query},
-    )
-    response = await bot_context.mega_agent.handle_command(command, user_role=UserRole.ADMIN)
-    if response.success and response.result:
-        results = response.result.get("results", [])
-        lines = ["🔍 Memory hits:"]
-        for item in results[:5]:
-            text = item.get("text") or item.get("metadata", {}).get("summary")
-            if text:
-                lines.append(f"• {text}")
-        await message.reply_text("\n".join(lines))
-    else:
-        await message.reply_text(f"❌ Error: {response.error or 'lookup failed'}")
+    logger.info("telegram.memory_lookup.processing", user_id=user_id, query_length=len(query))
+
+    try:
+        command = MegaAgentCommand(
+            user_id=str(update.effective_user.id),
+            command_type=CommandType.ADMIN,
+            action="memory_lookup",
+            payload={"query": query},
+        )
+        logger.info(
+            "telegram.memory_lookup.command_created", user_id=user_id, command_id=command.command_id
+        )
+
+        response = await bot_context.mega_agent.handle_command(command, user_role=UserRole.ADMIN)
+        logger.info(
+            "telegram.memory_lookup.response_received", user_id=user_id, success=response.success
+        )
+
+        if response.success and response.result:
+            results = response.result.get("results", [])
+            lines = ["🔍 Memory hits:"]
+            for item in results[:5]:
+                text = item.get("text") or item.get("metadata", {}).get("summary")
+                if text:
+                    lines.append(f"• {text}")
+            await message.reply_text("\n".join(lines))
+            logger.info("telegram.memory_lookup.sent", user_id=user_id, results_count=len(results))
+        else:
+            error_msg = response.error or "lookup failed"
+            await message.reply_text(f"❌ Error: {error_msg}")
+            logger.error("telegram.memory_lookup.failed", user_id=user_id, error=error_msg)
+    except Exception as e:
+        logger.exception("telegram.memory_lookup.exception", user_id=user_id, error=str(e))
+        await message.reply_text(f"❌ Exception: {e!s}")
 
 
 def get_handlers(bot_context: BotContext):
