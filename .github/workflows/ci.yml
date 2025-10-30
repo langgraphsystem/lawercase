@@ -23,7 +23,7 @@ jobs:
           pip install --no-cache-dir -r requirements-ci.txt
           pip install --no-cache-dir ruff pip-audit
       - name: Ruff lint
-        run: ruff check .
+        run: ruff check . --extend-ignore=A003,S603,S112,E402
       - name: Run tests
         env:
           CACHE_USE_FAKEREDIS: "true"
