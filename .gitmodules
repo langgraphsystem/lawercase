@@ -1,0 +1,3 @@
+[submodule "deps/rssnews"]
+	path = deps/rssnews
+	url = https://github.com/langgraphsystem/rssnews.git
