@@ -1,0 +1,40 @@
+# Minimal dependencies for Telegram Bot on Railway
+# This file contains only what's needed to run the bot, without heavy dev/observability deps
+
+# Core dependencies
+python-dotenv>=1.0.1,<2.0.0
+pydantic>=2.7.0,<3.0.0
+pydantic-settings>=2.2.0,<3.0.0
+
+# LangChain/LangGraph for MegaAgent
+langchain>=0.2.0,<0.4.0
+langgraph>=0.2.30,<0.3.0
+typing-extensions>=4.10.0,<5.0.0
+
+# LLM Providers
+anthropic>=0.40.0,<1.0.0
+openai>=1.58.0,<2.0.0
+google-generativeai>=0.8.0,<1.0.0
+
+# Telegram Bot
+python-telegram-bot>=21.4,<22.0.0
+
+# Utilities
+typer>=0.12.3,<1.0.0
+httpx>=0.27.0,<1.0.0
+orjson>=3.9.15,<4.0.0
+tenacity>=9.0.0,<10.0.0
+
+# Logging
+structlog>=24.4.0,<25.0.0
+
+# Caching (using fakeredis for Railway to avoid Redis dependency)
+fakeredis>=2.23.2,<3.0.0
+redis[hiredis]>=5.0.1,<6.0.0
+
+# NLP (lightweight version)
+dateparser>=1.2.0,<2.0.0
+
+# Basic observability (API and SDK only, no exporters)
+opentelemetry-api>=1.20.0,<2.0.0
+opentelemetry-sdk>=1.20.0,<2.0.0
