@@ -3,6 +3,7 @@
 
 # Core dependencies
 python-dotenv>=1.0.1,<2.0.0
+setuptools>=78.1.1
 pydantic>=2.7.0,<3.0.0
 pydantic-settings>=2.2.0,<3.0.0
 
@@ -17,24 +18,26 @@ openai>=1.58.0,<2.0.0
 google-generativeai>=0.8.0,<1.0.0
 
 # Telegram Bot
-python-telegram-bot>=21.4,<22.0.0
+python-telegram-bot>=22.0,<23.0.0
 
 # Utilities
 typer>=0.12.3,<1.0.0
 httpx>=0.27.0,<1.0.0
-orjson>=3.9.15,<4.0.0
 tenacity>=9.0.0,<10.0.0
+psutil>=5.9.0,<6.0.0
+aiofiles>=23.2.1,<24.0.0
 
 # Logging
 structlog>=24.4.0,<25.0.0
 
-# Caching (using fakeredis for Railway to avoid Redis dependency)
-fakeredis>=2.23.2,<3.0.0
+# Caching
 redis[hiredis]>=5.0.1,<6.0.0
 
-# NLP (lightweight version)
-dateparser>=1.2.0,<2.0.0
+# FastAPI (if needed for webhooks or API)
+fastapi>=0.110.0,<1.0.0
+python-multipart>=0.0.6,<1.0.0
+uvicorn>=0.29.0,<1.0.0
 
-# Basic observability (API and SDK only, no exporters)
-opentelemetry-api>=1.20.0,<2.0.0
-opentelemetry-sdk>=1.20.0,<2.0.0
+# Monitoring
+prometheus-client>=0.20.0,<1.0.0
+networkx>=3.1,<4.0
