@@ -8,8 +8,8 @@ storage (development) with option to use Redis (production).
 from __future__ import annotations
 
 import asyncio
-from datetime import datetime
 import json
+from datetime import datetime
 from typing import Any
 
 import structlog

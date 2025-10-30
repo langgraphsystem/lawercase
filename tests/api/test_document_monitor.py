@@ -2,9 +2,9 @@
 
 from __future__ import annotations
 
+import pytest
 from fastapi import FastAPI
 from httpx import ASGITransport, AsyncClient
-import pytest
 
 from api.routes.document_monitor import router
 from core.storage.document_workflow_store import get_document_workflow_store

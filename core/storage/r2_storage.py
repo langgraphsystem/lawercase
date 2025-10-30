@@ -7,8 +7,8 @@ https://developers.cloudflare.com/r2/api/s3/tokens/
 
 from __future__ import annotations
 
-from datetime import datetime
 import io
+from datetime import datetime
 from typing import TYPE_CHECKING, Any, BinaryIO
 from uuid import uuid4
 

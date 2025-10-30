@@ -4,17 +4,16 @@ from __future__ import annotations
 
 import pytest
 
-from core.workflows.eb1a.eb1a_coordinator import EB1ACriterion, EB1APetitionResult, SectionContent
-from core.workflows.eb1a.validators import (
-    CheckResult,
-    ComplianceChecklist,
-    EB1AValidator,
-    SectionValidationResult,
-    ValidationIssue,
-    ValidationReportGenerator,
-    ValidationResult,
-    ValidationSeverity,
-)
+from core.workflows.eb1a.eb1a_coordinator import (EB1ACriterion,
+                                                  EB1APetitionResult,
+                                                  SectionContent)
+from core.workflows.eb1a.validators import (CheckResult, ComplianceChecklist,
+                                            EB1AValidator,
+                                            SectionValidationResult,
+                                            ValidationIssue,
+                                            ValidationReportGenerator,
+                                            ValidationResult,
+                                            ValidationSeverity)
 
 
 class TestValidationSchemas:

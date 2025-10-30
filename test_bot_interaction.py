@@ -3,11 +3,11 @@
 from __future__ import annotations
 
 import asyncio
-from datetime import datetime
 import os
+from datetime import datetime
 
-from dotenv import load_dotenv
 import structlog
+from dotenv import load_dotenv
 from telegram import Bot
 
 logger = structlog.get_logger(__name__)

@@ -9,11 +9,12 @@ This module validates EB-1A petitions against:
 
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass, field
 from enum import Enum
-import re
 
-from ..eb1a_coordinator import EB1ACriterion, EB1APetitionResult, SectionContent
+from ..eb1a_coordinator import (EB1ACriterion, EB1APetitionResult,
+                                SectionContent)
 from .checklists import ComplianceChecklist
 
 
