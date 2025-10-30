@@ -36,4 +36,6 @@ ENV PYTHONPATH=/app
 # Default poll interval; override via Railway CMD or env if needed
 ENV BOT_POLL_INTERVAL=0.5
 
-CMD ["bash", "-lc", "python restart_bot.py --poll-interval ${BOT_POLL_INTERVAL}"]
+# Use telegram_interface.bot module directly instead of restart_bot.py
+# which is excluded by .dockerignore
+CMD ["python", "-m", "telegram_interface.bot"]
