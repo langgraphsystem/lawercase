@@ -123,7 +123,13 @@ async def test_intelligent_router_caching_and_cost_tracking():
 
     first_response = await router.acomplete(request)
     assert first_response["cached"] is False
-    assert first_response["selected_model"] in {"claude-3-haiku", "claude-3-sonnet"}
+    # Updated to include GPT-5 models after migration from GPT-4.1
+    assert first_response["selected_model"] in {
+        "claude-3-haiku",
+        "claude-3-sonnet",
+        "gpt-5-nano",  # GPT-5 cheapest option
+        "gpt-5-mini",  # GPT-5 mid-tier option
+    }
     assert len(tracker.records) == 1
 
     second_response = await router.acomplete(request)
