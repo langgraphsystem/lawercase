@@ -265,13 +265,9 @@ async def demo_eb1_document_generation():
 
     from core.groupagents.eb1_document_processor import EB1DocumentProcessor
     from core.groupagents.eb1_documents import RecommendationLetterData
-    from core.groupagents.eb1_models import (
-        EB1Criterion,
-        EB1FieldOfExpertise,
-        EB1PersonalInfo,
-        EB1PetitionData,
-        EB1PetitionStatus,
-    )
+    from core.groupagents.eb1_models import (EB1Criterion, EB1FieldOfExpertise,
+                                             EB1PersonalInfo, EB1PetitionData,
+                                             EB1PetitionStatus)
 
     # Choose provider based on available API keys
     llm_client = None
