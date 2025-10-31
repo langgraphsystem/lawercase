@@ -25,13 +25,20 @@ def register_handlers(
     )
     application.bot_data["bot_context"] = bot_context
 
-    from . import (admin_handlers,  # local import to avoid circular
-                   case_handlers, file_upload_handlers, kb_handlers,
-                   letter_handlers, scheduler_handlers)
+    from . import (  # local import to avoid circular
+        admin_handlers,
+        case_handlers,
+        file_upload_handlers,
+        kb_handlers,
+        letter_handlers,
+        scheduler_handlers,
+        sdk_handlers,
+    )
 
     handler_sets: Iterable = chain(
         admin_handlers.get_handlers(bot_context),
         case_handlers.get_handlers(bot_context),
+        sdk_handlers.get_handlers(bot_context),
         letter_handlers.get_handlers(bot_context),
         kb_handlers.get_handlers(bot_context),
         scheduler_handlers.get_handlers(bot_context),
