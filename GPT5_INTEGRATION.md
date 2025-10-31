@@ -84,7 +84,7 @@ client = OpenAIClient(
 # Get completion
 result = await client.acomplete(
     prompt="Explain EB-1A visa requirements",
-    max_completion_tokens=800
+    max_tokens=800
 )
 
 print(result["output"])
@@ -99,7 +99,7 @@ client = OpenAIClient(
     verbosity="high",           # Detailed answer
     reasoning_effort="high",    # Deep thinking
     temperature=0.1,            # More focused
-    max_completion_tokens=2000
+    max_tokens=2000
 )
 
 # Low verbosity + minimal reasoning for quick facts
@@ -143,7 +143,7 @@ model=OpenAIClient.GPT_5
 temperature=0.2          # Focused, consistent
 verbosity="medium"       # Balanced length
 reasoning_effort="medium" # Standard thinking
-max_completion_tokens=800
+max_tokens=800
 ```
 
 ## Performance Benchmarks
@@ -286,7 +286,7 @@ grep OPENAI_API_KEY .env
 **Solutions**:
 1. Use `gpt-5-nano` for faster responses
 2. Reduce `reasoning_effort` to "minimal"
-3. Set lower `max_completion_tokens`
+3. Set lower `max_tokens`
 
 ### High costs
 

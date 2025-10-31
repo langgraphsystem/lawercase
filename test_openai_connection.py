@@ -45,11 +45,9 @@ async def test_basic_connection():
         print(f"{'─'*70}")
 
         try:
-            client = OpenAIClient(
-                model=model_id, api_key=api_key, temperature=0.5, max_completion_tokens=10
-            )
+            client = OpenAIClient(model=model_id, api_key=api_key, temperature=0.5)
 
-            result = await client.acomplete(test_prompt)
+            result = await client.acomplete(test_prompt, max_tokens=10)
 
             if "error" in result:
                 error_msg = result["error"]

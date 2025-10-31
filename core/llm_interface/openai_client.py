@@ -35,7 +35,7 @@ class OpenAIClient:
 
     API Parameters (GPT-5 Models):
     - temperature (float, 0.0-2.0): Randomness (default 1.0)
-    - max_completion_tokens (int): Maximum tokens in completion
+    - max_tokens (int): Maximum tokens in completion
     - verbosity (str): "low", "medium", "high" - answer length
     - reasoning_effort (str): "minimal", "low", "medium", "high" - thinking depth
     - top_p (float, 0.0-1.0): Nucleus sampling
@@ -66,7 +66,7 @@ class OpenAIClient:
         model: str = GPT_5,
         api_key: str | None = None,
         temperature: float = 1.0,
-        max_completion_tokens: int = 4096,
+        max_tokens: int = 4096,
         top_p: float = 1.0,
         frequency_penalty: float = 0.0,
         presence_penalty: float = 0.0,
@@ -80,7 +80,7 @@ class OpenAIClient:
             model: Model identifier (default: gpt-5)
             api_key: OpenAI API key (or set OPENAI_API_KEY env var)
             temperature: Randomness (0.0-2.0, default 1.0) [not for reasoning models]
-            max_completion_tokens: Max tokens in completion (default 4096)
+            max_tokens: Max tokens in completion (default 4096)
             top_p: Nucleus sampling (0.0-1.0, default 1.0) [not for reasoning models]
             frequency_penalty: Reduce repetition (-2.0 to 2.0, default 0) [not for reasoning models]
             presence_penalty: Encourage diversity (-2.0 to 2.0, default 0) [not for reasoning models]
@@ -95,7 +95,7 @@ class OpenAIClient:
 
         self.model = model
         self.temperature = temperature
-        self.max_completion_tokens = max_completion_tokens
+        self.max_tokens = max_tokens
         self.top_p = top_p
         self.frequency_penalty = frequency_penalty
         self.presence_penalty = presence_penalty
@@ -130,7 +130,9 @@ class OpenAIClient:
             dict with keys: model, prompt, output, provider, usage, finish_reason
         """
         # Merge default params with overrides
-        max_completion_tokens = params.get("max_completion_tokens", self.max_completion_tokens)
+        max_tokens = params.get("max_tokens")
+        if max_tokens is None:
+            max_tokens = params.get("max_completion_tokens", self.max_tokens)
         temperature = params.get("temperature", self.temperature)
         top_p = params.get("top_p", self.top_p)
         frequency_penalty = params.get("frequency_penalty", self.frequency_penalty)
@@ -143,7 +145,7 @@ class OpenAIClient:
         api_params: dict[str, Any] = {
             "model": self.model,
             "messages": [{"role": "user", "content": prompt}],
-            "max_completion_tokens": max_completion_tokens,
+            "max_tokens": max_tokens,
         }
 
         # GPT-5 models support verbosity and reasoning_effort parameters
@@ -162,7 +164,7 @@ class OpenAIClient:
             api_params["frequency_penalty"] = frequency_penalty
             api_params["presence_penalty"] = presence_penalty
 
-        # Reasoning models (o-series) only support max_completion_tokens and reasoning_effort
+        # Reasoning models (o-series) only support max_tokens and reasoning_effort
         elif self._is_reasoning_model():
             # Add reasoning effort for o-series models
             if reasoning_effort in {"low", "medium", "high"}:

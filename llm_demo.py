@@ -120,14 +120,14 @@ async def demo_openai_gpt():
         client_gpt5 = OpenAIClient(
             model=OpenAIClient.GPT_5,
             temperature=0.7,
-            max_completion_tokens=2048,
+            max_tokens=2048,
             top_p=0.9,
         )
 
         prompt = """Generate a professional recommendation letter opening paragraph
         for an EB-1A petition in the field of artificial intelligence research."""
 
-        result = await client_gpt5.acomplete(prompt)
+        result = await client_gpt5.acomplete(prompt, max_tokens=2048)
 
         print(f"✓ Model: {result['model']}")
         print(f"✓ Provider: {result['provider']}")
@@ -144,14 +144,14 @@ async def demo_openai_gpt():
     try:
         client_o3 = OpenAIClient(
             model=OpenAIClient.O3_MINI,
-            max_completion_tokens=1024,
+            max_tokens=1024,
             reasoning_effort="high",  # high reasoning for complex legal analysis
         )
 
         prompt = """Analyze: A researcher has 15 peer-reviewed publications with 500+ citations,
         2 patents, and serves as a reviewer for 3 top-tier journals. Which EB-1A criteria does this satisfy?"""
 
-        result = await client_o3.acomplete(prompt)
+        result = await client_o3.acomplete(prompt, max_tokens=1024)
 
         print(f"✓ Model: {result['model']} (Reasoning Model)")
         print("✓ Reasoning Effort: high")
@@ -166,13 +166,13 @@ async def demo_openai_gpt():
         client_4o_mini = OpenAIClient(
             model=OpenAIClient.O3_MINI,
             temperature=0.5,
-            max_completion_tokens=512,
+            max_tokens=512,
             frequency_penalty=0.3,  # Reduce repetition
         )
 
         prompt = "List 5 USCIS-approved keywords for the 'Awards' criterion in EB-1A."
 
-        result = await client_4o_mini.acomplete(prompt)
+        result = await client_4o_mini.acomplete(prompt, max_tokens=512)
 
         print(f"✓ Model: {result['model']}")
         print("✓ Features: Text, vision, audio support")
@@ -265,9 +265,13 @@ async def demo_eb1_document_generation():
 
     from core.groupagents.eb1_document_processor import EB1DocumentProcessor
     from core.groupagents.eb1_documents import RecommendationLetterData
-    from core.groupagents.eb1_models import (EB1Criterion, EB1FieldOfExpertise,
-                                             EB1PersonalInfo, EB1PetitionData,
-                                             EB1PetitionStatus)
+    from core.groupagents.eb1_models import (
+        EB1Criterion,
+        EB1FieldOfExpertise,
+        EB1PersonalInfo,
+        EB1PetitionData,
+        EB1PetitionStatus,
+    )
 
     # Choose provider based on available API keys
     llm_client = None
@@ -278,9 +282,7 @@ async def demo_eb1_document_generation():
         )
     elif os.getenv("OPENAI_API_KEY"):
         print("✓ Using OpenAI GPT-5 for document generation")
-        llm_client = OpenAIClient(
-            model=OpenAIClient.GPT_5, temperature=0.3, max_completion_tokens=8192
-        )
+        llm_client = OpenAIClient(model=OpenAIClient.GPT_5, temperature=0.3, max_tokens=8192)
     elif os.getenv("GEMINI_API_KEY") or os.getenv("GOOGLE_API_KEY"):
         print("✓ Using Google Gemini 2.5 Pro for document generation")
         llm_client = GeminiClient(

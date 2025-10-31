@@ -153,14 +153,14 @@ client_haiku = AnthropicClient(model=AnthropicClient.CLAUDE_HAIKU_3_5)
 
 **Standard Models (GPT-5 family):**
 - **temperature** (0.0-2.0): Randomness
-- **max_completion_tokens** (int): Max tokens in completion (preferred over `max_tokens`)
+- **max_tokens** (int): Maximum tokens in completion
 - **top_p** (0.0-1.0): Nucleus sampling
 - **frequency_penalty** (-2.0 to 2.0): Reduce repetition
 - **presence_penalty** (-2.0 to 2.0): Encourage topic diversity
 - **stop** (str or list[str]): Stop sequences
 
 **Reasoning Models (o3-mini, o4-mini):**
-- **max_completion_tokens**: Only supported parameter
+- **max_tokens**: Only supported token-control parameter
 - **reasoning_effort**: "low", "medium", or "high"
 - ❌ No temperature, top_p, or penalties
 
@@ -173,7 +173,7 @@ from core.llm_interface.openai_client import OpenAIClient
 client_gpt = OpenAIClient(
     model=OpenAIClient.GPT_5,
     temperature=0.7,
-    max_completion_tokens=4096,
+    max_tokens=4096,
 )
 
 result = await client_gpt.acomplete(
@@ -184,7 +184,7 @@ result = await client_gpt.acomplete(
 client_o3 = OpenAIClient(
     model=OpenAIClient.O3_MINI,
     reasoning_effort="high",
-    max_completion_tokens=2048,
+    max_tokens=2048,
 )
 
 result = await client_o3.acomplete(
@@ -342,7 +342,7 @@ llm_client = AnthropicClient(
 llm_client = OpenAIClient(
     model=OpenAIClient.GPT_5,
     temperature=0.3,
-    max_completion_tokens=8192,
+    max_tokens=8192,
 )
 
 # Option 3: Google Gemini (good price-performance)
@@ -540,12 +540,12 @@ client.acomplete(prompt, top_p=0.9, temperature=None)
 Error: o3-mini does not support temperature parameter
 ```
 
-**Solution**: Use `max_completion_tokens` and `reasoning_effort` only:
+**Solution**: Use `max_tokens` and `reasoning_effort` only:
 ```python
 client = OpenAIClient(model=OpenAIClient.O3_MINI)
 result = await client.acomplete(
     prompt,
-    max_completion_tokens=2048,
+    max_tokens=2048,
     reasoning_effort="high"
 )
 ```

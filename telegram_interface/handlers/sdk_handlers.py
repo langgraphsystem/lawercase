@@ -101,7 +101,7 @@ async def chat(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
                 },
                 {"role": "user", "content": prompt},
             ],
-            max_completion_tokens=800,
+            max_tokens=800,
             temperature=float(os.getenv("OPENAI_TEMPERATURE", "0.2")),
         )
 

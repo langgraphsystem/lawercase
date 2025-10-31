@@ -95,7 +95,7 @@ client = OpenAIClient(
 client = OpenAIClient(
     model=OpenAIClient.GPT_5,  # или "gpt-5-mini"
     temperature=0.2,
-    max_completion_tokens=800,
+    max_tokens=800,
 )
 ```
 
