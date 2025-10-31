@@ -3,8 +3,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Any
 
 from .eb1a_nodes import build_eb1a_workflow
-from .enhanced_workflows import (EnhancedWorkflowState,
-                                 create_enhanced_orchestration)
+from .enhanced_workflows import EnhancedWorkflowState, create_enhanced_orchestration
 from .workflow_graph import WorkflowState, build_memory_workflow
 
 if TYPE_CHECKING:
@@ -63,9 +62,29 @@ async def run(
     if thread_id is None:
         thread_id = initial_state.thread_id
     # LangGraph async interface returns an iterator of states; take the final
-    final: WorkflowState = None  # type: ignore
+    final_dict: dict[str, Any] = {}
     async for step in graph_executable.astream(
         initial_state, config={"configurable": {"thread_id": thread_id}}
     ):
-        final = step
-    return final
+        # step is a dict with node names as keys
+        # merge all values to get the final state
+        if isinstance(step, dict):
+            final_dict.update(step)
+        else:
+            final_dict = step
+
+    # Convert dict back to WorkflowState or EnhancedWorkflowState
+    # LangGraph returns dict, but we need to reconstruct the state object
+    if isinstance(initial_state, EnhancedWorkflowState):
+        # For EnhancedWorkflowState, return dict as-is (it handles dict internally)
+        return final_dict  # type: ignore
+
+    # For WorkflowState, reconstruct from dict or return initial_state with updates
+    # Check if final_dict has the state or if it's nested
+    for value in final_dict.values():
+        if isinstance(value, WorkflowState | EnhancedWorkflowState):
+            return value
+
+    # If dict doesn't contain state object, try to construct from dict keys
+    # Fallback: return initial_state if no valid final state found
+    return initial_state
