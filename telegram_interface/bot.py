@@ -5,16 +5,10 @@ from __future__ import annotations
 import asyncio
 
 import structlog
-from telegram import Update
-from telegram.ext import (
-    Application,
-    ApplicationBuilder,
-    ContextTypes,
-    Defaults,
-    MessageHandler,
-    filters,
-)
 import typer
+from telegram import Update
+from telegram.ext import (Application, ApplicationBuilder, ContextTypes,
+                          Defaults, MessageHandler, filters)
 
 from config.logging import setup_logging
 from config.settings import get_settings
