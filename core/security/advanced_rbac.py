@@ -2,11 +2,11 @@
 
 from __future__ import annotations
 
-import json
-import logging
 from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
+import json
+import logging
 from pathlib import Path
 from typing import Any
 
@@ -400,6 +400,49 @@ class RBACManager:
                 logger.error("Invalid user entry in RBAC policy: missing %s", exc)
                 continue
             self.register_user(user)
+
+    def check_permission(
+        self,
+        role: str,
+        action: str,
+        resource: str,
+        *,
+        context: dict[str, Any] | None = None,
+    ) -> bool:
+        """Check if a role has permission for an action on a resource.
+
+        This method provides a simplified permission check compatible with
+        the MegaAgent authorization flow.
+
+        Args:
+            role: Role name (e.g., "lawyer", "admin")
+            action: Action to perform (e.g., "ask", "case_get")
+            resource: Resource type (e.g., "agent", "case")
+            context: Additional context (optional, not currently used)
+
+        Returns:
+            True if permission granted, False otherwise
+
+        Note:
+            Currently implements permissive authorization - returns True for all requests.
+            TODO: Implement proper action-to-permission mapping and role-based checks.
+        """
+        # Log the authorization check
+        logger.debug(
+            f"RBAC check: role={role}, action={action}, resource={resource}, context={context}"
+        )
+
+        # For now, allow all authenticated requests
+        # In production, this should map actions to Permission enums and check roles
+        # Example implementation:
+        # try:
+        #     role_enum = Role(role)
+        #     # Map action to Permission enum
+        #     # Check if role has that permission using has_permission()
+        # except ValueError:
+        #     return False
+
+        return True  # Permissive mode for development/testing
 
     def load_policy_file(self, path: str | Path) -> None:
         """Load policy JSON file and apply it."""

@@ -2,10 +2,10 @@
 
 from __future__ import annotations
 
-import logging
-import re
 from dataclasses import dataclass, field
 from enum import Enum
+import logging
+import re
 from typing import Any
 
 logger = logging.getLogger(__name__)
@@ -263,6 +263,20 @@ class PromptInjectionDetector:
         logger.info("Prompt sanitized")
 
         return sanitized
+
+    def analyze(self, text: str, *, context: dict[str, Any] | None = None) -> PromptInjectionResult:
+        """Analyze text for prompt injection (alias for detect method).
+
+        This method provides compatibility with MegaAgent's expected interface.
+
+        Args:
+            text: Text to analyze
+            context: Optional context (not currently used)
+
+        Returns:
+            PromptInjectionResult with analysis details
+        """
+        return self.detect(text)
 
     def is_safe(self, prompt: str, auto_sanitize: bool = False) -> tuple[bool, str]:
         """Check if prompt is safe to process.
