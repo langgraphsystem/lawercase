@@ -2,12 +2,12 @@
 
 from __future__ import annotations
 
-import os
 from collections.abc import Iterable
+import os
 
-import structlog
 from openai import AsyncOpenAI
 from openai.types import Model
+import structlog
 from telegram import Update
 from telegram.ext import CommandHandler, ContextTypes
 
@@ -16,6 +16,19 @@ from .context import BotContext
 logger = structlog.get_logger(__name__)
 
 _client: AsyncOpenAI | None = None
+
+
+def _bot_context(context: ContextTypes.DEFAULT_TYPE) -> BotContext:
+    return context.application.bot_data["bot_context"]
+
+
+def _is_authorized(bot_context: BotContext, update: Update) -> bool:
+    user_id = update.effective_user.id if update.effective_user else None
+    authorized = bot_context.is_authorized(user_id)
+    logger.debug("telegram.sdk.auth_check", user_id=user_id, authorized=authorized)
+    if not authorized and update.effective_message:
+        update.effective_message.reply_text("🚫 Access denied.")
+    return authorized
 
 
 def _get_client() -> AsyncOpenAI:
@@ -49,12 +62,16 @@ async def _reply(update: Update, text: str) -> None:
 async def models(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """List available OpenAI models for the current account."""
 
+    user_id = update.effective_user.id if update.effective_user else None
+    bot_context = _bot_context(context)
+    logger.info("telegram.models.received", user_id=user_id)
+    if not _is_authorized(bot_context, update):
+        logger.warning("telegram.models.unauthorized", user_id=user_id)
+        return
+
     try:
-        logger.info(
-            "telegram.models.received",
-            user_id=update.effective_user.id if update.effective_user else None,
-        )
         client = _get_client()
+        logger.debug("telegram.models.fetching", user_id=user_id)
         result = await client.models.list()
         models: list[Model] = result.data  # type: ignore[assignment]
 
@@ -80,17 +97,24 @@ async def chat(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Simple direct chat interface backed by GPT-5."""
 
     user_id = update.effective_user.id if update.effective_user else None
+    bot_context = _bot_context(context)
+    logger.info("telegram.chat.received", user_id=user_id)
+    if not _is_authorized(bot_context, update):
+        logger.warning("telegram.chat.unauthorized", user_id=user_id)
+        return
+
     if not context.args:
         await _reply(update, "Usage: /chat <your question>")
         logger.warning("telegram.chat.no_args", user_id=user_id)
         return
 
     prompt = " ".join(context.args)
-    logger.info("telegram.chat.received", user_id=user_id, prompt_length=len(prompt))
+    logger.info("telegram.chat.processing", user_id=user_id, prompt_length=len(prompt))
 
     try:
         client = _get_client()
         model = os.getenv("OPENAI_DEFAULT_MODEL", "gpt-5-mini")
+        logger.debug("telegram.chat.request", user_id=user_id, model=model)
 
         response = await client.chat.completions.create(
             model=model,

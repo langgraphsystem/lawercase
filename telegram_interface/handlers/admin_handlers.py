@@ -44,6 +44,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     logger.info("telegram.start.received", user_id=user_id, username=username)
 
     bot_context = _bot_context(context)
+    logger.debug("telegram.start.auth_check", user_id=user_id)
     if not _is_authorized(bot_context, update):
         logger.warning("telegram.start.unauthorized", user_id=user_id)
         return
@@ -58,11 +59,12 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
 
 
 async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    bot_context = _bot_context(context)
-    if not _is_authorized(bot_context, update):
-        return
     user_id = update.effective_user.id if update.effective_user else None
+    bot_context = _bot_context(context)
     logger.info("telegram.help_command.received", user_id=user_id)
+    if not _is_authorized(bot_context, update):
+        logger.warning("telegram.help_command.unauthorized", user_id=user_id)
+        return
     try:
         await update.effective_message.reply_text(HELP_TEXT)
         logger.info("telegram.help_command.sent", user_id=user_id)
