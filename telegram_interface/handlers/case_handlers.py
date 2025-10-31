@@ -69,7 +69,8 @@ async def case_get(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
             logger.info("telegram.case_get.sent", user_id=user_id, case_id=case_id, status=status)
         else:
             error_msg = response.error or "case not found"
-            await message.reply_text(f"❌ Error: {error_msg}")
+            # Use parse_mode=None to avoid Markdown parsing errors
+            await message.reply_text(f"❌ Error: {error_msg}", parse_mode=None)
             logger.error(
                 "telegram.case_get.failed", user_id=user_id, case_id=case_id, error=error_msg
             )
@@ -77,7 +78,8 @@ async def case_get(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         logger.exception(
             "telegram.case_get.exception", user_id=user_id, case_id=case_id, error=str(e)
         )
-        await message.reply_text(f"❌ Exception: {e!s}")
+        # Use parse_mode=None to avoid Markdown parsing errors
+        await message.reply_text(f"❌ Exception: {e!s}", parse_mode=None)
 
 
 def get_handlers(bot_context: BotContext):

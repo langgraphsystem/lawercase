@@ -125,11 +125,13 @@ async def ask_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
                 logger.info("telegram.ask.sent_fallback", user_id=user_id)
         else:
             error_msg = response.error or "unknown"
-            await message.reply_text(f"❌ Error: {error_msg}")
+            # Use parse_mode=None to avoid Markdown parsing errors
+            await message.reply_text(f"❌ Error: {error_msg}", parse_mode=None)
             logger.error("telegram.ask.failed", user_id=user_id, error=error_msg)
     except Exception as e:
         logger.exception("telegram.ask.exception", user_id=user_id, error=str(e))
-        await message.reply_text(f"❌ Exception: {e!s}")
+        # Use parse_mode=None to avoid Markdown parsing errors
+        await message.reply_text(f"❌ Exception: {e!s}", parse_mode=None)
 
 
 async def memory_lookup_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:

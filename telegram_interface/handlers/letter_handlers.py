@@ -74,11 +74,13 @@ async def generate_letter(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
             )
         else:
             error_msg = response.error or "generation failed"
-            await message.reply_text(f"❌ Error: {error_msg}")
+            # Use parse_mode=None to avoid Markdown parsing errors
+            await message.reply_text(f"❌ Error: {error_msg}", parse_mode=None)
             logger.error("telegram.generate_letter.failed", user_id=user_id, error=error_msg)
     except Exception as e:
         logger.exception("telegram.generate_letter.exception", user_id=user_id, error=str(e))
-        await message.reply_text(f"❌ Exception: {e!s}")
+        # Use parse_mode=None to avoid Markdown parsing errors
+        await message.reply_text(f"❌ Exception: {e!s}", parse_mode=None)
 
 
 def get_handlers(bot_context: BotContext):
