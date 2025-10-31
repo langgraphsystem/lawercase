@@ -5,10 +5,16 @@ from __future__ import annotations
 import asyncio
 
 import structlog
-import typer
 from telegram import Update
-from telegram.ext import (Application, ApplicationBuilder, ContextTypes,
-                          Defaults)
+from telegram.ext import (
+    Application,
+    ApplicationBuilder,
+    ContextTypes,
+    Defaults,
+    MessageHandler,
+    filters,
+)
+import typer
 
 from config.logging import setup_logging
 from config.settings import get_settings
@@ -40,6 +46,20 @@ async def run_bot_async(*, poll_interval: float = 0.0) -> None:
 
     register_handlers(application, mega_agent=mega_agent, settings=settings)
 
+    async def log_update(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+        user_id = update.effective_user.id if update.effective_user else None
+        chat_id = update.effective_chat.id if update.effective_chat else None
+        text = None
+        if update.effective_message:
+            text = update.effective_message.text or update.effective_message.caption
+        logger.debug(
+            "telegram.update",
+            user_id=user_id,
+            chat_id=chat_id,
+            text=text,
+            update_type=type(update).__name__,
+        )
+
     async def on_error(update: object, context: ContextTypes.DEFAULT_TYPE) -> None:  # type: ignore[valid-type]
         # Central error logger to avoid silent failures that can block handlers
         try:
@@ -53,6 +73,9 @@ async def run_bot_async(*, poll_interval: float = 0.0) -> None:
             )
         except Exception:  # pragma: no cover - defensive
             logger.exception("telegram.error_handler_failed")
+
+    # Capture every incoming update for diagnostics
+    application.add_handler(MessageHandler(filters.ALL, log_update), group=0)
 
     # Capture unhandled exceptions from handlers
     application.add_error_handler(on_error)

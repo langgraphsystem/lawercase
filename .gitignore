@@ -108,3 +108,5 @@ dmypy.json
 test_gpt5_models.py
 test_gpt5_direct.py
 nul
+
+logs/

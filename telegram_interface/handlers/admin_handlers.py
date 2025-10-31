@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import structlog
 from telegram import Update
-from telegram.ext import CommandHandler, ContextTypes
+from telegram.ext import CommandHandler, ContextTypes, MessageHandler, filters
 
 from core.groupagents.mega_agent import CommandType, MegaAgentCommand, UserRole
 
@@ -191,10 +191,21 @@ async def memory_lookup_command(update: Update, context: ContextTypes.DEFAULT_TY
         await message.reply_text(f"❌ Exception: {e!s}")
 
 
+async def unknown_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    user_id = update.effective_user.id if update.effective_user else None
+    text = update.effective_message.text if update.effective_message else ""
+    logger.warning("telegram.unknown_command", user_id=user_id, text=text)
+    if update.effective_message:
+        await update.effective_message.reply_text(
+            "⚠️ Unknown command. Use /help for the list of commands."
+        )
+
+
 def get_handlers(bot_context: BotContext):
     return [
         CommandHandler("start", start),
         CommandHandler("help", help_command),
         CommandHandler("ask", ask_command),
         CommandHandler("memory_lookup", memory_lookup_command),
+        MessageHandler(filters.COMMAND, unknown_command),
     ]

@@ -2,12 +2,12 @@
 
 from __future__ import annotations
 
-import os
 from collections.abc import Iterable
+import os
 
-import structlog
 from openai import AsyncOpenAI
 from openai.types import Model
+import structlog
 from telegram import Update
 from telegram.ext import CommandHandler, ContextTypes
 
