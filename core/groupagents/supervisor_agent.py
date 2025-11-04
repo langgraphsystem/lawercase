@@ -1,791 +1,515 @@
-"""
-SupervisorAgent - Динамическая маршрутизация и оркестрация задач.
+"""Supervisor Agent for orchestrating complex document generation workflows.
 
-Обеспечивает:
-- LLM-driven анализ задач и выбор агентов
-- Intelligent decomposition сложных задач
-- Orchestration workflow с планированием
-- Conditional routing logic
-- Parallel execution и result fusion
+This module provides the SupervisorAgent class which coordinates multi-agent workflows
+for generating complex legal documents like EB-1A petitions, I-140 forms, etc.
 """
 
 from __future__ import annotations
 
 import asyncio
-import uuid
 from datetime import datetime
 from enum import Enum
-from typing import Any, Dict, List, Optional, Union
-
-from pydantic import BaseModel, Field
+from typing import Any
 
 from ..memory.memory_manager import MemoryManager
-from ..memory.models import AuditEvent, MemoryRecord
-from ..orchestration.workflow_graph import WorkflowState, build_case_workflow
-from ..orchestration.pipeline_manager import run
+from ..workflows.eb1a.eb1a_coordinator import (EB1ACriterion, EB1AEvidence,
+                                               EB1APetitionRequest,
+                                               SectionContent)
+from ..workflows.eb1a.eb1a_workflow.evidence_researcher import \
+    EvidenceResearcher
+from ..workflows.eb1a.eb1a_workflow.section_writers import (
+    AuthorshipWriter, AwardsWriter, BaseSectionWriter, CommercialSuccessWriter,
+    ContributionsWriter, ExhibitionsWriter, JudgingWriter, LeadingRoleWriter,
+    MembershipWriter, PressWriter, SalaryWriter)
 
 
-class TaskComplexity(str, Enum):
-    """Уровни сложности задач"""
-    SIMPLE = "simple"
-    MODERATE = "moderate"
-    COMPLEX = "complex"
-    ENTERPRISE = "enterprise"
+class DocumentType(str, Enum):
+    """Supported document types for generation."""
+
+    EB1A = "EB-1A"
+    I140 = "I-140"
+    EB2_NIW = "EB-2 NIW"
+    O1_VISA = "O-1"
 
 
-class ExecutionStrategy(str, Enum):
-    """Стратегии выполнения задач"""
-    SEQUENTIAL = "sequential"
-    PARALLEL = "parallel"
-    PIPELINE = "pipeline"
-    FAN_OUT_FAN_IN = "fan_out_fan_in"
+class ValidationStatus(str, Enum):
+    """Document validation status."""
+
+    PASSED = "passed"
+    FAILED = "failed"
+    NEEDS_REVIEW = "needs_review"
 
 
-class AgentType(str, Enum):
-    """Типы доступных агентов"""
-    CASE_AGENT = "case_agent"
-    WRITER_AGENT = "writer_agent"
-    VALIDATOR_AGENT = "validator_agent"
-    RAG_PIPELINE_AGENT = "rag_pipeline_agent"
-    LEGAL_RESEARCH_AGENT = "legal_research_agent"
+class ComplexDocumentResult:
+    """Result of complex document generation process."""
 
-
-class TaskAnalysis(BaseModel):
-    """Результат анализа задачи"""
-    task_id: str = Field(default_factory=lambda: str(uuid.uuid4()))
-    complexity: TaskComplexity = Field(..., description="Сложность задачи")
-    estimated_duration: int = Field(..., description="Оценка времени в секундах")
-    required_agents: List[AgentType] = Field(..., description="Необходимые агенты")
-    execution_strategy: ExecutionStrategy = Field(..., description="Стратегия выполнения")
-    dependencies: List[str] = Field(default_factory=list, description="Зависимости между подзадачами")
-    confidence_score: float = Field(..., ge=0.0, le=1.0, description="Уверенность в анализе")
-    reasoning: str = Field(..., description="Объяснение выбора стратегии")
-
-
-class SubTask(BaseModel):
-    """Подзадача для декомпозиции"""
-    subtask_id: str = Field(default_factory=lambda: str(uuid.uuid4()))
-    description: str = Field(..., description="Описание подзадачи")
-    agent_type: AgentType = Field(..., description="Тип агента для выполнения")
-    priority: int = Field(default=5, ge=1, le=10, description="Приоритет")
-    dependencies: List[str] = Field(default_factory=list, description="ID зависимых подзадач")
-    input_data: Dict[str, Any] = Field(default_factory=dict, description="Входные данные")
-    expected_output: str = Field(..., description="Ожидаемый результат")
-
-
-class WorkflowPlan(BaseModel):
-    """План выполнения workflow"""
-    plan_id: str = Field(default_factory=lambda: str(uuid.uuid4()))
-    original_task: str = Field(..., description="Исходная задача")
-    subtasks: List[SubTask] = Field(..., description="Список подзадач")
-    execution_strategy: ExecutionStrategy = Field(..., description="Стратегия выполнения")
-    estimated_total_time: int = Field(..., description="Общее время выполнения")
-    critical_path: List[str] = Field(default_factory=list, description="Критический путь")
-    created_at: datetime = Field(default_factory=datetime.utcnow)
-
-
-class ExecutionResult(BaseModel):
-    """Результат выполнения workflow"""
-    execution_id: str = Field(default_factory=lambda: str(uuid.uuid4()))
-    plan_id: str = Field(..., description="ID плана")
-    success: bool = Field(..., description="Успешность выполнения")
-    results: Dict[str, Any] = Field(default_factory=dict, description="Результаты подзадач")
-    execution_time: float = Field(..., description="Время выполнения")
-    errors: List[str] = Field(default_factory=list, description="Ошибки")
-    final_result: Optional[Dict[str, Any]] = Field(default=None, description="Итоговый результат")
-    completed_at: datetime = Field(default_factory=datetime.utcnow)
+    def __init__(
+        self,
+        document: dict[str, Any],
+        validation: dict[str, Any],
+        metadata: dict[str, Any] | None = None,
+    ):
+        self.document = document
+        self.validation = validation
+        self.metadata = metadata or {}
+        self.generated_at = datetime.utcnow()
 
 
 class SupervisorAgent:
     """
-    Агент-супервизор для динамической маршрутизации и оркестрации задач.
+    Supervisor agent for orchestrating complex multi-agent workflows.
 
-    Основные функции:
-    - LLM-driven анализ задач и выбор оптимальной стратегии
-    - Decomposition сложных задач на подзадачи
-    - Orchestration workflow с учетом зависимостей
-    - Parallel execution и result fusion
-    - Adaptive routing на основе контекста
+    This agent coordinates specialized sub-agents to generate complex legal documents
+    following a structured multi-phase approach:
+
+    1. Data Collection: Extract and validate client data
+    2. Evidence Research: Use RAG to find supporting evidence
+    3. Criteria Mapping: Map evidence to legal criteria
+    4. Parallel Section Writing: Generate sections concurrently
+    5. Assembly: Combine sections into final document
+    6. Quality Check: Validate and score document quality
+
+    Example:
+        >>> supervisor = SupervisorAgent(memory_manager)
+        >>> result = await supervisor.orchestrate_complex_document(
+        ...     document_type=DocumentType.EB1A,
+        ...     client_data={...},
+        ...     user_id="user123"
+        ... )
     """
 
-    def __init__(self, memory_manager: Optional[MemoryManager] = None):
+    def __init__(self, memory_manager: MemoryManager | None = None):
         """
-        Инициализация SupervisorAgent.
+        Initialize supervisor agent.
 
         Args:
-            memory_manager: Менеджер памяти для persistence
+            memory_manager: Memory manager for RAG and context
         """
         self.memory = memory_manager or MemoryManager()
 
-        # Кэш планов и результатов
-        self._workflow_plans: Dict[str, WorkflowPlan] = {}
-        self._execution_results: Dict[str, ExecutionResult] = {}
+        # Initialize EB-1A workflow components
+        self.evidence_researcher = EvidenceResearcher(self.memory)
 
-        # Статистика производительности агентов
-        self._agent_performance: Dict[AgentType, Dict[str, float]] = {}
-
-    async def analyze_task(self, task_description: str, context: Optional[Dict[str, Any]] = None) -> TaskAnalysis:
-        """
-        LLM-driven анализ задачи для определения оптимальной стратегии.
-
-        Args:
-            task_description: Описание задачи
-            context: Дополнительный контекст
-
-        Returns:
-            TaskAnalysis: Результат анализа задачи
-        """
-        # Создание prompt для LLM анализа
-        analysis_prompt = self._build_analysis_prompt(task_description, context)
-
-        # В реальной реализации здесь будет вызов LLM
-        # Пока используем rule-based анализ
-        analysis = await self._rule_based_analysis(task_description, context)
-
-        # Логирование анализа
-        await self._log_task_analysis(task_description, analysis)
-
-        return analysis
-
-    async def decompose_task(self, task_description: str, analysis: TaskAnalysis) -> List[SubTask]:
-        """
-        Intelligent decomposition сложной задачи на подзадачи.
-
-        Args:
-            task_description: Описание задачи
-            analysis: Результат анализа задачи
-
-        Returns:
-            List[SubTask]: Список подзадач
-        """
-        subtasks = []
-
-        if analysis.complexity == TaskComplexity.SIMPLE:
-            # Простая задача - одна подзадача
-            subtask = SubTask(
-                description=task_description,
-                agent_type=analysis.required_agents[0] if analysis.required_agents else AgentType.CASE_AGENT,
-                expected_output="Direct task completion"
-            )
-            subtasks.append(subtask)
-
-        elif analysis.complexity == TaskComplexity.MODERATE:
-            # Средняя сложность - 2-3 подзадачи
-            subtasks = await self._decompose_moderate_task(task_description, analysis)
-
-        elif analysis.complexity == TaskComplexity.COMPLEX:
-            # Сложная задача - множественная декомпозиция
-            subtasks = await self._decompose_complex_task(task_description, analysis)
-
-        elif analysis.complexity == TaskComplexity.ENTERPRISE:
-            # Энтерпрайз задача - полная декомпозиция с workflow
-            subtasks = await self._decompose_enterprise_task(task_description, analysis)
-
-        # Логирование декомпозиции
-        await self._log_task_decomposition(task_description, subtasks)
-
-        return subtasks
-
-    async def orchestrate_workflow(
-        self,
-        task_description: str,
-        user_id: str,
-        context: Optional[Dict[str, Any]] = None
-    ) -> ExecutionResult:
-        """
-        Orchestration workflow с планированием и выполнением.
-
-        Args:
-            task_description: Описание задачи
-            user_id: ID пользователя
-            context: Контекст выполнения
-
-        Returns:
-            ExecutionResult: Результат выполнения
-        """
-        start_time = datetime.utcnow()
-
-        try:
-            # 1. Анализ задачи
-            analysis = await self.analyze_task(task_description, context)
-
-            # 2. Декомпозиция на подзадачи
-            subtasks = await self.decompose_task(task_description, analysis)
-
-            # 3. Создание плана выполнения
-            plan = await self._create_workflow_plan(task_description, subtasks, analysis)
-
-            # 4. Выполнение плана
-            results = await self._execute_workflow_plan(plan, user_id, context)
-
-            # 5. Fusion результатов
-            final_result = await self._fuse_results(results, analysis.execution_strategy)
-
-            execution_time = (datetime.utcnow() - start_time).total_seconds()
-
-            execution_result = ExecutionResult(
-                plan_id=plan.plan_id,
-                success=True,
-                results=results,
-                execution_time=execution_time,
-                final_result=final_result
-            )
-
-            # Сохранение результата
-            self._execution_results[execution_result.execution_id] = execution_result
-
-            # Логирование успешного выполнения
-            await self._log_workflow_completion(task_description, execution_result)
-
-            return execution_result
-
-        except Exception as e:
-            execution_time = (datetime.utcnow() - start_time).total_seconds()
-
-            execution_result = ExecutionResult(
-                plan_id="error",
-                success=False,
-                execution_time=execution_time,
-                errors=[str(e)]
-            )
-
-            # Логирование ошибки
-            await self._log_workflow_error(task_description, execution_result, e)
-
-            return execution_result
-
-    async def _rule_based_analysis(
-        self,
-        task_description: str,
-        context: Optional[Dict[str, Any]] = None
-    ) -> TaskAnalysis:
-        """Rule-based анализ задачи (заглушка для LLM)"""
-
-        # Простейший анализ по ключевым словам
-        task_lower = task_description.lower()
-
-        # Определение сложности
-        complexity = TaskComplexity.SIMPLE
-        if any(word in task_lower for word in ["create", "generate", "analyze"]):
-            complexity = TaskComplexity.MODERATE
-        if any(word in task_lower for word in ["workflow", "process", "integration"]):
-            complexity = TaskComplexity.COMPLEX
-        if any(word in task_lower for word in ["enterprise", "system", "architecture"]):
-            complexity = TaskComplexity.ENTERPRISE
-
-        # Определение необходимых агентов
-        required_agents = []
-        if any(word in task_lower for word in ["case", "legal", "client"]):
-            required_agents.append(AgentType.CASE_AGENT)
-        if any(word in task_lower for word in ["document", "letter", "generate", "write"]):
-            required_agents.append(AgentType.WRITER_AGENT)
-        if any(word in task_lower for word in ["validate", "check", "verify"]):
-            required_agents.append(AgentType.VALIDATOR_AGENT)
-        if any(word in task_lower for word in ["search", "find", "research"]):
-            required_agents.append(AgentType.RAG_PIPELINE_AGENT)
-
-        if not required_agents:
-            required_agents = [AgentType.CASE_AGENT]  # Default
-
-        # Определение стратегии выполнения
-        execution_strategy = ExecutionStrategy.SEQUENTIAL
-        if len(required_agents) > 1:
-            execution_strategy = ExecutionStrategy.PARALLEL
-        if complexity in [TaskComplexity.COMPLEX, TaskComplexity.ENTERPRISE]:
-            execution_strategy = ExecutionStrategy.PIPELINE
-
-        # Оценка времени
-        base_time = {
-            TaskComplexity.SIMPLE: 30,
-            TaskComplexity.MODERATE: 120,
-            TaskComplexity.COMPLEX: 300,
-            TaskComplexity.ENTERPRISE: 600
+        # Initialize section writers for all 10 EB-1A criteria
+        self.section_writers: dict[EB1ACriterion, BaseSectionWriter] = {
+            EB1ACriterion.AWARDS: AwardsWriter(self.memory),
+            EB1ACriterion.MEMBERSHIP: MembershipWriter(self.memory),
+            EB1ACriterion.PRESS: PressWriter(self.memory),
+            EB1ACriterion.JUDGING: JudgingWriter(self.memory),
+            EB1ACriterion.ORIGINAL_CONTRIBUTION: ContributionsWriter(self.memory),
+            EB1ACriterion.SCHOLARLY_ARTICLES: AuthorshipWriter(self.memory),
+            EB1ACriterion.ARTISTIC_EXHIBITION: ExhibitionsWriter(self.memory),
+            EB1ACriterion.LEADING_ROLE: LeadingRoleWriter(self.memory),
+            EB1ACriterion.HIGH_SALARY: SalaryWriter(self.memory),
+            EB1ACriterion.COMMERCIAL_SUCCESS: CommercialSuccessWriter(self.memory),
         }
 
-        estimated_duration = base_time[complexity] * len(required_agents)
-
-        return TaskAnalysis(
-            complexity=complexity,
-            estimated_duration=estimated_duration,
-            required_agents=required_agents,
-            execution_strategy=execution_strategy,
-            confidence_score=0.7,  # Rule-based имеет среднюю уверенность
-            reasoning=f"Rule-based analysis: {complexity} task requiring {len(required_agents)} agents"
-        )
-
-    async def _decompose_moderate_task(
+    async def orchestrate_complex_document(
         self,
-        task_description: str,
-        analysis: TaskAnalysis
-    ) -> List[SubTask]:
-        """Декомпозиция задачи средней сложности"""
-        subtasks = []
-
-        # Подготовительная подзадача
-        prep_task = SubTask(
-            description=f"Prepare context and validate input for: {task_description}",
-            agent_type=AgentType.VALIDATOR_AGENT,
-            priority=8,
-            expected_output="Validated input and prepared context"
-        )
-        subtasks.append(prep_task)
-
-        # Основная подзадача
-        main_task = SubTask(
-            description=f"Execute main task: {task_description}",
-            agent_type=analysis.required_agents[0] if analysis.required_agents else AgentType.CASE_AGENT,
-            priority=10,
-            dependencies=[prep_task.subtask_id],
-            expected_output="Main task result"
-        )
-        subtasks.append(main_task)
-
-        # Валидация результата
-        if len(analysis.required_agents) > 1:
-            validation_task = SubTask(
-                description=f"Validate result of: {task_description}",
-                agent_type=AgentType.VALIDATOR_AGENT,
-                priority=6,
-                dependencies=[main_task.subtask_id],
-                expected_output="Validated final result"
-            )
-            subtasks.append(validation_task)
-
-        return subtasks
-
-    async def _decompose_complex_task(
-        self,
-        task_description: str,
-        analysis: TaskAnalysis
-    ) -> List[SubTask]:
-        """Декомпозиция сложной задачи"""
-        subtasks = []
-
-        # Research подзадача
-        research_task = SubTask(
-            description=f"Research and gather information for: {task_description}",
-            agent_type=AgentType.RAG_PIPELINE_AGENT,
-            priority=9,
-            expected_output="Research results and context"
-        )
-        subtasks.append(research_task)
-
-        # Parallel execution для каждого агента
-        for i, agent_type in enumerate(analysis.required_agents):
-            agent_task = SubTask(
-                description=f"Execute {agent_type} tasks for: {task_description}",
-                agent_type=agent_type,
-                priority=8 - i,
-                dependencies=[research_task.subtask_id],
-                expected_output=f"Results from {agent_type}"
-            )
-            subtasks.append(agent_task)
-
-        # Result fusion
-        fusion_task = SubTask(
-            description=f"Fuse and validate results for: {task_description}",
-            agent_type=AgentType.VALIDATOR_AGENT,
-            priority=10,
-            dependencies=[task.subtask_id for task in subtasks[1:]],  # All agent tasks
-            expected_output="Fused and validated final result"
-        )
-        subtasks.append(fusion_task)
-
-        return subtasks
-
-    async def _decompose_enterprise_task(
-        self,
-        task_description: str,
-        analysis: TaskAnalysis
-    ) -> List[SubTask]:
-        """Декомпозиция энтерпрайз задачи"""
-        # Enterprise tasks требуют полного workflow pipeline
-        return await self._decompose_complex_task(task_description, analysis)
-
-    async def _create_workflow_plan(
-        self,
-        task_description: str,
-        subtasks: List[SubTask],
-        analysis: TaskAnalysis
-    ) -> WorkflowPlan:
-        """Создание плана выполнения workflow"""
-
-        # Расчет критического пути
-        critical_path = await self._calculate_critical_path(subtasks)
-
-        # Оценка общего времени
-        total_time = analysis.estimated_duration
-        if analysis.execution_strategy == ExecutionStrategy.PARALLEL:
-            # При параллельном выполнении время сокращается
-            total_time = int(total_time * 0.6)
-
-        plan = WorkflowPlan(
-            original_task=task_description,
-            subtasks=subtasks,
-            execution_strategy=analysis.execution_strategy,
-            estimated_total_time=total_time,
-            critical_path=critical_path
-        )
-
-        # Сохранение плана
-        self._workflow_plans[plan.plan_id] = plan
-
-        return plan
-
-    async def _execute_workflow_plan(
-        self,
-        plan: WorkflowPlan,
+        document_type: DocumentType,
+        client_data: dict[str, Any],
         user_id: str,
-        context: Optional[Dict[str, Any]] = None
-    ) -> Dict[str, Any]:
-        """Выполнение плана workflow"""
-        results = {}
+    ) -> ComplexDocumentResult:
+        """
+        Orchestrate creation of complex legal document.
 
-        if plan.execution_strategy == ExecutionStrategy.SEQUENTIAL:
-            results = await self._execute_sequential(plan, user_id, context)
-        elif plan.execution_strategy == ExecutionStrategy.PARALLEL:
-            results = await self._execute_parallel(plan, user_id, context)
-        elif plan.execution_strategy == ExecutionStrategy.PIPELINE:
-            results = await self._execute_pipeline(plan, user_id, context)
-        elif plan.execution_strategy == ExecutionStrategy.FAN_OUT_FAN_IN:
-            results = await self._execute_fan_out_fan_in(plan, user_id, context)
+        This is the main entry point for document generation, coordinating all phases
+        of the workflow.
 
-        return results
+        Args:
+            document_type: Type of document to generate (EB-1A, I-140, etc.)
+            client_data: Raw client data and evidence
+            user_id: User identifier for tracking
 
-    async def _execute_sequential(
+        Returns:
+            ComplexDocumentResult with generated document and validation
+
+        Example:
+            >>> client_data = {
+            ...     "beneficiary_name": "Dr. Jane Smith",
+            ...     "field": "Artificial Intelligence",
+            ...     "evidence": [...],
+            ... }
+            >>> result = await supervisor.orchestrate_complex_document(
+            ...     DocumentType.EB1A, client_data, "user123"
+            ... )
+        """
+        print(f"🚀 Starting orchestration for {document_type.value} for user '{user_id}'...")
+
+        # Route to appropriate workflow based on document type
+        if document_type == DocumentType.EB1A:
+            return await self._orchestrate_eb1a(client_data, user_id)
+        if document_type == DocumentType.I140:
+            return await self._orchestrate_i140(client_data, user_id)
+        raise NotImplementedError(f"Document type {document_type.value} not yet implemented")
+
+    async def _orchestrate_eb1a(
+        self, client_data: dict[str, Any], user_id: str
+    ) -> ComplexDocumentResult:
+        """
+        Orchestrate EB-1A petition generation using the complete workflow.
+
+        Phases:
+        1. Data Collection: Parse client data into EB1APetitionRequest
+        2. Evidence Research: Use RAG to find additional supporting evidence
+        3. Criteria Mapping: Organize evidence by EB-1A criteria
+        4. Parallel Section Writing: Generate all criterion sections concurrently
+        5. Assembly: Combine sections into complete petition
+        6. Quality Check: Validate and score the petition
+
+        Args:
+            client_data: Client information and evidence
+            user_id: User identifier
+
+        Returns:
+            ComplexDocumentResult with EB-1A petition
+        """
+        # Phase 1: Data Collection
+        print("📋 Phase 1: Collecting and validating client data...")
+        petition_request = await self._collect_eb1a_data(client_data, user_id)
+
+        # Phase 2: Evidence Research
+        print("🔍 Phase 2: Researching additional evidence using RAG...")
+        additional_evidence = await self._research_eb1a_evidence(petition_request)
+
+        # Phase 3: Criteria Mapping
+        print("🗺️  Phase 3: Mapping evidence to EB-1A criteria...")
+        evidence_by_criterion = await self._map_eb1a_criteria(petition_request, additional_evidence)
+
+        # Phase 4: Parallel Section Writing
+        print("✍️  Phase 4: Generating criterion sections in parallel...")
+        sections = await self._generate_eb1a_sections_parallel(
+            petition_request, evidence_by_criterion
+        )
+
+        # Phase 5: Assembly
+        print("🔨 Phase 5: Assembling complete EB-1A petition...")
+        document = await self._assemble_eb1a_document(petition_request, sections)
+
+        # Phase 6: Quality Check
+        print("✅ Phase 6: Performing quality validation...")
+        validation = await self._validate_eb1a_document(document, sections)
+
+        print("✨ EB-1A orchestration complete!")
+        return ComplexDocumentResult(
+            document=document,
+            validation=validation,
+            metadata={
+                "document_type": "EB-1A",
+                "beneficiary": petition_request.beneficiary_name,
+                "criteria_count": len(petition_request.primary_criteria),
+                "section_count": len(sections),
+            },
+        )
+
+    async def _collect_eb1a_data(
+        self, client_data: dict[str, Any], user_id: str
+    ) -> EB1APetitionRequest:
+        """
+        Phase 1: Collect and validate EB-1A client data.
+
+        Args:
+            client_data: Raw client data
+            user_id: User identifier
+
+        Returns:
+            Validated EB1APetitionRequest
+        """
+        # Extract required fields with defaults
+        beneficiary_name = client_data.get("beneficiary_name", "Beneficiary")
+        country_of_birth = client_data.get("country_of_birth", "Unknown")
+        field_of_expertise = client_data.get("field_of_expertise", client_data.get("field", ""))
+        current_position = client_data.get("current_position", "Professional")
+        current_employer = client_data.get("current_employer", "")
+
+        # Parse criteria
+        primary_criteria_raw = client_data.get("primary_criteria", [])
+        primary_criteria = self._parse_criteria(primary_criteria_raw)
+
+        supporting_criteria_raw = client_data.get("supporting_criteria", [])
+        supporting_criteria = self._parse_criteria(supporting_criteria_raw)
+
+        # Parse evidence
+        evidence_list = self._parse_evidence(client_data.get("evidence", []))
+
+        # Create petition request
+        petition_request = EB1APetitionRequest(
+            beneficiary_name=beneficiary_name,
+            country_of_birth=country_of_birth,
+            field_of_expertise=field_of_expertise,
+            current_position=current_position,
+            current_employer=current_employer,
+            primary_criteria=primary_criteria,
+            supporting_criteria=supporting_criteria,
+            evidence=evidence_list,
+            citations_count=client_data.get("citations_count"),
+            h_index=client_data.get("h_index"),
+            include_comparative_analysis=client_data.get("include_comparative_analysis", True),
+        )
+
+        return petition_request
+
+    async def _research_eb1a_evidence(self, request: EB1APetitionRequest) -> list[EB1AEvidence]:
+        """
+        Phase 2: Research additional evidence using RAG.
+
+        Args:
+            request: EB-1A petition request
+
+        Returns:
+            List of additional evidence found through research
+        """
+        additional_evidence = await self.evidence_researcher.research(request)
+        print(f"   Found {len(additional_evidence)} additional evidence items")
+        return additional_evidence
+
+    async def _map_eb1a_criteria(
+        self, request: EB1APetitionRequest, additional_evidence: list[EB1AEvidence]
+    ) -> dict[EB1ACriterion, list[EB1AEvidence]]:
+        """
+        Phase 3: Map evidence to EB-1A criteria.
+
+        Args:
+            request: Petition request with existing evidence
+            additional_evidence: Additional evidence from research
+
+        Returns:
+            Dictionary mapping criteria to evidence lists
+        """
+        # Combine all evidence
+        all_evidence = request.evidence + additional_evidence
+
+        # Group by criterion
+        evidence_by_criterion: dict[EB1ACriterion, list[EB1AEvidence]] = {}
+
+        for criterion in request.primary_criteria + request.supporting_criteria:
+            criterion_evidence = [ev for ev in all_evidence if ev.criterion == criterion]
+            evidence_by_criterion[criterion] = criterion_evidence
+            print(f"   {criterion.value}: {len(criterion_evidence)} evidence items")
+
+        return evidence_by_criterion
+
+    async def _generate_eb1a_sections_parallel(
         self,
-        plan: WorkflowPlan,
-        user_id: str,
-        context: Optional[Dict[str, Any]] = None
-    ) -> Dict[str, Any]:
-        """Последовательное выполнение подзадач"""
-        results = {}
+        request: EB1APetitionRequest,
+        evidence_by_criterion: dict[EB1ACriterion, list[EB1AEvidence]],
+    ) -> list[SectionContent]:
+        """
+        Phase 4: Generate criterion sections in parallel.
 
-        # Сортировка по зависимостям
-        sorted_tasks = await self._topological_sort(plan.subtasks)
+        Uses asyncio.gather to generate all sections concurrently for maximum speed.
 
-        for subtask in sorted_tasks:
+        Args:
+            request: Petition request
+            evidence_by_criterion: Evidence grouped by criterion
+
+        Returns:
+            List of generated section content
+        """
+        # Create tasks for all criteria
+        tasks = []
+        for criterion, evidence_list in evidence_by_criterion.items():
+            if criterion in self.section_writers:
+                writer = self.section_writers[criterion]
+                task = writer.write_section(request, evidence_list)
+                tasks.append(task)
+
+        # Execute all section writing tasks in parallel
+        sections = await asyncio.gather(*tasks)
+
+        print(f"   Generated {len(sections)} sections")
+        return sections
+
+    async def _assemble_eb1a_document(
+        self, request: EB1APetitionRequest, sections: list[SectionContent]
+    ) -> dict[str, Any]:
+        """
+        Phase 5: Assemble complete EB-1A petition document.
+
+        Args:
+            request: Petition request
+            sections: Generated section content
+
+        Returns:
+            Complete assembled document
+        """
+        # Sort sections by criterion order
+        criterion_order = {
+            EB1ACriterion.AWARDS: 1,
+            EB1ACriterion.MEMBERSHIP: 2,
+            EB1ACriterion.PRESS: 3,
+            EB1ACriterion.JUDGING: 4,
+            EB1ACriterion.ORIGINAL_CONTRIBUTION: 5,
+            EB1ACriterion.SCHOLARLY_ARTICLES: 6,
+            EB1ACriterion.ARTISTIC_EXHIBITION: 7,
+            EB1ACriterion.LEADING_ROLE: 8,
+            EB1ACriterion.HIGH_SALARY: 9,
+            EB1ACriterion.COMMERCIAL_SUCCESS: 10,
+        }
+        sorted_sections = sorted(sections, key=lambda s: criterion_order.get(s.criterion, 99))
+
+        # Build document structure
+        document = {
+            "title": f"EB-1A Petition: {request.beneficiary_name}",
+            "beneficiary": {
+                "name": request.beneficiary_name,
+                "country_of_birth": request.country_of_birth,
+                "field": request.field_of_expertise,
+                "position": request.current_position,
+                "employer": request.current_employer,
+            },
+            "introduction": self._generate_introduction(request),
+            "sections": [
+                {
+                    "criterion": section.criterion.value,
+                    "title": section.title,
+                    "content": section.content,
+                    "evidence_references": section.evidence_references,
+                    "legal_citations": section.legal_citations,
+                    "word_count": section.word_count,
+                    "confidence_score": section.confidence_score,
+                }
+                for section in sorted_sections
+            ],
+            "conclusion": self._generate_conclusion(request),
+            "metadata": {
+                "total_sections": len(sections),
+                "total_word_count": sum(s.word_count for s in sections),
+                "average_confidence": (
+                    sum(s.confidence_score for s in sections) / len(sections) if sections else 0.0
+                ),
+            },
+        }
+
+        return document
+
+    async def _validate_eb1a_document(
+        self, document: dict[str, Any], sections: list[SectionContent]
+    ) -> dict[str, Any]:
+        """
+        Phase 6: Validate EB-1A petition quality.
+
+        Args:
+            document: Assembled document
+            sections: Section content for analysis
+
+        Returns:
+            Validation results
+        """
+        issues = []
+        warnings = []
+
+        # Check section count (need at least 3 criteria)
+        if len(sections) < 3:
+            issues.append(
+                f"Petition must satisfy at least 3 criteria (currently has {len(sections)})"
+            )
+
+        # Check average confidence score
+        avg_confidence = document["metadata"]["average_confidence"]
+        if avg_confidence < 0.6:
+            warnings.append(f"Average confidence score is low ({avg_confidence:.2f})")
+
+        # Collect all suggestions from sections
+        all_suggestions = []
+        for section in sections:
+            all_suggestions.extend(section.suggestions)
+
+        # Determine overall status
+        if issues:
+            status = ValidationStatus.FAILED
+        elif warnings or all_suggestions:
+            status = ValidationStatus.NEEDS_REVIEW
+        else:
+            status = ValidationStatus.PASSED
+
+        validation = {
+            "status": status.value,
+            "issues": issues,
+            "warnings": warnings,
+            "suggestions": all_suggestions[:10],  # Limit to top 10
+            "section_scores": {
+                section.criterion.value: section.confidence_score for section in sections
+            },
+            "overall_score": avg_confidence,
+        }
+
+        return validation
+
+    async def _orchestrate_i140(
+        self, client_data: dict[str, Any], user_id: str
+    ) -> ComplexDocumentResult:
+        """
+        Orchestrate I-140 form generation (placeholder).
+
+        Args:
+            client_data: Client data
+            user_id: User identifier
+
+        Returns:
+            ComplexDocumentResult with I-140 form
+        """
+        # Placeholder implementation
+        print("I-140 workflow not yet implemented")
+        return ComplexDocumentResult(
+            document={"title": "I-140 Form", "status": "Not implemented"},
+            validation={"status": "pending"},
+        )
+
+    def _parse_criteria(self, criteria_raw: list[str] | list[EB1ACriterion]) -> list[EB1ACriterion]:
+        """Parse criteria from strings or enum values."""
+        criteria = []
+        for item in criteria_raw:
+            if isinstance(item, EB1ACriterion):
+                criteria.append(item)
+            elif isinstance(item, str):
+                # Try to match by value or name
+                for criterion in EB1ACriterion:
+                    if item.lower() in criterion.value.lower() or item.upper() == criterion.name:
+                        criteria.append(criterion)
+                        break
+        return criteria
+
+    def _parse_evidence(self, evidence_raw: list[dict[str, Any]]) -> list[EB1AEvidence]:
+        """Parse evidence from raw dictionaries."""
+        evidence_list = []
+        for ev_dict in evidence_raw:
             try:
-                result = await self._execute_subtask(subtask, user_id, context, results)
-                results[subtask.subtask_id] = result
+                # Try to create EB1AEvidence from dict
+                evidence = EB1AEvidence(**ev_dict)
+                evidence_list.append(evidence)
             except Exception as e:
-                results[subtask.subtask_id] = {"error": str(e), "success": False}
+                print(f"   Warning: Could not parse evidence: {e}")
+        return evidence_list
 
-        return results
+    def _generate_introduction(self, request: EB1APetitionRequest) -> str:
+        """Generate petition introduction."""
+        return f"""
+# Introduction
 
-    async def _execute_parallel(
-        self,
-        plan: WorkflowPlan,
-        user_id: str,
-        context: Optional[Dict[str, Any]] = None
-    ) -> Dict[str, Any]:
-        """Параллельное выполнение подзадач"""
-        # Группировка задач по dependency levels
-        levels = await self._group_by_dependency_levels(plan.subtasks)
-        results = {}
+This petition is submitted on behalf of {request.beneficiary_name}, a distinguished \
+professional in the field of {request.field_of_expertise}. {request.beneficiary_name} \
+currently serves as {request.current_position} at {request.current_employer}.
 
-        for level_tasks in levels:
-            # Выполнение задач одного уровня параллельно
-            tasks = [
-                self._execute_subtask(subtask, user_id, context, results)
-                for subtask in level_tasks
-            ]
+This EB-1A petition demonstrates that {request.beneficiary_name} possesses extraordinary \
+ability in {request.field_of_expertise} through sustained national and international acclaim. \
+The evidence presented satisfies {len(request.primary_criteria)} of the regulatory criteria \
+set forth in 8 CFR § 204.5(h)(3), clearly establishing eligibility for this classification.
+"""
 
-            level_results = await asyncio.gather(*tasks, return_exceptions=True)
+    def _generate_conclusion(self, request: EB1APetitionRequest) -> str:
+        """Generate petition conclusion."""
+        return f"""
+# Conclusion
 
-            for subtask, result in zip(level_tasks, level_results):
-                if isinstance(result, Exception):
-                    results[subtask.subtask_id] = {"error": str(result), "success": False}
-                else:
-                    results[subtask.subtask_id] = result
+The evidence presented in this petition conclusively demonstrates that {request.beneficiary_name} \
+has achieved sustained national and international acclaim in {request.field_of_expertise} and meets \
+the requirements for classification as an alien of extraordinary ability under INA § 203(b)(1)(A).
 
-        return results
+The petition satisfies {len(request.primary_criteria)} regulatory criteria, exceeding the \
+minimum requirement of three. Each criterion is supported by substantial documentary evidence \
+and establishes {request.beneficiary_name}'s extraordinary ability through peer recognition, \
+expert validation, and measurable impact on the field.
 
-    async def _execute_pipeline(
-        self,
-        plan: WorkflowPlan,
-        user_id: str,
-        context: Optional[Dict[str, Any]] = None
-    ) -> Dict[str, Any]:
-        """Pipeline выполнение подзадач"""
-        # Pipeline = sequential с передачей результатов между задачами
-        return await self._execute_sequential(plan, user_id, context)
-
-    async def _execute_fan_out_fan_in(
-        self,
-        plan: WorkflowPlan,
-        user_id: str,
-        context: Optional[Dict[str, Any]] = None
-    ) -> Dict[str, Any]:
-        """Fan-out/Fan-in выполнение"""
-        # Первая задача - fan-out point
-        # Последняя задача - fan-in point
-        # Средние задачи выполняются параллельно
-        return await self._execute_parallel(plan, user_id, context)
-
-    async def _execute_subtask(
-        self,
-        subtask: SubTask,
-        user_id: str,
-        context: Optional[Dict[str, Any]] = None,
-        previous_results: Optional[Dict[str, Any]] = None
-    ) -> Dict[str, Any]:
-        """Выполнение одной подзадачи"""
-
-        # Placeholder для выполнения подзадачи через соответствующий агент
-        # В реальной реализации здесь будет вызов агента
-
-        # Имитация работы агента
-        await asyncio.sleep(0.1)  # Симуляция времени выполнения
-
-        return {
-            "success": True,
-            "subtask_id": subtask.subtask_id,
-            "agent_type": subtask.agent_type.value,
-            "result": f"Completed: {subtask.description}",
-            "timestamp": datetime.utcnow().isoformat()
-        }
-
-    async def _fuse_results(
-        self,
-        results: Dict[str, Any],
-        strategy: ExecutionStrategy
-    ) -> Dict[str, Any]:
-        """Fusion результатов подзадач"""
-
-        successful_results = [
-            result for result in results.values()
-            if isinstance(result, dict) and result.get("success", False)
-        ]
-
-        failed_results = [
-            result for result in results.values()
-            if isinstance(result, dict) and not result.get("success", True)
-        ]
-
-        return {
-            "fusion_strategy": strategy.value,
-            "total_subtasks": len(results),
-            "successful_subtasks": len(successful_results),
-            "failed_subtasks": len(failed_results),
-            "success_rate": len(successful_results) / len(results) if results else 0,
-            "combined_results": successful_results,
-            "errors": [r.get("error", "Unknown error") for r in failed_results],
-            "overall_success": len(failed_results) == 0
-        }
-
-    async def _calculate_critical_path(self, subtasks: List[SubTask]) -> List[str]:
-        """Расчет критического пути"""
-        # Упрощенный алгоритм - самая длинная цепочка зависимостей
-        paths = []
-
-        for subtask in subtasks:
-            if not subtask.dependencies:  # Начальная задача
-                path = await self._find_longest_path(subtask, subtasks)
-                paths.append(path)
-
-        return max(paths, key=len) if paths else []
-
-    async def _find_longest_path(self, start_task: SubTask, all_tasks: List[SubTask]) -> List[str]:
-        """Поиск самого длинного пути от задачи"""
-        path = [start_task.subtask_id]
-
-        # Поиск задач, зависящих от текущей
-        dependent_tasks = [
-            task for task in all_tasks
-            if start_task.subtask_id in task.dependencies
-        ]
-
-        if not dependent_tasks:
-            return path
-
-        # Рекурсивный поиск самого длинного пути
-        longest_subpath = []
-        for dep_task in dependent_tasks:
-            subpath = await self._find_longest_path(dep_task, all_tasks)
-            if len(subpath) > len(longest_subpath):
-                longest_subpath = subpath
-
-        return path + longest_subpath
-
-    async def _topological_sort(self, subtasks: List[SubTask]) -> List[SubTask]:
-        """Топологическая сортировка подзадач"""
-        # Упрощенная реализация
-        sorted_tasks = []
-        remaining_tasks = subtasks.copy()
-
-        while remaining_tasks:
-            # Поиск задач без неразрешенных зависимостей
-            ready_tasks = [
-                task for task in remaining_tasks
-                if all(
-                    dep_id in [t.subtask_id for t in sorted_tasks]
-                    for dep_id in task.dependencies
-                )
-            ]
-
-            if not ready_tasks:
-                # Циклические зависимости - берем первую задачу
-                ready_tasks = [remaining_tasks[0]]
-
-            sorted_tasks.extend(ready_tasks)
-            for task in ready_tasks:
-                remaining_tasks.remove(task)
-
-        return sorted_tasks
-
-    async def _group_by_dependency_levels(self, subtasks: List[SubTask]) -> List[List[SubTask]]:
-        """Группировка задач по уровням зависимостей"""
-        levels = []
-        remaining_tasks = subtasks.copy()
-        completed_task_ids = set()
-
-        while remaining_tasks:
-            current_level = [
-                task for task in remaining_tasks
-                if all(dep_id in completed_task_ids for dep_id in task.dependencies)
-            ]
-
-            if not current_level:
-                # Циклические зависимости - берем все оставшиеся
-                current_level = remaining_tasks.copy()
-
-            levels.append(current_level)
-            completed_task_ids.update(task.subtask_id for task in current_level)
-
-            for task in current_level:
-                remaining_tasks.remove(task)
-
-        return levels
-
-    def _build_analysis_prompt(
-        self,
-        task_description: str,
-        context: Optional[Dict[str, Any]] = None
-    ) -> str:
-        """Построение prompt для LLM анализа"""
-
-        base_prompt = f"""
-        Analyze the following task and provide a structured analysis:
-
-        Task: {task_description}
-        Context: {context or "No additional context"}
-
-        Please analyze:
-        1. Task complexity (simple/moderate/complex/enterprise)
-        2. Required agents and their roles
-        3. Optimal execution strategy
-        4. Estimated duration
-        5. Dependencies and critical path
-
-        Provide reasoning for your analysis.
-        """
-
-        return base_prompt
-
-    async def _log_task_analysis(self, task: str, analysis: TaskAnalysis) -> None:
-        """Логирование анализа задачи"""
-        await self._log_audit_event(
-            user_id="supervisor_agent",
-            action="task_analysis",
-            payload={
-                "task": task,
-                "complexity": analysis.complexity.value,
-                "agents": [a.value for a in analysis.required_agents],
-                "strategy": analysis.execution_strategy.value,
-                "confidence": analysis.confidence_score
-            }
-        )
-
-    async def _log_task_decomposition(self, task: str, subtasks: List[SubTask]) -> None:
-        """Логирование декомпозиции задачи"""
-        await self._log_audit_event(
-            user_id="supervisor_agent",
-            action="task_decomposition",
-            payload={
-                "task": task,
-                "subtasks_count": len(subtasks),
-                "subtasks": [
-                    {
-                        "id": st.subtask_id,
-                        "agent": st.agent_type.value,
-                        "priority": st.priority
-                    }
-                    for st in subtasks
-                ]
-            }
-        )
-
-    async def _log_workflow_completion(self, task: str, result: ExecutionResult) -> None:
-        """Логирование завершения workflow"""
-        await self._log_audit_event(
-            user_id="supervisor_agent",
-            action="workflow_completed",
-            payload={
-                "task": task,
-                "execution_id": result.execution_id,
-                "success": result.success,
-                "execution_time": result.execution_time,
-                "subtasks_count": len(result.results)
-            }
-        )
-
-    async def _log_workflow_error(self, task: str, result: ExecutionResult, error: Exception) -> None:
-        """Логирование ошибки workflow"""
-        await self._log_audit_event(
-            user_id="supervisor_agent",
-            action="workflow_error",
-            payload={
-                "task": task,
-                "error_type": type(error).__name__,
-                "error_message": str(error),
-                "execution_time": result.execution_time
-            }
-        )
-
-    async def _log_audit_event(
-        self,
-        user_id: str,
-        action: str,
-        payload: Dict[str, Any]
-    ) -> None:
-        """Централизованное логирование audit событий"""
-        event = AuditEvent(
-            event_id=str(uuid.uuid4()),
-            user_id=user_id,
-            thread_id=f"supervisor_agent_{user_id}",
-            source="supervisor_agent",
-            action=action,
-            payload=payload,
-            tags=["supervisor_agent", "orchestration", "workflow"]
-        )
-
-        await self.memory.alog_audit(event)
-
-    async def get_workflow_status(self, plan_id: str) -> Optional[Dict[str, Any]]:
-        """Получение статуса выполнения workflow"""
-        plan = self._workflow_plans.get(plan_id)
-        if not plan:
-            return None
-
-        execution = next(
-            (result for result in self._execution_results.values()
-             if result.plan_id == plan_id),
-            None
-        )
-
-        return {
-            "plan": plan.model_dump(),
-            "execution": execution.model_dump() if execution else None,
-            "status": "completed" if execution else "planned"
-        }
-
-    async def get_agent_performance(self) -> Dict[str, Any]:
-        """Получение статистики производительности агентов"""
-        return {
-            "agent_stats": self._agent_performance,
-            "total_workflows": len(self._execution_results),
-            "successful_workflows": len([
-                r for r in self._execution_results.values() if r.success
-            ])
-        }
+We respectfully request approval of this EB-1A petition.
+"""

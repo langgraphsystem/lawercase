@@ -82,7 +82,7 @@ async def analyze_task_node(state: SupervisorState) -> SupervisorState:
     }}
     """
 
-    llm = ChatOpenAI(model="gpt-4o", temperature=0)
+    llm = ChatOpenAI(model="gpt-5-mini", temperature=0)
     response = await llm.ainvoke([HumanMessage(content=analysis_prompt)])
 
     analysis = json.loads(response.content)
@@ -167,7 +167,7 @@ async def merge_results_node(state: ParallelProcessingState) -> ParallelProcessi
     Создай связный и полный ответ, учитывая все найденную информацию.
     """
 
-    llm = ChatOpenAI(model="gpt-4o")
+    llm = ChatOpenAI(model="gpt-5-mini")
     response = await llm.ainvoke([HumanMessage(content=synthesis_prompt)])
 
     state['merged_result'] = response.content
@@ -234,13 +234,13 @@ async def confidence_assessment_node(state: SelfCorrectionState) -> SelfCorrecti
     Верни только число от 0 до 1:
     """
 
-    llm = ChatOpenAI(model="gpt-4o", temperature=0)
+    llm = ChatOpenAI(model="gpt-5-mini", temperature=0)
     response = await llm.ainvoke([HumanMessage(content=assessment_prompt)])
 
     try:
         confidence = float(response.content.strip())
         state['confidence_score'] = confidence
-    except:
+    except (ValueError, AttributeError):
         state['confidence_score'] = 0.5
 
     return state
@@ -273,7 +273,7 @@ async def reflection_node(state: SelfCorrectionState) -> SelfCorrectionState:
     Верни конкретные рекомендации для улучшения.
     """
 
-    llm = ChatOpenAI(model="gpt-4o")
+    llm = ChatOpenAI(model="gpt-5-mini")
     response = await llm.ainvoke([HumanMessage(content=reflection_prompt)])
 
     if 'corrections' not in state:
@@ -355,7 +355,7 @@ async def risk_assessment_node(state: HITLState) -> HITLState:
     }}
     """
 
-    llm = ChatOpenAI(model="gpt-4o", temperature=0)
+    llm = ChatOpenAI(model="gpt-5-mini", temperature=0)
     response = await llm.ainvoke([HumanMessage(content=risk_prompt)])
 
     risk_assessment = json.loads(response.content)
@@ -496,7 +496,7 @@ async def error_analysis_node(state: ErrorRecoveryState) -> ErrorRecoveryState:
     }}
     """
 
-    llm = ChatOpenAI(model="gpt-4o")
+    llm = ChatOpenAI(model="gpt-5-mini")
     response = await llm.ainvoke([HumanMessage(content=error_analysis_prompt)])
 
     analysis = json.loads(response.content)
@@ -564,7 +564,7 @@ async def analyze_context_needs_node(state: ContextEnrichmentState) -> ContextEn
     Верни список конкретных информационных потребностей.
     """
 
-    llm = ChatOpenAI(model="gpt-4o")
+    llm = ChatOpenAI(model="gpt-5-mini")
     response = await llm.ainvoke([HumanMessage(content=analysis_prompt)])
 
     state['context_needs'] = response.content

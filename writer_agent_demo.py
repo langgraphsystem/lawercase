@@ -1,7 +1,10 @@
+from __future__ import annotations
+
 import asyncio
 from pprint import pprint
 
-from core.groupagents.mega_agent import CommandType, MegaAgent, MegaAgentCommand
+from core.groupagents.mega_agent import (CommandType, MegaAgent,
+                                         MegaAgentCommand)
 
 
 async def main() -> None:

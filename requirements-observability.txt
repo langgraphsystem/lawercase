@@ -1,0 +1,14 @@
+# Heavy observability dependencies for production monitoring
+# These are NOT needed for basic bot operation
+# Install separately: pip install -r requirements-observability.txt
+
+# OpenTelemetry Exporters (heavy dependencies)
+opentelemetry-exporter-jaeger>=1.20.0,<2.0.0
+opentelemetry-exporter-zipkin-json>=1.20.0,<2.0.0
+opentelemetry-exporter-otlp>=1.20.0,<2.0.0
+
+# Monitoring & Metrics
+prometheus-client>=0.20.0,<1.0.0
+
+# Network & Graph Analysis
+networkx>=3.1,<4.0

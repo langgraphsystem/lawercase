@@ -1,0 +1,50 @@
+# Kubernetes Service for MegaAgent Pro
+
+apiVersion: v1
+kind: Service
+metadata:
+  name: megaagent-api
+  namespace: megaagent
+  labels:
+    app: megaagent
+    component: api
+spec:
+  type: ClusterIP
+  selector:
+    app: megaagent
+    component: api
+  ports:
+    - name: http
+      port: 80
+      targetPort: 8000
+      protocol: TCP
+    - name: metrics
+      port: 9090
+      targetPort: 9090
+      protocol: TCP
+  sessionAffinity: None
+
+---
+# Service for metrics scraping
+apiVersion: v1
+kind: Service
+metadata:
+  name: megaagent-api-metrics
+  namespace: megaagent
+  labels:
+    app: megaagent
+    component: api
+  annotations:
+    prometheus.io/scrape: "true"
+    prometheus.io/port: "9090"
+spec:
+  type: ClusterIP
+  clusterIP: None  # Headless service for direct pod access
+  selector:
+    app: megaagent
+    component: api
+  ports:
+    - name: metrics
+      port: 9090
+      targetPort: 9090
+      protocol: TCP

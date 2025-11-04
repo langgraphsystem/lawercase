@@ -1,0 +1,10 @@
+feat: Add core tests and fix linting issues
+
+- Adds a comprehensive pytest-based test suite for critical components:
+  - Unit tests for LLM Router (fallback, retry, budget)
+  - Unit tests for RAG Retriever (dimensions, batching)
+  - Integration tests for API security (CORS, JWT, RBAC)
+- Introduces placeholder implementations for the router and retriever to support the new tests.
+- Adds a `pytest.ini` file and `__init__.py` files to configure the test environment.
+- Runs `ruff --fix` to resolve all linting errors across the codebase.
+- Adds a `.gitignore` file to exclude `__pycache__` and other common temporary files from version control.

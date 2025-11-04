@@ -1,0 +1,281 @@
+# Kubernetes Deployment for MegaAgent Pro API
+# Production-ready with health checks, resource limits, and autoscaling
+
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: megaagent-api
+  namespace: megaagent
+  labels:
+    app: megaagent
+    component: api
+    version: v1
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: megaagent
+      component: api
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+  template:
+    metadata:
+      labels:
+        app: megaagent
+        component: api
+        version: v1
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "9090"
+        prometheus.io/path: "/metrics"
+    spec:
+      serviceAccountName: megaagent-api
+
+      # Security context
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        fsGroup: 1000
+
+      # Init containers
+      initContainers:
+        - name: wait-for-postgres
+          image: busybox:1.35
+          command:
+            [
+              "sh",
+              "-c",
+              "until nc -z postgres 5432; do echo waiting for postgres; sleep 2; done",
+            ]
+
+        - name: wait-for-redis
+          image: busybox:1.35
+          command:
+            [
+              "sh",
+              "-c",
+              "until nc -z redis 6379; do echo waiting for redis; sleep 2; done",
+            ]
+
+      containers:
+        - name: api
+          image: mega-agent-pro-api:latest
+          imagePullPolicy: Always
+
+          ports:
+            - name: http
+              containerPort: 8000
+              protocol: TCP
+            - name: metrics
+              containerPort: 9090
+              protocol: TCP
+
+          env:
+            - name: ENV
+              value: "production"
+            - name: DEBUG
+              value: "false"
+
+            # Database connection
+            - name: DB_POSTGRES_HOST
+              value: "postgres"
+            - name: DB_POSTGRES_PORT
+              value: "5432"
+            - name: DB_POSTGRES_USER
+              valueFrom:
+                secretKeyRef:
+                  name: megaagent-secrets
+                  key: postgres-user
+            - name: DB_POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: megaagent-secrets
+                  key: postgres-password
+            - name: DB_POSTGRES_DB
+              value: "megaagent_pro"
+
+            # Redis connection
+            - name: REDIS_HOST
+              value: "redis"
+            - name: REDIS_PORT
+              value: "6379"
+            - name: REDIS_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: megaagent-secrets
+                  key: redis-password
+
+            # Security
+            - name: SECURITY_JWT_SECRET_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: megaagent-secrets
+                  key: jwt-secret-key
+
+            # LLM API Keys
+            - name: LLM_OPENAI_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: megaagent-secrets
+                  key: openai-api-key
+                  optional: true
+
+            - name: LLM_ANTHROPIC_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: megaagent-secrets
+                  key: anthropic-api-key
+                  optional: true
+
+            # Observability
+            - name: OBSERVABILITY_LOG_LEVEL
+              value: "INFO"
+            - name: OBSERVABILITY_LOG_FORMAT
+              value: "json"
+            - name: OBSERVABILITY_TRACING_ENABLED
+              value: "true"
+            - name: OBSERVABILITY_METRICS_ENABLED
+              value: "true"
+
+          # Resource limits and requests
+          resources:
+            requests:
+              cpu: 500m
+              memory: 1Gi
+            limits:
+              cpu: 2000m
+              memory: 4Gi
+
+          # Health checks
+          livenessProbe:
+            httpGet:
+              path: /liveness
+              port: http
+            initialDelaySeconds: 30
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 3
+
+          readinessProbe:
+            httpGet:
+              path: /readiness
+              port: http
+            initialDelaySeconds: 20
+            periodSeconds: 5
+            timeoutSeconds: 3
+            failureThreshold: 2
+
+          startupProbe:
+            httpGet:
+              path: /startup
+              port: http
+            initialDelaySeconds: 0
+            periodSeconds: 10
+            timeoutSeconds: 3
+            failureThreshold: 30
+
+          # Volume mounts
+          volumeMounts:
+            - name: tmp
+              mountPath: /app/tmp
+            - name: logs
+              mountPath: /app/logs
+            - name: data
+              mountPath: /app/data
+
+          # Security context
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: false
+            capabilities:
+              drop:
+                - ALL
+
+      volumes:
+        - name: tmp
+          emptyDir: {}
+        - name: logs
+          emptyDir: {}
+        - name: data
+          persistentVolumeClaim:
+            claimName: megaagent-data
+
+      # Node affinity (optional - prefer nodes with SSD)
+      affinity:
+        nodeAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 100
+              preference:
+                matchExpressions:
+                  - key: disk-type
+                    operator: In
+                    values:
+                      - ssd
+
+        # Pod anti-affinity (spread across nodes)
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 100
+              podAffinityTerm:
+                labelSelector:
+                  matchExpressions:
+                    - key: app
+                      operator: In
+                      values:
+                        - megaagent
+                    - key: component
+                      operator: In
+                      values:
+                        - api
+                topologyKey: kubernetes.io/hostname
+
+      # Restart policy
+      restartPolicy: Always
+
+---
+# Horizontal Pod Autoscaler
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: megaagent-api-hpa
+  namespace: megaagent
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: megaagent-api
+  minReplicas: 3
+  maxReplicas: 10
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: 70
+    - type: Resource
+      resource:
+        name: memory
+        target:
+          type: Utilization
+          averageUtilization: 80
+  behavior:
+    scaleDown:
+      stabilizationWindowSeconds: 300
+      policies:
+        - type: Percent
+          value: 50
+          periodSeconds: 60
+    scaleUp:
+      stabilizationWindowSeconds: 0
+      policies:
+        - type: Percent
+          value: 100
+          periodSeconds: 15
+        - type: Pods
+          value: 2
+          periodSeconds: 15
+      selectPolicy: Max

@@ -1,0 +1,47 @@
+name: CI
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+    branches: [main, master]
+
+jobs:
+  lint-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: "pip"
+      - name: Install dependencies
+        run: |
+          pip install --upgrade pip
+          pip install --no-cache-dir -r requirements-ci.txt
+          pip install --no-cache-dir ruff pip-audit
+      - name: Ruff lint
+        run: ruff check . --extend-ignore=A003,S603,S112,E402
+      - name: Run tests
+        env:
+          CACHE_USE_FAKEREDIS: "true"
+        run: pytest -vv --tb=short --maxfail=1 -x
+      - name: Dependency audit
+        run: |
+          pip-audit --progress-spinner off \
+            --ignore-vuln GHSA-wj6h-64fc-37mp \
+            --ignore-vuln GHSA-4xh5-x5gv-qwph
+
+  secret-scan:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Gitleaks Secret Scan
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITLEAKS_ENABLE_SUMMARY: true

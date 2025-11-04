@@ -1,10 +1,9 @@
 from __future__ import annotations
 
 from datetime import datetime
-from typing import Any, Dict, List, Literal, Optional
+from typing import Any, Literal
 
 from pydantic import BaseModel, Field
-
 
 MemoryType = Literal["episodic", "semantic", "persona", "open_loop"]
 
@@ -17,12 +16,12 @@ class AuditEvent(BaseModel):
 
     event_id: str = Field(..., description="Unique event id")
     timestamp: datetime = Field(default_factory=datetime.utcnow)
-    user_id: Optional[str] = None
-    thread_id: Optional[str] = None
+    user_id: str | None = None
+    thread_id: str | None = None
     source: str = Field(..., description="origin like mega_agent|workflow_node|telegram")
     action: str = Field(..., description="e.g., handle_command|node_complete")
-    payload: Dict[str, Any] = Field(default_factory=dict)
-    tags: List[str] = Field(default_factory=list)
+    payload: dict[str, Any] = Field(default_factory=dict)
+    tags: list[str] = Field(default_factory=list)
 
 
 class MemoryRecord(BaseModel):
@@ -31,24 +30,24 @@ class MemoryRecord(BaseModel):
     Use Pydantic v2 model_dump for serialization.
     """
 
-    id: Optional[str] = None
-    user_id: Optional[str] = None
+    id: str | None = None
+    user_id: str | None = None
     type: MemoryType = Field("semantic")
     text: str
-    embedding: Optional[List[float]] = None
-    salience: Optional[float] = Field(default=None, ge=0.0, le=1.0)
-    confidence: Optional[float] = Field(default=None, ge=0.0, le=1.0)
-    decay_at: Optional[datetime] = None
+    embedding: list[float] | None = None
+    salience: float | None = Field(default=None, ge=0.0, le=1.0)
+    confidence: float | None = Field(default=None, ge=0.0, le=1.0)
+    decay_at: datetime | None = None
     created_at: datetime = Field(default_factory=datetime.utcnow)
-    source: Optional[str] = None
-    tags: List[str] = Field(default_factory=list)
+    source: str | None = None
+    tags: list[str] = Field(default_factory=list)
 
 
 class RetrievalQuery(BaseModel):
     query: str
-    user_id: Optional[str] = None
+    user_id: str | None = None
     topk: int = 8
-    filters: Dict[str, Any] = Field(default_factory=dict)
+    filters: dict[str, Any] = Field(default_factory=dict)
 
 
 class ConsolidateStats(BaseModel):
@@ -56,4 +55,3 @@ class ConsolidateStats(BaseModel):
     pruned: int = 0
     merged: int = 0
     total_after: int = 0
-

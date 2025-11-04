@@ -1,0 +1,8 @@
+defaults:
+  tone: professional
+  language: en
+
+letters:
+  professional:
+    salutation: "Dear"
+    closing: "Sincerely"

@@ -1,41 +1,22 @@
-"""
-Core Group Agents для mega_agent_pro multi-agent system.
-
-Этот модуль содержит специализированные агенты для различных аспектов
-юридической системы:
-
-- MegaAgent: Центральный оркестратор
-- SupervisorAgent: Динамическая маршрутизация задач
-- CaseAgent: Управление делами и случаями
-- WriterAgent: Генерация документов и писем
-- ValidatorAgent: Валидация с самокоррекцией
-- RAGPipelineAgent: Гибридный поиск и RAG
-- LegalResearchAgent: Юридические исследования
-"""
-
 from __future__ import annotations
 
-__version__ = "2.0.0"
-__author__ = "mega_agent_pro team"
+from .case_agent import CaseAgent
+from .eb1_agent import EB1Agent
+from .feedback_agent import FeedbackAgent
+from .mega_agent import MegaAgent
+from .rag_pipeline_agent import RagAnswer, RagPipelineAgent
+from .supervisor_agent import SupervisorAgent
+from .validator_agent import ValidatorAgent
+from .writer_agent import WriterAgent
 
-# Export main agents when implemented
 __all__ = [
     "CaseAgent",
+    "EB1Agent",
+    "FeedbackAgent",
+    "MegaAgent",
+    "RagAnswer",
+    "RagPipelineAgent",
+    "SupervisorAgent",
+    "ValidatorAgent",
     "WriterAgent",
-    # "MegaAgent",
-    # "SupervisorAgent",
-    # "ValidatorAgent",
-    # "RAGPipelineAgent",
-    # "LegalResearchAgent",
 ]
-
-# Import implemented agents
-try:
-    from .case_agent import CaseAgent
-except ImportError:
-    pass  # Agent not yet implemented
-try:
-    from .writer_agent import WriterAgent
-except ImportError:
-    pass  # Agent not yet implemented
-

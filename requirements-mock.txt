@@ -1,0 +1,17 @@
+# Requirements for Mock Document Monitor Server
+# Install with: pip install -r requirements-mock.txt
+
+# Core FastAPI
+fastapi>=0.110.0,<1.0.0
+uvicorn[standard]>=0.29.0,<1.0.0
+
+# WebSocket support
+websockets>=12.0,<13.0
+python-multipart>=0.0.6,<1.0.0
+
+# Data validation
+pydantic>=2.7.0,<3.0.0
+
+# Optional: Development tools
+# httpx>=0.26.0  # For testing
+# pytest>=7.4.0  # For unit tests

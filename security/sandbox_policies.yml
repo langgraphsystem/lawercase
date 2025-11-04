@@ -1,0 +1,22 @@
+﻿# Sandbox policies for tool execution (Phase 3).
+# real enforcement logic to be implemented in secure_sandbox.py utilities.
+
+policies:
+  default:
+    description: "Default sandbox: no external access"
+    allowed_tools:
+      - diagnostics.echo
+    network_access: false
+    filesystem_access: false
+    max_cpu_seconds: 2.0
+    max_memory_mb: 256
+
+  extended:
+    description: "Extended sandbox with selective API usage"
+    allowed_tools:
+      - integrations.http_client
+      - integrations.calendar
+    network_access: true
+    filesystem_access: false
+    max_cpu_seconds: 5.0
+    max_memory_mb: 512
