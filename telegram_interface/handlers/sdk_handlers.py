@@ -2,16 +2,20 @@
 
 from __future__ import annotations
 
-import os
 from collections.abc import Iterable
+import os
 
-import structlog
+from dotenv import load_dotenv
 from openai import AsyncOpenAI
 from openai.types import Model
+import structlog
 from telegram import Update
 from telegram.ext import CommandHandler, ContextTypes
 
 from .context import BotContext
+
+# CRITICAL: Override system environment variables with .env file
+load_dotenv(override=True)
 
 logger = structlog.get_logger(__name__)
 
@@ -116,17 +120,18 @@ async def chat(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         model = os.getenv("OPENAI_DEFAULT_MODEL", "gpt-5-mini")
         logger.debug("telegram.chat.request", user_id=user_id, model=model)
 
+        # GPT-5 API call with correct parameters
         response = await client.chat.completions.create(
             model=model,
             messages=[
                 {
                     "role": "system",
-                    "content": "You are MegaAgent Pro assistant. Provide concise, practical answers.",
+                    "content": "You are MegaAgent Pro assistant for EB-1A visa questions. Provide clear, concise answers in Russian.",
                 },
                 {"role": "user", "content": prompt},
             ],
-            max_tokens=800,
-            temperature=float(os.getenv("OPENAI_TEMPERATURE", "0.2")),
+            max_completion_tokens=2000,  # High limit for GPT-5 reasoning tokens
+            # NO temperature - GPT-5 only supports default (1)
         )
 
         if not response.choices:
@@ -134,9 +139,31 @@ async def chat(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
             logger.warning("telegram.chat.empty_response", user_id=user_id)
             return
 
-        content = response.choices[0].message.content or "(no content)"
+        content = response.choices[0].message.content
+
+        if not content:
+            await _reply(update, "⚠️ GPT-5 returned empty response.")
+            logger.warning(
+                "telegram.chat.empty_content", user_id=user_id, usage=str(response.usage)
+            )
+            return
+
         await _reply(update, content)
-        logger.info("telegram.chat.sent", user_id=user_id, response_length=len(content))
+
+        # Log token usage including reasoning tokens
+        usage = response.usage
+        reasoning_tokens = (
+            getattr(usage.completion_tokens_details, "reasoning_tokens", 0)
+            if hasattr(usage, "completion_tokens_details")
+            else 0
+        )
+        logger.info(
+            "telegram.chat.sent",
+            user_id=user_id,
+            response_length=len(content),
+            tokens=usage.total_tokens,
+            reasoning_tokens=reasoning_tokens,
+        )
     except Exception as exc:  # pragma: no cover - network/runtime
         logger.exception("telegram.chat.error", user_id=user_id, error=str(exc))
         await _reply(update, f"❌ OpenAI error: {exc}")

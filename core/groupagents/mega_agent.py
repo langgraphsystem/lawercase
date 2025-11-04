@@ -11,34 +11,55 @@ MegaAgent - Центральный оркестратор системы mega_ag
 
 from __future__ import annotations
 
-import time
-import uuid
 from datetime import datetime
 from enum import Enum
+import time
 from typing import Any
+import uuid
 
 from pydantic import BaseModel, Field, ValidationError
+import structlog
 
 from ..exceptions import AgentError, MegaAgentError
-from ..execution.secure_sandbox import (SandboxPolicy, SandboxRunner,
-                                        SandboxViolation, ensure_tool_allowed)
+from ..execution.secure_sandbox import (
+    SandboxPolicy,
+    SandboxRunner,
+    SandboxViolation,
+    ensure_tool_allowed,
+)
 from ..memory.memory_manager import MemoryManager
 from ..memory.models import AuditEvent
 from ..orchestration.enhanced_workflows import EnhancedWorkflowState
-from ..orchestration.pipeline_manager import (build_enhanced_pipeline,
-                                              build_pipeline)
-from ..orchestration.pipeline_manager import run as run_pipeline
+from ..orchestration.pipeline_manager import (
+    build_enhanced_pipeline,
+    build_pipeline,
+    run as run_pipeline,
+)
 from ..orchestration.workflow_graph import WorkflowState, build_case_workflow
 from ..retry import with_retry
-from ..security import (PromptInjectionResult, get_audit_trail,
-                        get_prompt_detector, get_rbac_manager, security_config)
+from ..security import (
+    PromptInjectionResult,
+    get_audit_trail,
+    get_prompt_detector,
+    get_rbac_manager,
+    security_config,
+)
 from ..tools.tool_registry import get_tool_registry
 from .case_agent import CaseAgent
 from .eb1_agent import EB1Agent
-from .models import (AskPayload, BatchTrainPayload, FeedbackPayload,
-                     ImprovePayload, LegalPayload, MemoryLookupPayload,
-                     OptimizePayload, RecommendPayload, SearchPayload,
-                     ToolCommandPayload, TrainPayload)
+from .models import (
+    AskPayload,
+    BatchTrainPayload,
+    FeedbackPayload,
+    ImprovePayload,
+    LegalPayload,
+    MemoryLookupPayload,
+    OptimizePayload,
+    RecommendPayload,
+    SearchPayload,
+    ToolCommandPayload,
+    TrainPayload,
+)
 from .validator_agent import ValidationRequest, ValidatorAgent
 from .writer_agent import DocumentRequest, DocumentType, WriterAgent
 
@@ -789,9 +810,20 @@ class MegaAgent:
         try:
             import os
 
+            logger = structlog.get_logger(__name__)
+
             openai_key = os.getenv("OPENAI_API_KEY")
             anthropic_key = os.getenv("ANTHROPIC_API_KEY")
             gemini_key = os.getenv("GEMINI_API_KEY") or os.getenv("GOOGLE_API_KEY")
+            try:
+                logger.info(
+                    "ask.llm.keys",
+                    openai=bool(openai_key),
+                    anthropic=bool(anthropic_key),
+                    gemini=bool(gemini_key),
+                )
+            except Exception:  # nosec B110 - logging is best-effort
+                pass
 
             provider_used = None
             llm_text: str | None = None
@@ -818,27 +850,51 @@ class MegaAgent:
             ).strip()
 
             if openai_key:
-                # OpenAI
+                # OpenAI via SDK wrapper (core/llm_interface/openai_client.py)
+                # Respect environment model/config to match SDK handlers
                 try:
+                    import os
+
                     from core.llm_interface.openai_client import OpenAIClient
 
+                    model_env = os.getenv("OPENAI_DEFAULT_MODEL")
+                    # Prefer env override; default to gpt-5-mini for cost if unset
+                    model_name = model_env or OpenAIClient.GPT_5_MINI
+                    temperature = float(os.getenv("OPENAI_TEMPERATURE", "0.2"))
+                    verbosity = os.getenv("OPENAI_VERBOSITY", "medium")
+                    reasoning_effort = os.getenv("OPENAI_REASONING_EFFORT", "medium")
+
                     client = OpenAIClient(
-                        model=OpenAIClient.GPT_5,
+                        model=model_name,
                         api_key=openai_key,
-                        temperature=0.2,
-                        verbosity="medium",
-                        reasoning_effort="medium",
+                        temperature=temperature,
+                        verbosity=verbosity,
+                        reasoning_effort=reasoning_effort,
                     )
-                    result = await client.acomplete(prompt, max_tokens=800)
+                    # Allow max tokens override to align with SDK usage
+                    max_tokens = int(os.getenv("OPENAI_MAX_TOKENS", "800"))
+                    result = await client.acomplete(prompt, max_tokens=max_tokens)
                     llm_text = result.get("output") or result.get("response")
                     provider_used = result.get("provider", "openai")
+                    response["llm_model"] = result.get("model")
+                    response.setdefault("llm_params", {})
+                    response["llm_params"].update(
+                        {
+                            "verbosity": verbosity,
+                            "reasoning_effort": reasoning_effort,
+                            "max_tokens": max_tokens,
+                        }
+                    )
                 except Exception as e:  # pragma: no cover - external dependency branch
+                    try:
+                        logger.exception("ask.llm.error", provider="openai", error=str(e))
+                    except Exception:  # nosec B110 - logging is best-effort
+                        pass
                     response.setdefault("llm_error", str(e))
             elif anthropic_key:
                 # Anthropic
                 try:
-                    from core.llm_interface.anthropic_client import \
-                        AnthropicClient
+                    from core.llm_interface.anthropic_client import AnthropicClient
 
                     client = AnthropicClient(
                         model=AnthropicClient.CLAUDE_HAIKU_3_5,
@@ -848,7 +904,12 @@ class MegaAgent:
                     result = await client.acomplete(prompt, max_tokens=800)
                     llm_text = result.get("output") or result.get("response")
                     provider_used = result.get("provider", "anthropic")
+                    response["llm_model"] = result.get("model")
                 except Exception as e:  # pragma: no cover
+                    try:
+                        logger.exception("ask.llm.error", provider="anthropic", error=str(e))
+                    except Exception:  # nosec B110 - logging is best-effort
+                        pass
                     response.setdefault("llm_error", str(e))
             elif gemini_key:
                 # Google Gemini
@@ -861,7 +922,12 @@ class MegaAgent:
                     result = await client.acomplete(prompt, max_output_tokens=800)
                     llm_text = result.get("output") or result.get("response")
                     provider_used = result.get("provider", "gemini")
+                    response["llm_model"] = result.get("model")
                 except Exception as e:  # pragma: no cover
+                    try:
+                        logger.exception("ask.llm.error", provider="gemini", error=str(e))
+                    except Exception:  # nosec B110 - logging is best-effort
+                        pass
                     response.setdefault("llm_error", str(e))
 
             if llm_text:
@@ -871,6 +937,22 @@ class MegaAgent:
         except Exception as e:  # pragma: no cover - defensive guard
             # Don't fail ASK due to LLM errors
             response.setdefault("llm_error", str(e))
+        finally:
+            try:
+                if not response.get("llm_response"):
+                    reason = response.get("llm_error") or (
+                        "no_api_keys"
+                        if not (
+                            os.getenv("OPENAI_API_KEY")
+                            or os.getenv("ANTHROPIC_API_KEY")
+                            or os.getenv("GEMINI_API_KEY")
+                            or os.getenv("GOOGLE_API_KEY")
+                        )
+                        else "no_llm_output"
+                    )
+                    logger.info("ask.llm.missing_output", reason=reason)
+            except Exception:  # nosec B110 - logging is best-effort
+                pass
 
         return response
 

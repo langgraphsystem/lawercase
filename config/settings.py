@@ -22,8 +22,14 @@ class AppSettings(BaseSettings):
     eb1a_pdf_max_mb: int | None = Field(default=None, alias="EB1A_PDF_MAX_MB")
     tmp_dir: Path = Field(default=Path("tmp"), alias="TMP_DIR")
     out_dir: Path = Field(default=Path("out"), alias="OUT_DIR")
-    telegram_bot_token: str = Field(default="", alias="TELEGRAM_BOT_TOKEN")
+
+    telegram_token: str = Field(default="", alias="TELEGRAM_TOKEN")
+    telegram_bot_token_legacy: str = Field(default="", alias="TELEGRAM_BOT_TOKEN")
     telegram_allowed_users: str | None = Field(default=None, alias="TELEGRAM_ALLOWED_USERS")
+    telegram_webhook_secret: str = Field(default="", alias="TELEGRAM_WEBHOOK_SECRET")
+
+    public_base_url: str | None = Field(default=None, alias="PUBLIC_BASE_URL")
+    railway_public_domain: str | None = Field(default=None, alias="RAILWAY_PUBLIC_DOMAIN")
 
     tracing_enabled: bool = Field(default=False)
     tracing_exporter: str = Field(default="console")

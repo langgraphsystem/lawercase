@@ -3,6 +3,8 @@ from __future__ import annotations
 import os
 from typing import Any
 
+import structlog
+
 try:
     from openai import AsyncOpenAI
 except ImportError:
@@ -110,6 +112,7 @@ class OpenAIClient:
             )
 
         self.client = AsyncOpenAI(api_key=api_key)
+        self.logger = structlog.get_logger(__name__)
 
     def _is_reasoning_model(self) -> bool:
         """Check if current model is a reasoning model (o-series)."""
@@ -145,7 +148,6 @@ class OpenAIClient:
         api_params: dict[str, Any] = {
             "model": self.model,
             "messages": [{"role": "user", "content": prompt}],
-            "max_tokens": max_tokens,
         }
 
         # GPT-5 models support verbosity and reasoning_effort parameters
@@ -157,30 +159,37 @@ class OpenAIClient:
             # Add reasoning effort for GPT-5
             if reasoning_effort in {"minimal", "low", "medium", "high"}:
                 api_params["reasoning_effort"] = reasoning_effort
-
-            # GPT-5 also supports standard parameters
-            api_params["temperature"] = temperature
-            api_params["top_p"] = top_p
-            api_params["frequency_penalty"] = frequency_penalty
-            api_params["presence_penalty"] = presence_penalty
+            # GPT-5 chat-completions expects `max_completion_tokens`
+            api_params["max_completion_tokens"] = max_tokens
 
         # Reasoning models (o-series) only support max_tokens and reasoning_effort
         elif self._is_reasoning_model():
             # Add reasoning effort for o-series models
             if reasoning_effort in {"low", "medium", "high"}:
                 api_params["reasoning_effort"] = reasoning_effort
+            # Keep output limit conservative for reasoning models
+            api_params["max_tokens"] = max_tokens
         else:
             # Other models support standard parameters
             api_params["temperature"] = temperature
             api_params["top_p"] = top_p
             api_params["frequency_penalty"] = frequency_penalty
             api_params["presence_penalty"] = presence_penalty
+            api_params["max_tokens"] = max_tokens
 
         if stop:
             api_params["stop"] = stop
 
         # Call OpenAI API
         try:
+            self.logger.info(
+                "llm.openai.request",
+                model=self.model,
+                prompt_length=len(prompt),
+                is_gpt5=self._is_gpt5_model(),
+                is_reasoning=self._is_reasoning_model(),
+                params={k: v for k, v in api_params.items() if k != "messages"},
+            )
             response = await self.client.chat.completions.create(**api_params)
 
             # Extract output text
@@ -188,7 +197,7 @@ class OpenAIClient:
             if response.choices and len(response.choices) > 0:
                 output_text = response.choices[0].message.content or ""
 
-            return {
+            result = {
                 "model": self.model,
                 "prompt": prompt,
                 "output": output_text,
@@ -202,8 +211,20 @@ class OpenAIClient:
                     response.choices[0].finish_reason if response.choices else "unknown"
                 ),
             }
+            try:
+                self.logger.info(
+                    "llm.openai.response",
+                    model=self.model,
+                    finish_reason=result["finish_reason"],
+                    usage=result["usage"],
+                    output_length=len(output_text or ""),
+                )
+            except Exception:  # nosec B110 - logging is best-effort
+                pass
+            return result
 
         except Exception as e:
+            self.logger.exception("llm.openai.error", model=self.model, error=str(e))
             return {
                 "model": self.model,
                 "prompt": prompt,

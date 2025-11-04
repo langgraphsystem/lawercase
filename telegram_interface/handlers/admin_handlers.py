@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import asyncio
+
 import structlog
 from telegram import Update
 from telegram.ext import CommandHandler, ContextTypes, MessageHandler, filters
@@ -50,10 +52,12 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         return
 
     try:
-        await update.effective_message.reply_text(
+        sent = await update.effective_message.reply_text(
             "👋 Welcome to MegaAgent EB-1A assistant! Use /help to see available commands."
         )
-        logger.info("telegram.start.sent", user_id=user_id)
+        logger.info(
+            "telegram.start.sent", user_id=user_id, message_id=getattr(sent, "message_id", None)
+        )
     except Exception as e:
         logger.exception("telegram.start.error", user_id=user_id, error=str(e))
 
@@ -66,8 +70,12 @@ async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
         logger.warning("telegram.help_command.unauthorized", user_id=user_id)
         return
     try:
-        await update.effective_message.reply_text(HELP_TEXT)
-        logger.info("telegram.help_command.sent", user_id=user_id)
+        sent = await update.effective_message.reply_text(HELP_TEXT)
+        logger.info(
+            "telegram.help_command.sent",
+            user_id=user_id,
+            message_id=getattr(sent, "message_id", None),
+        )
     except Exception as e:  # pragma: no cover - network/runtime
         logger.exception("telegram.help_command.error", user_id=user_id, error=str(e))
 
@@ -83,12 +91,29 @@ async def ask_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
         return
 
     message = update.effective_message
-    if not context.args:
-        logger.warning("telegram.ask.no_args", user_id=user_id)
-        await message.reply_text("Usage: /ask <question>")
-        return
+    # Derive question from args or raw text (fallback for edge cases like mentions)
+    question = ""
+    if context.args:
+        question = " ".join(context.args).strip()
+    else:
+        raw = (message.text or message.caption or "").strip()
+        try:
+            import re
 
-    question = " ".join(context.args)
+            m = re.match(r"^/ask(?:@[A-Za-z0-9_]+)?\s*(.*)$", raw)
+            if m:
+                question = (m.group(1) or "").strip()
+        except Exception:  # nosec B110 - regex best-effort
+            pass
+
+    if not question:
+        logger.warning("telegram.ask.no_args", user_id=user_id)
+        try:
+            await message.reply_text("Usage: /ask <question>")
+            logger.info("telegram.ask.usage_sent", user_id=user_id)
+        except Exception as e:
+            logger.exception("telegram.ask.usage_send_failed", user_id=user_id, error=str(e))
+        return
     logger.info("telegram.ask.processing", user_id=user_id, question_length=len(question))
 
     try:
@@ -100,42 +125,94 @@ async def ask_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
         )
         logger.info("telegram.ask.command_created", user_id=user_id, command_id=command.command_id)
 
-        response = await bot_context.mega_agent.handle_command(command, user_role=UserRole.LAWYER)
+        try:
+            response = await asyncio.wait_for(
+                bot_context.mega_agent.handle_command(command, user_role=UserRole.LAWYER),
+                timeout=30.0,
+            )
+        except asyncio.TimeoutError:
+            await message.reply_text("⏳ Превышено время ожидания ответа. Попробуйте снова.")
+            logger.error("telegram.ask.timeout", user_id=user_id, command_id=command.command_id)
+            return
         logger.info(
             "telegram.ask.response_received",
             user_id=user_id,
             success=response.success,
             command_id=command.command_id,
         )
+        # Log LLM provider/model if available
+        try:
+            if response.success and response.result:
+                prov = response.result.get("llm_provider")
+                mdl = response.result.get("llm_model")
+                if prov or mdl:
+                    logger.info("telegram.ask.llm_used", user_id=user_id, provider=prov, model=mdl)
+        except Exception:  # nosec B110 - optional logging
+            pass
 
         if response.success and response.result:
             result = response.result
             llm_answer = result.get("llm_response")
             if llm_answer:
-                await message.reply_text(llm_answer)
-                logger.info("telegram.ask.sent", user_id=user_id, response_length=len(llm_answer))
+                try:
+                    sent = await message.reply_text(llm_answer)
+                    logger.info(
+                        "telegram.ask.sent",
+                        user_id=user_id,
+                        response_length=len(llm_answer),
+                        message_id=getattr(sent, "message_id", None),
+                    )
+                except Exception as e:
+                    logger.exception("telegram.ask.send_failed", user_id=user_id, error=str(e))
                 return
             # Fallback: show prompt analysis and retrieved memory summary
             retrieved = result.get("retrieved", [])
             text = result.get("prompt_analysis", {}).get("issues") or "✅ Query processed."
             if retrieved:
                 summary = "\n".join(f"• {item.get('text', '')}" for item in retrieved[:5])
-                await message.reply_text(f"{text}\n{summary}")
+                try:
+                    sent = await message.reply_text(f"{text}\n{summary}")
+                    logger.info(
+                        "telegram.ask.sent_with_memory",
+                        user_id=user_id,
+                        retrieved_count=len(retrieved),
+                        message_id=getattr(sent, "message_id", None),
+                    )
+                except Exception as e:
+                    logger.exception("telegram.ask.send_failed", user_id=user_id, error=str(e))
                 logger.info(
                     "telegram.ask.sent_with_memory", user_id=user_id, retrieved_count=len(retrieved)
                 )
             else:
-                await message.reply_text(text)
-                logger.info("telegram.ask.sent_fallback", user_id=user_id)
+                try:
+                    sent = await message.reply_text(text)
+                    logger.info(
+                        "telegram.ask.sent_fallback",
+                        user_id=user_id,
+                        message_id=getattr(sent, "message_id", None),
+                    )
+                except Exception as e:
+                    logger.exception("telegram.ask.send_failed", user_id=user_id, error=str(e))
         else:
             error_msg = response.error or "unknown"
             # Use parse_mode=None to avoid Markdown parsing errors
-            await message.reply_text(f"❌ Error: {error_msg}", parse_mode=None)
-            logger.error("telegram.ask.failed", user_id=user_id, error=error_msg)
+            try:
+                sent = await message.reply_text(f"❌ Error: {error_msg}", parse_mode=None)
+                logger.error(
+                    "telegram.ask.failed",
+                    user_id=user_id,
+                    error=error_msg,
+                    message_id=getattr(sent, "message_id", None),
+                )
+            except Exception as e:
+                logger.exception("telegram.ask.send_failed", user_id=user_id, error=str(e))
     except Exception as e:
         logger.exception("telegram.ask.exception", user_id=user_id, error=str(e))
         # Use parse_mode=None to avoid Markdown parsing errors
-        await message.reply_text(f"❌ Exception: {e!s}", parse_mode=None)
+        try:
+            await message.reply_text(f"❌ Exception: {e!s}", parse_mode=None)
+        except Exception:  # nosec B110 - optional logging
+            pass
 
 
 async def memory_lookup_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -196,9 +273,17 @@ async def unknown_command(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
     text = update.effective_message.text if update.effective_message else ""
     logger.warning("telegram.unknown_command", user_id=user_id, text=text)
     if update.effective_message:
-        await update.effective_message.reply_text(
-            "⚠️ Unknown command. Use /help for the list of commands."
-        )
+        try:
+            sent = await update.effective_message.reply_text(
+                "⚠️ Unknown command. Use /help for the list of commands."
+            )
+            logger.info(
+                "telegram.unknown_command.sent",
+                user_id=user_id,
+                message_id=getattr(sent, "message_id", None),
+            )
+        except Exception as e:
+            logger.exception("telegram.unknown_command.send_failed", user_id=user_id, error=str(e))
 
 
 def get_handlers(bot_context: BotContext):
@@ -206,6 +291,8 @@ def get_handlers(bot_context: BotContext):
         CommandHandler("start", start),
         CommandHandler("help", help_command),
         CommandHandler("ask", ask_command),
+        # Fallback regex to catch '/ask@bot' or formatting edge cases
+        MessageHandler(filters.TEXT & filters.Regex(r"^/ask(?:@[A-Za-z0-9_]+)?\b"), ask_command),
         CommandHandler("memory_lookup", memory_lookup_command),
         MessageHandler(filters.COMMAND, unknown_command),
     ]

@@ -2,24 +2,52 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException, Request, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
+import structlog
+from telegram import Update
 
-from api.middleware import (RateLimitMiddleware, RequestMetricsMiddleware,
-                            get_rate_limit_settings)
-from api.routes import agent as agent_routes
-from api.routes import cases as cases_routes
-from api.routes import document_monitor as document_monitor_routes
-from api.routes import health as health_routes
-from api.routes import memory as memory_routes
-from api.routes import metrics as metrics_routes
-from api.routes import workflows as workflows_routes
+from api.middleware import RateLimitMiddleware, RequestMetricsMiddleware, get_rate_limit_settings
+from api.routes import (
+    agent as agent_routes,
+    cases as cases_routes,
+    document_monitor as document_monitor_routes,
+    health as health_routes,
+    memory as memory_routes,
+    metrics as metrics_routes,
+    workflows as workflows_routes,
+)
 from api.startup import register_builtin_tools
-from core.observability import (TracingConfig, init_logging_from_env,
-                                init_tracing)
+from config.settings import AppSettings, get_settings
+from core.observability import TracingConfig, init_logging_from_env, init_tracing
 from core.security import configure_security
 from core.security.config import SecurityConfig
+from telegram_interface.bot import (
+    build_application,
+    delete_webhook,
+    initialize_application,
+    set_webhook,
+    shutdown_application,
+)
+
+logger = structlog.get_logger(__name__)
+
+
+def _build_webhook_url(settings: AppSettings) -> str:
+    if settings.public_base_url:
+        base = settings.public_base_url.rstrip("/")
+    elif settings.railway_public_domain:
+        domain = settings.railway_public_domain.strip()
+        if domain.startswith(("http://", "https://")):
+            base = domain.rstrip("/")
+        else:
+            base = f"https://{domain}".rstrip("/")
+    else:
+        raise RuntimeError(
+            "Unable to derive public webhook URL. Set PUBLIC_BASE_URL or RAILWAY_PUBLIC_DOMAIN."
+        )
+    return f"{base}/telegram/webhook"
 
 
 def create_app() -> FastAPI:
@@ -44,6 +72,8 @@ def create_app() -> FastAPI:
     app.add_middleware(RateLimitMiddleware, limit=limit, window=window)
     app.add_middleware(RequestMetricsMiddleware)
 
+    settings = get_settings()
+
     # Routes
     app.include_router(health_routes.router)
     app.include_router(agent_routes.router)
@@ -59,6 +89,52 @@ def create_app() -> FastAPI:
         app.mount("/", StaticFiles(directory=str(static_dir), html=True), name="static")
 
     register_builtin_tools()
+
+    telegram_secret = settings.telegram_webhook_secret or None
+
+    @app.on_event("startup")
+    async def startup_telegram() -> None:
+        telegram_app = build_application(settings=settings)
+        await initialize_application(telegram_app)
+
+        webhook_url = _build_webhook_url(settings)
+        await set_webhook(
+            telegram_app,
+            url=webhook_url,
+            secret_token=telegram_secret,
+            drop_pending_updates=True,
+        )
+
+        app.state.telegram_application = telegram_app
+        app.state.telegram_webhook_url = webhook_url
+        logger.info("telegram.webhook.active", url=webhook_url)
+
+    @app.on_event("shutdown")
+    async def shutdown_telegram() -> None:
+        telegram_app = getattr(app.state, "telegram_application", None)
+        if telegram_app is None:
+            return
+        try:
+            await delete_webhook(telegram_app, drop_pending_updates=True)
+        finally:
+            await shutdown_application(telegram_app)
+            logger.info("telegram.webhook.stopped")
+
+    @app.post("/telegram/webhook")
+    async def telegram_webhook(request: Request) -> dict[str, str]:
+        telegram_app = getattr(request.app.state, "telegram_application", None)
+        if telegram_app is None:
+            raise HTTPException(status.HTTP_503_SERVICE_UNAVAILABLE, "Telegram bot not initialized")
+
+        header_secret = request.headers.get("X-Telegram-Bot-Api-Secret-Token")
+        if telegram_secret and header_secret != telegram_secret:
+            raise HTTPException(status.HTTP_403_FORBIDDEN, "Invalid secret token")
+
+        payload = await request.json()
+        update = Update.de_json(payload, telegram_app.bot)
+        await telegram_app.process_update(update)
+
+        return {"status": "ok"}
 
     return app
 

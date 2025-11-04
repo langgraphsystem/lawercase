@@ -1,46 +1,51 @@
 @echo off
 REM ===============================================
-REM  MegaAgent Telegram Bot - Start Script
+REM  MegaAgent Telegram Bot - Start Script (Windows)
 REM ===============================================
 
+setlocal ENABLEDELAYEDEXPANSION
+cd /d %~dp0
+
 echo.
-echo [1/4] Checking Python installation...
-python --version
-if errorlevel 1 (
-    echo ERROR: Python not found! Please install Python 3.11+
-    pause
-    exit /b 1
+echo [*] Working dir: %CD%
+
+if not exist .env (
+  echo [!] .env not found in this folder. The bot will fail without TELEGRAM_BOT_TOKEN.
+  echo     Create .env or copy from example and set TELEGRAM_BOT_TOKEN.
 )
 
-echo.
-echo [2/4] Checking current directory...
-cd /d "%~dp0"
-echo Current directory: %CD%
-
-echo.
-echo [3/4] Killing old bot processes...
-taskkill /F /IM python.exe 2>nul
-if errorlevel 1 (
-    echo No old processes found - OK
-) else (
-    echo Old processes killed
-    timeout /t 2 >nul
+if exist .venv\Scripts\activate.bat (
+  call .venv\Scripts\activate.bat
 )
 
-echo.
-echo [4/4] Starting Telegram bot...
-echo.
-echo ============================================
-echo Bot is starting...
-echo Press Ctrl+C to stop the bot
-echo Logs will appear below:
-echo ============================================
-echo.
+if not exist logs (
+  mkdir logs
+)
 
-python -m telegram_interface.bot
+set PYTHONUNBUFFERED=1
+set PYTHONIOENCODING=utf-8
 
 echo.
-echo ============================================
-echo Bot stopped
-echo ============================================
-pause
+echo [*] Starting MegaAgent Telegram bot (polling)...
+echo     Logs will be appended to logs\telegram_bot.log
+echo.
+
+powershell -NoLogo -NoProfile -Command ^
+  "try { ^
+      python -m telegram_interface.bot 2^>^&1 ^| Tee-Object -FilePath 'logs\\telegram_bot.log' -Append ^
+    } catch { ^
+      Write-Host '[!] Bot failed to start:' -ForegroundColor Red; ^
+      Write-Host $_.Exception.Message -ForegroundColor Red; ^
+      exit 1 ^
+    }"
+
+set ERR=%ERRORLEVEL%
+if not %ERR%==0 (
+  echo.
+  echo [!] Bot exited with code %ERR%.
+  echo     See logs\telegram_bot.log for details.
+  pause
+)
+
+endlocal
+
