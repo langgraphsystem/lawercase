@@ -16,6 +16,15 @@ else
   PYTHON_BIN="$(command -v python)"
 fi
 
+if [ -z "${PYTHONPATH:-}" ]; then
+  export PYTHONPATH="/app"
+else
+  case ":$PYTHONPATH:" in
+    *":/app:"*) ;;
+    *) export PYTHONPATH="/app:$PYTHONPATH" ;;
+  esac
+fi
+
 "$PYTHON_BIN" - <<'PYCHK' >/dev/null 2>&1
 try:
     import uvicorn  # type: ignore
