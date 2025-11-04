@@ -1,6 +1,5 @@
 # Nixpacks configuration for Railway deployment
-# requirements.txt now contains minimal bot dependencies
-# Full dependencies are in requirements-full.txt
+# Bot runs via webhook through FastAPI, not standalone polling
 
 [start]
-cmd = "python start_bot.py"
+cmd = "uvicorn api.main:app --host 0.0.0.0 --port ${PORT}"
