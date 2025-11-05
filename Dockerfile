@@ -25,6 +25,9 @@ RUN apt-get update \
         libpq-dev \
         curl \
         git \
+        libopenjp2-7-dev \
+        libjpeg-dev \
+        zlib1g-dev \
     && rm -rf /var/lib/apt/lists/*
 
 # Create virtual environment and install dependencies
@@ -48,6 +51,9 @@ RUN apt-get update \
         libpq5 \
         curl \
         ca-certificates \
+        libopenjp2-7 \
+        libjpeg62-turbo \
+        zlib1g \
     && rm -rf /var/lib/apt/lists/*
 
 # Copy virtual environment from builder
