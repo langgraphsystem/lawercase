@@ -9,12 +9,18 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 
 WORKDIR /app
 
-# System deps needed for python packages (psycopg, pillow, etc.)
+# System deps needed for python packages (psycopg, pillow, JPEG2000, etc.)
 RUN apt-get update \
     && apt-get install -y --no-install-recommends \
         build-essential \
         libpq-dev \
         curl \
+        libopenjp2-7-dev \
+        libjpeg-dev \
+        zlib1g-dev \
+        libopenjp2-7 \
+        libjpeg62-turbo \
+        zlib1g \
     && rm -rf /var/lib/apt/lists/*
 
 COPY requirements.txt /app/requirements.txt
