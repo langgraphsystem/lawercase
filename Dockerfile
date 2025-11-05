@@ -28,6 +28,12 @@ RUN apt-get update \
         libopenjp2-7-dev \
         libjpeg-dev \
         zlib1g-dev \
+        libcairo2-dev \
+        libpango1.0-dev \
+        libgdk-pixbuf2.0-dev \
+        libffi-dev \
+        libxml2-dev \
+        libxslt1-dev \
     && rm -rf /var/lib/apt/lists/*
 
 # Create virtual environment and install dependencies
@@ -35,6 +41,9 @@ COPY requirements.txt ./
 RUN python -m venv /opt/venv \
     && /opt/venv/bin/pip install --upgrade pip setuptools wheel \
     && /opt/venv/bin/pip install --no-cache-dir -r requirements.txt
+
+# Download spaCy language model (used for legal NLP)
+RUN /opt/venv/bin/python -m spacy download en_core_web_sm || echo "spaCy model download skipped"
 
 # Copy application code
 COPY . /app
@@ -54,6 +63,15 @@ RUN apt-get update \
         libopenjp2-7 \
         libjpeg62-turbo \
         zlib1g \
+        libcairo2 \
+        libpango-1.0-0 \
+        libpangocairo-1.0-0 \
+        libgdk-pixbuf2.0-0 \
+        libxml2 \
+        libxslt1.1 \
+        fonts-liberation \
+        fonts-dejavu-core \
+        ghostscript \
     && rm -rf /var/lib/apt/lists/*
 
 # Copy virtual environment from builder
