@@ -15,8 +15,9 @@ class OpenAIClient:
     """OpenAI client with support for GPT-5 and latest models (2025).
 
     GPT-5 Models (Released August 2025):
-    - gpt-5-chat-latest: Always latest GPT-5 version (DEFAULT)
-    - gpt-5: Best model for coding and agentic tasks (400K context: 272K input + 128K output)
+    - gpt-5-2025-08-07: Latest stable version (DEFAULT)
+    - gpt-5-chat-latest: Always latest GPT-5 version (auto-updates)
+    - gpt-5: Alias for latest stable (currently resolves to gpt-5-2025-08-07)
       Pricing: $1.25/1M input, $10/1M output
     - gpt-5-mini: Balanced performance and cost (400K context)
       Pricing: $0.25/1M input, $2/1M output
@@ -47,7 +48,7 @@ class OpenAIClient:
     """
 
     # GPT-5 model identifiers (2025 - Primary)
-    GPT_5 = "gpt-5"
+    GPT_5 = "gpt-5-2025-08-07"  # Latest stable version
     GPT_5_MINI = "gpt-5-mini"
     GPT_5_NANO = "gpt-5-nano"
     GPT_5_CHAT_LATEST = "gpt-5-chat-latest"
@@ -59,14 +60,14 @@ class OpenAIClient:
     # Multimodal models intentionally omitted
 
     # GPT-5 models that support verbosity parameter
-    GPT5_MODELS = {GPT_5, GPT_5_MINI, GPT_5_NANO, GPT_5_CHAT_LATEST}
+    GPT5_MODELS = {GPT_5, GPT_5_MINI, GPT_5_NANO, GPT_5_CHAT_LATEST, "gpt-5", "gpt-5-2025-08-07"}
 
     # Reasoning models that don't support temperature/top_p
     REASONING_MODELS = {O3_MINI, O4_MINI}
 
     def __init__(
         self,
-        model: str = GPT_5_CHAT_LATEST,
+        model: str = GPT_5,
         api_key: str | None = None,
         temperature: float = 1.0,
         max_tokens: int = 4096,
@@ -80,7 +81,7 @@ class OpenAIClient:
         """Initialize OpenAI client with GPT-5 support.
 
         Args:
-            model: Model identifier (default: gpt-5-chat-latest)
+            model: Model identifier (default: gpt-5-2025-08-07)
             api_key: OpenAI API key (or set OPENAI_API_KEY env var)
             temperature: Randomness (0.0-2.0, default 1.0) [not for reasoning models]
             max_tokens: Max tokens in completion (default 4096)
