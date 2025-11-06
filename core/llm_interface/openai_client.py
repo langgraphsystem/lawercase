@@ -287,6 +287,69 @@ class OpenAIClient:
             if response.choices and len(response.choices) > 0:
                 output_text = self._extract_output_text(response.choices[0].message)
 
+            # Fallbacks for GPT-5 structured outputs if content looks empty
+            if not output_text and response.choices and len(response.choices) > 0:
+                msg = response.choices[0].message
+                # 1) direct attribute commonly used by SDKs
+                ot = getattr(msg, "output_text", None)
+                if isinstance(ot, str) and ot.strip():
+                    output_text = ot.strip()
+                elif isinstance(ot, (list | tuple | set)):
+                    output_text = "\n".join(self._collect_text_fragments(ot)).strip()
+
+            if not output_text and response.choices and len(response.choices) > 0:
+                # 2) dump message to dict and re-extract
+                msg = response.choices[0].message
+                dumped = None
+                for attr in ("model_dump", "to_dict", "dict"):
+                    func = getattr(msg, attr, None)
+                    if callable(func):
+                        try:
+                            dumped = func()
+                        except Exception:
+                            dumped = None
+                        if isinstance(dumped, dict):
+                            break
+                if isinstance(dumped, dict):
+                    output_text = self._extract_output_text(dumped)
+
+            if not output_text:
+                # 3) scan the full response for output_text/text fragments
+                def _safe_dump(obj):
+                    for attr in ("model_dump", "to_dict", "dict"):
+                        f = getattr(obj, attr, None)
+                        if callable(f):
+                            try:
+                                d = f()
+                            except Exception:
+                                d = None
+                            if isinstance(d, dict):
+                                return d
+                    return None
+
+                resp_dump = _safe_dump(response) or {}
+                if isinstance(resp_dump, dict):
+                    # Prefer explicit keys first
+                    keys = ("output_text", "output", "text")
+                    parts = []
+
+                    def _walk(x):
+                        if isinstance(x, str) and x.strip():
+                            parts.append(x.strip())
+                        elif isinstance(x, dict):
+                            for k, v in x.items():
+                                if k in keys and isinstance(v, str) and v.strip():
+                                    parts.append(v.strip())
+                                else:
+                                    _walk(v)
+                        elif isinstance(x, (list | tuple | set)):
+                            for it in x:
+                                _walk(it)
+
+                    _walk(resp_dump)
+                    if parts and not output_text:
+                        output_text = "\n".join(parts)
+
             result = {
                 "model": self.model,
                 "prompt": prompt,
