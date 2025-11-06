@@ -857,6 +857,14 @@ class MegaAgent:
                     llm_text = result.get("output") or result.get("response")
                     provider_used = result.get("provider", "openai")
                     response["llm_model"] = result.get("model")
+                    # DEBUG: Log OpenAI result to diagnose missing response
+                    logger.info(
+                        "ask.openai.result",
+                        has_output=bool(result.get("output")),
+                        output_length=len(result.get("output") or ""),
+                        llm_text_length=len(llm_text or ""),
+                        finish_reason=result.get("finish_reason"),
+                    )
                     response.setdefault("llm_params", {})
                     response["llm_params"].update(
                         {
