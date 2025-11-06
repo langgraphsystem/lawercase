@@ -39,8 +39,14 @@ RUN apt-get update \
 # Create virtual environment and install dependencies
 COPY requirements.txt ./
 RUN python -m venv /opt/venv \
-    && /opt/venv/bin/pip install --upgrade pip setuptools wheel \
-    && /opt/venv/bin/pip install --no-cache-dir -r requirements.txt
+    && /opt/venv/bin/pip install --upgrade pip setuptools wheel
+
+# Install Pillow first with JPEG2000 support (needs libopenjp2-7-dev from above)
+RUN /opt/venv/bin/pip install --no-cache-dir 'Pillow>=10.0.0,<11.0.0' \
+    && /opt/venv/bin/python -c "from PIL import features; print('JPEG2000 support:', features.check_codec('jpg_2000'))"
+
+# Install remaining dependencies
+RUN /opt/venv/bin/pip install --no-cache-dir -r requirements.txt
 
 # Download spaCy language model (used for legal NLP)
 RUN /opt/venv/bin/python -m spacy download en_core_web_sm || echo "spaCy model download skipped"
