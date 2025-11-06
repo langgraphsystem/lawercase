@@ -153,6 +153,14 @@ async def ask_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
         if response.success and response.result:
             result = response.result
             llm_answer = result.get("llm_response")
+            # DEBUG: Log what we got from MegaAgent
+            logger.info(
+                "telegram.ask.result_debug",
+                user_id=user_id,
+                has_llm_response=bool(llm_answer),
+                llm_response_length=len(llm_answer or ""),
+                result_keys=list(result.keys()),
+            )
             if llm_answer:
                 try:
                     sent = await message.reply_text(llm_answer)
