@@ -3,9 +3,11 @@
 # Uses PORT environment variable if available, defaults to 8000
 
 PORT=${PORT:-8000}
-WORKERS=${WORKERS:-4}
+# Single worker to avoid race condition with Telegram webhook setup
+# Railway handles horizontal scaling via multiple containers
+WORKERS=${WORKERS:-1}
 
-echo "Starting MegaAgent Pro API on port $PORT with $WORKERS workers..."
+echo "Starting MegaAgent Pro API on port $PORT with $WORKERS worker(s)..."
 
 # Pick the right Python from common venv locations (Docker or Nixpacks)
 if [ -x "/opt/venv/bin/python" ]; then
