@@ -142,6 +142,16 @@ class OpenAIClient:
                 fragments.extend(cls._collect_text_fragments(item))
             return fragments
 
+        def _extend(value: Any, allow_direct: bool = True) -> None:
+            if isinstance(value, str):
+                if allow_direct and value:
+                    fragments.append(value)
+            elif isinstance(value, dict):
+                fragments.extend(cls._collect_text_fragments(value))
+            elif isinstance(value, (list | tuple | set)):
+                for element in value:
+                    fragments.extend(cls._collect_text_fragments(element))
+
         # Handle OpenAI SDK typing objects or dicts
         node_type = getattr(node, "type", None)
         if isinstance(node, dict):
@@ -150,44 +160,44 @@ class OpenAIClient:
         include_direct_text = node_type is None or node_type in {"text", "output_text"}
 
         text_attr = getattr(node, "text", None)
-        if include_direct_text and isinstance(text_attr, str):
-            fragments.append(text_attr)
+        _extend(text_attr, allow_direct=include_direct_text)
 
         # Some SDK objects expose .value for text payloads
         value_attr = getattr(node, "value", None)
-        if include_direct_text and isinstance(value_attr, str):
-            fragments.append(value_attr)
+        _extend(value_attr, allow_direct=include_direct_text)
 
         # Dict-like access (for tool call payloads or when converted to dict)
         if isinstance(node, dict):
             possible_text = node.get("text")
-            if include_direct_text and isinstance(possible_text, str):
-                fragments.append(possible_text)
+            if possible_text is not None:
+                _extend(possible_text, allow_direct=include_direct_text)
 
             possible_content = node.get("content")
-            if isinstance(possible_content, str):
-                if include_direct_text:
-                    fragments.append(possible_content)
-            elif isinstance(possible_content, (list | tuple | set)):
-                fragments.extend(cls._collect_text_fragments(possible_content))
+            if possible_content is not None:
+                _extend(
+                    possible_content,
+                    allow_direct=include_direct_text,
+                )
 
         # Nested content attribute (ChatCompletionMessage.content, tool_result, etc.)
         content_attr = getattr(node, "content", None)
         if content_attr is not None and content_attr is not node:
             fragments.extend(cls._collect_text_fragments(content_attr))
 
-        # Tool results may expose `result` or `arguments`
+        # Tool results may expose `result`, `arguments`, or `value`
         result_attr = getattr(node, "result", None)
-        if isinstance(result_attr, str):
-            fragments.append(result_attr)
-        elif isinstance(result_attr, (list | tuple | set)):
-            fragments.extend(cls._collect_text_fragments(result_attr))
+        _extend(result_attr)
 
         arguments_attr = getattr(node, "arguments", None)
-        if isinstance(arguments_attr, str):
-            fragments.append(arguments_attr)
-        elif isinstance(arguments_attr, (list | tuple | set)):
-            fragments.extend(cls._collect_text_fragments(arguments_attr))
+        _extend(arguments_attr)
+
+        if isinstance(node, dict):
+            value_entry = node.get("value")
+            if value_entry is not None:
+                _extend(value_entry, allow_direct=include_direct_text)
+            annotations = node.get("annotations")
+            if annotations is not None:
+                _extend(annotations, allow_direct=False)
 
         return fragments
 
