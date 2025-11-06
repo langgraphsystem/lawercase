@@ -15,6 +15,7 @@ class OpenAIClient:
     """OpenAI client with support for GPT-5 and latest models (2025).
 
     GPT-5 Models (Released August 2025):
+    - gpt-5-chat-latest: Always latest GPT-5 version (DEFAULT)
     - gpt-5: Best model for coding and agentic tasks (400K context: 272K input + 128K output)
       Pricing: $1.25/1M input, $10/1M output
     - gpt-5-mini: Balanced performance and cost (400K context)
@@ -65,7 +66,7 @@ class OpenAIClient:
 
     def __init__(
         self,
-        model: str = GPT_5,
+        model: str = GPT_5_CHAT_LATEST,
         api_key: str | None = None,
         temperature: float = 1.0,
         max_tokens: int = 4096,
@@ -79,7 +80,7 @@ class OpenAIClient:
         """Initialize OpenAI client with GPT-5 support.
 
         Args:
-            model: Model identifier (default: gpt-5)
+            model: Model identifier (default: gpt-5-chat-latest)
             api_key: OpenAI API key (or set OPENAI_API_KEY env var)
             temperature: Randomness (0.0-2.0, default 1.0) [not for reasoning models]
             max_tokens: Max tokens in completion (default 4096)
