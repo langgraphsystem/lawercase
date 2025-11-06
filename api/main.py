@@ -311,11 +311,9 @@ def create_app() -> FastAPI:
         if telegram_app is None:
             raise HTTPException(status.HTTP_503_SERVICE_UNAVAILABLE, "Telegram bot not initialized")
 
-        # Temporarily disabled: secret token check
-        # TODO: Re-enable after setting webhook with correct secret
-        # header_secret = request.headers.get("X-Telegram-Bot-Api-Secret-Token")
-        # if telegram_secret and header_secret != telegram_secret:
-        #     raise HTTPException(status.HTTP_403_FORBIDDEN, "Invalid secret token")
+        header_secret = request.headers.get("X-Telegram-Bot-Api-Secret-Token")
+        if telegram_secret and header_secret != telegram_secret:
+            raise HTTPException(status.HTTP_403_FORBIDDEN, "Invalid secret token")
 
         payload = await request.json()
         update = Update.de_json(payload, telegram_app.bot)
