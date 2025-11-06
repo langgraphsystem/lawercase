@@ -282,6 +282,20 @@ class OpenAIClient:
             )
             response = await self.client.chat.completions.create(**api_params)
 
+            # DEBUG: Log response structure for GPT-5
+            if self.model.startswith("gpt-5"):
+                try:
+                    msg = response.choices[0].message if response.choices else None
+                    self.logger.debug(
+                        "gpt5.response.debug",
+                        has_content=hasattr(msg, "content") if msg else False,
+                        content_type=type(getattr(msg, "content", None)).__name__ if msg else None,
+                        has_output_text=hasattr(msg, "output_text") if msg else False,
+                        message_attrs=dir(msg) if msg else [],
+                    )
+                except Exception:  # nosec B110
+                    pass
+
             # Extract output text
             output_text = ""
             if response.choices and len(response.choices) > 0:
