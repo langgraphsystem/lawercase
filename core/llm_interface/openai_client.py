@@ -122,6 +122,96 @@ class OpenAIClient:
         """Check if current model is a GPT-5 model."""
         return self.model in self.GPT5_MODELS
 
+    @classmethod
+    def _collect_text_fragments(cls, node: Any) -> list[str]:
+        """Extract textual fragments from OpenAI message content structures."""
+
+        fragments: list[str] = []
+
+        if node is None:
+            return fragments
+
+        if isinstance(node, str):
+            fragments.append(node)
+            return fragments
+
+        if isinstance(node, (tuple | list | set)):
+            for item in node:
+                fragments.extend(cls._collect_text_fragments(item))
+            return fragments
+
+        # Handle OpenAI SDK typing objects or dicts
+        node_type = getattr(node, "type", None)
+        if isinstance(node, dict):
+            node_type = node.get("type", node_type)
+
+        include_direct_text = node_type is None or node_type in {"text", "output_text"}
+
+        text_attr = getattr(node, "text", None)
+        if include_direct_text and isinstance(text_attr, str):
+            fragments.append(text_attr)
+
+        # Some SDK objects expose .value for text payloads
+        value_attr = getattr(node, "value", None)
+        if include_direct_text and isinstance(value_attr, str):
+            fragments.append(value_attr)
+
+        # Dict-like access (for tool call payloads or when converted to dict)
+        if isinstance(node, dict):
+            possible_text = node.get("text")
+            if include_direct_text and isinstance(possible_text, str):
+                fragments.append(possible_text)
+
+            possible_content = node.get("content")
+            if isinstance(possible_content, str):
+                if include_direct_text:
+                    fragments.append(possible_content)
+            elif isinstance(possible_content, (list | tuple | set)):
+                fragments.extend(cls._collect_text_fragments(possible_content))
+
+        # Nested content attribute (ChatCompletionMessage.content, tool_result, etc.)
+        content_attr = getattr(node, "content", None)
+        if content_attr is not None and content_attr is not node:
+            fragments.extend(cls._collect_text_fragments(content_attr))
+
+        # Tool results may expose `result` or `arguments`
+        result_attr = getattr(node, "result", None)
+        if isinstance(result_attr, str):
+            fragments.append(result_attr)
+        elif isinstance(result_attr, (list | tuple | set)):
+            fragments.extend(cls._collect_text_fragments(result_attr))
+
+        arguments_attr = getattr(node, "arguments", None)
+        if isinstance(arguments_attr, str):
+            fragments.append(arguments_attr)
+        elif isinstance(arguments_attr, (list | tuple | set)):
+            fragments.extend(cls._collect_text_fragments(arguments_attr))
+
+        return fragments
+
+    @classmethod
+    def _extract_output_text(cls, message: Any) -> str:
+        """Convert OpenAI ChatCompletion message content to plain text."""
+
+        if message is None:
+            return ""
+
+        content = getattr(message, "content", message)
+        if isinstance(message, dict):
+            content = message.get("content", content)
+
+        fragments = cls._collect_text_fragments(content)
+        normalized = [frag.strip() for frag in fragments if isinstance(frag, str) and frag.strip()]
+
+        if not normalized and isinstance(message, dict):
+            # Fallback: some responses may nest under direct text keys
+            for key in ("text", "response", "output"):
+                value = message.get(key)
+                if isinstance(value, str) and value.strip():
+                    normalized.append(value.strip())
+
+        return "\n".join(normalized)
+
     async def acomplete(self, prompt: str, **params: Any) -> dict[str, Any]:
         """Async completion using OpenAI Chat Completions API.
 
@@ -195,7 +285,7 @@ class OpenAIClient:
             # Extract output text
             output_text = ""
             if response.choices and len(response.choices) > 0:
-                output_text = response.choices[0].message.content or ""
+                output_text = self._extract_output_text(response.choices[0].message)
 
             result = {
                 "model": self.model,
