@@ -32,6 +32,7 @@ RUN apt-get update \
         libpango1.0-dev \
         libgdk-pixbuf2.0-dev \
         libffi-dev \
+        libssl-dev \
         libxml2-dev \
         libxslt1-dev \
     && rm -rf /var/lib/apt/lists/*
@@ -73,6 +74,8 @@ RUN apt-get update \
         libpango-1.0-0 \
         libpangocairo-1.0-0 \
         libgdk-pixbuf2.0-0 \
+        libffi8 \
+        libssl3 \
         libxml2 \
         libxslt1.1 \
         fonts-liberation \
@@ -120,6 +123,8 @@ RUN apt-get update \
     && apt-get install -y --no-install-recommends \
         libpq5 \
         curl \
+        libffi8 \
+        libssl3 \
     && rm -rf /var/lib/apt/lists/*
 
 # Copy virtual environment from builder
@@ -150,6 +155,8 @@ RUN apt-get update \
     && apt-get install -y --no-install-recommends \
         libpq5 \
         curl \
+        libffi8 \
+        libssl3 \
     && rm -rf /var/lib/apt/lists/*
 
 # Copy virtual environment from builder
