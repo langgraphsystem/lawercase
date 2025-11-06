@@ -151,6 +151,23 @@ class OpenAIClient:
             elif isinstance(value, (list | tuple | set)):
                 for element in value:
                     fragments.extend(cls._collect_text_fragments(element))
+            elif value is not None:
+                for attr in ("model_dump", "to_dict", "dict"):
+                    func = getattr(value, attr, None)
+                    if callable(func):
+                        dumped = None
+                        try:
+                            dumped = func()
+                        except Exception:
+                            dumped = None
+                        if isinstance(dumped, dict):
+                            fragments.extend(cls._collect_text_fragments(dumped))
+                            break
+                        if isinstance(dumped, (list | tuple | set)):
+                            for element in dumped:
+                                fragments.extend(cls._collect_text_fragments(element))
+                            break
+                        break
 
         # Handle OpenAI SDK typing objects or dicts
         node_type = getattr(node, "type", None)
@@ -166,6 +183,10 @@ class OpenAIClient:
         value_attr = getattr(node, "value", None)
         _extend(value_attr, allow_direct=include_direct_text)
 
+        output_text_attr = getattr(node, "output_text", None)
+        if output_text_attr is not None:
+            _extend(output_text_attr, allow_direct=include_direct_text)
+
         # Dict-like access (for tool call payloads or when converted to dict)
         if isinstance(node, dict):
             possible_text = node.get("text")
@@ -178,6 +199,10 @@ class OpenAIClient:
                     possible_content,
                     allow_direct=include_direct_text,
                 )
+
+            output_text_entry = node.get("output_text")
+            if output_text_entry is not None:
+                _extend(output_text_entry, allow_direct=include_direct_text)
 
         # Nested content attribute (ChatCompletionMessage.content, tool_result, etc.)
         content_attr = getattr(node, "content", None)
@@ -375,6 +400,31 @@ class OpenAIClient:
                     _walk(resp_dump)
                     if parts and not output_text:
                         output_text = "\n".join(parts)
+
+            if not output_text and response.choices and len(response.choices) > 0:
+                try:
+                    msg = response.choices[0].message
+                    msg_dump = None
+                    for attr in ("model_dump", "to_dict", "dict"):
+                        func = getattr(msg, attr, None)
+                        if callable(func):
+                            try:
+                                msg_dump = func()
+                            except Exception:
+                                msg_dump = None
+                            if msg_dump is not None:
+                                break
+                    self.logger.warning(
+                        "llm.openai.empty_output_text",
+                        model=self.model,
+                        finish_reason=response.choices[0].finish_reason,
+                        message_type=getattr(msg, "type", None),
+                        has_output_text=bool(getattr(msg, "output_text", None)),
+                        content_type=type(getattr(msg, "content", None)).__name__,
+                        dump_keys=list(msg_dump.keys()) if isinstance(msg_dump, dict) else None,
+                    )
+                except Exception:  # nosec B110 - logging is best-effort
+                    pass
 
             result = {
                 "model": self.model,
