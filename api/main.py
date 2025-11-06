@@ -2,37 +2,51 @@ from __future__ import annotations
 
 from pathlib import Path
 
-import structlog
 from fastapi import FastAPI, HTTPException, Request, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
+import structlog
 from telegram import Update
 
-from api.middleware import (RateLimitMiddleware, RequestMetricsMiddleware,
-                            get_rate_limit_settings)
-from api.routes import agent as agent_routes
-from api.routes import cases as cases_routes
-from api.routes import document_monitor as document_monitor_routes
-from api.routes import health as health_routes
-from api.routes import memory as memory_routes
-from api.routes import metrics as metrics_routes
-from api.routes import workflows as workflows_routes
+from api.middleware import RateLimitMiddleware, RequestMetricsMiddleware, get_rate_limit_settings
+from api.routes import (
+    agent as agent_routes,
+    cases as cases_routes,
+    document_monitor as document_monitor_routes,
+    health as health_routes,
+    memory as memory_routes,
+    metrics as metrics_routes,
+    workflows as workflows_routes,
+)
 from api.startup import register_builtin_tools
 from config.settings import AppSettings, get_settings
-from core.observability import (TracingConfig, init_logging_from_env,
-                                init_tracing)
+from core.observability import TracingConfig, init_logging_from_env, init_tracing
 from core.security import configure_security
 from core.security.config import SecurityConfig
-from telegram_interface.bot import (build_application, delete_webhook,
-                                    initialize_application, set_webhook,
-                                    shutdown_application)
+from telegram_interface.bot import (
+    build_application,
+    delete_webhook,
+    initialize_application,
+    set_webhook,
+    shutdown_application,
+)
 
 logger = structlog.get_logger(__name__)
 
 
 def _build_webhook_url(settings: AppSettings) -> str:
+    """Build the public webhook URL for Telegram.
+
+    Checks in order:
+    1. PUBLIC_BASE_URL (explicitly set)
+    2. RAILWAY_STATIC_URL (Railway's public URL)
+    3. RAILWAY_PUBLIC_DOMAIN (Railway custom domain)
+    """
     if settings.public_base_url:
         base = settings.public_base_url.rstrip("/")
+    elif settings.railway_static_url:
+        # Railway provides RAILWAY_STATIC_URL with full https:// URL
+        base = settings.railway_static_url.rstrip("/")
     elif settings.railway_public_domain:
         domain = settings.railway_public_domain.strip()
         if domain.startswith(("http://", "https://")):
@@ -41,9 +55,22 @@ def _build_webhook_url(settings: AppSettings) -> str:
             base = f"https://{domain}".rstrip("/")
     else:
         raise RuntimeError(
-            "Unable to derive public webhook URL. Set PUBLIC_BASE_URL or RAILWAY_PUBLIC_DOMAIN."
+            "Unable to derive public webhook URL. "
+            "Set PUBLIC_BASE_URL, or ensure Railway service has a public domain. "
+            "Available Railway vars: RAILWAY_STATIC_URL or RAILWAY_PUBLIC_DOMAIN."
         )
-    return f"{base}/telegram/webhook"
+
+    webhook_url = f"{base}/telegram/webhook"
+    logger.info(
+        "webhook.url.derived",
+        url=webhook_url,
+        source=(
+            "PUBLIC_BASE_URL"
+            if settings.public_base_url
+            else "RAILWAY_STATIC_URL" if settings.railway_static_url else "RAILWAY_PUBLIC_DOMAIN"
+        ),
+    )
+    return webhook_url
 
 
 def create_app() -> FastAPI:
