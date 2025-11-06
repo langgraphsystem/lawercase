@@ -30,7 +30,7 @@ RUN apt-get update \
         zlib1g-dev \
         libcairo2-dev \
         libpango1.0-dev \
-        libgdk-pixbuf2.0-dev \
+        libgdk-pixbuf-2.0-dev \
         libffi-dev \
         libssl-dev \
         libxml2-dev \
@@ -73,7 +73,7 @@ RUN apt-get update \
         libcairo2 \
         libpango-1.0-0 \
         libpangocairo-1.0-0 \
-        libgdk-pixbuf2.0-0 \
+        libgdk-pixbuf-2.0-0 \
         libffi8 \
         libssl3 \
         libxml2 \
