@@ -852,7 +852,7 @@ class MegaAgent:
                         reasoning_effort=reasoning_effort,
                     )
                     # Allow max tokens override to align with SDK usage
-                    max_tokens = int(os.getenv("OPENAI_MAX_TOKENS", "800"))
+                    max_tokens = int(os.getenv("OPENAI_MAX_TOKENS", "4000"))
                     result = await client.acomplete(prompt, max_tokens=max_tokens)
                     llm_text = result.get("output") or result.get("response")
                     provider_used = result.get("provider", "openai")
