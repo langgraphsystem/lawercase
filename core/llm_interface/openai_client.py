@@ -385,13 +385,14 @@ class OpenAIClient:
                     parts = []
 
                     def _walk(x):
-                        if isinstance(x, str) and x.strip():
-                            parts.append(x.strip())
-                        elif isinstance(x, dict):
+                        if isinstance(x, dict):
                             for k, v in x.items():
-                                if k in keys and isinstance(v, str) and v.strip():
-                                    parts.append(v.strip())
-                                else:
+                                if k in keys:
+                                    if isinstance(v, str) and v.strip():
+                                        parts.append(v.strip())
+                                    else:
+                                        _walk(v)
+                                elif isinstance(v, (dict | list | tuple | set)):
                                     _walk(v)
                         elif isinstance(x, (list | tuple | set)):
                             for it in x:

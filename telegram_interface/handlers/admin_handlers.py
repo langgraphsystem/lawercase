@@ -14,6 +14,24 @@ from .context import BotContext
 
 logger = structlog.get_logger(__name__)
 
+_TELEGRAM_MAX_CHARS = 4096
+_TELEGRAM_SAFE_CHUNK = 3800
+
+
+def _split_for_telegram(text: str) -> list[str]:
+    """Split long responses into Telegram-friendly chunks."""
+
+    if len(text) <= _TELEGRAM_SAFE_CHUNK:
+        return [text]
+    chunks: list[str] = []
+    start = 0
+    length = len(text)
+    while start < length:
+        end = min(length, start + _TELEGRAM_SAFE_CHUNK)
+        chunks.append(text[start:end])
+        start = end
+    return chunks
+
 
 HELP_TEXT = (
     "Available commands:\n"
@@ -168,16 +186,21 @@ async def ask_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
                 result_keys=list(result.keys()),
             )
             if llm_answer:
-                try:
-                    sent = await message.reply_text(llm_answer)
-                    logger.info(
-                        "telegram.ask.sent",
-                        user_id=user_id,
-                        response_length=len(llm_answer),
-                        message_id=getattr(sent, "message_id", None),
-                    )
-                except Exception as e:
-                    logger.exception("telegram.ask.send_failed", user_id=user_id, error=str(e))
+                chunks = _split_for_telegram(llm_answer)
+                for idx, chunk in enumerate(chunks):
+                    try:
+                        sent = await message.reply_text(chunk)
+                        logger.info(
+                            "telegram.ask.sent",
+                            user_id=user_id,
+                            response_length=len(chunk),
+                            chunk_index=idx,
+                            chunks_total=len(chunks),
+                            message_id=getattr(sent, "message_id", None),
+                        )
+                    except Exception as e:
+                        logger.exception("telegram.ask.send_failed", user_id=user_id, error=str(e))
+                        break
                 return
             # Fallback: show prompt analysis and retrieved memory summary
             retrieved = result.get("retrieved", [])
