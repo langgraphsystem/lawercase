@@ -924,8 +924,12 @@ class MegaAgent:
                 logger.info(
                     "ask.llm_text.debug",
                     llm_text_type=type(llm_text).__name__,
-                    llm_text_repr=repr(llm_text[:200] if isinstance(llm_text, str) else str(llm_text)[:200]),
-                    llm_text_length=len(llm_text) if isinstance(llm_text, str) else len(str(llm_text)),
+                    llm_text_repr=repr(
+                        llm_text[:200] if isinstance(llm_text, str) else str(llm_text)[:200]
+                    ),
+                    llm_text_length=(
+                        len(llm_text) if isinstance(llm_text, str) else len(str(llm_text))
+                    ),
                 )
                 response["llm_response"] = llm_text
                 response["llm_provider"] = provider_used

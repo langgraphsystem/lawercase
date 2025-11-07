@@ -160,7 +160,11 @@ async def ask_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
                 has_llm_response=bool(llm_answer),
                 llm_response_length=len(llm_answer or ""),
                 llm_response_type=type(llm_answer).__name__,
-                llm_response_repr=repr(llm_answer[:200] if isinstance(llm_answer, str) else str(llm_answer)[:200]) if llm_answer else None,
+                llm_response_repr=(
+                    repr(llm_answer[:200] if isinstance(llm_answer, str) else str(llm_answer)[:200])
+                    if llm_answer
+                    else None
+                ),
                 result_keys=list(result.keys()),
             )
             if llm_answer:
