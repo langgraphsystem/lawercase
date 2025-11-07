@@ -11,35 +11,55 @@ MegaAgent - Центральный оркестратор системы mega_ag
 
 from __future__ import annotations
 
-import time
-import uuid
 from datetime import datetime
 from enum import Enum
+import time
 from typing import Any
+import uuid
 
-import structlog
 from pydantic import BaseModel, Field, ValidationError
+import structlog
 
 from ..exceptions import AgentError, MegaAgentError
-from ..execution.secure_sandbox import (SandboxPolicy, SandboxRunner,
-                                        SandboxViolation, ensure_tool_allowed)
+from ..execution.secure_sandbox import (
+    SandboxPolicy,
+    SandboxRunner,
+    SandboxViolation,
+    ensure_tool_allowed,
+)
 from ..memory.memory_manager import MemoryManager
 from ..memory.models import AuditEvent
 from ..orchestration.enhanced_workflows import EnhancedWorkflowState
-from ..orchestration.pipeline_manager import (build_enhanced_pipeline,
-                                              build_pipeline)
-from ..orchestration.pipeline_manager import run as run_pipeline
+from ..orchestration.pipeline_manager import (
+    build_enhanced_pipeline,
+    build_pipeline,
+    run as run_pipeline,
+)
 from ..orchestration.workflow_graph import WorkflowState, build_case_workflow
 from ..retry import with_retry
-from ..security import (PromptInjectionResult, get_audit_trail,
-                        get_prompt_detector, get_rbac_manager, security_config)
+from ..security import (
+    PromptInjectionResult,
+    get_audit_trail,
+    get_prompt_detector,
+    get_rbac_manager,
+    security_config,
+)
 from ..tools.tool_registry import get_tool_registry
 from .case_agent import CaseAgent
 from .eb1_agent import EB1Agent
-from .models import (AskPayload, BatchTrainPayload, FeedbackPayload,
-                     ImprovePayload, LegalPayload, MemoryLookupPayload,
-                     OptimizePayload, RecommendPayload, SearchPayload,
-                     ToolCommandPayload, TrainPayload)
+from .models import (
+    AskPayload,
+    BatchTrainPayload,
+    FeedbackPayload,
+    ImprovePayload,
+    LegalPayload,
+    MemoryLookupPayload,
+    OptimizePayload,
+    RecommendPayload,
+    SearchPayload,
+    ToolCommandPayload,
+    TrainPayload,
+)
 from .validator_agent import ValidationRequest, ValidatorAgent
 from .writer_agent import DocumentRequest, DocumentType, WriterAgent
 
@@ -592,7 +612,7 @@ class MegaAgent:
         payload = RecommendPayload.model_validate(command.payload)
         # simple stub: return topk placeholders
         recs = [
-            {"id": f"rec_{i+1}", "text": payload.context[:80], "score": 1 - i * 0.1}
+            {"id": f"rec_{i + 1}", "text": payload.context[:80], "score": 1 - i * 0.1}
             for i in range(payload.topk or 5)
         ]
         return {"operation": "recommend", "items": recs}
@@ -749,7 +769,22 @@ class MegaAgent:
         if not query:
             raise CommandError("ASK requires 'query' in payload")
 
+        logger.info(
+            "mega.ask.start",
+            command_id=command.command_id,
+            user_id=command.user_id,
+            query_length=len(query),
+        )
+
         detection = self._check_prompt_injection(query, context=command.context)
+        if detection:
+            logger.warning(
+                "mega.ask.prompt_injection_detected",
+                command_id=command.command_id,
+                user_id=command.user_id,
+                score=detection.confidence,
+                issues=detection.injection_types,
+            )
 
         # Формируем AuditEvent для трассировки
         event = AuditEvent(
@@ -771,6 +806,14 @@ class MegaAgent:
             query=query,
         )
         final = await run_pipeline(graph_exec, initial)
+        logger.info(
+            "mega.ask.memory_complete",
+            command_id=command.command_id,
+            user_id=command.user_id,
+            retrieved=len(final.retrieved),
+            reflected=len(final.reflected),
+            rmt_slots=len(final.rmt_slots or []),
+        )
 
         response: dict[str, Any] = {
             "operation": "ask",
@@ -828,6 +871,13 @@ class MegaAgent:
                 f"User question: {query}\n\n"
                 f"Context (may be empty):\n{context_blob}"
             ).strip()
+            logger.info(
+                "mega.ask.prompt_built",
+                command_id=command.command_id,
+                user_id=command.user_id,
+                prompt_length=len(prompt),
+                context_length=len(context_blob),
+            )
 
             if openai_key:
                 # OpenAI via SDK wrapper (core/llm_interface/openai_client.py)
@@ -853,6 +903,16 @@ class MegaAgent:
                     )
                     # Allow max tokens override to align with SDK usage
                     max_tokens = int(os.getenv("OPENAI_MAX_TOKENS", "4000"))
+                    logger.info(
+                        "mega.ask.llm.request",
+                        command_id=command.command_id,
+                        provider="openai",
+                        model=model_name,
+                        max_tokens=max_tokens,
+                        temperature=temperature,
+                        verbosity=verbosity,
+                        reasoning_effort=reasoning_effort,
+                    )
                     result = await client.acomplete(prompt, max_tokens=max_tokens)
                     llm_text = result.get("output") or result.get("response")
                     provider_used = result.get("provider", "openai")
@@ -873,6 +933,15 @@ class MegaAgent:
                             "max_tokens": max_tokens,
                         }
                     )
+                    logger.info(
+                        "mega.ask.llm.response",
+                        command_id=command.command_id,
+                        provider="openai",
+                        model=result.get("model"),
+                        finish_reason=result.get("finish_reason"),
+                        completion_tokens=((result.get("usage") or {}).get("completion_tokens")),
+                        output_length=len(llm_text or ""),
+                    )
                 except Exception as e:  # pragma: no cover - external dependency branch
                     try:
                         logger.exception("ask.llm.error", provider="openai", error=str(e))
@@ -882,18 +951,33 @@ class MegaAgent:
             elif anthropic_key:
                 # Anthropic
                 try:
-                    from core.llm_interface.anthropic_client import \
-                        AnthropicClient
+                    from core.llm_interface.anthropic_client import AnthropicClient
 
                     client = AnthropicClient(
                         model=AnthropicClient.CLAUDE_HAIKU_3_5,
                         api_key=anthropic_key,
                         temperature=0.2,
                     )
+                    logger.info(
+                        "mega.ask.llm.request",
+                        command_id=command.command_id,
+                        provider="anthropic",
+                        model=AnthropicClient.CLAUDE_HAIKU_3_5,
+                        max_tokens=800,
+                    )
                     result = await client.acomplete(prompt, max_tokens=800)
                     llm_text = result.get("output") or result.get("response")
                     provider_used = result.get("provider", "anthropic")
                     response["llm_model"] = result.get("model")
+                    logger.info(
+                        "mega.ask.llm.response",
+                        command_id=command.command_id,
+                        provider="anthropic",
+                        model=result.get("model"),
+                        finish_reason=result.get("finish_reason"),
+                        completion_tokens=((result.get("usage") or {}).get("completion_tokens")),
+                        output_length=len(llm_text or ""),
+                    )
                 except Exception as e:  # pragma: no cover
                     try:
                         logger.exception("ask.llm.error", provider="anthropic", error=str(e))
@@ -908,10 +992,26 @@ class MegaAgent:
                     client = GeminiClient(
                         model=GeminiClient.GEMINI_2_5_FLASH, api_key=gemini_key, temperature=0.2
                     )
+                    logger.info(
+                        "mega.ask.llm.request",
+                        command_id=command.command_id,
+                        provider="gemini",
+                        model=GeminiClient.GEMINI_2_5_FLASH,
+                        max_tokens=800,
+                    )
                     result = await client.acomplete(prompt, max_output_tokens=800)
                     llm_text = result.get("output") or result.get("response")
                     provider_used = result.get("provider", "gemini")
                     response["llm_model"] = result.get("model")
+                    logger.info(
+                        "mega.ask.llm.response",
+                        command_id=command.command_id,
+                        provider="gemini",
+                        model=result.get("model"),
+                        finish_reason=result.get("finish_reason"),
+                        completion_tokens=((result.get("usage") or {}).get("completion_tokens")),
+                        output_length=len(llm_text or ""),
+                    )
                 except Exception as e:  # pragma: no cover
                     try:
                         logger.exception("ask.llm.error", provider="gemini", error=str(e))
@@ -933,10 +1033,22 @@ class MegaAgent:
                 )
                 response["llm_response"] = llm_text
                 response["llm_provider"] = provider_used
+                logger.info(
+                    "mega.ask.llm_result_attached",
+                    command_id=command.command_id,
+                    provider=provider_used,
+                    output_length=len(llm_text) if isinstance(llm_text, str) else None,
+                )
 
         except Exception as e:  # pragma: no cover - defensive guard
             # Don't fail ASK due to LLM errors
             response.setdefault("llm_error", str(e))
+            logger.exception(
+                "mega.ask.llm_exception",
+                command_id=command.command_id,
+                user_id=command.user_id,
+                error=str(e),
+            )
         finally:
             try:
                 if not response.get("llm_response"):
@@ -953,6 +1065,14 @@ class MegaAgent:
                     logger.info("ask.llm.missing_output", reason=reason)
             except Exception:  # nosec B110 - logging is best-effort
                 pass
+
+        logger.info(
+            "mega.ask.completed",
+            command_id=command.command_id,
+            user_id=command.user_id,
+            has_llm_response=bool(response.get("llm_response")),
+            prompt_analysis=bool(response.get("prompt_analysis")),
+        )
 
         return response
 
