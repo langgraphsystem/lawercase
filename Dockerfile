@@ -110,7 +110,9 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
     CMD curl -f http://localhost:${PORT:-8000}/health || exit 1
 
 # Run API server with dynamic port support
-CMD ["/bin/bash", "/app/start_api.sh"]
+# Using ENTRYPOINT instead of CMD to prevent Railway from overriding
+ENTRYPOINT ["/bin/bash"]
+CMD ["/app/start_api.sh"]
 
 
 # ============================================================================
