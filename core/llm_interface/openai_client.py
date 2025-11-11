@@ -3,12 +3,14 @@ from __future__ import annotations
 import os
 from typing import Any
 
+import httpx
 import structlog
 
 try:
-    from openai import AsyncOpenAI
+    from openai import APITimeoutError, AsyncOpenAI
 except ImportError:
     AsyncOpenAI = None  # type: ignore
+    APITimeoutError = None  # type: ignore
 
 
 class OpenAIClient:
@@ -113,11 +115,26 @@ class OpenAIClient:
                 "OpenAI API key required. Set OPENAI_API_KEY env var or pass api_key parameter."
             )
 
-        # Set timeout to prevent hanging requests (default: 60 seconds)
-        timeout = float(os.getenv("OPENAI_TIMEOUT", "60.0"))
+        # Set timeout using httpx.Timeout for granular control (default: 60s total)
+        # read: timeout for reading response, write: timeout for writing request
+        # connect: timeout for connection, total: overall timeout
+        timeout_seconds = float(os.getenv("OPENAI_TIMEOUT", "60.0"))
+        timeout = httpx.Timeout(
+            timeout=timeout_seconds,  # Total timeout
+            read=timeout_seconds,  # Read timeout
+            write=10.0,  # Write timeout
+            connect=5.0,  # Connection timeout
+        )
         self.client = AsyncOpenAI(api_key=api_key, timeout=timeout)
         self.logger = structlog.get_logger(__name__)
-        self.logger.info("openai.client.initialized", model=self.model, timeout=timeout)
+        self.logger.info(
+            "openai.client.initialized",
+            model=self.model,
+            timeout_total=timeout_seconds,
+            timeout_read=timeout_seconds,
+            timeout_write=10.0,
+            timeout_connect=5.0,
+        )
 
     def _is_reasoning_model(self) -> bool:
         """Check if current model is a reasoning model (o-series)."""
@@ -456,12 +473,26 @@ class OpenAIClient:
                 pass
             return result
 
+        except APITimeoutError as e:
+            self.logger.error(
+                "llm.openai.api_timeout",
+                model=self.model,
+                error=str(e),
+                error_type="APITimeoutError",
+            )
+            return {
+                "model": self.model,
+                "prompt": prompt,
+                "output": "OpenAI API request timed out. Please try again.",
+                "provider": "openai",
+                "error": f"APITimeoutError: {e!s}",
+            }
         except TimeoutError as e:
             self.logger.error(
                 "llm.openai.timeout",
                 model=self.model,
                 error=str(e),
-                timeout=getattr(self.client, "_timeout", "unknown"),
+                error_type="TimeoutError",
             )
             return {
                 "model": self.model,
