@@ -113,8 +113,11 @@ class OpenAIClient:
                 "OpenAI API key required. Set OPENAI_API_KEY env var or pass api_key parameter."
             )
 
-        self.client = AsyncOpenAI(api_key=api_key)
+        # Set timeout to prevent hanging requests (default: 60 seconds)
+        timeout = float(os.getenv("OPENAI_TIMEOUT", "60.0"))
+        self.client = AsyncOpenAI(api_key=api_key, timeout=timeout)
         self.logger = structlog.get_logger(__name__)
+        self.logger.info("openai.client.initialized", model=self.model, timeout=timeout)
 
     def _is_reasoning_model(self) -> bool:
         """Check if current model is a reasoning model (o-series)."""
@@ -453,6 +456,20 @@ class OpenAIClient:
                 pass
             return result
 
+        except TimeoutError as e:
+            self.logger.error(
+                "llm.openai.timeout",
+                model=self.model,
+                error=str(e),
+                timeout=getattr(self.client, "_timeout", "unknown"),
+            )
+            return {
+                "model": self.model,
+                "prompt": prompt,
+                "output": "Request timed out. Please try again.",
+                "provider": "openai",
+                "error": f"Timeout: {e!s}",
+            }
         except Exception as e:
             self.logger.exception("llm.openai.error", model=self.model, error=str(e))
             return {
