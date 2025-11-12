@@ -51,6 +51,7 @@ async def case_get(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
             command_type=CommandType.CASE,
             action="get",
             payload={"case_id": case_id},
+            context={"thread_id": bot_context.thread_id_for_update(update)},
         )
         logger.info(
             "telegram.case_get.command_created", user_id=user_id, command_id=command.command_id
@@ -82,5 +83,97 @@ async def case_get(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         await message.reply_text(f"❌ Exception: {e!s}", parse_mode=None)
 
 
+async def case_create(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    user_id = update.effective_user.id if update.effective_user else None
+    logger.info("telegram.case_create.received", user_id=user_id)
+
+    bot_context = _bot_context(context)
+    if not _is_authorized(bot_context, update):
+        logger.warning("telegram.case_create.unauthorized", user_id=user_id)
+        return
+
+    message = update.effective_message
+    if not context.args:
+        await message.reply_text("Usage: /case_create <title> | optional description")
+        return
+
+    raw = " ".join(context.args)
+    parts = [part.strip() for part in raw.split("|", 1)]
+    title = parts[0]
+    description = parts[1] if len(parts) > 1 else None
+
+    try:
+        payload = {"title": title}
+        if description:
+            payload["description"] = description
+
+        command = MegaAgentCommand(
+            user_id=str(update.effective_user.id),
+            command_type=CommandType.CASE,
+            action="create",
+            payload=payload,
+            context={"thread_id": bot_context.thread_id_for_update(update)},
+        )
+        response = await bot_context.mega_agent.handle_command(command, user_role=UserRole.LAWYER)
+
+        if response.success and response.result:
+            case = response.result.get("case") or {}
+            case_id = case.get("case_id")
+            if case_id:
+                await bot_context.set_active_case(update, case_id)
+            await message.reply_text(f"📁 Case created: {case.get('title', title)}\nID: {case_id}")
+            logger.info("telegram.case_create.success", user_id=user_id, case_id=case_id)
+        else:
+            error_msg = response.error or "case creation failed"
+            await message.reply_text(f"❌ Error: {error_msg}", parse_mode=None)
+            logger.error("telegram.case_create.failed", user_id=user_id, error=error_msg)
+    except Exception as e:
+        logger.exception("telegram.case_create.exception", user_id=user_id, error=str(e))
+        await message.reply_text(f"❌ Exception: {e!s}", parse_mode=None)
+
+
+async def case_active(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    user_id = update.effective_user.id if update.effective_user else None
+    logger.info("telegram.case_active.received", user_id=user_id)
+
+    bot_context = _bot_context(context)
+    if not _is_authorized(bot_context, update):
+        return
+
+    message = update.effective_message
+    active_case = await bot_context.get_active_case(update)
+    if not active_case:
+        await message.reply_text("ℹ️ No active case. Use /case_create or /case_get to select one.")
+        return
+
+    try:
+        command = MegaAgentCommand(
+            user_id=str(update.effective_user.id),
+            command_type=CommandType.CASE,
+            action="get",
+            payload={"case_id": active_case},
+            context={"thread_id": bot_context.thread_id_for_update(update)},
+        )
+        response = await bot_context.mega_agent.handle_command(command, user_role=UserRole.LAWYER)
+        if response.success and response.result:
+            case = response.result.get("case") or {}
+            await message.reply_text(
+                f"📌 Active case: {case.get('case_id', active_case)}\n"
+                f"Title: {case.get('title', '(no title)')}\nStatus: {case.get('status', 'unknown')}"
+            )
+        else:
+            await message.reply_text(
+                f"⚠️ Active case id {active_case} not found (maybe deleted).",
+                parse_mode=None,
+            )
+    except Exception as e:
+        logger.exception("telegram.case_active.exception", user_id=user_id, error=str(e))
+        await message.reply_text(f"❌ Exception: {e!s}", parse_mode=None)
+
+
 def get_handlers(bot_context: BotContext):
-    return [CommandHandler("case_get", case_get)]
+    return [
+        CommandHandler("case_create", case_create),
+        CommandHandler("case_get", case_get),
+        CommandHandler("case_active", case_active),
+    ]
