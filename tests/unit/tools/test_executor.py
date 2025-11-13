@@ -3,23 +3,17 @@
 Verifies multi-turn tool calling workflow with OpenAI function calling.
 """
 
-import json
-import pytest
+from __future__ import annotations
+
 from unittest.mock import AsyncMock, MagicMock, patch
 
-from core.tools.executor import (
-    ToolExecutionError,
-    execute_single_tool,
-    execute_tool_loop,
-)
-from core.tools.tool_registry import (
-    Tool,
-    ToolMetadata,
-    ToolType,
-    get_tool_registry,
-    reset_tool_registry,
-)
+import pytest
+
 from core.llm_interface.openai_client import OpenAIClient
+from core.tools.executor import (ToolExecutionError, execute_single_tool,
+                                 execute_tool_loop)
+from core.tools.tool_registry import (ToolMetadata, ToolType,
+                                      get_tool_registry, reset_tool_registry)
 
 
 class TestExecuteSingleTool:
@@ -131,15 +125,11 @@ class TestExecuteToolLoop:
             mock_response.choices[0].message.content = "Direct answer"
             mock_response.choices[0].message.tool_calls = None
             mock_response.choices[0].finish_reason = "stop"
-            mock_response.usage = MagicMock(
-                prompt_tokens=10, completion_tokens=5, total_tokens=15
-            )
+            mock_response.usage = MagicMock(prompt_tokens=10, completion_tokens=5, total_tokens=15)
             mock_response.model = "gpt-5.1-chat-latest"
 
             # Return same response every time (using return_value, not side_effect)
-            mock_client_instance.chat.completions.create = AsyncMock(
-                return_value=mock_response
-            )
+            mock_client_instance.chat.completions.create = AsyncMock(return_value=mock_response)
 
             # Create client and execute
             client = OpenAIClient(api_key="test-key")
@@ -257,14 +247,10 @@ class TestExecuteToolLoop:
             mock_response.choices[0].message.content = None
             mock_response.choices[0].message.tool_calls = [mock_tool_call]
             mock_response.choices[0].finish_reason = "tool_calls"
-            mock_response.usage = MagicMock(
-                prompt_tokens=10, completion_tokens=5, total_tokens=15
-            )
+            mock_response.usage = MagicMock(prompt_tokens=10, completion_tokens=5, total_tokens=15)
             mock_response.model = "gpt-5.1-chat-latest"
 
-            mock_client_instance.chat.completions.create = AsyncMock(
-                return_value=mock_response
-            )
+            mock_client_instance.chat.completions.create = AsyncMock(return_value=mock_response)
 
             # Create client
             client = OpenAIClient(api_key="test-key")

@@ -1,5 +1,7 @@
 """Tests for DI container."""
 
+from __future__ import annotations
+
 import pytest
 
 from core.di import Container, get_container, reset_container
@@ -93,7 +95,7 @@ class TestContainer:
         container = Container()
 
         container.register_singleton("test1", {})
-        container.register_factory("test2", lambda: {})
+        container.register_factory("test2", dict)
 
         assert container.has("test1")
         assert container.has("test2")
@@ -108,7 +110,7 @@ class TestContainer:
         container = Container()
 
         container.register_singleton("singleton1", {})
-        container.register_factory("factory1", lambda: {})
+        container.register_factory("factory1", dict)
 
         deps = container.list_dependencies()
 
