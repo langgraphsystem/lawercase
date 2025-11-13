@@ -136,7 +136,7 @@ from openai import AsyncOpenAI
 
 client = AsyncOpenAI(api_key="...")
 response = await client.chat.completions.create(
-    model="gpt-4",
+    model="gpt-5.1-chat-latest",
     messages=[...],
     temperature=0.7
 )
@@ -146,9 +146,9 @@ response = await client.chat.completions.create(
 
 ### Issues Found
 
-1. **Future Models**: GPT-5, o3-mini, o4-mini referenced but not yet released
+1. **Future Models**: o3-mini, o4-mini referenced but not yet released
    - **Severity**: Low (future-proofing is intentional)
-   - **Status**: Acceptable - defaults to GPT-4 fallback
+   - **Status**: Acceptable - defaults to GPT-5.1 fallback
 
 2. **Special Parameters**: `verbosity`, `reasoning_effort`
    - **Severity**: Medium (not in current API)
@@ -337,8 +337,8 @@ logger.info("telegram.ask.command_created", user_id=user_id, command_id=command.
 ### Medium Priority
 
 3. **OpenAI Future Models** ⚠️
-   - **Issue**: GPT-5, o3-mini, o4-mini not yet released
-   - **Impact**: Will fall back to GPT-4, may confuse developers
+   - **Issue**: o3-mini, o4-mini not yet released
+   - **Impact**: Will fall back to GPT-5.1, may confuse developers
    - **Fix**: Add model availability detection or clearer documentation
 
 4. **Concurrent Updates Disabled** ⚠️
