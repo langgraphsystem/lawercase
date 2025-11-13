@@ -6,14 +6,13 @@ making them accessible to all handlers.
 
 from __future__ import annotations
 
-import logging
-
+import structlog
 from telegram import Update
 from telegram.ext import Application, BaseHandler, ContextTypes
 
 from core.di import get_container
 
-logger = logging.getLogger(__name__)
+logger = structlog.get_logger(__name__)
 
 
 class DIInjectionHandler(BaseHandler):
