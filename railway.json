@@ -3,7 +3,7 @@
   "build": {
     "builder": "DOCKERFILE",
     "dockerfilePath": "Dockerfile",
-    "buildTarget": "bot"
+    "buildTarget": "api"
   },
   "deploy": {
     "restartPolicyType": "ON_FAILURE",

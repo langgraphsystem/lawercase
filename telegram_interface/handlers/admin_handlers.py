@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import os
 
 import structlog
 from telegram import Update
@@ -144,13 +145,19 @@ async def ask_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
         logger.info("telegram.ask.command_created", user_id=user_id, command_id=command.command_id)
 
         try:
+            ask_timeout = float(os.getenv("TELEGRAM_ASK_TIMEOUT", "45.0"))
             response = await asyncio.wait_for(
                 bot_context.mega_agent.handle_command(command, user_role=UserRole.LAWYER),
-                timeout=30.0,
+                timeout=ask_timeout,
             )
-        except TimeoutError:
+        except asyncio.TimeoutError:
             await message.reply_text("⏳ Превышено время ожидания ответа. Попробуйте снова.")
-            logger.error("telegram.ask.timeout", user_id=user_id, command_id=command.command_id)
+            logger.error(
+                "telegram.ask.timeout",
+                user_id=user_id,
+                command_id=command.command_id,
+                timeout_seconds=ask_timeout,
+            )
             return
         logger.info(
             "telegram.ask.response_received",

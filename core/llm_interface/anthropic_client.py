@@ -8,6 +8,8 @@ try:
 except ImportError:
     AsyncAnthropic = None  # type: ignore
 
+from core.resilience import CircuitBreaker
+
 
 class AnthropicClient:
     """Anthropic Claude client with support for latest models (2025).
@@ -73,8 +75,39 @@ class AnthropicClient:
 
         self.client = AsyncAnthropic(api_key=api_key)
 
+        # Initialize circuit breaker for fault tolerance
+        # Opens after 5 consecutive failures, closes after 3 successful calls in half-open state
+        self._circuit_breaker = CircuitBreaker(
+            failure_threshold=5,
+            timeout=60,  # Wait 60s before attempting recovery
+            expected_exception=(Exception,),  # Catch all exceptions
+            half_open_max_calls=3,
+        )
+
     async def acomplete(self, prompt: str, **params: Any) -> dict[str, Any]:
-        """Async completion using Anthropic Messages API.
+        """Async completion using Anthropic Messages API with circuit breaker protection.
+
+        This method is wrapped with a circuit breaker that:
+        - Opens after 5 consecutive failures
+        - Waits 60 seconds before attempting recovery
+        - Requires 3 successful calls to fully close
+
+        Args:
+            prompt: User prompt/message
+            **params: Override default parameters (temperature, max_tokens, etc.)
+
+        Returns:
+            dict with keys: model, prompt, output, provider, usage, finish_reason
+
+        Raises:
+            ExternalServiceError: If circuit breaker is OPEN (service unavailable)
+        """
+        # Apply circuit breaker decorator to internal implementation
+        protected_call = self._circuit_breaker(self._acomplete_impl)
+        return await protected_call(prompt, **params)
+
+    async def _acomplete_impl(self, prompt: str, **params: Any) -> dict[str, Any]:
+        """Internal implementation of async completion (circuit breaker protected).
 
         Args:
             prompt: User prompt/message

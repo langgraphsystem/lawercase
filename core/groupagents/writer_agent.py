@@ -14,20 +14,21 @@ WriterAgent - Генерация документов и писем.
 
 from __future__ import annotations
 
-import html
-import json
-import uuid
 from datetime import datetime
 from enum import Enum
+import html
+import json
 from pathlib import Path
 from string import Template
 from typing import Any
+import uuid
 
 from pydantic import BaseModel, Field, ValidationError, field_validator
 
 from ..exceptions import AgentError, DocumentGenerationError
 from ..memory.memory_manager import MemoryManager
 from ..memory.models import AuditEvent
+from ..prompts import enhance_prompt_with_cot
 
 
 class _WriterBaseModel(BaseModel):
@@ -648,14 +649,18 @@ class WriterAgent:
     - Document versioning и tracking
     """
 
-    def __init__(self, memory_manager: MemoryManager | None = None):
+    def __init__(
+        self, memory_manager: MemoryManager | None = None, *, use_chain_of_thought: bool = True
+    ):
         """
         Инициализация WriterAgent.
 
         Args:
             memory_manager: Менеджер памяти для persistence
+            use_chain_of_thought: Enable Chain-of-Thought prompting for better document generation (default: True)
         """
         self.memory = memory_manager or MemoryManager()
+        self.use_cot = use_chain_of_thought
 
         # Хранилища
         self._templates: dict[str, DocumentTemplate] = {}
@@ -1683,7 +1688,16 @@ Sincerely,
             "\n\nNow generate a high-quality section following the examples and patterns above:"
         )
 
-        return "\n".join(prompt_parts)
+        prompt = "\n".join(prompt_parts)
+
+        # Apply Chain-of-Thought enhancement for better reasoning in document generation
+        if self.use_cot:
+            # Use CREATIVE template for document generation tasks
+            prompt = enhance_prompt_with_cot(
+                prompt, command_type="generate", action="legal_section"
+            )
+
+        return prompt
 
     async def _simulate_llm_generation(
         self, context: dict[str, Any], client_data: dict[str, Any]

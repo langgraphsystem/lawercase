@@ -12,64 +12,97 @@ except ImportError:
     AsyncOpenAI = None  # type: ignore
     APITimeoutError = None  # type: ignore
 
+from core.resilience import CircuitBreaker
+
 
 class OpenAIClient:
-    """OpenAI client with support for GPT-5 and latest models (2025).
+    """OpenAI client with support for GPT-5.1 and latest models (November 2025).
 
-    GPT-5 Models (Released August 2025):
-    - gpt-5-2025-08-07: Latest stable version (DEFAULT)
-    - gpt-5-chat-latest: Always latest GPT-5 version (auto-updates)
-    - gpt-5: Alias for latest stable (currently resolves to gpt-5-2025-08-07)
-      Pricing: $1.25/1M input, $10/1M output
-    - gpt-5-mini: Balanced performance and cost (400K context)
+    GPT-5.1 Models (Released November 12, 2025):
+    - gpt-5.1-chat-latest: GPT-5.1 Instant with adaptive reasoning (NEW DEFAULT)
+      Context: 272K input, 128K output (400K total)
+      Pricing: $1.25/1M input, $10/1M output, $0.125/1M cached
+    - gpt-5.1: GPT-5.1 Thinking (advanced reasoning)
+      Context: 272K input, 128K output (400K total)
+    - gpt-5.1-codex: Extended programming workloads
+    - gpt-5.1-codex-mini: Lightweight coding model
+    - gpt-5-mini: Balanced performance and cost
       Pricing: $0.25/1M input, $2/1M output
-    - gpt-5-nano: Most cost-efficient (400K context)
+    - gpt-5-nano: Most cost-efficient
       Pricing: $0.05/1M input, $0.40/1M output
 
-    GPT-5 Special Parameters:
-    - verbosity: "low", "medium" (default), "high" - controls answer length
-    - reasoning_effort: "minimal", "low", "medium" (default), "high" - controls thinking time
-    - Supports custom tools with plaintext and context-free grammars
-    - 90% cache discount for cached inputs
+    Legacy GPT-5 Models (August 2025):
+    - gpt-5-2025-08-07: Original GPT-5 stable version
+    - gpt-5-chat-latest: Auto-updates to latest (currently gpt-5.1-chat-latest)
+
+    GPT-5.1 Features:
+    - Adaptive Reasoning: Dynamically adjusts thinking time based on task complexity
+    - reasoning_effort: "none", "minimal", "low", "medium" (default), "high"
+      Use "none" for latency-sensitive tasks (no reasoning overhead)
+    - Extended Prompt Caching: 24h retention with prompt_cache_retention='24h'
+    - New Developer Tools: apply_patch (code editing), shell (shell commands)
+    - Function calling with tools parameter (March 2025 API)
+    - 90% cache discount for repeated input tokens
 
     Reasoning Models:
     - o3-mini: Exceptional STEM capabilities
     - o4-mini: Next-generation reasoning
 
-    Multimodal Models:
-    - (4o family deprecated in this project docs)
-
-    API Parameters (GPT-5 Models):
+    API Parameters (GPT-5.1 Models):
     - temperature (float, 0.0-2.0): Randomness (default 1.0)
     - max_tokens (int): Maximum tokens in completion
     - verbosity (str): "low", "medium", "high" - answer length
-    - reasoning_effort (str): "minimal", "low", "medium", "high" - thinking depth
+    - reasoning_effort (str): "none", "minimal", "low", "medium", "high"
+    - prompt_cache_retention (str): "24h" for extended caching
+    - tools (list): Function calling tools (March 2025)
+    - tool_choice (str|dict): "auto", "required", or specific tool
     - top_p (float, 0.0-1.0): Nucleus sampling
     - frequency_penalty (float, -2.0-2.0): Reduce repetition
     - presence_penalty (float, -2.0-2.0): Encourage diversity
     """
 
-    # GPT-5 model identifiers (2025 - Primary)
-    GPT_5 = "gpt-5-2025-08-07"  # Latest stable version
+    # GPT-5.1 model identifiers (November 2025 - PRIMARY)
+    GPT_5_1_INSTANT = "gpt-5.1-chat-latest"  # NEW DEFAULT
+    GPT_5_1_THINKING = "gpt-5.1"
+    GPT_5_1_CODEX = "gpt-5.1-codex"
+    GPT_5_1_CODEX_MINI = "gpt-5.1-codex-mini"
+
+    # GPT-5 model identifiers (August 2025 - Legacy)
+    GPT_5 = "gpt-5-2025-08-07"
     GPT_5_MINI = "gpt-5-mini"
     GPT_5_NANO = "gpt-5-nano"
-    GPT_5_CHAT_LATEST = "gpt-5-chat-latest"
+    GPT_5_CHAT_LATEST = "gpt-5-chat-latest"  # Redirects to gpt-5.1-chat-latest
 
     # Reasoning models
     O3_MINI = "o3-mini"
     O4_MINI = "o4-mini"
 
-    # Multimodal models intentionally omitted
+    # GPT-5.1 models that support adaptive reasoning
+    GPT5_1_MODELS = {
+        GPT_5_1_INSTANT,
+        GPT_5_1_THINKING,
+        GPT_5_1_CODEX,
+        GPT_5_1_CODEX_MINI,
+        "gpt-5.1",
+        "gpt-5.1-chat-latest",
+    }
 
-    # GPT-5 models that support verbosity parameter
-    GPT5_MODELS = {GPT_5, GPT_5_MINI, GPT_5_NANO, GPT_5_CHAT_LATEST, "gpt-5", "gpt-5-2025-08-07"}
+    # All GPT-5 family models that support verbosity parameter
+    GPT5_MODELS = GPT5_1_MODELS | {
+        GPT_5,
+        GPT_5_MINI,
+        GPT_5_NANO,
+        GPT_5_CHAT_LATEST,
+        "gpt-5",
+        "gpt-5-2025-08-07",
+    }
 
     # Reasoning models that don't support temperature/top_p
     REASONING_MODELS = {O3_MINI, O4_MINI}
 
     def __init__(
         self,
-        model: str = GPT_5,
+        model: str | None = None,
         api_key: str | None = None,
         temperature: float = 1.0,
         max_tokens: int = 4096,
@@ -78,20 +111,27 @@ class OpenAIClient:
         presence_penalty: float = 0.0,
         reasoning_effort: str = "medium",
         verbosity: str = "medium",
+        prompt_cache_retention: str | None = None,
+        tools: list[dict[str, Any]] | None = None,
+        tool_choice: str | dict[str, Any] = "auto",
         **kwargs: Any,
     ) -> None:
-        """Initialize OpenAI client with GPT-5 support.
+        """Initialize OpenAI client with GPT-5.1 support (November 2025).
 
         Args:
-            model: Model identifier (default: gpt-5-2025-08-07)
+            model: Model identifier (default: gpt-5.1-chat-latest)
             api_key: OpenAI API key (or set OPENAI_API_KEY env var)
             temperature: Randomness (0.0-2.0, default 1.0) [not for reasoning models]
             max_tokens: Max tokens in completion (default 4096)
             top_p: Nucleus sampling (0.0-1.0, default 1.0) [not for reasoning models]
             frequency_penalty: Reduce repetition (-2.0 to 2.0, default 0) [not for reasoning models]
             presence_penalty: Encourage diversity (-2.0 to 2.0, default 0) [not for reasoning models]
-            reasoning_effort: For GPT-5/reasoning: "minimal", "low", "medium", "high" (default "medium")
-            verbosity: For GPT-5: "low", "medium", "high" (default "medium") - controls answer length
+            reasoning_effort: For GPT-5.1: "none", "minimal", "low", "medium", "high" (default "medium")
+                Use "none" for latency-sensitive tasks without reasoning overhead
+            verbosity: For GPT-5.1: "low", "medium", "high" (default "medium") - controls answer length
+            prompt_cache_retention: Extended caching, e.g. "24h" (default: None)
+            tools: List of function calling tools (March 2025 API format)
+            tool_choice: "auto", "required", or specific tool dict
             **kwargs: Additional parameters
         """
         if AsyncOpenAI is None:
@@ -99,7 +139,12 @@ class OpenAIClient:
                 "openai package not installed. Install with: pip install openai>=1.58.0"
             )
 
-        self.model = model
+        # Default to GPT-5.1 Instant (November 2025)
+        normalized_model = (model or "").strip()
+        if not normalized_model:
+            normalized_model = self.GPT_5_1_INSTANT
+        self.model = normalized_model
+        self._model_lower = normalized_model.lower()
         self.temperature = temperature
         self.max_tokens = max_tokens
         self.top_p = top_p
@@ -107,6 +152,9 @@ class OpenAIClient:
         self.presence_penalty = presence_penalty
         self.reasoning_effort = reasoning_effort
         self.verbosity = verbosity
+        self.prompt_cache_retention = prompt_cache_retention
+        self.tools = tools
+        self.tool_choice = tool_choice
         self.kwargs = kwargs
 
         api_key = api_key or os.getenv("OPENAI_API_KEY")
@@ -127,6 +175,16 @@ class OpenAIClient:
         )
         self.client = AsyncOpenAI(api_key=api_key, timeout=timeout)
         self.logger = structlog.get_logger(__name__)
+
+        # Initialize circuit breaker for fault tolerance
+        # Opens after 5 consecutive failures, closes after 3 successful calls in half-open state
+        self._circuit_breaker = CircuitBreaker(
+            failure_threshold=5,
+            timeout=60,  # Wait 60s before attempting recovery
+            expected_exception=(Exception,),  # Catch all exceptions
+            half_open_max_calls=3,
+        )
+
         self.logger.info(
             "openai.client.initialized",
             model=self.model,
@@ -134,15 +192,25 @@ class OpenAIClient:
             timeout_read=timeout_seconds,
             timeout_write=10.0,
             timeout_connect=5.0,
+            circuit_breaker_enabled=True,
+            tools_enabled=bool(self.tools),
+            prompt_cache_retention=self.prompt_cache_retention,
+            reasoning_effort=self.reasoning_effort,
         )
 
     def _is_reasoning_model(self) -> bool:
         """Check if current model is a reasoning model (o-series)."""
-        return self.model in self.REASONING_MODELS
+        return self._model_lower in self.REASONING_MODELS
+
+    def _is_gpt5_1_model(self) -> bool:
+        """Check if current model is a GPT-5.1 model (November 2025)."""
+        lower = getattr(self, "_model_lower", self.model.lower())
+        return lower in self.GPT5_1_MODELS or "gpt-5.1" in lower or "gpt5.1" in lower
 
     def _is_gpt5_model(self) -> bool:
-        """Check if current model is a GPT-5 model."""
-        return self.model in self.GPT5_MODELS
+        """Check if current model is a GPT-5 family model."""
+        lower = getattr(self, "_model_lower", self.model.lower())
+        return lower in self.GPT5_MODELS or lower.startswith("gpt-5")
 
     @classmethod
     def _collect_text_fragments(cls, node: Any) -> list[str]:
@@ -270,7 +338,29 @@ class OpenAIClient:
         return "\n".join(normalized)
 
     async def acomplete(self, prompt: str, **params: Any) -> dict[str, Any]:
-        """Async completion using OpenAI Chat Completions API.
+        """Async completion using OpenAI Chat Completions API with circuit breaker protection.
+
+        This method is wrapped with a circuit breaker that:
+        - Opens after 5 consecutive failures
+        - Waits 60 seconds before attempting recovery
+        - Requires 3 successful calls to fully close
+
+        Args:
+            prompt: User prompt/message
+            **params: Override default parameters
+
+        Returns:
+            dict with keys: model, prompt, output, provider, usage, finish_reason
+
+        Raises:
+            ExternalServiceError: If circuit breaker is OPEN (service unavailable)
+        """
+        # Apply circuit breaker decorator to internal implementation
+        protected_call = self._circuit_breaker(self._acomplete_impl)
+        return await protected_call(prompt, **params)
+
+    async def _acomplete_impl(self, prompt: str, **params: Any) -> dict[str, Any]:
+        """Internal implementation of async completion (circuit breaker protected).
 
         Args:
             prompt: User prompt/message
@@ -326,6 +416,29 @@ class OpenAIClient:
 
         if stop:
             api_params["stop"] = stop
+
+        # Add function calling tools if provided (March 2025 API)
+        tools = params.get("tools", self.tools)
+        tool_choice = params.get("tool_choice", self.tool_choice)
+        if tools:
+            api_params["tools"] = tools
+            api_params["tool_choice"] = tool_choice
+            self.logger.debug(
+                "llm.openai.tools",
+                model=self.model,
+                num_tools=len(tools),
+                tool_choice=tool_choice,
+            )
+
+        # Add extended prompt caching if specified (GPT-5.1 feature)
+        prompt_cache_retention = params.get("prompt_cache_retention", self.prompt_cache_retention)
+        if prompt_cache_retention and self._is_gpt5_1_model():
+            api_params["prompt_cache_retention"] = prompt_cache_retention
+            self.logger.debug(
+                "llm.openai.cache",
+                model=self.model,
+                retention=prompt_cache_retention,
+            )
 
         # Call OpenAI API
         try:
@@ -461,6 +574,30 @@ class OpenAIClient:
                     response.choices[0].finish_reason if response.choices else "unknown"
                 ),
             }
+
+            # Handle tool calls (March 2025 function calling API)
+            if response.choices and response.choices[0].message:
+                message = response.choices[0].message
+                if hasattr(message, "tool_calls") and message.tool_calls:
+                    result["tool_calls"] = [
+                        {
+                            "id": tc.id,
+                            "type": tc.type,
+                            "function": {
+                                "name": tc.function.name,
+                                "arguments": tc.function.arguments,
+                            },
+                        }
+                        for tc in message.tool_calls
+                    ]
+                    result["requires_tool_execution"] = True
+                    self.logger.info(
+                        "llm.openai.tool_calls",
+                        model=self.model,
+                        num_tool_calls=len(message.tool_calls),
+                        tools=[tc.function.name for tc in message.tool_calls],
+                    )
+
             try:
                 self.logger.info(
                     "llm.openai.response",
@@ -468,6 +605,7 @@ class OpenAIClient:
                     finish_reason=result["finish_reason"],
                     usage=result["usage"],
                     output_length=len(output_text or ""),
+                    has_tool_calls=result.get("requires_tool_execution", False),
                 )
             except Exception:  # nosec B110 - logging is best-effort
                 pass

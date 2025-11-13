@@ -91,13 +91,9 @@ ENV PATH="/opt/venv/bin:$PATH" \
 # Copy application code
 COPY --from=builder /app /app
 
-# Copy start script
-COPY start_api.sh /app/start_api.sh
-
 # Create app user and directories
 RUN useradd --create-home --shell /bin/bash appuser \
     && mkdir -p /app/logs /app/tmp /app/out /app/data \
-    && chmod +x /app/start_api.sh \
     && chown -R appuser:appuser /app
 
 USER appuser
@@ -110,9 +106,7 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
     CMD curl -f http://localhost:${PORT:-8000}/health || exit 1
 
 # Run API server with dynamic port support
-# Using ENTRYPOINT instead of CMD to prevent Railway from overriding
-ENTRYPOINT ["/bin/bash"]
-CMD ["/app/start_api.sh"]
+CMD ["bash", "-lc", "python -m uvicorn --app-dir /app api.main:app --host 0.0.0.0 --port ${PORT:-8000} --workers ${WORKERS:-1} --log-level info --proxy-headers --forwarded-allow-ips '*'"]
 
 
 # ============================================================================

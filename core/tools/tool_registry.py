@@ -4,15 +4,18 @@ This module provides:
     - ``Tool`` protocol describing async callable tools
     - ``ToolMetadata`` describing RBAC constraints and tags
     - ``ToolRegistry`` for registering, invoking, and auditing tool usage
+    - OpenAI function calling format support (March 2025)
+    - Built-in tools (file_search, web_search, code_interpreter)
     - Module-level helpers to obtain a shared registry instance
 
-Phase 3 foundation for agentic tool support.
+Updated for GPT-5 function calling (March 2025).
 """
 
 from __future__ import annotations
 
 from collections import defaultdict
 from dataclasses import dataclass, field
+from enum import Enum
 from typing import Any, Protocol
 
 
@@ -23,14 +26,32 @@ class Tool(Protocol):
         ...
 
 
+class ToolType(str, Enum):
+    """Types of tools available in the system (GPT-5 March 2025)."""
+
+    FUNCTION = "function"  # Standard function calling
+    CUSTOM = "custom"  # GPT-5 freeform (raw text payload)
+    FILE_SEARCH = "file_search"  # Built-in file search
+    WEB_SEARCH = "web_search"  # Built-in web search (Responses API)
+    CODE_INTERPRETER = "code_interpreter"  # Built-in code execution
+    IMAGE_GEN = "gpt-image-1"  # Built-in image generation
+
+
 @dataclass(slots=True)
 class ToolMetadata:
-    """Describe a tool for discovery and RBAC enforcement."""
+    """Describe a tool for discovery and RBAC enforcement.
+
+    Enhanced for OpenAI function calling format (March 2025).
+    """
 
     name: str
     description: str
     allowed_roles: set[str] = field(default_factory=set)
     tags: set[str] = field(default_factory=set)
+    tool_type: ToolType = ToolType.FUNCTION
+    parameters: dict[str, Any] | None = None  # JSON Schema for function parameters
+    strict: bool = False  # Structured outputs mode (GPT-5)
+    enabled: bool = True
 
 
 class ToolRegistry:
@@ -99,6 +120,72 @@ class ToolRegistry:
             }
         )
         return result
+
+    def get_tools_for_openai(
+        self,
+        model: str | None = None,
+        role: str | None = None,
+    ) -> list[dict[str, Any]]:
+        """Get tools formatted for OpenAI API (March 2025 format).
+
+        Args:
+            model: Model identifier (for GPT-5.1 specific features)
+            role: User role for RBAC filtering
+
+        Returns:
+            List of tool definitions in OpenAI format
+        """
+        tools = []
+
+        for _, metadata in self._metadata.items():
+            # Skip disabled tools
+            if not metadata.enabled:
+                continue
+
+            # RBAC filtering
+            if role and metadata.allowed_roles and role not in metadata.allowed_roles:
+                continue
+
+            # Format based on tool type
+            if metadata.tool_type == ToolType.FUNCTION:
+                # Standard function calling
+                tool_def: dict[str, Any] = {
+                    "type": "function",
+                    "function": {
+                        "name": metadata.name,
+                        "description": metadata.description,
+                    },
+                }
+
+                # Add parameters if specified
+                if metadata.parameters:
+                    tool_def["function"]["parameters"] = metadata.parameters
+
+                # Add strict mode for structured outputs (GPT-5.1)
+                if metadata.strict:
+                    tool_def["function"]["strict"] = True
+
+                tools.append(tool_def)
+
+            elif metadata.tool_type in {
+                ToolType.FILE_SEARCH,
+                ToolType.WEB_SEARCH,
+                ToolType.CODE_INTERPRETER,
+            }:
+                # Built-in tools (no executor needed)
+                tools.append({"type": metadata.tool_type.value})
+
+            elif metadata.tool_type == ToolType.CUSTOM:
+                # GPT-5 custom tools (freeform payload)
+                tools.append(
+                    {
+                        "type": "custom",
+                        "name": metadata.name,
+                        "description": metadata.description,
+                    }
+                )
+
+        return tools
 
     def get_history(self, tool_id: str) -> list[dict[str, Any]]:
         """Return recorded invocation history (copy) for ``tool_id``."""

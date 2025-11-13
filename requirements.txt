@@ -10,6 +10,10 @@ pydantic-settings>=2.2.0,<3.0.0
 # LangChain/LangGraph for MegaAgent
 langchain>=0.2.0,<0.4.0
 langgraph>=0.2.30,<0.3.0
+langchain-openai>=0.2.0,<0.3.0
+langchain-google-genai>=2.0.0,<3.0.0
+langchain-community>=0.3.0,<0.4.0
+langsmith>=0.1.0,<0.2.0
 typing-extensions>=4.10.0,<5.0.0
 
 # LLM Providers
@@ -37,6 +41,7 @@ redis[hiredis]>=5.0.1,<6.0.0
 fastapi>=0.110.0,<1.0.0
 python-multipart>=0.0.6,<1.0.0
 uvicorn>=0.29.0,<1.0.0
+pgvector>=0.2.5,<0.3.0
 
 # Authentication/JWT
 python-jose[cryptography]>=3.3.0,<4.0.0
