@@ -13,6 +13,7 @@ from config.settings import AppSettings, get_settings
 from core.groupagents.mega_agent import MegaAgent
 from core.memory.memory_manager import MemoryManager
 from telegram_interface.handlers import register_handlers
+from telegram_interface.middlewares.di_injection import setup_di_middleware
 
 logger = structlog.get_logger(__name__)
 
@@ -46,6 +47,9 @@ def build_application(
         .concurrent_updates(False)
         .build()
     )
+
+    # Setup DI middleware to inject dependencies into all handlers
+    setup_di_middleware(application)
 
     register_handlers(application, mega_agent=mega_agent, settings=settings)
 

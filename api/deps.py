@@ -7,6 +7,7 @@ from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from jose import jwt
 from starlette.status import HTTP_401_UNAUTHORIZED, HTTP_403_FORBIDDEN
 
+from core.di import get_container
 from core.groupagents.mega_agent import MegaAgent, UserRole
 from core.memory.memory_manager_v2 import (create_dev_memory_manager,
                                            create_production_memory_manager)
@@ -29,14 +30,17 @@ def get_memory_manager():
     return create_dev_memory_manager()
 
 
-_agent_singleton: MegaAgent | None = None
-
-
 def get_agent() -> MegaAgent:
-    global _agent_singleton
-    if _agent_singleton is None:
-        _agent_singleton = MegaAgent(memory_manager=get_memory_manager())
-    return _agent_singleton
+    """Get MegaAgent from DI container.
+
+    This ensures the same MegaAgent instance is shared between
+    API routes and Telegram bot handlers.
+
+    Returns:
+        Shared MegaAgent instance from DI container
+    """
+    container = get_container()
+    return container.get("mega_agent")
 
 
 def get_current_user(

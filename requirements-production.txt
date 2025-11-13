@@ -36,8 +36,7 @@ aiofiles>=23.2.1,<24.0.0  # Async file operations for document_monitor
 # Database & Cache
 # ============================================================================
 asyncpg>=0.29.0,<1.0.0  # PostgreSQL async driver
-redis>=5.0.1,<6.0.0
-aioredis>=2.0.1,<3.0.0  # If using older async redis
+redis[hiredis]>=5.0.1,<6.0.0  # Note: redis>=4.2.0 has built-in async support, aioredis is deprecated
 
 # ============================================================================
 # Resilience & Monitoring

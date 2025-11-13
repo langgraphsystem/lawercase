@@ -117,7 +117,13 @@
       "Bash(Format-Table:*)",
       "Bash(echo $OPENAI_API_KEY)",
       "Bash(timeout:*)",
-      "Bash(ping:*)"
+      "Bash(ping:*)",
+      "Bash(railway whoami:*)",
+      "Bash(railway status:*)",
+      "Bash(railway logs:*)",
+      "Bash(railway up:*)",
+      "Bash(railway link:*)",
+      "Bash(railway variables:*)"
     ],
     "deny": [],
     "ask": []

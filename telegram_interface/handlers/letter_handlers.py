@@ -46,12 +46,24 @@ async def generate_letter(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
     logger.info("telegram.generate_letter.processing", user_id=user_id, title_length=len(title))
 
     try:
-        payload = {"document_type": "letter", "content_data": {"title": title}}
+        active_case = await bot_context.get_active_case(update)
+        if not active_case:
+            await message.reply_text(
+                "ℹ️ No active case. Use /case_create or /case_get to select one."
+            )
+            return
+
+        payload = {
+            "document_type": "letter",
+            "content_data": {"title": title},
+            "case_id": active_case,
+        }
         command = MegaAgentCommand(
             user_id=str(update.effective_user.id),
             command_type=CommandType.GENERATE,
             action="letter",
             payload=payload,
+            context={"thread_id": bot_context.thread_id_for_update(update)},
         )
         logger.info(
             "telegram.generate_letter.command_created",

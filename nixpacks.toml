@@ -1,5 +1,0 @@
-# Nixpacks configuration for Railway deployment
-# Bot runs via webhook through FastAPI, not standalone polling
-
-[start]
-cmd = "python -m uvicorn --app-dir /app api.main:app --host 0.0.0.0 --port ${PORT}"

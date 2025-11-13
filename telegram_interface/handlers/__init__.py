@@ -49,4 +49,6 @@ def register_handlers(
     for handler in handler_sets:
         application.add_handler(handler)
 
+    application.add_handler(admin_handlers.get_unknown_handler())
+
     logger.info("telegram.handlers.registered")

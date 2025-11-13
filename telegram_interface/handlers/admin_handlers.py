@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import os
 
 import structlog
 from telegram import Update
@@ -13,6 +14,24 @@ from core.groupagents.mega_agent import CommandType, MegaAgentCommand, UserRole
 from .context import BotContext
 
 logger = structlog.get_logger(__name__)
+
+_TELEGRAM_MAX_CHARS = 4096
+_TELEGRAM_SAFE_CHUNK = 3800
+
+
+def _split_for_telegram(text: str) -> list[str]:
+    """Split long responses into Telegram-friendly chunks."""
+
+    if len(text) <= _TELEGRAM_SAFE_CHUNK:
+        return [text]
+    chunks: list[str] = []
+    start = 0
+    length = len(text)
+    while start < length:
+        end = min(length, start + _TELEGRAM_SAFE_CHUNK)
+        chunks.append(text[start:end])
+        start = end
+    return chunks
 
 
 HELP_TEXT = (
@@ -126,13 +145,19 @@ async def ask_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
         logger.info("telegram.ask.command_created", user_id=user_id, command_id=command.command_id)
 
         try:
+            ask_timeout = float(os.getenv("TELEGRAM_ASK_TIMEOUT", "45.0"))
             response = await asyncio.wait_for(
                 bot_context.mega_agent.handle_command(command, user_role=UserRole.LAWYER),
-                timeout=30.0,
+                timeout=ask_timeout,
             )
         except TimeoutError:
             await message.reply_text("⏳ Превышено время ожидания ответа. Попробуйте снова.")
-            logger.error("telegram.ask.timeout", user_id=user_id, command_id=command.command_id)
+            logger.error(
+                "telegram.ask.timeout",
+                user_id=user_id,
+                command_id=command.command_id,
+                timeout_seconds=ask_timeout,
+            )
             return
         logger.info(
             "telegram.ask.response_received",
@@ -153,17 +178,36 @@ async def ask_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
         if response.success and response.result:
             result = response.result
             llm_answer = result.get("llm_response")
+            # DEBUG: Log what we got from MegaAgent
+            logger.info(
+                "telegram.ask.result_debug",
+                user_id=user_id,
+                has_llm_response=bool(llm_answer),
+                llm_response_length=len(llm_answer or ""),
+                llm_response_type=type(llm_answer).__name__,
+                llm_response_repr=(
+                    repr(llm_answer[:200] if isinstance(llm_answer, str) else str(llm_answer)[:200])
+                    if llm_answer
+                    else None
+                ),
+                result_keys=list(result.keys()),
+            )
             if llm_answer:
-                try:
-                    sent = await message.reply_text(llm_answer)
-                    logger.info(
-                        "telegram.ask.sent",
-                        user_id=user_id,
-                        response_length=len(llm_answer),
-                        message_id=getattr(sent, "message_id", None),
-                    )
-                except Exception as e:
-                    logger.exception("telegram.ask.send_failed", user_id=user_id, error=str(e))
+                chunks = _split_for_telegram(llm_answer)
+                for idx, chunk in enumerate(chunks):
+                    try:
+                        sent = await message.reply_text(chunk)
+                        logger.info(
+                            "telegram.ask.sent",
+                            user_id=user_id,
+                            response_length=len(chunk),
+                            chunk_index=idx,
+                            chunks_total=len(chunks),
+                            message_id=getattr(sent, "message_id", None),
+                        )
+                    except Exception as e:
+                        logger.exception("telegram.ask.send_failed", user_id=user_id, error=str(e))
+                        break
                 return
             # Fallback: show prompt analysis and retrieved memory summary
             retrieved = result.get("retrieved", [])
@@ -294,5 +338,8 @@ def get_handlers(bot_context: BotContext):
         # Fallback regex to catch '/ask@bot' or formatting edge cases
         MessageHandler(filters.TEXT & filters.Regex(r"^/ask(?:@[A-Za-z0-9_]+)?\b"), ask_command),
         CommandHandler("memory_lookup", memory_lookup_command),
-        MessageHandler(filters.COMMAND, unknown_command),
     ]
+
+
+def get_unknown_handler() -> MessageHandler:
+    return MessageHandler(filters.COMMAND, unknown_command)

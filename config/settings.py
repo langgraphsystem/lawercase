@@ -30,6 +30,7 @@ class AppSettings(BaseSettings):
 
     public_base_url: str | None = Field(default=None, alias="PUBLIC_BASE_URL")
     railway_public_domain: str | None = Field(default=None, alias="RAILWAY_PUBLIC_DOMAIN")
+    railway_static_url: str | None = Field(default=None, alias="RAILWAY_STATIC_URL")
 
     tracing_enabled: bool = Field(default=False)
     tracing_exporter: str = Field(default="console")

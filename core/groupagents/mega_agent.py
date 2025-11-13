@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import time
 import uuid
+from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
 from typing import Any
@@ -20,6 +21,7 @@ from typing import Any
 import structlog
 from pydantic import BaseModel, Field, ValidationError
 
+from ..agents import ComplexityAnalyzer, ComplexityResult, TaskTier
 from ..exceptions import AgentError, MegaAgentError
 from ..execution.secure_sandbox import (SandboxPolicy, SandboxRunner,
                                         SandboxViolation, ensure_tool_allowed)
@@ -30,6 +32,7 @@ from ..orchestration.pipeline_manager import (build_enhanced_pipeline,
                                               build_pipeline)
 from ..orchestration.pipeline_manager import run as run_pipeline
 from ..orchestration.workflow_graph import WorkflowState, build_case_workflow
+from ..prompts import CoTTemplate, enhance_prompt_with_cot, select_cot_template
 from ..retry import with_retry
 from ..security import (PromptInjectionResult, get_audit_trail,
                         get_prompt_detector, get_rbac_manager, security_config)
@@ -40,8 +43,12 @@ from .models import (AskPayload, BatchTrainPayload, FeedbackPayload,
                      ImprovePayload, LegalPayload, MemoryLookupPayload,
                      OptimizePayload, RecommendPayload, SearchPayload,
                      ToolCommandPayload, TrainPayload)
+from .supervisor_agent import (PlannedSubTask, SupervisorAgent,
+                               SupervisorTaskRequest)
 from .validator_agent import ValidationRequest, ValidatorAgent
 from .writer_agent import DocumentRequest, DocumentType, WriterAgent
+
+logger = structlog.get_logger(__name__)
 
 
 class UserRole(str, Enum):
@@ -92,6 +99,16 @@ class MegaAgentCommand(BaseModel):
     action: str = Field(..., description="Действие для выполнения")
     payload: dict[str, Any] = Field(default_factory=dict, description="Данные команды")
     context: dict[str, Any] | None = Field(default=None, description="Контекст команды")
+    requested_agent: str | None = Field(
+        default=None, description="Желаемый агент (если указан пользователем)"
+    )
+    requested_tier: TaskTier | None = Field(
+        default=None, description="Принудительное указание уровня исполнения"
+    )
+    auto_route: bool = Field(
+        default=True,
+        description="Если False, команде не требуется LLM-анализ маршрутизации",
+    )
     priority: int = Field(default=5, ge=1, le=10, description="Приоритет (1-10)")
     timestamp: datetime = Field(default_factory=datetime.utcnow)
 
@@ -106,6 +123,32 @@ class MegaAgentResponse(BaseModel):
     agent_used: str | None = Field(default=None, description="Использованный агент")
     execution_time: float | None = Field(default=None, description="Время выполнения")
     timestamp: datetime = Field(default_factory=datetime.utcnow)
+    tier: TaskTier | None = Field(default=None, description="Использованный уровень маршрутизации")
+    routing_metadata: dict[str, Any] | None = Field(
+        default=None, description="Диагностика решения роутера"
+    )
+
+
+@dataclass(slots=True)
+class RoutingDecision:
+    """Decision returned by the complexity analyzer."""
+
+    tier: TaskTier
+    score: float
+    agent: str
+    reason: str
+    requires_supervisor: bool = False
+    metadata: dict[str, Any] = field(default_factory=dict)
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "tier": self.tier.value,
+            "score": round(self.score, 3),
+            "agent": self.agent,
+            "reason": self.reason,
+            "requires_supervisor": self.requires_supervisor,
+            "metadata": self.metadata,
+        }
 
 
 class SecurityError(MegaAgentError):
@@ -216,20 +259,33 @@ class MegaAgent:
         (CommandType.ADMIN, "legal"): ("_handle_legal_command", LegalPayload),
     }
 
-    def __init__(self, memory_manager: MemoryManager | None = None):
+    def __init__(
+        self,
+        memory_manager: MemoryManager | None = None,
+        *,
+        complexity_analyzer: ComplexityAnalyzer | None = None,
+        supervisor_agent: SupervisorAgent | None = None,
+        use_chain_of_thought: bool = True,
+    ):
         """
         Инициализация MegaAgent.
 
         Args:
             memory_manager: Менеджер памяти для persistence
+            complexity_analyzer: Анализатор сложности задач
+            supervisor_agent: Supervisor agent для планирования
+            use_chain_of_thought: Enable Chain-of-Thought prompting for better reasoning (default: True)
         """
         self.memory = memory_manager or MemoryManager()
+        self.complexity_analyzer = complexity_analyzer or ComplexityAnalyzer()
+        self.use_cot = use_chain_of_thought
 
         # Инициализация агентов
         self.case_agent = CaseAgent(memory_manager=self.memory)
         self.writer_agent = WriterAgent(memory_manager=self.memory)
         self.eb1_agent = EB1Agent(memory_manager=self.memory)
         self.validator_agent = ValidatorAgent(memory_manager=self.memory)
+        self.supervisor_agent = supervisor_agent or SupervisorAgent(memory_manager=self.memory)
 
         # Кэш пользователей и их ролей (в реальности из базы данных)
         self._user_roles: dict[str, UserRole] = {}
@@ -239,6 +295,13 @@ class MegaAgent:
 
         # Compiled graph pool для переиспользования (thread-safe optimization)
         self._compiled_graph_pool: dict[str, Any] = {}
+
+        # Log CoT status
+        logger.info(
+            "megaagent.initialized",
+            use_chain_of_thought=self.use_cot,
+            agents=["case", "writer", "eb1", "validator", "supervisor"],
+        )
 
         self.rbac_manager = get_rbac_manager()
         self.prompt_detector = (
@@ -265,6 +328,8 @@ class MegaAgent:
         """
         start_time = datetime.utcnow()
 
+        decision: RoutingDecision | None = None
+
         try:
             # Получение роли пользователя
             if user_role is None:
@@ -280,8 +345,11 @@ class MegaAgent:
             # Audit log начала команды
             await self._log_command_start(command, user_role)
 
+            # Анализ сложности и маршрута
+            decision = await self._route_command(command)
+
             # Маршрутизация к соответствующему агенту
-            result = await self._dispatch_to_agent(command, user_role)
+            result = await self._dispatch_to_agent(command, user_role, decision)
 
             # Расчет времени выполнения
             execution_time = (datetime.utcnow() - start_time).total_seconds()
@@ -291,8 +359,14 @@ class MegaAgent:
                 command_id=command.command_id,
                 success=True,
                 result=result,
-                agent_used=self.COMMAND_AGENT_MAPPING.get(command.command_type),
+                agent_used=(
+                    decision.agent
+                    if decision
+                    else self.COMMAND_AGENT_MAPPING.get(command.command_type)
+                ),
                 execution_time=execution_time,
+                tier=decision.tier if decision else None,
+                routing_metadata=decision.to_dict() if decision else None,
             )
 
             # Audit log завершения
@@ -312,6 +386,8 @@ class MegaAgent:
                 success=False,
                 error=str(e),
                 execution_time=execution_time,
+                tier=decision.tier if decision else None,
+                routing_metadata=decision.to_dict() if decision else None,
             )
 
             # Audit log ошибки
@@ -319,8 +395,170 @@ class MegaAgent:
 
             return response
 
+    async def _route_command(self, command: MegaAgentCommand) -> RoutingDecision:
+        """Определение агента и уровня исполнения для команды."""
+
+        if command.requested_agent:
+            reason = "User requested explicit agent"
+            tier = command.requested_tier or TaskTier.LANGGRAPH
+            return RoutingDecision(
+                tier=tier,
+                score=0.5,
+                agent=command.requested_agent,
+                reason=reason,
+                requires_supervisor=command.requested_agent == "supervisor_agent",
+                metadata={"source": "manual_override"},
+            )
+
+        if command.requested_tier:
+            agent = self._determine_agent_from_tier(command, command.requested_tier, hint=None)
+            return RoutingDecision(
+                tier=command.requested_tier,
+                score=0.5,
+                agent=agent,
+                reason="User requested explicit tier",
+                requires_supervisor=command.requested_tier is TaskTier.DEEP,
+                metadata={"source": "manual_override"},
+            )
+
+        if not command.auto_route:
+            agent = self.COMMAND_AGENT_MAPPING.get(command.command_type, "workflow_system")
+            return RoutingDecision(
+                tier=TaskTier.LANGCHAIN,
+                score=0.3,
+                agent=agent,
+                reason="Auto routing disabled",
+                metadata={"source": "static_mapping"},
+            )
+
+        complexity: ComplexityResult = await self.complexity_analyzer.analyze(command)
+        agent = self._determine_agent_from_tier(
+            command, complexity.tier, complexity.recommended_agent
+        )
+        reason = complexity.reasons[-1] if complexity.reasons else "Heuristic routing"
+        metadata = {
+            "reasons": complexity.reasons,
+            "estimated_steps": complexity.estimated_steps,
+            "estimated_cost": complexity.estimated_cost,
+        }
+        return RoutingDecision(
+            tier=complexity.tier,
+            score=complexity.score,
+            agent=agent,
+            reason=reason,
+            requires_supervisor=complexity.requires_supervisor,
+            metadata=metadata,
+        )
+
+    def _determine_agent_from_tier(
+        self,
+        command: MegaAgentCommand,
+        tier: TaskTier,
+        hint: str | None = None,
+    ) -> str:
+        if hint:
+            return hint
+        if tier is TaskTier.DEEP:
+            return "supervisor_agent"
+        if tier is TaskTier.LANGGRAPH:
+            if command.command_type in (
+                CommandType.CASE,
+                CommandType.GENERATE,
+                CommandType.VALIDATE,
+            ):
+                return self.COMMAND_AGENT_MAPPING.get(command.command_type, "workflow_system")
+            return "workflow_system"
+        return self.COMMAND_AGENT_MAPPING.get(command.command_type, "tool_runner")
+
+    async def _invoke_supervisor(
+        self,
+        command: MegaAgentCommand,
+        user_role: UserRole,
+        decision: RoutingDecision | None,
+    ) -> dict[str, Any]:
+        request = self._build_supervisor_request(command, decision)
+
+        async def executor(step: PlannedSubTask) -> dict[str, Any]:
+            return await self._execute_supervisor_step(step, command, user_role)
+
+        result = await self.supervisor_agent.run_task(request, executor)
+        return result.model_dump()
+
+    def _build_supervisor_request(
+        self, command: MegaAgentCommand, decision: RoutingDecision | None
+    ) -> SupervisorTaskRequest:
+        context = command.context.copy() if command.context else {}
+        context.setdefault("priority", command.priority)
+
+        # Get task description and enhance with CoT for better planning
+        task_description = command.payload.get("task_description") or command.action
+        # Use STRUCTURED template for supervisor tasks (complex multi-step planning)
+        enhanced_task = self._enhance_with_cot(
+            task_description, command, template=CoTTemplate.STRUCTURED
+        )
+
+        return SupervisorTaskRequest(
+            task=enhanced_task,
+            user_id=command.user_id,
+            thread_id=context.get("thread_id"),
+            context=context,
+            constraints=command.payload.get("constraints", []),
+            preferred_agents=[command.requested_agent] if command.requested_agent else [],
+            metadata={
+                "parent_command": command.command_id,
+                "decision": decision.to_dict() if decision else None,
+            },
+        )
+
+    async def _execute_supervisor_step(
+        self,
+        step: PlannedSubTask,
+        parent_command: MegaAgentCommand,
+        user_role: UserRole,
+    ) -> dict[str, Any]:
+        try:
+            command_type = CommandType(step.command_type)
+        except ValueError:
+            command_type = CommandType.ASK
+
+        requested_tier = None
+        if step.requested_tier:
+            try:
+                requested_tier = TaskTier(step.requested_tier)
+            except ValueError:
+                requested_tier = None
+
+        context = dict(parent_command.context or {})
+        trace = list(context.get("supervisor_trace", []))
+        trace.append({"step_id": step.id, "description": step.description})
+        context["supervisor_trace"] = trace
+
+        sub_command = MegaAgentCommand(
+            user_id=parent_command.user_id,
+            command_type=command_type,
+            action=step.action,
+            payload=step.payload,
+            context=context,
+            priority=parent_command.priority,
+            requested_agent=step.expected_agent,
+            requested_tier=requested_tier,
+            auto_route=step.expected_agent is None,
+        )
+
+        return await self._dispatch_to_agent(
+            sub_command,
+            user_role,
+            None,
+            preferred_agent=step.expected_agent,
+        )
+
     async def _dispatch_to_agent(
-        self, command: MegaAgentCommand, user_role: UserRole
+        self,
+        command: MegaAgentCommand,
+        user_role: UserRole,
+        decision: RoutingDecision | None = None,
+        *,
+        preferred_agent: str | None = None,
     ) -> dict[str, Any]:
         """
         Маршрутизация команды к соответствующему агенту.
@@ -334,7 +572,12 @@ class MegaAgent:
         Raises:
             CommandError: При ошибках маршрутизации
         """
-        agent_name = self.COMMAND_AGENT_MAPPING.get(command.command_type)
+        agent_name = preferred_agent
+        if not agent_name:
+            if decision:
+                agent_name = decision.agent
+            else:
+                agent_name = self.COMMAND_AGENT_MAPPING.get(command.command_type)
 
         if not agent_name:
             raise CommandError(f"Unknown command type: {command.command_type}")
@@ -372,7 +615,11 @@ class MegaAgent:
 
         # Базовая интеграция для ASK: memory workflow (log→reflect→retrieve→rmt)
         if agent_name == "supervisor_agent":
-            return await self._handle_ask_command(command)
+            if command.command_type == CommandType.ASK and not (
+                decision and decision.requires_supervisor
+            ):
+                return await self._handle_ask_command(command)
+            return await self._invoke_supervisor(command, user_role, decision)
 
         # Базовый SEARCH: прямой поиск по семантической памяти
         if agent_name == "rag_pipeline_agent":
@@ -446,6 +693,53 @@ class MegaAgent:
         if result.is_injection:
             raise CommandError("Prompt blocked due to suspected injection attempt")
         return result
+
+    def _enhance_with_cot(
+        self, prompt: str, command: MegaAgentCommand, template: CoTTemplate | None = None
+    ) -> str:
+        """Enhance prompt with Chain-of-Thought reasoning.
+
+        Automatically applies CoT templates to improve LLM reasoning quality.
+        Uses command type and action to select optimal template.
+
+        Args:
+            prompt: Original prompt text
+            command: Command being executed (for template selection)
+            template: Optional specific template to use
+
+        Returns:
+            CoT-enhanced prompt
+
+        Example:
+            >>> enhanced = self._enhance_with_cot("Analyze this evidence", command)
+            >>> # Returns prompt with analytical CoT template
+        """
+        if not self.use_cot:
+            # CoT disabled, return original
+            return prompt
+
+        # Select template based on command if not provided
+        if template is None:
+            template = select_cot_template(
+                command_type=command.command_type.value, action=command.action
+            )
+
+        # Apply CoT enhancement
+        enhanced = enhance_prompt_with_cot(
+            prompt, command_type=command.command_type.value, action=command.action
+        )
+
+        logger.debug(
+            "megaagent.cot.enhanced",
+            command_id=command.command_id,
+            command_type=command.command_type.value,
+            action=command.action,
+            template=template.value,
+            original_length=len(prompt),
+            enhanced_length=len(enhanced),
+        )
+
+        return enhanced
 
     async def _handle_case_command(self, command: MegaAgentCommand) -> dict[str, Any]:
         """Обработка команд case_agent"""
@@ -592,7 +886,7 @@ class MegaAgent:
         payload = RecommendPayload.model_validate(command.payload)
         # simple stub: return topk placeholders
         recs = [
-            {"id": f"rec_{i+1}", "text": payload.context[:80], "score": 1 - i * 0.1}
+            {"id": f"rec_{i + 1}", "text": payload.context[:80], "score": 1 - i * 0.1}
             for i in range(payload.topk or 5)
         ]
         return {"operation": "recommend", "items": recs}
@@ -749,7 +1043,22 @@ class MegaAgent:
         if not query:
             raise CommandError("ASK requires 'query' in payload")
 
+        logger.info(
+            "mega.ask.start",
+            command_id=command.command_id,
+            user_id=command.user_id,
+            query_length=len(query),
+        )
+
         detection = self._check_prompt_injection(query, context=command.context)
+        if detection:
+            logger.warning(
+                "mega.ask.prompt_injection_detected",
+                command_id=command.command_id,
+                user_id=command.user_id,
+                score=detection.confidence,
+                issues=detection.injection_types,
+            )
 
         # Формируем AuditEvent для трассировки
         event = AuditEvent(
@@ -771,6 +1080,14 @@ class MegaAgent:
             query=query,
         )
         final = await run_pipeline(graph_exec, initial)
+        logger.info(
+            "mega.ask.memory_complete",
+            command_id=command.command_id,
+            user_id=command.user_id,
+            retrieved=len(final.retrieved),
+            reflected=len(final.reflected),
+            rmt_slots=len(final.rmt_slots or []),
+        )
 
         response: dict[str, Any] = {
             "operation": "ask",
@@ -789,8 +1106,6 @@ class MegaAgent:
         # Prefer OpenAI, then Anthropic, then Gemini. If no keys configured, skip.
         try:
             import os
-
-            logger = structlog.get_logger(__name__)
 
             openai_key = os.getenv("OPENAI_API_KEY")
             anthropic_key = os.getenv("ANTHROPIC_API_KEY")
@@ -829,6 +1144,17 @@ class MegaAgent:
                 f"Context (may be empty):\n{context_blob}"
             ).strip()
 
+            # Apply Chain-of-Thought enhancement for better reasoning
+            prompt = self._enhance_with_cot(prompt, command)
+
+            logger.info(
+                "mega.ask.prompt_built",
+                command_id=command.command_id,
+                user_id=command.user_id,
+                prompt_length=len(prompt),
+                context_length=len(context_blob),
+            )
+
             if openai_key:
                 # OpenAI via SDK wrapper (core/llm_interface/openai_client.py)
                 # Respect environment model/config to match SDK handlers
@@ -852,11 +1178,29 @@ class MegaAgent:
                         reasoning_effort=reasoning_effort,
                     )
                     # Allow max tokens override to align with SDK usage
-                    max_tokens = int(os.getenv("OPENAI_MAX_TOKENS", "800"))
+                    max_tokens = int(os.getenv("OPENAI_MAX_TOKENS", "4000"))
+                    logger.info(
+                        "mega.ask.llm.request",
+                        command_id=command.command_id,
+                        provider="openai",
+                        model=model_name,
+                        max_tokens=max_tokens,
+                        temperature=temperature,
+                        verbosity=verbosity,
+                        reasoning_effort=reasoning_effort,
+                    )
                     result = await client.acomplete(prompt, max_tokens=max_tokens)
                     llm_text = result.get("output") or result.get("response")
                     provider_used = result.get("provider", "openai")
                     response["llm_model"] = result.get("model")
+                    # DEBUG: Log OpenAI result to diagnose missing response
+                    logger.info(
+                        "ask.openai.result",
+                        has_output=bool(result.get("output")),
+                        output_length=len(result.get("output") or ""),
+                        llm_text_length=len(llm_text or ""),
+                        finish_reason=result.get("finish_reason"),
+                    )
                     response.setdefault("llm_params", {})
                     response["llm_params"].update(
                         {
@@ -864,6 +1208,15 @@ class MegaAgent:
                             "reasoning_effort": reasoning_effort,
                             "max_tokens": max_tokens,
                         }
+                    )
+                    logger.info(
+                        "mega.ask.llm.response",
+                        command_id=command.command_id,
+                        provider="openai",
+                        model=result.get("model"),
+                        finish_reason=result.get("finish_reason"),
+                        completion_tokens=((result.get("usage") or {}).get("completion_tokens")),
+                        output_length=len(llm_text or ""),
                     )
                 except Exception as e:  # pragma: no cover - external dependency branch
                     try:
@@ -882,10 +1235,26 @@ class MegaAgent:
                         api_key=anthropic_key,
                         temperature=0.2,
                     )
+                    logger.info(
+                        "mega.ask.llm.request",
+                        command_id=command.command_id,
+                        provider="anthropic",
+                        model=AnthropicClient.CLAUDE_HAIKU_3_5,
+                        max_tokens=800,
+                    )
                     result = await client.acomplete(prompt, max_tokens=800)
                     llm_text = result.get("output") or result.get("response")
                     provider_used = result.get("provider", "anthropic")
                     response["llm_model"] = result.get("model")
+                    logger.info(
+                        "mega.ask.llm.response",
+                        command_id=command.command_id,
+                        provider="anthropic",
+                        model=result.get("model"),
+                        finish_reason=result.get("finish_reason"),
+                        completion_tokens=((result.get("usage") or {}).get("completion_tokens")),
+                        output_length=len(llm_text or ""),
+                    )
                 except Exception as e:  # pragma: no cover
                     try:
                         logger.exception("ask.llm.error", provider="anthropic", error=str(e))
@@ -900,10 +1269,26 @@ class MegaAgent:
                     client = GeminiClient(
                         model=GeminiClient.GEMINI_2_5_FLASH, api_key=gemini_key, temperature=0.2
                     )
+                    logger.info(
+                        "mega.ask.llm.request",
+                        command_id=command.command_id,
+                        provider="gemini",
+                        model=GeminiClient.GEMINI_2_5_FLASH,
+                        max_tokens=800,
+                    )
                     result = await client.acomplete(prompt, max_output_tokens=800)
                     llm_text = result.get("output") or result.get("response")
                     provider_used = result.get("provider", "gemini")
                     response["llm_model"] = result.get("model")
+                    logger.info(
+                        "mega.ask.llm.response",
+                        command_id=command.command_id,
+                        provider="gemini",
+                        model=result.get("model"),
+                        finish_reason=result.get("finish_reason"),
+                        completion_tokens=((result.get("usage") or {}).get("completion_tokens")),
+                        output_length=len(llm_text or ""),
+                    )
                 except Exception as e:  # pragma: no cover
                     try:
                         logger.exception("ask.llm.error", provider="gemini", error=str(e))
@@ -912,12 +1297,35 @@ class MegaAgent:
                     response.setdefault("llm_error", str(e))
 
             if llm_text:
+                # DEBUG: Log exact type and content before setting response
+                logger.info(
+                    "ask.llm_text.debug",
+                    llm_text_type=type(llm_text).__name__,
+                    llm_text_repr=repr(
+                        llm_text[:200] if isinstance(llm_text, str) else str(llm_text)[:200]
+                    ),
+                    llm_text_length=(
+                        len(llm_text) if isinstance(llm_text, str) else len(str(llm_text))
+                    ),
+                )
                 response["llm_response"] = llm_text
                 response["llm_provider"] = provider_used
+                logger.info(
+                    "mega.ask.llm_result_attached",
+                    command_id=command.command_id,
+                    provider=provider_used,
+                    output_length=len(llm_text) if isinstance(llm_text, str) else None,
+                )
 
         except Exception as e:  # pragma: no cover - defensive guard
             # Don't fail ASK due to LLM errors
             response.setdefault("llm_error", str(e))
+            logger.exception(
+                "mega.ask.llm_exception",
+                command_id=command.command_id,
+                user_id=command.user_id,
+                error=str(e),
+            )
         finally:
             try:
                 if not response.get("llm_response"):
@@ -934,6 +1342,14 @@ class MegaAgent:
                     logger.info("ask.llm.missing_output", reason=reason)
             except Exception:  # nosec B110 - logging is best-effort
                 pass
+
+        logger.info(
+            "mega.ask.completed",
+            command_id=command.command_id,
+            user_id=command.user_id,
+            has_llm_response=bool(response.get("llm_response")),
+            prompt_analysis=bool(response.get("prompt_analysis")),
+        )
 
         return response
 

@@ -1,7 +1,7 @@
 """SQLAlchemy models for PostgreSQL storage.
 
 Schema includes:
-- semantic_memory: Metadata for vectors stored in Pinecone
+- semantic_memory: Text + Supabase Vector embeddings
 - episodic_memory: Audit trail and event log
 - rmt_buffers: RMT (working memory) buffers
 - cases: Legal case records
@@ -13,6 +13,7 @@ from __future__ import annotations
 from datetime import datetime
 from uuid import UUID, uuid4
 
+from pgvector.sqlalchemy import Vector
 from sqlalchemy import TIMESTAMP, CheckConstraint, Index, String, Text
 from sqlalchemy.dialects.postgresql import ARRAY, JSONB
 from sqlalchemy.dialects.postgresql import UUID as PG_UUID
@@ -26,18 +27,17 @@ class Base(AsyncAttrs, DeclarativeBase):
 
 class SemanticMemoryDB(Base):
     """
-    Semantic memory metadata (actual vectors stored in Pinecone).
+    Semantic memory table with pgvector embeddings stored directly in Supabase/PostgreSQL.
 
-    This table stores metadata and text for semantic memories,
-    while the embeddings are stored in Pinecone for efficient vector search.
+    This replaces the previous external metadata table by persisting both content and vectors
+    inside the warehouse for deterministic checkpointing and locality.
     """
 
     __tablename__ = "semantic_memory"
     __table_args__ = (
         CheckConstraint("length(text) > 0", name="semantic_text_not_empty"),
         Index("idx_semantic_user_id", "user_id"),
-        Index("idx_semantic_pinecone_id", "pinecone_id", unique=True),
-        Index("idx_semantic_namespace", "pinecone_namespace"),
+        Index("idx_semantic_namespace", "namespace"),
         Index("idx_semantic_type", "type"),
         Index("idx_semantic_tags", "tags", postgresql_using="gin"),
         Index("idx_semantic_created", "created_at", postgresql_using="btree"),
@@ -46,24 +46,23 @@ class SemanticMemoryDB(Base):
 
     record_id: Mapped[UUID] = mapped_column(PG_UUID(as_uuid=True), primary_key=True, default=uuid4)
 
-    # Pinecone reference
-    pinecone_id: Mapped[str] = mapped_column(String(255), nullable=False, unique=True)
-    pinecone_namespace: Mapped[str] = mapped_column(String(255), default="default")
+    # Namespace / tenancy
+    namespace: Mapped[str] = mapped_column(String(255), default="default")
 
     # Ownership
     user_id: Mapped[str] = mapped_column(String(255), nullable=False)
     thread_id: Mapped[str | None] = mapped_column(String(255), nullable=True)
 
-    # Content
     text: Mapped[str] = mapped_column(Text, nullable=False)
     type: Mapped[str] = mapped_column(String(50), default="fact")
     source: Mapped[str | None] = mapped_column(String(100), nullable=True)
     tags: Mapped[list[str]] = mapped_column(ARRAY(String), default=list)
-    metadata: Mapped[dict] = mapped_column(JSONB, default=dict)
+    metadata_json: Mapped[dict] = mapped_column(JSONB, default=dict)
 
-    # Embedding metadata
-    embedding_model: Mapped[str] = mapped_column(String(100), default="voyage-3-large")
-    embedding_dimension: Mapped[int] = mapped_column(default=2048)
+    # Embedding (pgvector) + metadata
+    embedding: Mapped[list[float]] = mapped_column(Vector(1536))
+    embedding_model: Mapped[str] = mapped_column(String(100), default="text-embedding-3-large")
+    embedding_dimension: Mapped[int] = mapped_column(default=1536)
 
     # Timestamps
     created_at: Mapped[datetime] = mapped_column(TIMESTAMP(timezone=True), default=datetime.utcnow)
@@ -230,10 +229,9 @@ class DocumentDB(Base):
     r2_key: Mapped[str] = mapped_column(String(1000), nullable=False)
     r2_url: Mapped[str | None] = mapped_column(Text, nullable=True)
 
-    # Document classification
     document_type: Mapped[str | None] = mapped_column(String(100), nullable=True)
     tags: Mapped[list[str]] = mapped_column(ARRAY(String), default=list)
-    metadata: Mapped[dict] = mapped_column(JSONB, default=dict)
+    metadata_json: Mapped[dict] = mapped_column(JSONB, default=dict)
 
     # Processing status
     processing_status: Mapped[str] = mapped_column(String(50), default="pending")
