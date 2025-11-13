@@ -338,5 +338,8 @@ def get_handlers(bot_context: BotContext):
         # Fallback regex to catch '/ask@bot' or formatting edge cases
         MessageHandler(filters.TEXT & filters.Regex(r"^/ask(?:@[A-Za-z0-9_]+)?\b"), ask_command),
         CommandHandler("memory_lookup", memory_lookup_command),
-        MessageHandler(filters.COMMAND, unknown_command),
     ]
+
+
+def get_unknown_handler() -> MessageHandler:
+    return MessageHandler(filters.COMMAND, unknown_command)
