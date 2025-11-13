@@ -150,7 +150,7 @@ async def ask_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
                 bot_context.mega_agent.handle_command(command, user_role=UserRole.LAWYER),
                 timeout=ask_timeout,
             )
-        except asyncio.TimeoutError:
+        except TimeoutError:
             await message.reply_text("⏳ Превышено время ожидания ответа. Попробуйте снова.")
             logger.error(
                 "telegram.ask.timeout",

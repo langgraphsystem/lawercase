@@ -8,11 +8,15 @@ Verifies GPT-5.1 features:
 - Tool calls response handling
 """
 
-import pytest
+from __future__ import annotations
+
 from unittest.mock import AsyncMock, MagicMock, patch
 
+import pytest
+
 from core.llm_interface.openai_client import OpenAIClient
-from core.tools.tool_registry import get_tool_registry, ToolMetadata, ToolType, reset_tool_registry
+from core.tools.tool_registry import (ToolMetadata, ToolType,
+                                      get_tool_registry, reset_tool_registry)
 
 
 class TestGPT51Models:
@@ -20,13 +24,13 @@ class TestGPT51Models:
 
     def test_default_model_is_gpt51_instant(self):
         """Default model should be gpt-5.1-chat-latest."""
-        with patch('core.llm_interface.openai_client.AsyncOpenAI'):
+        with patch("core.llm_interface.openai_client.AsyncOpenAI"):
             client = OpenAIClient(api_key="test-key")
             assert client.model == "gpt-5.1-chat-latest"
 
     def test_gpt51_models_detection(self):
         """_is_gpt5_1_model() should detect GPT-5.1 models."""
-        with patch('core.llm_interface.openai_client.AsyncOpenAI'):
+        with patch("core.llm_interface.openai_client.AsyncOpenAI"):
             # GPT-5.1 models
             for model in ["gpt-5.1-chat-latest", "gpt-5.1", "gpt-5.1-codex", "gpt-5.1-codex-mini"]:
                 client = OpenAIClient(model=model, api_key="test-key")
@@ -39,21 +43,17 @@ class TestGPT51Models:
 
     def test_reasoning_effort_none(self):
         """reasoning_effort='none' should be supported."""
-        with patch('core.llm_interface.openai_client.AsyncOpenAI'):
+        with patch("core.llm_interface.openai_client.AsyncOpenAI"):
             client = OpenAIClient(
-                model="gpt-5.1-chat-latest",
-                reasoning_effort="none",
-                api_key="test-key"
+                model="gpt-5.1-chat-latest", reasoning_effort="none", api_key="test-key"
             )
             assert client.reasoning_effort == "none"
 
     def test_prompt_cache_retention(self):
         """prompt_cache_retention parameter should be stored."""
-        with patch('core.llm_interface.openai_client.AsyncOpenAI'):
+        with patch("core.llm_interface.openai_client.AsyncOpenAI"):
             client = OpenAIClient(
-                model="gpt-5.1-chat-latest",
-                prompt_cache_retention="24h",
-                api_key="test-key"
+                model="gpt-5.1-chat-latest", prompt_cache_retention="24h", api_key="test-key"
             )
             assert client.prompt_cache_retention == "24h"
 
@@ -63,7 +63,7 @@ class TestFunctionCalling:
 
     def test_tools_parameter_initialization(self):
         """Client should accept tools parameter."""
-        with patch('core.llm_interface.openai_client.AsyncOpenAI'):
+        with patch("core.llm_interface.openai_client.AsyncOpenAI"):
             tools = [
                 {
                     "type": "function",
@@ -72,20 +72,15 @@ class TestFunctionCalling:
                         "description": "Get weather",
                         "parameters": {
                             "type": "object",
-                            "properties": {
-                                "location": {"type": "string"}
-                            },
-                            "required": ["location"]
-                        }
-                    }
+                            "properties": {"location": {"type": "string"}},
+                            "required": ["location"],
+                        },
+                    },
                 }
             ]
 
             client = OpenAIClient(
-                model="gpt-5.1-chat-latest",
-                tools=tools,
-                tool_choice="auto",
-                api_key="test-key"
+                model="gpt-5.1-chat-latest", tools=tools, tool_choice="auto", api_key="test-key"
             )
 
             assert client.tools == tools
@@ -94,7 +89,7 @@ class TestFunctionCalling:
     @pytest.mark.asyncio
     async def test_acomplete_with_tools_adds_to_request(self):
         """acomplete should add tools to API request."""
-        with patch('core.llm_interface.openai_client.AsyncOpenAI') as mock_openai:
+        with patch("core.llm_interface.openai_client.AsyncOpenAI") as mock_openai:
             # Setup mock
             mock_client = AsyncMock()
             mock_openai.return_value = mock_client
@@ -103,22 +98,14 @@ class TestFunctionCalling:
             mock_response.choices = [MagicMock()]
             mock_response.choices[0].message.content = "Test response"
             mock_response.choices[0].finish_reason = "stop"
-            mock_response.usage = MagicMock(
-                prompt_tokens=10,
-                completion_tokens=5,
-                total_tokens=15
-            )
+            mock_response.usage = MagicMock(prompt_tokens=10, completion_tokens=5, total_tokens=15)
             mock_response.model = "gpt-5.1-chat-latest"
 
             mock_client.chat.completions.create = AsyncMock(return_value=mock_response)
 
             # Create client with tools
             tools = [{"type": "function", "function": {"name": "test_tool"}}]
-            client = OpenAIClient(
-                model="gpt-5.1-chat-latest",
-                tools=tools,
-                api_key="test-key"
-            )
+            client = OpenAIClient(model="gpt-5.1-chat-latest", tools=tools, api_key="test-key")
 
             # Call acomplete
             await client.acomplete("Test prompt")
@@ -132,7 +119,7 @@ class TestFunctionCalling:
     @pytest.mark.asyncio
     async def test_tool_calls_in_response(self):
         """Response should include tool_calls if present."""
-        with patch('core.llm_interface.openai_client.AsyncOpenAI') as mock_openai:
+        with patch("core.llm_interface.openai_client.AsyncOpenAI") as mock_openai:
             # Setup mock with tool calls
             mock_client = AsyncMock()
             mock_openai.return_value = mock_client
@@ -148,20 +135,13 @@ class TestFunctionCalling:
             mock_response.choices[0].message.content = None
             mock_response.choices[0].message.tool_calls = [mock_tool_call]
             mock_response.choices[0].finish_reason = "tool_calls"
-            mock_response.usage = MagicMock(
-                prompt_tokens=10,
-                completion_tokens=5,
-                total_tokens=15
-            )
+            mock_response.usage = MagicMock(prompt_tokens=10, completion_tokens=5, total_tokens=15)
             mock_response.model = "gpt-5.1-chat-latest"
 
             mock_client.chat.completions.create = AsyncMock(return_value=mock_response)
 
             # Create client
-            client = OpenAIClient(
-                model="gpt-5.1-chat-latest",
-                api_key="test-key"
-            )
+            client = OpenAIClient(model="gpt-5.1-chat-latest", api_key="test-key")
 
             # Call acomplete
             result = await client.acomplete("What's the weather?")
@@ -206,14 +186,12 @@ class TestToolRegistry:
                 tool_type=ToolType.FUNCTION,
                 parameters={
                     "type": "object",
-                    "properties": {
-                        "arg1": {"type": "string"}
-                    },
-                    "required": ["arg1"]
+                    "properties": {"arg1": {"type": "string"}},
+                    "required": ["arg1"],
                 },
                 strict=True,
-                enabled=True
-            )
+                enabled=True,
+            ),
         )
 
         # Get tools for OpenAI
@@ -233,6 +211,7 @@ class TestToolRegistry:
 
         # Register built-in tools (no executor needed)
         for tool_type in [ToolType.FILE_SEARCH, ToolType.WEB_SEARCH, ToolType.CODE_INTERPRETER]:
+
             async def dummy_tool(**kwargs):
                 pass
 
@@ -243,8 +222,8 @@ class TestToolRegistry:
                     name=f"builtin_{tool_type.value}",
                     description=f"Built-in {tool_type.value}",
                     tool_type=tool_type,
-                    enabled=True
-                )
+                    enabled=True,
+                ),
             )
 
         # Get tools for OpenAI
@@ -271,8 +250,8 @@ class TestToolRegistry:
                 description="Admin only tool",
                 tool_type=ToolType.FUNCTION,
                 allowed_roles={"admin"},
-                enabled=True
-            )
+                enabled=True,
+            ),
         )
 
         # Get tools for admin - should include tool
@@ -298,8 +277,8 @@ class TestToolRegistry:
                 name="disabled",
                 description="Disabled tool",
                 tool_type=ToolType.FUNCTION,
-                enabled=False  # Disabled!
-            )
+                enabled=False,  # Disabled!
+            ),
         )
 
         # Get tools - should not include disabled tool
