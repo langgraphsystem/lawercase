@@ -41,9 +41,10 @@ if [ $? -ne 0 ]; then
   }
 fi
 
-exec "$PYTHON_BIN" -m uvicorn api.main:app \
+exec "$PYTHON_BIN" -m uvicorn --app-dir /app api.main:app \
     --host 0.0.0.0 \
     --port "$PORT" \
+    --workers "$WORKERS" \
     --log-level info \
     --proxy-headers \
     --forwarded-allow-ips '*'
