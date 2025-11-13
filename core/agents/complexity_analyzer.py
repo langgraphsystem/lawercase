@@ -2,10 +2,10 @@ from __future__ import annotations
 
 """Task complexity analysis and routing decisions for MegaAgent."""
 
-from dataclasses import dataclass, field
-from enum import Enum
 import json
 import logging
+from dataclasses import dataclass, field
+from enum import Enum
 from typing import TYPE_CHECKING, Any
 
 from ..llm_interface import IntelligentRouter, LLMRequest
