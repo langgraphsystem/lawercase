@@ -36,8 +36,10 @@ def _split_for_telegram(text: str) -> list[str]:
 
 HELP_TEXT = (
     "Available commands:\n"
-    "/ask <question> — Ask MegaAgent.\n"
+    "/case_create <title> | <description> — Create a new case.\n"
     "/case_get <case_id> — Fetch case details.\n"
+    "/case_active — Show current active case.\n"
+    "/ask <question> — Ask MegaAgent.\n"
     "/memory_lookup <query> — Search semantic memory.\n"
     "/generate_letter <title> — Generate letter draft.\n"
     "/chat <prompt> — Direct GPT-5 response via OpenAI SDK.\n"
