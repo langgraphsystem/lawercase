@@ -11,60 +11,41 @@ MegaAgent - Центральный оркестратор системы mega_ag
 
 from __future__ import annotations
 
+import time
+import uuid
 from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
-import time
 from typing import Any
-import uuid
 
-from pydantic import BaseModel, Field, ValidationError
 import structlog
+from pydantic import BaseModel, Field, ValidationError
 
 from ..agents import ComplexityAnalyzer, ComplexityResult, TaskTier
 from ..exceptions import AgentError, MegaAgentError
-from ..execution.secure_sandbox import (
-    SandboxPolicy,
-    SandboxRunner,
-    SandboxViolation,
-    ensure_tool_allowed,
-)
+from ..execution.secure_sandbox import (SandboxPolicy, SandboxRunner,
+                                        SandboxViolation, ensure_tool_allowed)
 from ..memory.memory_manager import MemoryManager
 from ..memory.models import AuditEvent
 from ..orchestration.enhanced_workflows import EnhancedWorkflowState
-from ..orchestration.pipeline_manager import (
-    build_enhanced_pipeline,
-    build_pipeline,
-    run as run_pipeline,
-)
+from ..orchestration.pipeline_manager import (build_enhanced_pipeline,
+                                              build_pipeline)
+from ..orchestration.pipeline_manager import run as run_pipeline
 from ..orchestration.workflow_graph import WorkflowState, build_case_workflow
 from ..prompts import CoTTemplate, enhance_prompt_with_cot, select_cot_template
 from ..retry import with_retry
-from ..security import (
-    PromptInjectionResult,
-    get_audit_trail,
-    get_prompt_detector,
-    get_rbac_manager,
-    security_config,
-)
+from ..security import (PromptInjectionResult, get_audit_trail,
+                        get_prompt_detector, get_rbac_manager, security_config)
 from ..storage.connection import get_db_manager
 from ..tools.tool_registry import get_tool_registry
 from .case_agent import CaseAgent
 from .eb1_agent import EB1Agent
-from .models import (
-    AskPayload,
-    BatchTrainPayload,
-    FeedbackPayload,
-    ImprovePayload,
-    LegalPayload,
-    MemoryLookupPayload,
-    OptimizePayload,
-    RecommendPayload,
-    SearchPayload,
-    ToolCommandPayload,
-    TrainPayload,
-)
-from .supervisor_agent import PlannedSubTask, SupervisorAgent, SupervisorTaskRequest
+from .models import (AskPayload, BatchTrainPayload, FeedbackPayload,
+                     ImprovePayload, LegalPayload, MemoryLookupPayload,
+                     OptimizePayload, RecommendPayload, SearchPayload,
+                     ToolCommandPayload, TrainPayload)
+from .supervisor_agent import (PlannedSubTask, SupervisorAgent,
+                               SupervisorTaskRequest)
 from .validator_agent import ValidationRequest, ValidatorAgent
 from .writer_agent import DocumentRequest, DocumentType, WriterAgent
 
@@ -1254,7 +1235,8 @@ class MegaAgent:
             elif anthropic_key:
                 # Anthropic
                 try:
-                    from core.llm_interface.anthropic_client import AnthropicClient
+                    from core.llm_interface.anthropic_client import \
+                        AnthropicClient
 
                     client = AnthropicClient(
                         model=AnthropicClient.CLAUDE_HAIKU_3_5,
