@@ -1,10 +1,15 @@
 # Multi-stage Dockerfile for MegaAgent Pro
 # Optimized for production deployment with health checks
+# Build date: 2025-11-13 - Force cache invalidation for structlog fix
 
 # ============================================================================
 # Stage 1: Base
 # ============================================================================
 FROM python:3.11-slim AS base
+
+# Cache-busting argument - change this to force rebuild
+ARG BUILD_DATE=2025-11-13
+ENV BUILD_DATE=${BUILD_DATE}
 
 WORKDIR /app
 ENV PYTHONDONTWRITEBYTECODE=1 \
