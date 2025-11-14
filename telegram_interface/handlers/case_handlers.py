@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from typing import Any
+
 import structlog
 from telegram import Update
 from telegram.ext import CommandHandler, ContextTypes
@@ -15,6 +17,30 @@ logger = structlog.get_logger(__name__)
 
 def _bot_context(context: ContextTypes.DEFAULT_TYPE) -> BotContext:
     return context.application.bot_data["bot_context"]
+
+
+def _extract_case_payload(
+    result: dict[str, Any] | None,
+) -> tuple[dict[str, Any], dict[str, Any], str | None]:
+    """
+    Normalizes MegaAgent responses by surfacing the actual case payload and ID.
+
+    Returns:
+        (result_dict, case_dict, case_id)
+    """
+    result_dict = result or {}
+    case_data = result_dict.get("case")
+    if not isinstance(case_data, dict):
+        case_result = result_dict.get("case_result")
+        if isinstance(case_result, dict):
+            nested_case = case_result.get("case")
+            if isinstance(nested_case, dict):
+                case_data = nested_case
+    if not isinstance(case_data, dict):
+        case_data = {}
+
+    case_id = result_dict.get("case_id") or case_data.get("case_id")
+    return result_dict, case_data, case_id
 
 
 async def _is_authorized(bot_context: BotContext, update: Update) -> bool:
@@ -63,11 +89,27 @@ async def case_get(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         )
 
         if response.success and response.result:
-            case = response.result.get("case_result") or {}
-            title = case.get("title", "(no title)")
-            status = case.get("status", "unknown")
-            await message.reply_text(f"📁 {case_id}: {title}\nStatus: {status}")
-            logger.info("telegram.case_get.sent", user_id=user_id, case_id=case_id, status=status)
+            result_payload, case_data, normalized_case_id = _extract_case_payload(response.result)
+            title = (
+                case_data.get("title")
+                or result_payload.get("title")
+                or result_payload.get("case_title")
+                or "(no title)"
+            )
+            status = (
+                case_data.get("status")
+                or result_payload.get("status")
+                or result_payload.get("case_status")
+                or "unknown"
+            )
+            display_case_id = normalized_case_id or case_id
+            await message.reply_text(f"📁 {display_case_id}: {title}\nStatus: {status}")
+            logger.info(
+                "telegram.case_get.sent",
+                user_id=user_id,
+                case_id=display_case_id,
+                status=status,
+            )
         else:
             error_msg = response.error or "case not found"
             # Use parse_mode=None to avoid Markdown parsing errors
@@ -117,12 +159,15 @@ async def case_create(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
         response = await bot_context.mega_agent.handle_command(command, user_role=UserRole.LAWYER)
 
         if response.success and response.result:
-            case = response.result.get("case_result") or {}
-            case_id = response.result.get("case_id") or case.get("case_id")
-            if case_id:
-                await bot_context.set_active_case(update, case_id)
-            await message.reply_text(f"📁 Case created: {case.get('title', title)}\nID: {case_id}")
-            logger.info("telegram.case_create.success", user_id=user_id, case_id=case_id)
+            result_payload, case_data, case_id = _extract_case_payload(response.result)
+            reply_case_id = case_id or result_payload.get("case_id")
+            if reply_case_id:
+                await bot_context.set_active_case(update, reply_case_id)
+            case_title = case_data.get("title") or result_payload.get("title") or title
+            await message.reply_text(
+                f"📁 Case created: {case_title}\nID: {reply_case_id or 'unknown'}"
+            )
+            logger.info("telegram.case_create.success", user_id=user_id, case_id=reply_case_id)
         else:
             error_msg = response.error or "case creation failed"
             await message.reply_text(f"❌ Error: {error_msg}", parse_mode=None)
@@ -156,10 +201,12 @@ async def case_active(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
         )
         response = await bot_context.mega_agent.handle_command(command, user_role=UserRole.LAWYER)
         if response.success and response.result:
-            case = response.result.get("case_result") or {}
+            result_payload, case_data, case_id = _extract_case_payload(response.result)
+            case_id_display = case_id or active_case
+            case_title = case_data.get("title") or result_payload.get("title") or "(no title)"
+            case_status = case_data.get("status") or result_payload.get("status") or "unknown"
             await message.reply_text(
-                f"📌 Active case: {case.get('case_id', active_case)}\n"
-                f"Title: {case.get('title', '(no title)')}\nStatus: {case.get('status', 'unknown')}"
+                f"📌 Active case: {case_id_display}\nTitle: {case_title}\nStatus: {case_status}"
             )
         else:
             await message.reply_text(

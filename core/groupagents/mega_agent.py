@@ -11,40 +11,60 @@ MegaAgent - Центральный оркестратор системы mega_ag
 
 from __future__ import annotations
 
-import time
-import uuid
 from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
+import time
 from typing import Any
+import uuid
 
-import structlog
 from pydantic import BaseModel, Field, ValidationError
+import structlog
 
 from ..agents import ComplexityAnalyzer, ComplexityResult, TaskTier
 from ..exceptions import AgentError, MegaAgentError
-from ..execution.secure_sandbox import (SandboxPolicy, SandboxRunner,
-                                        SandboxViolation, ensure_tool_allowed)
+from ..execution.secure_sandbox import (
+    SandboxPolicy,
+    SandboxRunner,
+    SandboxViolation,
+    ensure_tool_allowed,
+)
 from ..memory.memory_manager import MemoryManager
 from ..memory.models import AuditEvent
 from ..orchestration.enhanced_workflows import EnhancedWorkflowState
-from ..orchestration.pipeline_manager import (build_enhanced_pipeline,
-                                              build_pipeline)
-from ..orchestration.pipeline_manager import run as run_pipeline
+from ..orchestration.pipeline_manager import (
+    build_enhanced_pipeline,
+    build_pipeline,
+    run as run_pipeline,
+)
 from ..orchestration.workflow_graph import WorkflowState, build_case_workflow
 from ..prompts import CoTTemplate, enhance_prompt_with_cot, select_cot_template
 from ..retry import with_retry
-from ..security import (PromptInjectionResult, get_audit_trail,
-                        get_prompt_detector, get_rbac_manager, security_config)
+from ..security import (
+    PromptInjectionResult,
+    get_audit_trail,
+    get_prompt_detector,
+    get_rbac_manager,
+    security_config,
+)
+from ..storage.connection import get_db_manager
 from ..tools.tool_registry import get_tool_registry
 from .case_agent import CaseAgent
 from .eb1_agent import EB1Agent
-from .models import (AskPayload, BatchTrainPayload, FeedbackPayload,
-                     ImprovePayload, LegalPayload, MemoryLookupPayload,
-                     OptimizePayload, RecommendPayload, SearchPayload,
-                     ToolCommandPayload, TrainPayload)
-from .supervisor_agent import (PlannedSubTask, SupervisorAgent,
-                               SupervisorTaskRequest)
+from .models import (
+    AskPayload,
+    BatchTrainPayload,
+    FeedbackPayload,
+    ImprovePayload,
+    LegalPayload,
+    MemoryLookupPayload,
+    OptimizePayload,
+    RecommendPayload,
+    SearchPayload,
+    ToolCommandPayload,
+    TrainPayload,
+)
+from .supervisor_agent import PlannedSubTask, SupervisorAgent, SupervisorTaskRequest
 from .validator_agent import ValidationRequest, ValidatorAgent
 from .writer_agent import DocumentRequest, DocumentType, WriterAgent
 
@@ -280,8 +300,15 @@ class MegaAgent:
         self.complexity_analyzer = complexity_analyzer or ComplexityAnalyzer()
         self.use_cot = use_chain_of_thought
 
+        # Получение DatabaseManager для persistence
+        try:
+            self.db_manager = get_db_manager()
+        except Exception:
+            self.db_manager = None
+            logger.warning("Failed to initialize DatabaseManager, using in-memory storage only")
+
         # Инициализация агентов
-        self.case_agent = CaseAgent(memory_manager=self.memory)
+        self.case_agent = CaseAgent(memory_manager=self.memory, db_manager=self.db_manager)
         self.writer_agent = WriterAgent(memory_manager=self.memory)
         self.eb1_agent = EB1Agent(memory_manager=self.memory)
         self.validator_agent = ValidatorAgent(memory_manager=self.memory)
@@ -1227,8 +1254,7 @@ class MegaAgent:
             elif anthropic_key:
                 # Anthropic
                 try:
-                    from core.llm_interface.anthropic_client import \
-                        AnthropicClient
+                    from core.llm_interface.anthropic_client import AnthropicClient
 
                     client = AnthropicClient(
                         model=AnthropicClient.CLAUDE_HAIKU_3_5,
@@ -1512,12 +1538,35 @@ class MegaAgent:
 
     @staticmethod
     def _format_case_response(state: WorkflowState) -> dict[str, Any]:
+        case_result = state.case_result or {}
+        thread_id = state.thread_id
+        case_id = state.case_id
+        case_data = None
+
+        # Attempt to extract case_id from the case_result if not already present
+        if isinstance(case_result, dict):
+            case_data = case_result.get("case")
+            if not case_id and isinstance(case_data, dict):
+                case_id = case_data.get("case_id")
+
         result: dict[str, Any] = {
-            "case_result": state.case_result or {},
-            "thread_id": state.thread_id,
+            "case_result": case_result,
+            "thread_id": thread_id,
         }
-        if state.case_id:
-            result["case_id"] = state.case_id
+        if case_id:
+            result["case_id"] = case_id
+        if isinstance(case_data, dict):
+            result["case"] = case_data
+            if "title" in case_data:
+                result.setdefault("title", case_data["title"])
+            if "status" in case_data:
+                result.setdefault("status", case_data["status"])
+
+        if isinstance(case_result, dict):
+            operation = case_result.get("operation")
+            if operation:
+                result["operation"] = operation
+
         if state.rmt_slots:
             result["rmt_slots"] = state.rmt_slots
         if state.reflected:
