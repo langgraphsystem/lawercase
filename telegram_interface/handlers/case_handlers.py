@@ -17,12 +17,12 @@ def _bot_context(context: ContextTypes.DEFAULT_TYPE) -> BotContext:
     return context.application.bot_data["bot_context"]
 
 
-def _is_authorized(bot_context: BotContext, update: Update) -> bool:
+async def _is_authorized(bot_context: BotContext, update: Update) -> bool:
     user_id = update.effective_user.id if update.effective_user else None
     if bot_context.is_authorized(user_id):
         return True
     if update.effective_message:
-        update.effective_message.reply_text("🚫 Access denied.")
+        await update.effective_message.reply_text("🚫 Access denied.")
     logger.warning("telegram.case.unauthorized", user_id=user_id)
     return False
 
@@ -32,7 +32,7 @@ async def case_get(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     logger.info("telegram.case_get.received", user_id=user_id)
 
     bot_context = _bot_context(context)
-    if not _is_authorized(bot_context, update):
+    if not await _is_authorized(bot_context, update):
         logger.warning("telegram.case_get.unauthorized", user_id=user_id)
         return
 
@@ -88,7 +88,7 @@ async def case_create(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
     logger.info("telegram.case_create.received", user_id=user_id)
 
     bot_context = _bot_context(context)
-    if not _is_authorized(bot_context, update):
+    if not await _is_authorized(bot_context, update):
         logger.warning("telegram.case_create.unauthorized", user_id=user_id)
         return
 
@@ -137,7 +137,7 @@ async def case_active(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
     logger.info("telegram.case_active.received", user_id=user_id)
 
     bot_context = _bot_context(context)
-    if not _is_authorized(bot_context, update):
+    if not await _is_authorized(bot_context, update):
         return
 
     message = update.effective_message
