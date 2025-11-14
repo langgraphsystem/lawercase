@@ -63,7 +63,7 @@ async def case_get(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         )
 
         if response.success and response.result:
-            case = response.result.get("case") or {}
+            case = response.result.get("case_result") or {}
             title = case.get("title", "(no title)")
             status = case.get("status", "unknown")
             await message.reply_text(f"📁 {case_id}: {title}\nStatus: {status}")
@@ -117,8 +117,8 @@ async def case_create(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
         response = await bot_context.mega_agent.handle_command(command, user_role=UserRole.LAWYER)
 
         if response.success and response.result:
-            case = response.result.get("case") or {}
-            case_id = case.get("case_id")
+            case = response.result.get("case_result") or {}
+            case_id = response.result.get("case_id") or case.get("case_id")
             if case_id:
                 await bot_context.set_active_case(update, case_id)
             await message.reply_text(f"📁 Case created: {case.get('title', title)}\nID: {case_id}")
@@ -156,7 +156,7 @@ async def case_active(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
         )
         response = await bot_context.mega_agent.handle_command(command, user_role=UserRole.LAWYER)
         if response.success and response.result:
-            case = response.result.get("case") or {}
+            case = response.result.get("case_result") or {}
             await message.reply_text(
                 f"📌 Active case: {case.get('case_id', active_case)}\n"
                 f"Title: {case.get('title', '(no title)')}\nStatus: {case.get('status', 'unknown')}"
