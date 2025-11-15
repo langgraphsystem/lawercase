@@ -10,12 +10,12 @@ Integrates with distributed tracing to include trace IDs in logs.
 
 from __future__ import annotations
 
+from datetime import datetime
 import json
 import logging
 import os
-import sys
-from datetime import datetime
 from pathlib import Path
+import sys
 from typing import Any
 
 from .distributed_tracing import get_trace_context

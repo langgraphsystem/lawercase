@@ -4,12 +4,9 @@ import httpx
 import pytest
 import respx
 
-from recommendation_pipeline.clients.adobe_pdf_services_client import \
-    AdobePDFServices
-from recommendation_pipeline.clients.docraptor_client import (DocRaptorClient,
-                                                              DocRaptorError)
-from recommendation_pipeline.clients.gemini_ocr_client import (GeminiOCR,
-                                                               GeminiOCRError)
+from recommendation_pipeline.clients.adobe_pdf_services_client import AdobePDFServices
+from recommendation_pipeline.clients.docraptor_client import DocRaptorClient, DocRaptorError
+from recommendation_pipeline.clients.gemini_ocr_client import GeminiOCR, GeminiOCRError
 
 
 @pytest.mark.asyncio

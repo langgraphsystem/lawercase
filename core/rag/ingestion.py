@@ -2,10 +2,10 @@
 
 from __future__ import annotations
 
-import uuid
 from collections.abc import Sequence
 from dataclasses import dataclass, field
 from typing import Protocol
+import uuid
 
 from .utils import tokenize
 

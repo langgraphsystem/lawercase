@@ -12,14 +12,12 @@ if TYPE_CHECKING:
     from collections.abc import Iterable
 
     from ...llm.voyage_embedder import VoyageEmbedder
-    from ...storage.pinecone_store import \
-        PineconeSemanticStore as PineconeStore
+    from ...storage.pinecone_store import PineconeSemanticStore as PineconeStore
     from ..models import MemoryRecord
 else:
     from collections.abc import Iterable
 
-    from ...storage.pinecone_store import \
-        PineconeSemanticStore as PineconeStore
+    from ...storage.pinecone_store import PineconeSemanticStore as PineconeStore
 
 
 class PineconeSemanticStoreAdapter:

@@ -10,17 +10,25 @@ EB1Agent - Интерактивный агент для EB-1A петиций
 
 from __future__ import annotations
 
-import uuid
 from datetime import datetime
 from typing import Any
+import uuid
 
 from ..memory.memory_manager import MemoryManager
 from ..memory.models import AuditEvent, MemoryRecord
-from .eb1_models import (EB1_QUESTIONNAIRE_TEMPLATES, EB1Answer,
-                         EB1ConversationState, EB1Criterion,
-                         EB1CriterionEvidence, EB1FieldOfExpertise,
-                         EB1PersonalInfo, EB1PetitionData, EB1PetitionStatus,
-                         EB1Question, EB1QuestionnaireStep)
+from .eb1_models import (
+    EB1_QUESTIONNAIRE_TEMPLATES,
+    EB1Answer,
+    EB1ConversationState,
+    EB1Criterion,
+    EB1CriterionEvidence,
+    EB1FieldOfExpertise,
+    EB1PersonalInfo,
+    EB1PetitionData,
+    EB1PetitionStatus,
+    EB1Question,
+    EB1QuestionnaireStep,
+)
 
 
 class EB1Agent:

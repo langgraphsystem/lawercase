@@ -14,14 +14,14 @@ WriterAgent - Генерация документов и писем.
 
 from __future__ import annotations
 
-import html
-import json
-import uuid
 from datetime import datetime
 from enum import Enum
+import html
+import json
 from pathlib import Path
 from string import Template
 from typing import Any
+import uuid
 
 from pydantic import BaseModel, Field, ValidationError, field_validator
 

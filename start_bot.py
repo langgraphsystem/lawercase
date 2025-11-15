@@ -5,8 +5,8 @@ This script ensures PYTHONPATH is set correctly and imports the bot module.
 """
 from __future__ import annotations
 
-import sys
 from pathlib import Path
+import sys
 
 # Add current directory to Python path
 current_dir = Path(__file__).parent.absolute()

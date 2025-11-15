@@ -6,11 +6,15 @@ import asyncio
 
 import pytest
 
-from core.groupagents.self_correcting_mixin import (SelfCorrectingAgent,
-                                                    SelfCorrectingMixin)
-from core.validation import (ConfidenceScorer, ConfidenceThreshold,
-                             QualityTracker, RetryConfig, RetryHandler,
-                             RetryStrategy)
+from core.groupagents.self_correcting_mixin import SelfCorrectingAgent, SelfCorrectingMixin
+from core.validation import (
+    ConfidenceScorer,
+    ConfidenceThreshold,
+    QualityTracker,
+    RetryConfig,
+    RetryHandler,
+    RetryStrategy,
+)
 
 
 # Confidence Scoring Tests

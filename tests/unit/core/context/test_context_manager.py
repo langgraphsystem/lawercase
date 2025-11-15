@@ -4,8 +4,7 @@ from __future__ import annotations
 
 import pytest
 
-from core.context import (ContextBlock, ContextManager, ContextTemplate,
-                          ContextType)
+from core.context import ContextBlock, ContextManager, ContextTemplate, ContextType
 
 
 class TestContextManager:

@@ -11,8 +11,7 @@ from __future__ import annotations
 
 import pytest
 
-from core.prompts import (CoTTemplate, enhance_prompt_with_cot,
-                          select_cot_template)
+from core.prompts import CoTTemplate, enhance_prompt_with_cot, select_cot_template
 
 
 class TestCoTTemplateSelection:
@@ -144,8 +143,7 @@ class TestCoTIntegration:
 
     def test_megaagent_enhance_with_cot_method(self):
         """MegaAgent._enhance_with_cot() should work correctly."""
-        from core.groupagents.mega_agent import (CommandType, MegaAgent,
-                                                 MegaAgentCommand)
+        from core.groupagents.mega_agent import CommandType, MegaAgent, MegaAgentCommand
 
         agent = MegaAgent(use_chain_of_thought=True)
         command = MegaAgentCommand(
@@ -164,8 +162,7 @@ class TestCoTIntegration:
 
     def test_megaagent_cot_disabled_returns_original(self):
         """MegaAgent with CoT disabled should return original prompt."""
-        from core.groupagents.mega_agent import (CommandType, MegaAgent,
-                                                 MegaAgentCommand)
+        from core.groupagents.mega_agent import CommandType, MegaAgent, MegaAgentCommand
 
         agent = MegaAgent(use_chain_of_thought=False)
         command = MegaAgentCommand(

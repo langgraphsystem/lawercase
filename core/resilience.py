@@ -11,15 +11,14 @@ This module provides:
 from __future__ import annotations
 
 import asyncio
-import logging
-import time
 from collections.abc import Awaitable, Callable
 from enum import Enum
 from functools import wraps
+import logging
+import time
 from typing import Any, TypeVar
 
-from core.exceptions import (ExternalServiceError, LLMRateLimitError,
-                             LLMTimeoutError)
+from core.exceptions import ExternalServiceError, LLMRateLimitError, LLMTimeoutError
 
 logger = logging.getLogger(__name__)
 

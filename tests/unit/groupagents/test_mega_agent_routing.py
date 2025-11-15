@@ -6,8 +6,7 @@ import pytest
 
 from core.agents import ComplexityResult, TaskTier
 from core.groupagents import mega_agent as mega_agent_module
-from core.groupagents.mega_agent import (CommandType, MegaAgent,
-                                         MegaAgentCommand, UserRole)
+from core.groupagents.mega_agent import CommandType, MegaAgent, MegaAgentCommand, UserRole
 
 
 class DummySubAgent:

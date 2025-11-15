@@ -145,9 +145,13 @@ async def case_create(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
     description = parts[1] if len(parts) > 1 else None
 
     try:
-        payload = {"title": title}
-        if description:
-            payload["description"] = description
+        # Prepare case creation payload with required fields
+        payload = {
+            "title": title,
+            "description": description or f"Case: {title}",  # description is required
+            "case_type": "immigration",  # default to immigration (most common type)
+            "client_id": str(update.effective_user.id),  # use telegram user_id as client_id
+        }
 
         command = MegaAgentCommand(
             user_id=str(update.effective_user.id),

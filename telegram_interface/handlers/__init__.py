@@ -32,9 +32,15 @@ def register_handlers(
         allowed_user_ids=bot_context.allowed_user_ids if bot_context.allowed_user_ids else "open",
     )
 
-    from . import (admin_handlers,  # local import to avoid circular
-                   case_handlers, file_upload_handlers, kb_handlers,
-                   letter_handlers, scheduler_handlers, sdk_handlers)
+    from . import (  # local import to avoid circular
+        admin_handlers,
+        case_handlers,
+        file_upload_handlers,
+        kb_handlers,
+        letter_handlers,
+        scheduler_handlers,
+        sdk_handlers,
+    )
 
     handler_sets: Iterable = chain(
         admin_handlers.get_handlers(bot_context),

@@ -5,10 +5,10 @@ Parses legal documents and extracts structured information.
 
 from __future__ import annotations
 
-import re
 from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
+import re
 from typing import Any
 
 

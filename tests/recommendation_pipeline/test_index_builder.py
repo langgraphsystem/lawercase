@@ -3,8 +3,8 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-import pytest
 from PyPDF2 import PdfWriter
+import pytest
 
 from recommendation_pipeline.index_builder import build_index
 from recommendation_pipeline.schemas.exhibits import ExhibitsIndex

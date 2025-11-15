@@ -7,8 +7,8 @@ from __future__ import annotations
 
 import json
 import os
-import sys
 from pathlib import Path
+import sys
 
 
 def check_file_exists(filepath: str, required: bool = True) -> bool:
