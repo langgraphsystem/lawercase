@@ -8,8 +8,7 @@ import os
 from dotenv import load_dotenv
 from sqlalchemy import select, text
 
-from core.groupagents.mega_agent import (CommandType, MegaAgent,
-                                         MegaAgentCommand, UserRole)
+from core.groupagents.mega_agent import CommandType, MegaAgent, MegaAgentCommand, UserRole
 from core.memory.memory_manager import MemoryManager
 from core.storage.connection import get_db_manager
 from core.storage.models import CaseDB
