@@ -5,8 +5,12 @@ from __future__ import annotations
 from contextlib import asynccontextmanager
 from typing import TYPE_CHECKING
 
-from sqlalchemy.ext.asyncio import (AsyncEngine, AsyncSession,
-                                    async_sessionmaker, create_async_engine)
+from sqlalchemy.ext.asyncio import (
+    AsyncEngine,
+    AsyncSession,
+    async_sessionmaker,
+    create_async_engine,
+)
 
 from .config import get_storage_config
 
@@ -50,6 +54,13 @@ class DatabaseManager:
             postgresql+asyncpg://...
         """
         if self._engine is None:
+            # Add SSL and connection parameters for Supabase compatibility
+            connect_args = {
+                "server_settings": {"jit": "off"},  # Disable JIT for better compatibility
+                "ssl": "prefer",  # Use SSL if available
+                "timeout": 30,  # Connection timeout
+            }
+
             self._engine = create_async_engine(
                 str(self.config.postgres_dsn),
                 echo=self.config.echo_sql,  # Log SQL queries if enabled
@@ -58,6 +69,7 @@ class DatabaseManager:
                 pool_timeout=self.config.pool_timeout,
                 pool_recycle=self.config.pool_recycle,
                 pool_pre_ping=True,  # Verify connections before using
+                connect_args=connect_args,
             )
         return self._engine
 
