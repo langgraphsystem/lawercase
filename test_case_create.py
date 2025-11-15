@@ -6,7 +6,8 @@ import asyncio
 
 from dotenv import load_dotenv
 
-from core.groupagents.mega_agent import CommandType, MegaAgent, MegaAgentCommand, UserRole
+from core.groupagents.mega_agent import (CommandType, MegaAgent,
+                                         MegaAgentCommand, UserRole)
 from core.memory.memory_manager import MemoryManager
 
 load_dotenv()
