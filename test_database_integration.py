@@ -56,7 +56,8 @@ async def test_database_integration():
         payload={
             "title": "Test Database Integration",
             "description": "Testing CaseAgent database persistence",
-            "case_type": "test",
+            "case_type": "other",
+            "client_id": "test_client_123",
         },
         context={"thread_id": "test_thread"},
     )
@@ -69,13 +70,28 @@ async def test_database_integration():
     print(f"  Result: {response.result}")
     print(f"  Error: {response.error}")
 
+    # Check for workflow errors in case_result
+    case_result = response.result.get("case_result", {})
+    if isinstance(case_result, dict) and "error" in case_result:
+        print(f"\n❌ Workflow error in case_result: {case_result['error']}")
+        print(f"   Operation: {case_result.get('operation')}")
+        return
+
     if not response.success:
         print("\n❌ Case creation failed!")
         return
 
     # Extract case_id
-    case_result = response.result.get("case_result", {})
     case_id = response.result.get("case_id") or case_result.get("case_id")
+
+    # Try to extract from nested case object
+    if not case_id and isinstance(case_result, dict):
+        nested_case = case_result.get("case", {})
+        if isinstance(nested_case, dict):
+            case_id = nested_case.get("case_id")
+
+    print(f"\n🔍 Debug: case_result = {case_result}")
+    print(f"🔍 Debug: case_id extracted = {case_id}")
 
     if not case_id:
         print("\n❌ No case_id in response!")
