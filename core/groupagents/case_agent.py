@@ -14,16 +14,22 @@ from uuid import UUID
 
 from sqlalchemy import select
 
-from ..exceptions import AgentError, NotFoundError
-from ..exceptions import ValidationError as MegaValidationError
+from ..exceptions import AgentError, NotFoundError, ValidationError as MegaValidationError
 from ..logging_config import StructuredLogger
 from ..memory.memory_manager import MemoryManager
 from ..memory.models import AuditEvent, MemoryRecord
 from ..storage.connection import DatabaseManager
 from ..storage.models import CaseDB
-from .models import (CaseExhibit, CaseOperationResult, CaseQuery, CaseRecord,
-                     CaseStatus, CaseVersion, CaseWorkflowState,
-                     ValidationResult)
+from .models import (
+    CaseExhibit,
+    CaseOperationResult,
+    CaseQuery,
+    CaseRecord,
+    CaseStatus,
+    CaseVersion,
+    CaseWorkflowState,
+    ValidationResult,
+)
 
 
 class CaseNotFoundError(NotFoundError):
@@ -550,9 +556,9 @@ class CaseAgent:
         # Базовая валидация уже выполнена Pydantic
         # Дополнительная бизнес-логика валидации
 
-        # Title validation (minimum 5 characters for meaningful title)
-        if len(case_record.title.strip()) < 5:
-            errors.append("Case title must be at least 5 characters long for clarity")
+        # Title validation (minimum 3 characters for meaningful title)
+        if len(case_record.title.strip()) < 3:
+            errors.append("Case title must be at least 3 characters long for clarity")
 
         # Description validation
         if len(case_record.description.strip()) < 10:
