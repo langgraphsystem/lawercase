@@ -15,7 +15,8 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 
 from core.llm_interface.openai_client import OpenAIClient
-from core.tools.tool_registry import ToolMetadata, ToolType, get_tool_registry, reset_tool_registry
+from core.tools.tool_registry import (ToolMetadata, ToolType,
+                                      get_tool_registry, reset_tool_registry)
 
 
 class TestGPT51Models:

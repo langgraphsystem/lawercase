@@ -2,7 +2,8 @@ from __future__ import annotations
 
 import pytest
 
-from core.groupagents.supervisor_agent import SupervisorAgent, SupervisorTaskRequest
+from core.groupagents.supervisor_agent import (SupervisorAgent,
+                                               SupervisorTaskRequest)
 
 
 class _ExecutorRecorder:

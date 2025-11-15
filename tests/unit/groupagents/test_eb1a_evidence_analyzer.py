@@ -6,18 +6,16 @@ from datetime import datetime
 
 import pytest
 
-from core.groupagents.eb1a_evidence_analyzer import (
-    CaseStrengthAnalysis,
-    CriterionEvaluation,
-    EB1AEvidenceAnalyzer,
-    EvidenceAnalysisResult,
-    ImpactLevel,
-    RelevanceLevel,
-    RiskLevel,
-    SourceCredibility,
-)
+from core.groupagents.eb1a_evidence_analyzer import (CaseStrengthAnalysis,
+                                                     CriterionEvaluation,
+                                                     EB1AEvidenceAnalyzer,
+                                                     EvidenceAnalysisResult,
+                                                     ImpactLevel,
+                                                     RelevanceLevel, RiskLevel,
+                                                     SourceCredibility)
 from core.memory.memory_manager import MemoryManager
-from core.workflows.eb1a.eb1a_coordinator import EB1ACriterion, EB1AEvidence, EvidenceType
+from core.workflows.eb1a.eb1a_coordinator import (EB1ACriterion, EB1AEvidence,
+                                                  EvidenceType)
 
 
 @pytest.fixture

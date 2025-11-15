@@ -22,13 +22,11 @@ from fastapi.middleware.gzip import GZipMiddleware
 from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
 
-from api.middleware_production import (
-    EnhancedRateLimitMiddleware,
-    ErrorHandlingMiddleware,
-    PerformanceMiddleware,
-    RequestIDMiddleware,
-    SecurityHeadersMiddleware,
-)
+from api.middleware_production import (EnhancedRateLimitMiddleware,
+                                       ErrorHandlingMiddleware,
+                                       PerformanceMiddleware,
+                                       RequestIDMiddleware,
+                                       SecurityHeadersMiddleware)
 from core.config.production_settings import get_settings
 from core.logging_utils import get_logger, setup_logging
 from core.security import configure_security

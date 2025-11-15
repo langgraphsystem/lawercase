@@ -1,8 +1,8 @@
 from __future__ import annotations
 
-from collections import defaultdict, deque
 import os
 import time
+from collections import defaultdict, deque
 
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.requests import Request

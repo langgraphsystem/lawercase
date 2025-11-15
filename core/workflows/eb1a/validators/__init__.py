@@ -3,14 +3,9 @@
 from __future__ import annotations
 
 from .checklists import ChecklistItem, ComplianceChecklist
-from .eb1a_validator import (
-    CheckResult,
-    EB1AValidator,
-    SectionValidationResult,
-    ValidationIssue,
-    ValidationResult,
-    ValidationSeverity,
-)
+from .eb1a_validator import (CheckResult, EB1AValidator,
+                             SectionValidationResult, ValidationIssue,
+                             ValidationResult, ValidationSeverity)
 from .validation_reports import ValidationReportGenerator
 
 __all__ = [

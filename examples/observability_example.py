@@ -13,22 +13,15 @@ from __future__ import annotations
 import asyncio
 import time
 
-from core.observability import (
-    TracingConfig,
-    get_metrics_collector,
-    init_logging,
-    init_tracing,
-    structured_logger,
-    trace_async,
-    trace_function,
-)
-from core.observability.distributed_tracing import (
-    TracingContext,
-    add_span_event,
-    set_span_attribute,
-)
+from core.observability import (TracingConfig, get_metrics_collector,
+                                init_logging, init_tracing, structured_logger,
+                                trace_async, trace_function)
+from core.observability.distributed_tracing import (TracingContext,
+                                                    add_span_event,
+                                                    set_span_attribute)
 from core.observability.grafana_dashboards import create_dashboards
-from core.observability.metrics_collector import DatabaseQueryTimer, WorkflowTimer
+from core.observability.metrics_collector import (DatabaseQueryTimer,
+                                                  WorkflowTimer)
 
 
 # Example 1: Basic Metrics Collection

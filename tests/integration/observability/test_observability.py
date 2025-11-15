@@ -3,32 +3,22 @@
 from __future__ import annotations
 
 import json
-from pathlib import Path
 import tempfile
+from pathlib import Path
 
 import pytest
 
 pytest.importorskip("opentelemetry")
 
-from core.observability import (
-    TracingConfig,
-    get_log_aggregator,
-    get_metrics_collector,
-    get_tracer,
-    init_logging,
-    init_tracing,
-    structured_logger,
-    trace_async,
-    trace_function,
-)
+from core.observability import (TracingConfig, get_log_aggregator,
+                                get_metrics_collector, get_tracer,
+                                init_logging, init_tracing, structured_logger,
+                                trace_async, trace_function)
 from core.observability.grafana_dashboards import (
-    create_api_dashboard,
-    create_cache_dashboard,
-    create_dashboards,
-    create_orchestration_dashboard,
-    create_system_dashboard,
-)
-from core.observability.metrics_collector import DatabaseQueryTimer, WorkflowTimer
+    create_api_dashboard, create_cache_dashboard, create_dashboards,
+    create_orchestration_dashboard, create_system_dashboard)
+from core.observability.metrics_collector import (DatabaseQueryTimer,
+                                                  WorkflowTimer)
 
 
 # Grafana Dashboard Tests

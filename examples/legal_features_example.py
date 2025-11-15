@@ -7,15 +7,9 @@ from __future__ import annotations
 
 import asyncio
 
-from core.legal import (
-    CaseLawSearch,
-    CitationExtractor,
-    ComplianceChecker,
-    ComplianceStandard,
-    ContractAnalyzer,
-    DocumentParser,
-    LegalEntityRecognizer,
-)
+from core.legal import (CaseLawSearch, CitationExtractor, ComplianceChecker,
+                        ComplianceStandard, ContractAnalyzer, DocumentParser,
+                        LegalEntityRecognizer)
 
 # Sample legal documents
 SAMPLE_CONTRACT = """
