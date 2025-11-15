@@ -155,33 +155,43 @@ class CaseAgent:
 
             # Сохранение в базу данных или в память
             if self.use_database and self.db_manager:
-                # Сохранение в PostgreSQL/Supabase
-                async with self.db_manager.session() as session:
-                    db_case = CaseDB(
-                        case_id=UUID(case_record.case_id),
-                        user_id=user_id,
-                        title=case_record.title,
-                        description=case_record.description,
-                        status=(
-                            case_record.status.value
-                            if isinstance(case_record.status, CaseStatus)
-                            else case_record.status
-                        ),
-                        case_type=case_record.case_type,
-                        data=case_record.model_dump(
-                            exclude={"case_id", "created_at", "updated_at", "version"}
-                        ),
-                        version=case_record.version,
-                    )
-                    session.add(db_case)
-                    await session.commit()
-                    await session.refresh(db_case)
+                try:
+                    # Сохранение в PostgreSQL/Supabase
+                    async with self.db_manager.session() as session:
+                        db_case = CaseDB(
+                            case_id=UUID(case_record.case_id),
+                            user_id=user_id,
+                            title=case_record.title,
+                            description=case_record.description,
+                            status=(
+                                case_record.status.value
+                                if isinstance(case_record.status, CaseStatus)
+                                else case_record.status
+                            ),
+                            case_type=case_record.case_type,
+                            data=case_record.model_dump(
+                                exclude={"case_id", "created_at", "updated_at", "version"}
+                            ),
+                            version=case_record.version,
+                        )
+                        session.add(db_case)
+                        await session.commit()
+                        await session.refresh(db_case)
 
-                    self.logger.info(
-                        "Case saved to database",
-                        case_id=str(db_case.case_id),
-                        user_id=user_id,
+                        self.logger.info(
+                            "Case saved to database",
+                            case_id=str(db_case.case_id),
+                            user_id=user_id,
+                        )
+                except (OSError, ConnectionError) as db_err:
+                    # Network errors - gracefully fallback to in-memory storage
+                    self.logger.warning(
+                        "Database connection failed, using in-memory storage",
+                        error=str(db_err),
+                        case_id=case_record.case_id,
                     )
+                    # Fallback to in-memory storage
+                    self._cases_store[case_record.case_id] = case_record
             else:
                 # Fallback: сохранение в локальное хранилище
                 self._cases_store[case_record.case_id] = case_record
