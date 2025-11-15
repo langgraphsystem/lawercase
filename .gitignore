@@ -111,3 +111,12 @@ nul
 
 logs/
 .railway/
+
+# Local development/testing files with DB credentials
+test_supabase_connection.py
+test_database_integration.py
+test_direct_case_create.py
+test_case_create.py
+test_db_config.py
+create_cases_table.py
+create_database_tables.py
