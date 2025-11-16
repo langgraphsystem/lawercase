@@ -5,8 +5,12 @@ from __future__ import annotations
 from contextlib import asynccontextmanager
 from typing import TYPE_CHECKING
 
-from sqlalchemy.ext.asyncio import (AsyncEngine, AsyncSession,
-                                    async_sessionmaker, create_async_engine)
+from sqlalchemy.ext.asyncio import (
+    AsyncEngine,
+    AsyncSession,
+    async_sessionmaker,
+    create_async_engine,
+)
 
 from .config import get_storage_config
 
@@ -69,6 +73,8 @@ class DatabaseManager:
                 pool_recycle=self.config.pool_recycle,
                 pool_pre_ping=True,  # Verify connections before using
                 connect_args=connect_args,
+                # CRITICAL: Disable prepared statements at engine level for pgbouncer
+                execution_options={"prepared_statement_cache_size": 0},
             )
         return self._engine
 
