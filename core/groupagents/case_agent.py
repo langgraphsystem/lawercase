@@ -10,12 +10,17 @@ from __future__ import annotations
 
 from datetime import datetime
 from typing import Any
+from uuid import UUID
+
+from sqlalchemy import select
 
 from ..exceptions import AgentError, NotFoundError
 from ..exceptions import ValidationError as MegaValidationError
 from ..logging_config import StructuredLogger
 from ..memory.memory_manager import MemoryManager
 from ..memory.models import AuditEvent, MemoryRecord
+from ..storage.connection import DatabaseManager
+from ..storage.models import CaseDB
 from .models import (CaseExhibit, CaseOperationResult, CaseQuery, CaseRecord,
                      CaseStatus, CaseVersion, CaseWorkflowState,
                      ValidationResult)
@@ -80,17 +85,33 @@ class CaseAgent:
     - Управление версиями и изменениями
     """
 
-    def __init__(self, memory_manager: MemoryManager | None = None):
+    def __init__(
+        self,
+        memory_manager: MemoryManager | None = None,
+        db_manager: DatabaseManager | None = None,
+        use_database: bool = True,
+    ):
         """
         Инициализация CaseAgent.
 
         Args:
             memory_manager: Экземпляр MemoryManager для persistence
+            db_manager: Экземпляр DatabaseManager для работы с БД (опционально)
+            use_database: Использовать ли базу данных для хранения кейсов (по умолчанию True)
         """
         self.logger = StructuredLogger("core.groupagents.case_agent")
         self.memory = memory_manager or MemoryManager()
+        self.db_manager = db_manager
+        self.use_database = use_database and db_manager is not None
+
+        # In-memory storage (fallback или для тестов)
         self._cases_store: dict[str, CaseRecord] = {}
         self._versions_store: dict[str, list[CaseVersion]] = {}
+
+        if self.use_database:
+            self.logger.info("CaseAgent initialized with database persistence")
+        else:
+            self.logger.info("CaseAgent initialized with in-memory storage only")
 
     # ---- Core CRUD Operations ----
 
@@ -132,8 +153,48 @@ class CaseAgent:
                     details={"user_id": user_id, "case_data": case_data},
                 )
 
-            # Сохранение в локальное хранилище
-            self._cases_store[case_record.case_id] = case_record
+            # Сохранение в базу данных или в память
+            if self.use_database and self.db_manager:
+                try:
+                    # Сохранение в PostgreSQL/Supabase
+                    async with self.db_manager.session() as session:
+                        db_case = CaseDB(
+                            case_id=UUID(case_record.case_id),
+                            user_id=user_id,
+                            title=case_record.title,
+                            description=case_record.description,
+                            status=(
+                                case_record.status.value
+                                if isinstance(case_record.status, CaseStatus)
+                                else case_record.status
+                            ),
+                            case_type=case_record.case_type,
+                            data=case_record.model_dump(
+                                exclude={"case_id", "created_at", "updated_at", "version"}
+                            ),
+                            version=case_record.version,
+                        )
+                        session.add(db_case)
+                        await session.commit()
+                        await session.refresh(db_case)
+
+                        self.logger.info(
+                            "Case saved to database",
+                            case_id=str(db_case.case_id),
+                            user_id=user_id,
+                        )
+                except (OSError, ConnectionError) as db_err:
+                    # Network errors - gracefully fallback to in-memory storage
+                    self.logger.warning(
+                        "Database connection failed, using in-memory storage",
+                        error=str(db_err),
+                        case_id=case_record.case_id,
+                    )
+                    # Fallback to in-memory storage
+                    self._cases_store[case_record.case_id] = case_record
+            else:
+                # Fallback: сохранение в локальное хранилище
+                self._cases_store[case_record.case_id] = case_record
 
             # Создание первой версии
             initial_version = CaseVersion(
@@ -195,7 +256,62 @@ class CaseAgent:
         Raises:
             CaseNotFoundError: Если дело не найдено
         """
-        if case_id not in self._cases_store:
+        case_record = None
+
+        # Попытка получения из базы данных
+        if self.use_database and self.db_manager:
+            try:
+                async with self.db_manager.session() as session:
+                    stmt = select(CaseDB).where(CaseDB.case_id == UUID(case_id))
+                    result = await session.execute(stmt)
+                    db_case = result.scalar_one_or_none()
+
+                    if db_case:
+                        # Конвертация из CaseDB в CaseRecord
+                        # Исключаем поля, которые уже передаем явно из основных колонок БД
+                        extra_data = {
+                            k: v
+                            for k, v in (db_case.data or {}).items()
+                            if k
+                            not in {
+                                "case_id",
+                                "title",
+                                "description",
+                                "status",
+                                "case_type",
+                                "created_by",
+                                "created_at",
+                                "updated_at",
+                                "version",
+                            }
+                        }
+                        case_record = CaseRecord(
+                            case_id=str(db_case.case_id),
+                            title=db_case.title,
+                            description=db_case.description or "",
+                            status=db_case.status,
+                            case_type=db_case.case_type or "",
+                            created_by=db_case.user_id,  # В CaseDB нет created_by, используем user_id
+                            created_at=db_case.created_at,
+                            updated_at=db_case.updated_at,
+                            version=db_case.version,
+                            **extra_data,  # Дополнительные данные из JSONB (без дубликатов)
+                        )
+                        self.logger.info("Case retrieved from database", case_id=case_id)
+            except Exception as e:
+                self.logger.warning(
+                    "Failed to retrieve case from database, checking in-memory store",
+                    case_id=case_id,
+                    error=str(e),
+                )
+
+        # Fallback: проверка в in-memory store
+        if case_record is None and case_id in self._cases_store:
+            case_record = self._cases_store[case_id]
+            self.logger.info("Case retrieved from in-memory store", case_id=case_id)
+
+        # Если не найдено нигде
+        if case_record is None:
             if user_id:
                 await self._log_audit_event(
                     user_id=user_id,
@@ -204,8 +320,6 @@ class CaseAgent:
                     payload={"error": "Case not found"},
                 )
             raise CaseNotFoundError(case_id=case_id)
-
-        case_record = self._cases_store[case_id]
 
         if user_id:
             await self._log_audit_event(
@@ -463,9 +577,9 @@ class CaseAgent:
         # Базовая валидация уже выполнена Pydantic
         # Дополнительная бизнес-логика валидации
 
-        # Title validation (minimum 5 characters for meaningful title)
-        if len(case_record.title.strip()) < 5:
-            errors.append("Case title must be at least 5 characters long for clarity")
+        # Title validation (minimum 3 characters for meaningful title)
+        if len(case_record.title.strip()) < 3:
+            errors.append("Case title must be at least 3 characters long for clarity")
 
         # Description validation
         if len(case_record.description.strip()) < 10:

@@ -362,16 +362,20 @@ class AgentError(MegaAgentError):
 
     def __init__(self, message: str, agent_name: str | None = None, **kwargs: Any):
         details = kwargs.pop("details", {})
+        user_message = kwargs.pop("user_message", "An error occurred during processing.")
+        code = kwargs.pop("code", ErrorCode.AGENT_ERROR)
+        category = kwargs.pop("category", ErrorCategory.BUSINESS_LOGIC)
+        recoverable = kwargs.pop("recoverable", True)
         if agent_name:
             details["agent"] = agent_name
 
         super().__init__(
             message=message,
-            code=ErrorCode.AGENT_ERROR,
-            category=ErrorCategory.BUSINESS_LOGIC,
+            code=code,
+            category=category,
             details=details,
-            user_message="An error occurred during processing.",
-            recoverable=True,
+            user_message=user_message,
+            recoverable=recoverable,
             **kwargs,
         )
 
