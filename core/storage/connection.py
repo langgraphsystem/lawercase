@@ -55,6 +55,9 @@ class DatabaseManager:
                 "server_settings": {"jit": "off"},  # Disable JIT for better compatibility
                 "ssl": "prefer",  # Use SSL if available
                 "timeout": 30,  # Connection timeout
+                # PgBouncer in transaction/statement mode breaks prepared statements.
+                # Disable asyncpg statement cache to avoid "prepared statement already exists".
+                "statement_cache_size": 0,
             }
 
             self._engine = create_async_engine(
