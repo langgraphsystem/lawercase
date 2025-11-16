@@ -14,16 +14,22 @@ from uuid import UUID
 
 from sqlalchemy import select
 
-from ..exceptions import AgentError, NotFoundError
-from ..exceptions import ValidationError as MegaValidationError
+from ..exceptions import AgentError, NotFoundError, ValidationError as MegaValidationError
 from ..logging_config import StructuredLogger
 from ..memory.memory_manager import MemoryManager
 from ..memory.models import AuditEvent, MemoryRecord
 from ..storage.connection import DatabaseManager
 from ..storage.models import CaseDB
-from .models import (CaseExhibit, CaseOperationResult, CaseQuery, CaseRecord,
-                     CaseStatus, CaseVersion, CaseWorkflowState,
-                     ValidationResult)
+from .models import (
+    CaseExhibit,
+    CaseOperationResult,
+    CaseQuery,
+    CaseRecord,
+    CaseStatus,
+    CaseVersion,
+    CaseWorkflowState,
+    ValidationResult,
+)
 
 
 class CaseNotFoundError(NotFoundError):
@@ -268,6 +274,23 @@ class CaseAgent:
 
                     if db_case:
                         # Конвертация из CaseDB в CaseRecord
+                        # Исключаем поля, которые уже передаем явно из основных колонок БД
+                        extra_data = {
+                            k: v
+                            for k, v in (db_case.data or {}).items()
+                            if k
+                            not in {
+                                "case_id",
+                                "title",
+                                "description",
+                                "status",
+                                "case_type",
+                                "created_by",
+                                "created_at",
+                                "updated_at",
+                                "version",
+                            }
+                        }
                         case_record = CaseRecord(
                             case_id=str(db_case.case_id),
                             title=db_case.title,
@@ -278,7 +301,7 @@ class CaseAgent:
                             created_at=db_case.created_at,
                             updated_at=db_case.updated_at,
                             version=db_case.version,
-                            **db_case.data,  # Дополнительные данные из JSONB
+                            **extra_data,  # Дополнительные данные из JSONB (без дубликатов)
                         )
                         self.logger.info("Case retrieved from database", case_id=case_id)
             except Exception as e:
