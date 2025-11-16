@@ -67,10 +67,8 @@ class DatabaseManager:
                 max_overflow=self.config.max_overflow,
                 pool_timeout=self.config.pool_timeout,
                 pool_recycle=self.config.pool_recycle,
-                pool_pre_ping=True,  # Verify connections before using
+                pool_pre_ping=False,  # Disabled for pgbouncer compatibility
                 connect_args=connect_args,
-                # CRITICAL: Disable prepared statements at engine level for pgbouncer
-                execution_options={"prepared_statement_cache_size": 0},
             )
         return self._engine
 
