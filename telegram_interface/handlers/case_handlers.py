@@ -104,6 +104,8 @@ async def case_get(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
             )
             display_case_id = normalized_case_id or case_id
             await message.reply_text(f"📁 {display_case_id}: {title}\nStatus: {status}")
+            # Set as active case after successful retrieval
+            await bot_context.set_active_case(update, display_case_id)
             logger.info(
                 "telegram.case_get.sent",
                 user_id=user_id,
