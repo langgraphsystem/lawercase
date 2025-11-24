@@ -170,9 +170,21 @@ async def case_create(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
             if reply_case_id:
                 await bot_context.set_active_case(update, reply_case_id)
             case_title = case_data.get("title") or result_payload.get("title") or title
-            await message.reply_text(
-                f"📁 Case created: {case_title}\nID: {reply_case_id or 'unknown'}"
+
+            # Enhanced message with intake guidance
+            success_message = (
+                f"✅ *Case created: {case_title}*\n"
+                f"ID: `{reply_case_id or 'unknown'}`\n\n"
+                f"This case is now active. Let's gather information to build a strong petition.\n\n"
+                f"*Next steps:*\n"
+                f"🧾 /intake\\_start - Answer guided questionnaire (recommended)\n"
+                f"💬 /ask - Chat freely about your case\n"
+                f"📄 Upload supporting documents\n\n"
+                f"The intake questionnaire will help me understand your background, "
+                f"achievements, and goals to provide better assistance."
             )
+
+            await message.reply_text(success_message, parse_mode="MarkdownV2")
             logger.info("telegram.case_create.success", user_id=user_id, case_id=reply_case_id)
         else:
             error_msg = response.error or "case creation failed"
