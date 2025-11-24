@@ -6,7 +6,7 @@ Provides multi-turn conversation flow for structured data collection after case 
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 
 import structlog
@@ -14,11 +14,9 @@ from telegram import Update
 from telegram.constants import ParseMode
 from telegram.ext import ContextTypes
 
-from core.groupagents.intake_questionnaire import (
-    IntakeQuestion,
-    format_question_with_help,
-    get_questions_for_category,
-)
+from core.groupagents.intake_questionnaire import (IntakeQuestion,
+                                                   format_question_with_help,
+                                                   get_questions_for_category)
 from core.memory.models import MemoryRecord
 
 from .context import BotContext
@@ -149,7 +147,7 @@ async def intake_start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
         "current_question": 0,
         "total_questions": len(questions),
         "responses": {},
-        "started_at": datetime.now(timezone.utc).isoformat(),
+        "started_at": datetime.now(UTC).isoformat(),
     }
 
     await _set_intake_state(bot_context, update, intake_state)
@@ -187,9 +185,7 @@ async def intake_skip(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
     # Get intake state
     intake_state = await _get_intake_state(bot_context, update)
     if not intake_state or not intake_state.get("active"):
-        await message.reply_text(
-            "❌ No active intake questionnaire. Start with /intake_start"
-        )
+        await message.reply_text("❌ No active intake questionnaire. Start with /intake_start")
         return
 
     # Get current question
@@ -247,8 +243,7 @@ async def intake_status(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
     intake_state = await _get_intake_state(bot_context, update)
     if not intake_state or not intake_state.get("active"):
         await message.reply_text(
-            "❌ No active intake questionnaire.\n"
-            "Start with /intake_start or /intake_resume"
+            "❌ No active intake questionnaire.\n" "Start with /intake_start or /intake_resume"
         )
         return
 
@@ -268,7 +263,9 @@ async def intake_status(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
     if current >= total:
         status_text += "✅ Questionnaire completed!"
     else:
-        status_text += f"Currently on question {current + 1}\n\n" "Continue by answering the current question."
+        status_text += (
+            f"Currently on question {current + 1}\n\n" "Continue by answering the current question."
+        )
 
     await message.reply_text(status_text, parse_mode=ParseMode.MARKDOWN)
 
@@ -302,8 +299,7 @@ async def intake_cancel(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
     )
 
     await message.reply_text(
-        "❌ Intake questionnaire cancelled.\n\n"
-        "You can start again anytime with /intake_start"
+        "❌ Intake questionnaire cancelled.\n\n" "You can start again anytime with /intake_start"
     )
 
 
@@ -347,9 +343,7 @@ async def intake_resume(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
     await _send_current_question(bot_context, update, questions, intake_state)
 
 
-async def handle_intake_response(
-    bot_context: BotContext, update: Update, user_text: str
-) -> bool:
+async def handle_intake_response(bot_context: BotContext, update: Update, user_text: str) -> bool:
     """
     Handle a text response during active intake questionnaire.
 
@@ -387,9 +381,7 @@ async def handle_intake_response(
     )
 
     # Save to semantic memory immediately
-    await _save_response_to_memory(
-        bot_context, update, intake_state, current_question, user_text
-    )
+    await _save_response_to_memory(bot_context, update, intake_state, current_question, user_text)
 
     # Move to next question
     intake_state["current_question"] = current_idx + 1
@@ -491,7 +483,7 @@ async def _complete_intake(
 
     # Clear active flag but keep the state for potential review
     intake_state["active"] = False
-    intake_state["completed_at"] = datetime.now(timezone.utc).isoformat()
+    intake_state["completed_at"] = datetime.now(UTC).isoformat()
     await _set_intake_state(bot_context, update, intake_state)
 
     # Update case memory to mark intake as completed

@@ -6,12 +6,8 @@ This tests the core logic without needing a live Telegram bot.
 from __future__ import annotations
 
 from core.groupagents.intake_questionnaire import (
-    EB1A_QUESTIONS,
-    GENERAL_IMMIGRATION_QUESTIONS,
-    O1_QUESTIONS,
-    format_question_with_help,
-    get_questions_for_category,
-)
+    EB1A_QUESTIONS, GENERAL_IMMIGRATION_QUESTIONS, O1_QUESTIONS,
+    format_question_with_help, get_questions_for_category)
 
 
 def test_get_questions_for_category():
