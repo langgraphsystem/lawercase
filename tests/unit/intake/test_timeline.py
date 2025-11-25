@@ -6,8 +6,6 @@ Tests extraction of structured timeline data (years, locations, roles, organizat
 
 from __future__ import annotations
 
-import pytest
-
 from core.intake.timeline import TimelineData, extract_timeline_data
 
 

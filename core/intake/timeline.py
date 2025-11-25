@@ -307,16 +307,24 @@ def _infer_activity_type(text: str, context: str | None) -> str | None:
     if any(word in text_lower for word in ["школа", "school", "гимназия"]):
         return "school"
 
-    if any(word in text_lower for word in ["университет", "university", "колледж", "college", "институт"]):
+    if any(
+        word in text_lower
+        for word in ["университет", "university", "колледж", "college", "институт"]
+    ):
         return "university"
 
-    if any(word in text_lower for word in ["компани", "работ", "должност", "позици", "company", "job", "position"]):
+    if any(
+        word in text_lower
+        for word in ["компани", "работ", "должност", "позици", "company", "job", "position"]
+    ):
         return "job"
 
     if any(word in text_lower for word in ["проект", "исследовани", "project", "research"]):
         return "project"
 
-    if any(word in text_lower for word in ["награ", "приз", "award", "prize", "конкурс", "competition"]):
+    if any(
+        word in text_lower for word in ["награ", "приз", "award", "prize", "конкурс", "competition"]
+    ):
         return "award"
 
     if any(word in text_lower for word in ["курс", "сертификат", "course", "certificate"]):

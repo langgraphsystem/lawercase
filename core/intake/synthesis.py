@@ -13,7 +13,9 @@ from typing import Any
 from core.intake.schema import IntakeQuestion
 
 
-def synthesize_intake_fact(question: IntakeQuestion, answer: str, user_context: dict[str, Any] | None = None) -> str:
+def synthesize_intake_fact(
+    question: IntakeQuestion, answer: str, user_context: dict[str, Any] | None = None
+) -> str:
     """
     Convert a question-answer pair into a declarative statement for semantic memory.
 
@@ -50,95 +52,96 @@ def synthesize_intake_fact(question: IntakeQuestion, answer: str, user_context: 
     if question_id == "full_name":
         return f"{tag_prefix} Полное имя пользователя: {answer}."
 
-    elif question_id == "date_of_birth":
+    if question_id == "date_of_birth":
         return f"{tag_prefix} Дата рождения пользователя: {answer}."
 
-    elif question_id == "place_of_birth":
+    if question_id == "place_of_birth":
         return f"{tag_prefix} Пользователь родился в {answer}."
 
-    elif question_id == "citizenship":
+    if question_id == "citizenship":
         return f"{tag_prefix} Гражданство пользователя: {answer}."
 
-    elif question_id == "current_residence":
+    if question_id == "current_residence":
         return f"{tag_prefix} Пользователь сейчас живёт в {answer}."
 
-    elif question_id == "main_field":
+    if question_id == "main_field":
         return f"{tag_prefix} Основная область деятельности пользователя: {answer}."
 
     # Family & childhood
-    elif question_id in ("parents_professions", "parents_education", "family_attitude_education", "early_interests"):
+    if question_id in (
+        "parents_professions",
+        "parents_education",
+        "family_attitude_education",
+        "early_interests",
+    ):
         return f"{tag_prefix} {_extract_key_phrase(question.text_template)}: {answer}."
 
     # School questions
-    elif "school" in question_id:
+    if "school" in question_id:
         if "years" in answer.lower() or re.search(r"\d{4}", answer):
             # Timeline-related answer
             return f"{tag_prefix} {_timeline_synthesis(answer, 'школа', 'учился')}."
-        else:
-            return f"{tag_prefix} {_extract_key_phrase(question.text_template)}: {answer}."
+        return f"{tag_prefix} {_extract_key_phrase(question.text_template)}: {answer}."
 
     # University questions
-    elif "university" in question_id or "universities" in question_id:
+    if "university" in question_id or "universities" in question_id:
         if "years" in answer.lower() or re.search(r"\d{4}", answer):
             return f"{tag_prefix} {_timeline_synthesis(answer, 'университет', 'учился')}."
-        else:
-            return f"{tag_prefix} {_extract_key_phrase(question.text_template)}: {answer}."
+        return f"{tag_prefix} {_extract_key_phrase(question.text_template)}: {answer}."
 
     # Career questions
-    elif "career" in question_id:
+    if "career" in question_id:
         if "companies" in question_id and (re.search(r"\d{4}", answer) or "годы" in answer.lower()):
             return f"{tag_prefix} {_timeline_synthesis(answer, 'компания', 'работал')}."
-        elif "critical_role" in question_id:
+        if "critical_role" in question_id:
             return f"{tag_prefix} [EB-1A criterion: critical role] {answer}."
-        elif "high_salary" in question_id:
+        if "high_salary" in question_id:
             return f"{tag_prefix} [EB-1A criterion: high salary] {answer}."
-        else:
-            return f"{tag_prefix} {_extract_key_phrase(question.text_template)}: {answer}."
+        return f"{tag_prefix} {_extract_key_phrase(question.text_template)}: {answer}."
 
     # Publications & research
-    elif "publications" in question_id or "metrics" in question_id:
+    if "publications" in question_id or "metrics" in question_id:
         return f"{tag_prefix} Публикации и метрики: {answer}."
 
-    elif "open_source" in question_id:
+    if "open_source" in question_id:
         return f"{tag_prefix} Вклад в open source: {answer}."
 
-    elif "patents" in question_id:
+    if "patents" in question_id:
         return f"{tag_prefix} Патенты и изобретения: {answer}."
 
-    elif "commercial_products" in question_id:
+    if "commercial_products" in question_id:
         return f"{tag_prefix} Коммерческие продукты: {answer}."
 
     # Awards
-    elif "awards" in question_id or "competitions" in question_id or "grants" in question_id:
+    if "awards" in question_id or "competitions" in question_id or "grants" in question_id:
         return f"{tag_prefix} Награды и достижения: {answer}."
 
     # Talks & public activity
-    elif "conferences" in question_id or "talks" in question_id:
+    if "conferences" in question_id or "talks" in question_id:
         return f"{tag_prefix} Выступления на конференциях: {answer}."
 
-    elif "expert_roles" in question_id:
+    if "expert_roles" in question_id:
         return f"{tag_prefix} [EB-1A criterion: judging] Экспертные роли: {answer}."
 
-    elif "media" in question_id or "press" in question_id:
+    if "media" in question_id or "press" in question_id:
         return f"{tag_prefix} Освещение в СМИ: {answer}."
 
     # Recommenders
-    elif "recommender" in question_id:
+    if "recommender" in question_id:
         return f"{tag_prefix} Потенциальные рекомендатели: {answer}."
 
     # Goals
-    elif "goals" in question_id or "motivation" in question_id or "plans" in question_id:
+    if "goals" in question_id or "motivation" in question_id or "plans" in question_id:
         return f"{tag_prefix} {_extract_key_phrase(question.text_template)}: {answer}."
 
     # Macro context
-    elif "macro_context" in question.tags:
+    if "macro_context" in question.tags:
         return f"{tag_prefix} Макро-контекст: {answer}."
 
     # Default fallback
-    else:
-        # Generic synthesis: extract key phrase from question and combine with answer
-        key_phrase = _extract_key_phrase(question.text_template)
-        return f"{tag_prefix} {key_phrase}: {answer}."
+    # Generic synthesis: extract key phrase from question and combine with answer
+    key_phrase = _extract_key_phrase(question.text_template)
+    return f"{tag_prefix} {key_phrase}: {answer}."
 
 
 def _build_tag_prefix(tags: list[str]) -> str:
@@ -227,7 +230,9 @@ def _timeline_synthesis(answer: str, context: str, verb: str) -> str:
         → "С 2010 по 2014 годы пользователь учился в МГУ, Москва"
     """
     # Try to extract year ranges
-    year_match = re.search(r"(\d{4})\s*[-–]\s*(\d{4})|(\d{4})\s+по\s+(\d{4})|с\s+(\d{4})\s+по\s+(\d{4})", answer)
+    year_match = re.search(
+        r"(\d{4})\s*[-–]\s*(\d{4})|(\d{4})\s+по\s+(\d{4})|с\s+(\d{4})\s+по\s+(\d{4})", answer
+    )
 
     if year_match:
         groups = year_match.groups()
@@ -236,7 +241,9 @@ def _timeline_synthesis(answer: str, context: str, verb: str) -> str:
 
         # Remove the matched years from answer to get remaining context
         remaining = re.sub(
-            r"(\d{4})\s*[-–]\s*(\d{4})|(\d{4})\s+по\s+(\d{4})|с\s+(\d{4})\s+по\s+(\d{4})", "", answer
+            r"(\d{4})\s*[-–]\s*(\d{4})|(\d{4})\s+по\s+(\d{4})|с\s+(\d{4})\s+по\s+(\d{4})",
+            "",
+            answer,
         ).strip()
 
         # Clean up remaining punctuation
@@ -244,12 +251,10 @@ def _timeline_synthesis(answer: str, context: str, verb: str) -> str:
 
         if remaining:
             return f"С {start_year} по {end_year} годы пользователь {verb} в {remaining}"
-        else:
-            return f"С {start_year} по {end_year} годы пользователь {verb} в {context}"
+        return f"С {start_year} по {end_year} годы пользователь {verb} в {context}"
 
-    else:
-        # No clear timeline, fallback to generic
-        return f"Пользователь {verb} в {answer}"
+    # No clear timeline, fallback to generic
+    return f"Пользователь {verb} в {answer}"
 
 
 def normalize_yes_no(text: str) -> bool | None:

@@ -12,7 +12,6 @@ from typing import Any
 
 from pydantic import BaseModel, Field
 
-
 # -------------------- PYDANTIC V2 MODELS --------------------
 
 
@@ -46,13 +45,17 @@ class IntakeQuestion(BaseModel):
 
     id: str = Field(description="Unique identifier for this question")
     text_template: str = Field(description="Question text in Russian (supports .format())")
-    type: QuestionType = Field(default=QuestionType.TEXT, description="Question type for validation")
+    type: QuestionType = Field(
+        default=QuestionType.TEXT, description="Question type for validation"
+    )
     options: list[str] | None = Field(default=None, description="Options for SELECT type")
     hint: str | None = Field(default=None, description="Help text in Russian")
     rationale: str | None = Field(
         default=None, description="Why this question matters (EB-1A context, in English for dev)"
     )
-    condition: IntakeCondition | None = Field(default=None, description="Conditional rendering logic")
+    condition: IntakeCondition | None = Field(
+        default=None, description="Conditional rendering logic"
+    )
     tags: list[str] = Field(default_factory=list, description="Tags for semantic memory")
 
     class Config:

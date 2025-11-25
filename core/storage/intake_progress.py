@@ -10,7 +10,8 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Any
 
-from sqlalchemy import TIMESTAMP, CheckConstraint, Index, Integer, String, select, update
+from sqlalchemy import (TIMESTAMP, CheckConstraint, Index, Integer, String,
+                        select, update)
 from sqlalchemy.dialects.postgresql import ARRAY
 from sqlalchemy.ext.asyncio import AsyncAttrs
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
@@ -83,7 +84,7 @@ class CaseIntakeProgress:
         }
 
     @classmethod
-    def from_db(cls, db_row: CaseIntakeProgressDB) -> "CaseIntakeProgress":
+    def from_db(cls, db_row: CaseIntakeProgressDB) -> CaseIntakeProgress:
         """Convert database model to CaseIntakeProgress object."""
         return cls(
             user_id=db_row.user_id,
@@ -212,10 +213,10 @@ async def advance_step(user_id: str, case_id: str) -> CaseIntakeProgress | None:
     async with db.session() as session:
         stmt = (
             update(CaseIntakeProgressDB)
-            .where(
-                CaseIntakeProgressDB.user_id == user_id, CaseIntakeProgressDB.case_id == case_id
+            .where(CaseIntakeProgressDB.user_id == user_id, CaseIntakeProgressDB.case_id == case_id)
+            .values(
+                current_step=CaseIntakeProgressDB.current_step + 1, updated_at=datetime.utcnow()
             )
-            .values(current_step=CaseIntakeProgressDB.current_step + 1, updated_at=datetime.utcnow())
             .returning(CaseIntakeProgressDB)
         )
 

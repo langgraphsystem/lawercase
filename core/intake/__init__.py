@@ -7,20 +7,16 @@ This module provides:
 - Fact synthesis and timeline extraction helpers
 """
 
-from core.intake.schema import (
-    BLOCKS_BY_ID,
-    INTAKE_BLOCKS,
-    IntakeBlock,
-    IntakeCondition,
-    IntakeQuestion,
-    QuestionType,
-)
+from __future__ import annotations
+
+from core.intake.schema import (BLOCKS_BY_ID, INTAKE_BLOCKS, IntakeBlock,
+                                IntakeCondition, IntakeQuestion, QuestionType)
 
 __all__ = [
-    "QuestionType",
+    "BLOCKS_BY_ID",
+    "INTAKE_BLOCKS",
+    "IntakeBlock",
     "IntakeCondition",
     "IntakeQuestion",
-    "IntakeBlock",
-    "INTAKE_BLOCKS",
-    "BLOCKS_BY_ID",
+    "QuestionType",
 ]

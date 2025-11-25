@@ -189,7 +189,9 @@ async def case_create(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
             ]
             reply_markup = InlineKeyboardMarkup(keyboard)
 
-            await message.reply_text(success_message, parse_mode="MarkdownV2", reply_markup=reply_markup)
+            await message.reply_text(
+                success_message, parse_mode="MarkdownV2", reply_markup=reply_markup
+            )
             logger.info("telegram.case_create.success", user_id=user_id, case_id=reply_case_id)
         else:
             error_msg = response.error or "case creation failed"
@@ -260,11 +262,11 @@ async def handle_case_callback(update: Update, context: ContextTypes.DEFAULT_TYP
         # User wants to start intake questionnaire
         logger.info("telegram.case_callback.start_intake", user_id=user_id)
         await query.message.reply_text(
-            "🚀 Отлично! Запускаю анкетирование...\n\n"
-            "Используйте /intake_start для начала."
+            "🚀 Отлично! Запускаю анкетирование...\n\n" "Используйте /intake_start для начала."
         )
         # Automatically trigger intake_start
         from .intake_handlers import intake_start
+
         await intake_start(update, context)
 
     elif data == "case_later":

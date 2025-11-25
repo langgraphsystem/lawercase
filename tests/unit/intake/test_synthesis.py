@@ -6,8 +6,6 @@ Tests conversion of Q&A pairs into declarative statements for semantic memory.
 
 from __future__ import annotations
 
-import pytest
-
 from core.intake.schema import IntakeQuestion, QuestionType
 from core.intake.synthesis import synthesize_intake_fact
 

@@ -9,14 +9,8 @@ from __future__ import annotations
 import pytest
 from pydantic import ValidationError
 
-from core.intake.schema import (
-    BLOCKS_BY_ID,
-    INTAKE_BLOCKS,
-    IntakeBlock,
-    IntakeCondition,
-    IntakeQuestion,
-    QuestionType,
-)
+from core.intake.schema import (BLOCKS_BY_ID, INTAKE_BLOCKS, IntakeBlock,
+                                IntakeCondition, IntakeQuestion, QuestionType)
 
 
 class TestQuestionType:
@@ -350,7 +344,9 @@ class TestIntakeBlocks:
                     assert (
                         question.options is not None
                     ), f"SELECT question {question.id} missing options"
-                    assert len(question.options) > 0, f"SELECT question {question.id} has empty options"
+                    assert (
+                        len(question.options) > 0
+                    ), f"SELECT question {question.id} has empty options"
 
     def test_question_count(self):
         """Test total question count across all blocks."""

@@ -6,16 +6,9 @@ Tests all validators: date, yes/no, select, text, list parsing, and media detect
 
 from __future__ import annotations
 
-import pytest
-
-from core.intake.validation import (
-    is_media_message,
-    parse_list,
-    validate_date,
-    validate_select,
-    validate_text,
-    validate_yes_no,
-)
+from core.intake.validation import (is_media_message, parse_list,
+                                    validate_date, validate_select,
+                                    validate_text, validate_yes_no)
 
 
 class TestValidateDate:
