@@ -10,8 +10,7 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Any
 
-from sqlalchemy import (TIMESTAMP, CheckConstraint, Index, Integer, String,
-                        select, update)
+from sqlalchemy import TIMESTAMP, CheckConstraint, Index, Integer, String, select, text, update
 from sqlalchemy.dialects.postgresql import ARRAY
 from sqlalchemy.ext.asyncio import AsyncAttrs
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
@@ -148,7 +147,8 @@ async def set_progress(
 
     async with db.session() as session:
         # Use INSERT ON CONFLICT to handle both create and update atomically
-        stmt = """
+        stmt = text(
+            """
         INSERT INTO mega_agent.case_intake_progress (
             user_id, case_id, current_block, current_step, completed_blocks, updated_at
         ) VALUES (
@@ -161,6 +161,7 @@ async def set_progress(
             completed_blocks = EXCLUDED.completed_blocks,
             updated_at = NOW()
         """
+        )
 
         await session.execute(
             stmt,
