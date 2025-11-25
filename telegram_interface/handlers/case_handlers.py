@@ -5,8 +5,8 @@ from __future__ import annotations
 from typing import Any
 
 import structlog
-from telegram import Update
-from telegram.ext import CommandHandler, ContextTypes
+from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
+from telegram.ext import CallbackQueryHandler, CommandHandler, ContextTypes
 
 from core.groupagents.mega_agent import CommandType, MegaAgentCommand, UserRole
 
@@ -171,20 +171,25 @@ async def case_create(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
                 await bot_context.set_active_case(update, reply_case_id)
             case_title = case_data.get("title") or result_payload.get("title") or title
 
-            # Enhanced message with intake guidance
+            # Enhanced message with intake guidance and inline buttons
             success_message = (
-                f"✅ *Case created: {case_title}*\n"
+                f"✅ *Кейс создан: {case_title}*\n"
                 f"ID: `{reply_case_id or 'unknown'}`\n\n"
-                f"This case is now active. Let's gather information to build a strong petition.\n\n"
-                f"*Next steps:*\n"
-                f"🧾 /intake\\_start - Answer guided questionnaire (recommended)\n"
-                f"💬 /ask - Chat freely about your case\n"
-                f"📄 Upload supporting documents\n\n"
-                f"The intake questionnaire will help me understand your background, "
-                f"achievements, and goals to provide better assistance."
+                f"Этот кейс теперь активен\\. Давайте соберём информацию для построения сильной петиции\\.\n\n"
+                f"*Что дальше?*\n"
+                f"Рекомендую пройти анкетирование — это поможет мне лучше понять ваши достижения и цели\\."
             )
 
-            await message.reply_text(success_message, parse_mode="MarkdownV2")
+            # Create inline keyboard with action buttons
+            keyboard = [
+                [
+                    InlineKeyboardButton("🧾 Начать анкету", callback_data="case_start_intake"),
+                    InlineKeyboardButton("⏳ Потом", callback_data="case_later"),
+                ]
+            ]
+            reply_markup = InlineKeyboardMarkup(keyboard)
+
+            await message.reply_text(success_message, parse_mode="MarkdownV2", reply_markup=reply_markup)
             logger.info("telegram.case_create.success", user_id=user_id, case_id=reply_case_id)
         else:
             error_msg = response.error or "case creation failed"
@@ -236,9 +241,46 @@ async def case_active(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
         await message.reply_text(f"❌ Exception: {e!s}", parse_mode=None)
 
 
+async def handle_case_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Handle callback queries from inline buttons in case messages."""
+    bot_context = _bot_context(context)
+    query = update.callback_query
+    if not query:
+        return
+
+    await query.answer()
+
+    if not await _is_authorized(bot_context, update):
+        return
+
+    user_id = update.effective_user.id if update.effective_user else None
+    data = query.data
+
+    if data == "case_start_intake":
+        # User wants to start intake questionnaire
+        logger.info("telegram.case_callback.start_intake", user_id=user_id)
+        await query.message.reply_text(
+            "🚀 Отлично! Запускаю анкетирование...\n\n"
+            "Используйте /intake_start для начала."
+        )
+        # Automatically trigger intake_start
+        from .intake_handlers import intake_start
+        await intake_start(update, context)
+
+    elif data == "case_later":
+        # User wants to postpone intake
+        logger.info("telegram.case_callback.later", user_id=user_id)
+        await query.message.reply_text(
+            "👌 Хорошо, вы можете начать анкетирование позже.\n\n"
+            "Когда будете готовы, используйте /intake_start\n"
+            "Или просто задайте мне вопрос с помощью /ask"
+        )
+
+
 def get_handlers(bot_context: BotContext):
     return [
         CommandHandler("case_create", case_create),
         CommandHandler("case_get", case_get),
         CommandHandler("case_active", case_active),
+        CallbackQueryHandler(handle_case_callback, pattern="^case_"),
     ]

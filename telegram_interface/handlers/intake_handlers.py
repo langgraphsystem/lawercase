@@ -1,7 +1,8 @@
 """
 Intake questionnaire handlers for collecting case information via Telegram.
 
-Provides multi-turn conversation flow for structured data collection after case creation.
+Provides multi-block conversation flow with Russian UI, DB persistence,
+inline navigation, and fact synthesis for semantic memory.
 """
 
 from __future__ import annotations
@@ -14,14 +15,37 @@ from telegram import Update
 from telegram.constants import ParseMode
 from telegram.ext import ContextTypes
 
-from core.groupagents.intake_questionnaire import (IntakeQuestion,
-                                                   format_question_with_help,
-                                                   get_questions_for_category)
+from core.intake.schema import (
+    BLOCKS_BY_ID,
+    INTAKE_BLOCKS,
+    IntakeBlock,
+    IntakeQuestion,
+    QuestionType,
+)
+from core.intake.synthesis import synthesize_intake_fact
+from core.intake.validation import (
+    is_media_message,
+    parse_list,
+    validate_date,
+    validate_select,
+    validate_text,
+    validate_yes_no,
+)
 from core.memory.models import MemoryRecord
+from core.storage.intake_progress import (
+    advance_step,
+    complete_block,
+    get_progress,
+    reset_progress,
+    set_progress,
+)
 
 from .context import BotContext
 
 logger = structlog.get_logger(__name__)
+
+# Configuration
+QUESTIONS_PER_BATCH = 5  # Send 5 questions at a time (mid-range of 3-7)
 
 
 def _bot_context(context: ContextTypes.DEFAULT_TYPE) -> BotContext:
@@ -33,46 +57,8 @@ async def _is_authorized(bot_context: BotContext, update: Update) -> bool:
     if bot_context.is_authorized(user_id):
         return True
     if update.effective_message:
-        await update.effective_message.reply_text("❌ Unauthorized")
+        await update.effective_message.reply_text("❌ Не авторизован")
     return False
-
-
-# --- Intake State Management in RMT Buffer ---
-
-
-async def _get_intake_state(bot_context: BotContext, update: Update) -> dict[str, Any] | None:
-    """Retrieve intake state from RMT buffer."""
-    thread_id = bot_context.thread_id_for_update(update)
-    slots = await bot_context.mega_agent.memory.aget_rmt(thread_id)
-    if not slots:
-        return None
-    return slots.get("intake_state")
-
-
-async def _set_intake_state(
-    bot_context: BotContext, update: Update, intake_state: dict[str, Any] | None
-) -> None:
-    """Store intake state in RMT buffer."""
-    thread_id = bot_context.thread_id_for_update(update)
-    slots = await bot_context.mega_agent.memory.aget_rmt(thread_id)
-    if not slots:
-        slots = {
-            "persona": "",
-            "long_term_facts": "",
-            "open_loops": "",
-            "recent_summary": "",
-        }
-    if intake_state is None:
-        # Remove intake state
-        slots.pop("intake_state", None)
-    else:
-        slots["intake_state"] = intake_state
-    await bot_context.mega_agent.memory.aset_rmt(thread_id, slots)
-
-
-async def _clear_intake_state(bot_context: BotContext, update: Update) -> None:
-    """Clear intake state from RMT buffer."""
-    await _set_intake_state(bot_context, update, None)
 
 
 # --- Command Handlers ---
@@ -91,32 +77,34 @@ async def intake_start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
     if not message:
         return
 
-    # Check if intake is already in progress
-    existing_state = await _get_intake_state(bot_context, update)
-    if existing_state and existing_state.get("active"):
-        await message.reply_text(
-            "📝 Intake questionnaire is already in progress.\n\n"
-            "Use /intake_status to see your progress\n"
-            "Use /intake_cancel to cancel and start over"
-        )
-        return
+    user_id = str(update.effective_user.id)
 
     # Get active case
     active_case_id = await bot_context.get_active_case(update)
     if not active_case_id:
         await message.reply_text(
-            "❌ No active case found. Please create or select a case first:\n"
-            "• /case_create <title> - Create new case\n"
-            "• /case_get <case_id> - Select existing case"
+            "❌ Активный кейс не найден. Пожалуйста, создайте или выберите кейс:\n"
+            "• /case_create <название> - Создать новый кейс\n"
+            "• /case_get <case_id> - Выбрать существующий кейс"
         )
         return
 
-    # Get case details to determine category
+    # Check if intake is already in progress
+    existing_progress = await get_progress(user_id, active_case_id)
+    if existing_progress:
+        await message.reply_text(
+            "📝 Анкета уже в процессе заполнения.\n\n"
+            "Используйте /intake_status для просмотра прогресса\n"
+            "Используйте /intake_cancel для отмены и начала сначала"
+        )
+        return
+
+    # Get case details
     try:
         from core.groupagents.mega_agent import CommandType, MegaAgentCommand
 
         command = MegaAgentCommand(
-            user_id=str(update.effective_user.id),
+            user_id=user_id,
             command_type=CommandType.CASE,
             action="get",
             payload={"case_id": active_case_id},
@@ -124,106 +112,53 @@ async def intake_start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
         result = await bot_context.mega_agent.execute(command)
 
         case_data = result.get("case", {})
-        category = case_data.get("category")
-        case_title = case_data.get("title", "Unknown")
+        case_title = case_data.get("title", "Без названия")
 
     except Exception as e:
         logger.error("intake.start.get_case_failed", error=str(e), case_id=active_case_id)
-        await message.reply_text("❌ Failed to retrieve case details. Please try again.")
+        await message.reply_text("❌ Не удалось получить данные кейса. Попробуйте снова.")
         return
 
-    # Get questions for this case category
-    questions = get_questions_for_category(category)
-    if not questions:
-        await message.reply_text("❌ No questions found for this case type.")
-        return
+    # Initialize intake progress - start with first block
+    first_block = INTAKE_BLOCKS[0]
+    await set_progress(
+        user_id=user_id,
+        case_id=active_case_id,
+        current_block=first_block.id,
+        current_step=0,
+        completed_blocks=[],
+    )
 
-    # Initialize intake state
-    intake_state = {
-        "active": True,
-        "case_id": active_case_id,
-        "case_title": case_title,
-        "category": category,
-        "current_question": 0,
-        "total_questions": len(questions),
-        "responses": {},
-        "started_at": datetime.now(UTC).isoformat(),
-    }
+    logger.info(
+        "intake.started",
+        user_id=user_id,
+        case_id=active_case_id,
+        total_blocks=len(INTAKE_BLOCKS),
+    )
 
-    await _set_intake_state(bot_context, update, intake_state)
-
-    # Send welcome message and first question
+    # Send welcome message
+    total_questions = sum(len(block.questions) for block in INTAKE_BLOCKS)
     welcome_text = (
-        f"🎯 Starting intake questionnaire for: *{case_title}*\n\n"
-        f"I'll ask you {len(questions)} questions to build a strong case.\n"
-        f"You can:\n"
-        f"• Answer each question directly\n"
-        f"• /skip - Skip optional questions\n"
-        f"• /intake_status - Check progress\n"
-        f"• /intake_cancel - Cancel anytime\n\n"
-        f"Let's begin! 🚀"
+        f"🎯 *Начинаем анкетирование для кейса:* {case_title}\n\n"
+        f"Я задам вам вопросы по {len(INTAKE_BLOCKS)} блокам (~{total_questions} вопросов).\n\n"
+        f"*Блоки анкеты:*\n"
+    )
+    for i, block in enumerate(INTAKE_BLOCKS, 1):
+        welcome_text += f"{i}. {block.title}\n"
+
+    welcome_text += (
+        "\n*Как это работает:*\n"
+        "• Вопросы отправляются небольшими партиями\n"
+        "• Отвечайте на каждый вопрос текстовым сообщением\n"
+        "• Используйте кнопки для навигации (Назад/Пауза/Продолжить)\n"
+        "• /intake_status - Проверить прогресс\n"
+        "• /intake_cancel - Отменить в любой момент\n\n"
+        "Начнём! 🚀"
     )
     await message.reply_text(welcome_text, parse_mode=ParseMode.MARKDOWN)
 
-    # Send first question
-    await _send_current_question(bot_context, update, questions, intake_state)
-
-
-async def intake_skip(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    """
-    Skip the current question (only works for optional questions).
-    Usage: /skip
-    """
-    bot_context = _bot_context(context)
-    if not await _is_authorized(bot_context, update):
-        return
-
-    message = update.effective_message
-    if not message:
-        return
-
-    # Get intake state
-    intake_state = await _get_intake_state(bot_context, update)
-    if not intake_state or not intake_state.get("active"):
-        await message.reply_text("❌ No active intake questionnaire. Start with /intake_start")
-        return
-
-    # Get current question
-    category = intake_state.get("category")
-    questions = get_questions_for_category(category)
-    current_idx = intake_state.get("current_question", 0)
-
-    if current_idx >= len(questions):
-        await message.reply_text("✅ Questionnaire already completed!")
-        return
-
-    current_question = questions[current_idx]
-
-    # Check if question is required
-    if current_question.required:
-        await message.reply_text(
-            "❌ This question is required and cannot be skipped.\n"
-            "Please provide an answer or use /intake_cancel to cancel."
-        )
-        return
-
-    # Skip the question
-    logger.info(
-        "intake.question_skipped",
-        case_id=intake_state.get("case_id"),
-        question_id=current_question.id,
-    )
-
-    # Move to next question
-    intake_state["current_question"] = current_idx + 1
-    await _set_intake_state(bot_context, update, intake_state)
-
-    # Check if completed
-    if intake_state["current_question"] >= len(questions):
-        await _complete_intake(bot_context, update, intake_state, questions)
-    else:
-        await message.reply_text("⏭ Question skipped.")
-        await _send_current_question(bot_context, update, questions, intake_state)
+    # Send first batch of questions
+    await _send_question_batch(bot_context, update, user_id, active_case_id)
 
 
 async def intake_status(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -239,33 +174,45 @@ async def intake_status(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
     if not message:
         return
 
-    # Get intake state
-    intake_state = await _get_intake_state(bot_context, update)
-    if not intake_state or not intake_state.get("active"):
+    user_id = str(update.effective_user.id)
+    active_case_id = await bot_context.get_active_case(update)
+
+    if not active_case_id:
         await message.reply_text(
-            "❌ No active intake questionnaire.\n" "Start with /intake_start or /intake_resume"
+            "❌ Активный кейс не найден.\n" "Используйте /case_get <case_id> для выбора кейса."
         )
         return
 
-    current = intake_state.get("current_question", 0)
-    total = intake_state.get("total_questions", 0)
-    responses = intake_state.get("responses", {})
-    case_title = intake_state.get("case_title", "Unknown")
+    # Get intake progress
+    progress = await get_progress(user_id, active_case_id)
+    if not progress:
+        await message.reply_text(
+            "❌ Анкета не начата.\n" "Используйте /intake_start для начала анкетирования."
+        )
+        return
 
-    percentage = int((current / total) * 100) if total > 0 else 0
+    # Calculate statistics
+    completed_count = len(progress.get("completed_blocks", []))
+    total_blocks = len(INTAKE_BLOCKS)
+    current_block_id = progress.get("current_block")
+    current_step = progress.get("current_step", 0)
+
+    current_block = BLOCKS_BY_ID.get(current_block_id)
+    block_title = current_block.title if current_block else "Неизвестно"
+
+    percentage = int((completed_count / total_blocks) * 100) if total_blocks > 0 else 0
 
     status_text = (
-        f"📊 *Intake Progress for {case_title}*\n\n"
-        f"Progress: {current}/{total} questions ({percentage}%)\n"
-        f"Answered: {len(responses)} questions\n\n"
+        f"📊 *Прогресс анкетирования*\n\n"
+        f"Завершено блоков: {completed_count}/{total_blocks} ({percentage}%)\n\n"
+        f"*Текущий блок:* {block_title}\n"
+        f"Шаг в блоке: {current_step + 1}\n\n"
     )
 
-    if current >= total:
-        status_text += "✅ Questionnaire completed!"
+    if completed_count >= total_blocks:
+        status_text += "✅ Анкета полностью завершена!"
     else:
-        status_text += (
-            f"Currently on question {current + 1}\n\n" "Continue by answering the current question."
-        )
+        status_text += "Продолжайте, отвечая на текущие вопросы."
 
     await message.reply_text(status_text, parse_mode=ParseMode.MARKDOWN)
 
@@ -283,23 +230,32 @@ async def intake_cancel(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
     if not message:
         return
 
-    # Get intake state
-    intake_state = await _get_intake_state(bot_context, update)
-    if not intake_state or not intake_state.get("active"):
-        await message.reply_text("❌ No active intake questionnaire to cancel.")
+    user_id = str(update.effective_user.id)
+    active_case_id = await bot_context.get_active_case(update)
+
+    if not active_case_id:
+        await message.reply_text("❌ Активный кейс не найден.")
         return
 
-    # Clear state
-    await _clear_intake_state(bot_context, update)
+    # Check if intake exists
+    progress = await get_progress(user_id, active_case_id)
+    if not progress:
+        await message.reply_text("❌ Нет активной анкеты для отмены.")
+        return
+
+    # Delete progress
+    await reset_progress(user_id, active_case_id)
 
     logger.info(
         "intake.cancelled",
-        case_id=intake_state.get("case_id"),
-        questions_answered=len(intake_state.get("responses", {})),
+        user_id=user_id,
+        case_id=active_case_id,
+        completed_blocks=len(progress.get("completed_blocks", [])),
     )
 
     await message.reply_text(
-        "❌ Intake questionnaire cancelled.\n\n" "You can start again anytime with /intake_start"
+        "❌ Анкетирование отменено.\n\n"
+        "Вы можете начать заново в любой момент с помощью /intake_start"
     )
 
 
@@ -316,31 +272,104 @@ async def intake_resume(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
     if not message:
         return
 
-    # Get intake state
-    intake_state = await _get_intake_state(bot_context, update)
-    if not intake_state:
+    user_id = str(update.effective_user.id)
+    active_case_id = await bot_context.get_active_case(update)
+
+    if not active_case_id:
         await message.reply_text(
-            "❌ No intake questionnaire found.\n" "Start a new one with /intake_start"
+            "❌ Активный кейс не найден.\n" "Используйте /case_get <case_id> для выбора кейса."
         )
         return
 
-    if intake_state.get("active"):
-        await message.reply_text(
-            "📝 Intake questionnaire is already active!\n"
-            "Just answer the current question to continue."
-        )
+    # Get intake progress
+    progress = await get_progress(user_id, active_case_id)
+    if not progress:
+        await message.reply_text("❌ Анкета не найдена.\n" "Начните новую с помощью /intake_start")
         return
 
-    # Reactivate
-    intake_state["active"] = True
-    await _set_intake_state(bot_context, update, intake_state)
+    await message.reply_text("▶️ Возобновляем анкетирование...")
+    await _send_question_batch(bot_context, update, user_id, active_case_id)
 
-    # Get questions and send current
-    category = intake_state.get("category")
-    questions = get_questions_for_category(category)
 
-    await message.reply_text("▶️ Resuming intake questionnaire...")
-    await _send_current_question(bot_context, update, questions, intake_state)
+async def handle_intake_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """
+    Handle callback queries from inline keyboard buttons.
+    """
+    bot_context = _bot_context(context)
+    query = update.callback_query
+    if not query:
+        return
+
+    await query.answer()
+
+    if not await _is_authorized(bot_context, update):
+        return
+
+    user_id = str(update.effective_user.id)
+    active_case_id = await bot_context.get_active_case(update)
+
+    if not active_case_id:
+        await query.message.reply_text("❌ Активный кейс не найден.")
+        return
+
+    data = query.data
+    if not data:
+        return
+
+    # Parse callback data
+    if data == "intake_pause":
+        await query.message.reply_text(
+            "⏸ Анкетирование приостановлено.\n\n"
+            "Используйте /intake_resume для продолжения в любое время."
+        )
+        logger.info("intake.paused", user_id=user_id, case_id=active_case_id)
+
+    elif data == "intake_back":
+        # Go back one step
+        progress = await get_progress(user_id, active_case_id)
+        if not progress:
+            await query.message.reply_text("❌ Анкета не найдена.")
+            return
+
+        current_step = progress.get("current_step", 0)
+        if current_step > 0:
+            # Go back within current block
+            new_step = current_step - 1
+            await set_progress(
+                user_id=user_id,
+                case_id=active_case_id,
+                current_block=progress.get("current_block"),
+                current_step=new_step,
+                completed_blocks=progress.get("completed_blocks", []),
+            )
+            await query.message.reply_text("⬅️ Возвращаемся к предыдущему вопросу...")
+            await _send_question_batch(bot_context, update, user_id, active_case_id)
+        else:
+            # At beginning of block, go to previous block
+            completed_blocks = progress.get("completed_blocks", [])
+            if completed_blocks:
+                # Remove last completed block, go back to it
+                prev_block_id = completed_blocks[-1]
+                new_completed = completed_blocks[:-1]
+                prev_block = BLOCKS_BY_ID.get(prev_block_id)
+                if prev_block:
+                    await set_progress(
+                        user_id=user_id,
+                        case_id=active_case_id,
+                        current_block=prev_block_id,
+                        current_step=0,
+                        completed_blocks=new_completed,
+                    )
+                    await query.message.reply_text(f"⬅️ Возвращаемся к блоку: {prev_block.title}")
+                    await _send_question_batch(bot_context, update, user_id, active_case_id)
+                else:
+                    await query.message.reply_text("❌ Предыдущий блок не найден.")
+            else:
+                await query.message.reply_text("❌ Вы уже в начале анкеты.")
+
+    elif data in ("intake_next_block", "intake_continue"):
+        # Move to next block or continue within block
+        await _send_question_batch(bot_context, update, user_id, active_case_id)
 
 
 async def handle_intake_response(bot_context: BotContext, update: Update, user_text: str) -> bool:
@@ -354,45 +383,99 @@ async def handle_intake_response(bot_context: BotContext, update: Update, user_t
     if not message:
         return False
 
+    user_id = str(update.effective_user.id)
+    active_case_id = await bot_context.get_active_case(update)
+
+    if not active_case_id:
+        return False
+
     # Check if intake is active
-    intake_state = await _get_intake_state(bot_context, update)
-    if not intake_state or not intake_state.get("active"):
+    progress = await get_progress(user_id, active_case_id)
+    if not progress:
         return False
 
-    # Get current question
-    category = intake_state.get("category")
-    questions = get_questions_for_category(category)
-    current_idx = intake_state.get("current_question", 0)
+    # Get current block and question
+    current_block_id = progress.get("current_block")
+    current_step = progress.get("current_step", 0)
 
-    if current_idx >= len(questions):
-        # Already completed
-        await _clear_intake_state(bot_context, update)
+    current_block = BLOCKS_BY_ID.get(current_block_id)
+    if not current_block:
+        logger.error("intake.invalid_block", block_id=current_block_id)
         return False
 
-    current_question = questions[current_idx]
+    # Get questions for current batch
+    questions = _get_questions_for_step(current_block, current_step)
+    if not questions:
+        # No questions in this batch, possibly all conditional questions were skipped
+        return False
 
-    # Store response
-    intake_state["responses"][current_question.id] = user_text
+    # Expecting response for the first unanswered question in the batch
+    # We need to track which questions in the batch have been answered
+    # For simplicity, we'll expect answers in order
+
+    # Get the index within the batch for this step
+    batch_start = (current_step // QUESTIONS_PER_BATCH) * QUESTIONS_PER_BATCH
+    batch_question_idx = current_step - batch_start
+
+    if batch_question_idx >= len(questions):
+        # Already answered all questions in this batch
+        return False
+
+    current_question = questions[batch_question_idx]
+
+    # Validate response based on question type
+    is_valid, validation_result = await _validate_response(current_question, user_text)
+
+    if not is_valid:
+        error_msg = (
+            validation_result
+            if isinstance(validation_result, str)
+            else "❌ Некорректный формат ответа."
+        )
+        await message.reply_text(f"{error_msg}\n\nПожалуйста, попробуйте снова.")
+        return True
+
+    # Normalize and store response
+    normalized_value = validation_result
+
+    # Save to semantic memory with fact synthesis
+    await _save_response_to_memory(
+        bot_context, update, active_case_id, current_question, user_text, normalized_value
+    )
+
     logger.info(
         "intake.response_received",
-        case_id=intake_state.get("case_id"),
+        user_id=user_id,
+        case_id=active_case_id,
         question_id=current_question.id,
         response_length=len(user_text),
     )
 
-    # Save to semantic memory immediately
-    await _save_response_to_memory(bot_context, update, intake_state, current_question, user_text)
+    # Advance to next question
+    await advance_step(user_id, active_case_id)
 
-    # Move to next question
-    intake_state["current_question"] = current_idx + 1
-    await _set_intake_state(bot_context, update, intake_state)
+    # Check if batch is complete or block is complete
+    new_step = current_step + 1
+    next_batch_start = (new_step // QUESTIONS_PER_BATCH) * QUESTIONS_PER_BATCH
 
-    # Check if completed
-    if intake_state["current_question"] >= len(questions):
-        await _complete_intake(bot_context, update, intake_state, questions)
+    if next_batch_start > batch_start:
+        # Batch complete, show navigation buttons
+        await message.reply_text("✅ Партия вопросов завершена!")
+        await _send_question_batch(bot_context, update, user_id, active_case_id)
     else:
-        await message.reply_text("✅ Got it! Next question:")
-        await _send_current_question(bot_context, update, questions, intake_state)
+        # More questions in current batch
+        remaining = len(questions) - (batch_question_idx + 1)
+        if remaining > 0:
+            await message.reply_text(
+                f"✅ Принято! Следующий вопрос (осталось {remaining} в партии):"
+            )
+            # Send next question immediately
+            next_question = questions[batch_question_idx + 1]
+            await _send_single_question(
+                message, next_question, batch_question_idx + 2, len(questions)
+            )
+        else:
+            await _send_question_batch(bot_context, update, user_id, active_case_id)
 
     return True
 
@@ -400,53 +483,215 @@ async def handle_intake_response(bot_context: BotContext, update: Update, user_t
 # --- Helper Functions ---
 
 
-async def _send_current_question(
+def _get_questions_for_step(block: IntakeBlock, step: int) -> list[IntakeQuestion]:
+    """
+    Get the batch of questions for the current step.
+    Filters out conditional questions that shouldn't be shown.
+    """
+    # For now, we return all questions in the block
+    # TODO: Implement conditional filtering based on previous answers
+    # This requires storing answered questions and their values
+
+    batch_start = (step // QUESTIONS_PER_BATCH) * QUESTIONS_PER_BATCH
+    batch_end = batch_start + QUESTIONS_PER_BATCH
+
+    # Get all questions (conditional filtering would go here)
+    all_questions = block.questions
+    batch_questions = all_questions[batch_start:batch_end]
+
+    return batch_questions
+
+
+async def _send_question_batch(
     bot_context: BotContext,
     update: Update,
-    questions: list[IntakeQuestion],
-    intake_state: dict[str, Any],
+    user_id: str,
+    case_id: str,
 ) -> None:
-    """Send the current question to the user."""
-    message = update.effective_message
+    """Send the current batch of questions to the user."""
+    message = update.effective_message or update.callback_query.message
     if not message:
         return
 
-    current_idx = intake_state.get("current_question", 0)
-    if current_idx >= len(questions):
+    # Get progress
+    progress = await get_progress(user_id, case_id)
+    if not progress:
+        await message.reply_text("❌ Анкета не найдена.")
         return
 
-    current_question = questions[current_idx]
-    total = len(questions)
+    current_block_id = progress.get("current_block")
+    current_step = progress.get("current_step", 0)
+    completed_blocks = progress.get("completed_blocks", [])
 
-    question_text = format_question_with_help(current_question, current_idx + 1, total)
+    current_block = BLOCKS_BY_ID.get(current_block_id)
+    if not current_block:
+        await message.reply_text("❌ Блок не найден.")
+        return
+
+    # Check if block is complete
+    total_questions = len(current_block.questions)
+    if current_step >= total_questions:
+        # Block complete, move to next
+        await complete_block(user_id, case_id, current_block_id)
+
+        # Find next block
+        next_block = _get_next_block(current_block_id)
+        if next_block:
+            await message.reply_text(
+                f"✅ Блок *{current_block.title}* завершён!\n\n"
+                f"Переходим к следующему блоку: *{next_block.title}*\n"
+                f"{next_block.description}",
+                parse_mode=ParseMode.MARKDOWN,
+            )
+            await _send_question_batch(bot_context, update, user_id, case_id)
+        else:
+            # All blocks complete
+            await _complete_intake(bot_context, update, user_id, case_id)
+        return
+
+    # Get questions for current batch
+    questions = _get_questions_for_step(current_block, current_step)
+    if not questions:
+        # No questions in batch (all conditional), skip to next
+        await advance_step(user_id, case_id)
+        await _send_question_batch(bot_context, update, user_id, case_id)
+        return
+
+    # Send batch header
+    batch_num = (current_step // QUESTIONS_PER_BATCH) + 1
+    total_batches = (total_questions + QUESTIONS_PER_BATCH - 1) // QUESTIONS_PER_BATCH
+
+    if current_step == 0:
+        # First batch in block
+        header = (
+            f"📋 *Блок: {current_block.title}*\n"
+            f"{current_block.description}\n\n"
+            f"Партия {batch_num}/{total_batches} ({len(questions)} вопросов):"
+        )
+    else:
+        header = f"📋 *{current_block.title}* - Партия {batch_num}/{total_batches}:"
+
+    await message.reply_text(header, parse_mode=ParseMode.MARKDOWN)
+
+    # Send questions
+    for idx, question in enumerate(questions, 1):
+        await _send_single_question(message, question, idx, len(questions))
+
+    # If batch has been fully sent, show navigation buttons
+    # (user needs to answer all questions first, buttons shown after last answer)
+
+
+async def _send_single_question(
+    message,
+    question: IntakeQuestion,
+    num: int,
+    total: int,
+) -> None:
+    """Send a single question with formatting."""
+    question_text = f"*Вопрос {num}/{total}:*\n{question.text_template}"
+
+    if question.hint:
+        question_text += f"\n\n💡 _Подсказка: {question.hint}_"
+
+    if question.rationale:
+        question_text += f"\n\n📌 {question.rationale}"
+
+    if question.type == QuestionType.YES_NO:
+        question_text += "\n\n(Ответьте: да/нет или yes/no)"
+    elif question.type == QuestionType.DATE:
+        question_text += "\n\n(Формат: ГГГГ-ММ-ДД, например 1990-05-15)"
+    elif question.type == QuestionType.SELECT and question.options:
+        question_text += "\n\nВыберите один из вариантов:\n"
+        for opt in question.options:
+            question_text += f"• {opt}\n"
+    elif question.type == QuestionType.LIST:
+        question_text += "\n\n(Перечислите через запятую или с новой строки)"
 
     await message.reply_text(question_text, parse_mode=ParseMode.MARKDOWN)
+
+
+def _get_next_block(current_block_id: str) -> IntakeBlock | None:
+    """Get the next block after the current one."""
+    for i, block in enumerate(INTAKE_BLOCKS):
+        if block.id == current_block_id:
+            if i + 1 < len(INTAKE_BLOCKS):
+                return INTAKE_BLOCKS[i + 1]
+            return None
+    return None
+
+
+async def _validate_response(question: IntakeQuestion, user_text: str) -> tuple[bool, Any]:
+    """
+    Validate user response based on question type.
+
+    Returns:
+        Tuple of (is_valid, normalized_value_or_error_message)
+    """
+    if question.type == QuestionType.TEXT:
+        is_valid, error_msg = validate_text(user_text, min_length=1)
+        return (is_valid, error_msg if not is_valid else user_text)
+
+    if question.type == QuestionType.YES_NO:
+        is_valid, normalized = validate_yes_no(user_text)
+        if not is_valid:
+            return (False, "❌ Пожалуйста, ответьте 'да' или 'нет'.")
+        return (True, normalized)
+
+    if question.type == QuestionType.DATE:
+        is_valid, normalized = validate_date(user_text)
+        if not is_valid:
+            return (
+                False,
+                "❌ Некорректный формат даты. Используйте ГГГГ-ММ-ДД (например, 1990-05-15).",
+            )
+        return (True, normalized)
+
+    if question.type == QuestionType.SELECT:
+        if not question.options:
+            return (True, user_text)
+        is_valid, matched = validate_select(user_text, question.options)
+        if not is_valid:
+            return (
+                False,
+                f"❌ Пожалуйста, выберите один из предложенных вариантов:\n{', '.join(question.options)}",
+            )
+        return (True, matched)
+
+    if question.type == QuestionType.LIST:
+        items = parse_list(user_text)
+        if not items:
+            return (False, "❌ Пожалуйста, укажите хотя бы один элемент.")
+        return (True, items)
+
+    # Default: accept any text
+    return (True, user_text)
 
 
 async def _save_response_to_memory(
     bot_context: BotContext,
     update: Update,
-    intake_state: dict[str, Any],
+    case_id: str,
     question: IntakeQuestion,
-    response: str,
+    raw_response: str,
+    normalized_value: Any,
 ) -> None:
-    """Save a single intake response to semantic memory."""
-    case_id = intake_state.get("case_id")
+    """Save intake response to semantic memory with fact synthesis."""
     user_id = str(update.effective_user.id)
 
-    # Create semantic memory record
-    memory_text = f"{question.memory_key}: {response}"
+    # Synthesize fact from Q&A
+    fact_text = synthesize_intake_fact(question, raw_response)
 
     memory_record = MemoryRecord(
-        text=memory_text,
+        text=fact_text,
         user_id=user_id,
         type="semantic",
         case_id=case_id,
-        tags=["intake", question.memory_category, question.id],
+        tags=question.tags if question.tags else ["intake"],
         metadata={
             "source": "intake_questionnaire",
             "question_id": question.id,
-            "category": question.memory_category,
+            "raw_response": raw_response,
+            "normalized_value": str(normalized_value),
         },
     )
 
@@ -469,27 +714,33 @@ async def _save_response_to_memory(
 async def _complete_intake(
     bot_context: BotContext,
     update: Update,
-    intake_state: dict[str, Any],
-    questions: list[IntakeQuestion],
+    user_id: str,
+    case_id: str,
 ) -> None:
-    """Handle completion of the intake questionnaire."""
-    message = update.effective_message
+    """Handle completion of the entire intake questionnaire."""
+    message = update.effective_message or update.callback_query.message
     if not message:
         return
 
-    case_id = intake_state.get("case_id")
-    case_title = intake_state.get("case_title")
-    responses = intake_state.get("responses", {})
+    # Get case title
+    try:
+        from core.groupagents.mega_agent import CommandType, MegaAgentCommand
 
-    # Clear active flag but keep the state for potential review
-    intake_state["active"] = False
-    intake_state["completed_at"] = datetime.now(UTC).isoformat()
-    await _set_intake_state(bot_context, update, intake_state)
+        command = MegaAgentCommand(
+            user_id=user_id,
+            command_type=CommandType.CASE,
+            action="get",
+            payload={"case_id": case_id},
+        )
+        result = await bot_context.mega_agent.execute(command)
+        case_data = result.get("case", {})
+        case_title = case_data.get("title", "Без названия")
+    except Exception:
+        case_title = "Без названия"
 
-    # Update case memory to mark intake as completed
-    user_id = str(update.effective_user.id)
+    # Save completion record to semantic memory
     completion_record = MemoryRecord(
-        text=f"Intake questionnaire completed for case '{case_title}' with {len(responses)} responses",
+        text=f"Анкетирование завершено для кейса '{case_title}'. Собрана полная биографическая информация по {len(INTAKE_BLOCKS)} блокам.",
         user_id=user_id,
         type="semantic",
         case_id=case_id,
@@ -497,8 +748,8 @@ async def _complete_intake(
         metadata={
             "source": "intake_questionnaire",
             "intake_completed": True,
-            "responses_count": len(responses),
-            "completed_at": intake_state["completed_at"],
+            "total_blocks": len(INTAKE_BLOCKS),
+            "completed_at": datetime.now(UTC).isoformat(),
         },
     )
 
@@ -507,34 +758,23 @@ async def _complete_intake(
     except Exception as e:
         logger.error("intake.completion_record_failed", error=str(e), case_id=case_id)
 
-    # Update RMT buffer with summary
-    thread_id = bot_context.thread_id_for_update(update)
-    slots = await bot_context.mega_agent.memory.aget_rmt(thread_id)
-    if slots:
-        # Add intake completion to persona or long_term_facts
-        if "long_term_facts" in slots:
-            existing_facts = slots.get("long_term_facts", "")
-            new_fact = f"Completed intake questionnaire for {case_title}."
-            slots["long_term_facts"] = f"{existing_facts}\n{new_fact}".strip()
-            await bot_context.mega_agent.memory.aset_rmt(thread_id, slots)
-
     logger.info(
         "intake.completed",
+        user_id=user_id,
         case_id=case_id,
-        responses_count=len(responses),
-        total_questions=len(questions),
+        total_blocks=len(INTAKE_BLOCKS),
     )
 
     # Send completion message
     completion_text = (
-        f"🎉 *Intake questionnaire completed!*\n\n"
-        f"Answered {len(responses)}/{len(questions)} questions.\n\n"
-        f"All responses have been saved and will help build your case.\n\n"
-        f"*Next steps:*\n"
-        f"• /ask - Ask questions about your case\n"
-        f"• /generate_letter - Generate petition letters\n"
-        f"• Upload supporting documents\n\n"
-        f"Use /intake_status to review your responses anytime."
+        f"🎉 *Анкетирование завершено!*\n\n"
+        f"Все {len(INTAKE_BLOCKS)} блоков успешно пройдены.\n\n"
+        f"Все ответы сохранены и будут использованы для построения вашего кейса.\n\n"
+        f"*Следующие шаги:*\n"
+        f"• /ask - Задать вопросы о вашем кейсе\n"
+        f"• /generate_letter - Сгенерировать петицию\n"
+        f"• Загрузить подтверждающие документы\n\n"
+        f"Используйте /intake_status для просмотра статуса в любое время."
     )
 
     await message.reply_text(completion_text, parse_mode=ParseMode.MARKDOWN)
@@ -560,11 +800,20 @@ async def handle_text_message(update: Update, context: ContextTypes.DEFAULT_TYPE
     if message.text.startswith("/"):
         return
 
-    # Try to handle as intake response
-    handled = await handle_intake_response(bot_context, update, message.text)
+    # Check for media messages during intake
+    user_id = str(update.effective_user.id)
+    active_case_id = await bot_context.get_active_case(update)
+    if active_case_id:
+        progress = await get_progress(user_id, active_case_id)
+        if progress and is_media_message(update):
+            await message.reply_text(
+                "❌ Пожалуйста, отправьте текстовый ответ на вопрос.\n"
+                "Медиа-файлы (фото, документы, голосовые сообщения) не принимаются во время анкетирования."
+            )
+            return
 
-    # If not handled, do nothing (let other handlers process it)
-    # The message will fall through to unknown_handler or other handlers
+    # Try to handle as intake response
+    await handle_intake_response(bot_context, update, message.text)
 
 
 # --- Export handlers for registration ---
@@ -572,16 +821,16 @@ async def handle_text_message(update: Update, context: ContextTypes.DEFAULT_TYPE
 
 def get_handlers(bot_context: BotContext):
     """Return list of handlers to register with the Telegram application."""
-    from telegram.ext import CommandHandler, MessageHandler, filters
+    from telegram.ext import CallbackQueryHandler, CommandHandler, MessageHandler, filters
 
     return [
         # Command handlers
         CommandHandler("intake_start", intake_start),
-        CommandHandler("intake_skip", intake_skip),
-        CommandHandler("skip", intake_skip),  # Alias for convenience
         CommandHandler("intake_status", intake_status),
         CommandHandler("intake_cancel", intake_cancel),
         CommandHandler("intake_resume", intake_resume),
+        # Callback query handler for inline buttons
+        CallbackQueryHandler(handle_intake_callback, pattern="^intake_"),
         # Text message handler for intake responses (should run before other text handlers)
         MessageHandler(
             filters.TEXT & ~filters.COMMAND,
