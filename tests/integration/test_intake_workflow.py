@@ -8,26 +8,20 @@ to completion, verifying database persistence and memory integration.
 from __future__ import annotations
 
 import asyncio
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock
 
 import pytest
-from telegram import Update, User, Message, Chat
+from telegram import Chat, Message, Update, User
 from telegram.ext import ContextTypes
 
 from core.intake.schema import INTAKE_BLOCKS, QuestionType
 from core.memory.models import MemoryRecord
-from core.storage.intake_progress import (
-    advance_step,
-    complete_block,
-    get_progress,
-    reset_progress,
-    set_progress,
-)
-from telegram_interface.handlers.intake_handlers import (
-    intake_cancel,
-    intake_start,
-    intake_status,
-)
+from core.storage.intake_progress import (advance_step, complete_block,
+                                          get_progress, reset_progress,
+                                          set_progress)
+from telegram_interface.handlers.intake_handlers import (intake_cancel,
+                                                         intake_start,
+                                                         intake_status)
 
 
 @pytest.fixture
@@ -107,9 +101,7 @@ class TestIntakeWorkflowE2E:
     """End-to-end integration tests for intake workflow."""
 
     @pytest.mark.asyncio
-    async def test_complete_intake_flow(
-        self, mock_update, mock_context, clean_progress
-    ):
+    async def test_complete_intake_flow(self, mock_update, mock_context, clean_progress):
         """Test complete flow from start to completion."""
         user_id = "12345"
         case_id = "test_case_123"
@@ -144,9 +136,9 @@ class TestIntakeWorkflowE2E:
         # This would normally happen through message handler
         # For integration test, we verify the validation pipeline
 
-        from core.intake.validation import validate_text
-        from core.intake.synthesis import synthesize_intake_fact
         from core.intake.schema import BLOCKS_BY_ID
+        from core.intake.synthesis import synthesize_intake_fact
+        from core.intake.validation import validate_text
 
         block = BLOCKS_BY_ID["basic_info"]
         question = block.questions[0]
@@ -229,16 +221,18 @@ class TestIntakeWorkflowE2E:
         assert len(progress["completed_blocks"]) == 1
 
     @pytest.mark.asyncio
-    async def test_intake_status_command(
-        self, mock_update, mock_context, clean_progress
-    ):
+    async def test_intake_status_command(self, mock_update, mock_context, clean_progress):
         """Test /intake_status command."""
         user_id = "12345"
         case_id = "test_case_123"
 
         # Set progress mid-way
         await set_progress(
-            user_id, case_id, "career", 10, ["basic_info", "family_childhood", "school", "university"]
+            user_id,
+            case_id,
+            "career",
+            10,
+            ["basic_info", "family_childhood", "school", "university"],
         )
 
         # Call status command
@@ -250,9 +244,7 @@ class TestIntakeWorkflowE2E:
         assert "Статус анкетирования" in status_call or "Status" in status_call
 
     @pytest.mark.asyncio
-    async def test_intake_cancel_command(
-        self, mock_update, mock_context, clean_progress
-    ):
+    async def test_intake_cancel_command(self, mock_update, mock_context, clean_progress):
         """Test /intake_cancel command."""
         user_id = "12345"
         case_id = "test_case_123"
@@ -339,9 +331,7 @@ class TestIntakeWorkflowE2E:
         assert len(eb1a_questions) > 0, "Should have EB-1A criterion questions"
 
         for question in eb1a_questions:
-            assert (
-                question.rationale is not None
-            ), f"Question {question.id} missing rationale"
+            assert question.rationale is not None, f"Question {question.id} missing rationale"
             assert "EB-1A" in question.rationale or "criterion" in question.rationale.lower()
 
     @pytest.mark.asyncio
@@ -356,7 +346,13 @@ class TestIntakeWorkflowE2E:
         await set_progress(user1_id, case1_id, "basic_info", 0, [])
 
         # User 2 at block 5, step 10
-        await set_progress(user2_id, case2_id, "career", 10, ["basic_info", "family_childhood", "school", "university"])
+        await set_progress(
+            user2_id,
+            case2_id,
+            "career",
+            10,
+            ["basic_info", "family_childhood", "school", "university"],
+        )
 
         # Verify independent progress
         progress1 = await get_progress(user1_id, case1_id)
