@@ -9,6 +9,8 @@ from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
 from telegram.ext import CallbackQueryHandler, CommandHandler, ContextTypes
 
 from core.groupagents.mega_agent import CommandType, MegaAgentCommand, UserRole
+from core.intake.schema import BLOCKS_BY_ID
+from core.storage.intake_progress import get_progress
 
 from .context import BotContext
 
@@ -51,6 +53,60 @@ async def _is_authorized(bot_context: BotContext, update: Update) -> bool:
         await update.effective_message.reply_text("🚫 Access denied.")
     logger.warning("telegram.case.unauthorized", user_id=user_id)
     return False
+
+
+async def _maybe_offer_resume(
+    bot_context: BotContext, update: Update, case_id: str, case_title: str
+) -> None:
+    """If there is unfinished intake for the case, offer to resume from last step."""
+
+    user = update.effective_user
+    user_id = str(user.id) if user else None
+    if not user_id:
+        return
+
+    try:
+        progress = await get_progress(user_id, case_id)
+    except Exception as exc:  # pragma: no cover - defensive guard around DB access
+        logger.warning(
+            "telegram.case_active.progress_lookup_failed",
+            user_id=user_id,
+            case_id=case_id,
+            error=str(exc),
+        )
+        return
+
+    if not progress or progress.current_block == "intake_complete":
+        return
+
+    block = BLOCKS_BY_ID.get(progress.current_block)
+    block_title = block.title if block else progress.current_block
+    total_questions = len(block.questions) if block else None
+    question_progress = f"{progress.current_step + 1}"
+    if total_questions:
+        question_progress = f"{question_progress}/{total_questions}"
+
+    followup_text = (
+        "⏳ Для этого кейса есть незавершённые шаги анкетирования.\n"
+        f"Кейс: {case_title}\n"
+        f"Блок: {block_title}\n"
+        f"Текущий вопрос: {question_progress}\n\n"
+        "Продолжить с места остановки? Можно также использовать /intake_status или "
+        "/intake_cancel."
+    )
+
+    keyboard = InlineKeyboardMarkup(
+        [[InlineKeyboardButton("▶️ Продолжить анкету", callback_data="intake_continue")]]
+    )
+
+    await update.effective_message.reply_text(followup_text, reply_markup=keyboard)
+    logger.info(
+        "telegram.case_active.offer_resume",
+        user_id=user_id,
+        case_id=case_id,
+        block=progress.current_block,
+        step=progress.current_step,
+    )
 
 
 async def case_get(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -256,6 +312,7 @@ async def case_active(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
             await message.reply_text(
                 f"📌 Active case: {case_id_display}\nTitle: {case_title}\nStatus: {case_status}"
             )
+            await _maybe_offer_resume(bot_context, update, case_id_display, case_title)
         else:
             await message.reply_text(
                 f"⚠️ Active case id {active_case} not found (maybe deleted).",
