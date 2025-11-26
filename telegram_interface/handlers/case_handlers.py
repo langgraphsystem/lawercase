@@ -243,6 +243,122 @@ async def case_active(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
         await message.reply_text(f"❌ Exception: {e!s}", parse_mode=None)
 
 
+async def case_list(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """List all user's cases with pagination."""
+    user_id = update.effective_user.id if update.effective_user else None
+    logger.info("telegram.case_list.received", user_id=user_id)
+
+    bot_context = _bot_context(context)
+    if not await _is_authorized(bot_context, update):
+        logger.warning("telegram.case_list.unauthorized", user_id=user_id)
+        return
+
+    message = update.effective_message
+
+    # Parse optional page argument (default: page 1)
+    page = 1
+    if context.args:
+        try:
+            page = int(context.args[0])
+            page = max(page, 1)
+        except ValueError:
+            await message.reply_text("Usage: /case_list [page_number]")
+            return
+
+    # Calculate offset (10 cases per page)
+    limit = 10
+    offset = (page - 1) * limit
+
+    try:
+        command = MegaAgentCommand(
+            user_id=str(update.effective_user.id),
+            command_type=CommandType.CASE,
+            action="search",
+            payload={"limit": limit, "offset": offset},
+            context={"thread_id": bot_context.thread_id_for_update(update)},
+        )
+        logger.info(
+            "telegram.case_list.command_created",
+            user_id=user_id,
+            page=page,
+            limit=limit,
+            offset=offset,
+        )
+
+        response = await bot_context.mega_agent.handle_command(command, user_role=UserRole.LAWYER)
+        logger.info("telegram.case_list.response_received", user_id=user_id, success=response.success)
+
+        if response.success and response.result:
+            case_result = response.result.get("case_result", {})
+            cases = case_result.get("cases", [])
+            total_count = case_result.get("count", 0)
+
+            if not cases:
+                if page == 1:
+                    await message.reply_text(
+                        "📁 У вас пока нет кейсов.\n\n"
+                        "Создайте первый кейс с помощью:\n"
+                        "/case_create <название> | <описание>"
+                    )
+                else:
+                    await message.reply_text(f"📁 Страница {page} пуста. Используйте /case_list для первой страницы.")
+                logger.info("telegram.case_list.no_cases", user_id=user_id, page=page)
+                return
+
+            # Format case list
+            text = f"📁 *Ваши кейсы* \\(страница {page}\\):\n\n"
+
+            for idx, case in enumerate(cases, start=offset + 1):
+                status = case.get("status", "unknown")
+                status_emoji = {
+                    "draft": "📝",
+                    "in_progress": "⏳",
+                    "review": "🔍",
+                    "submitted": "✅",
+                    "approved": "🎉",
+                    "rejected": "❌",
+                    "archived": "📦",
+                }.get(status, "📄")
+
+                title = case.get("title", "(no title)")
+                case_id = case.get("case_id", "unknown")
+                case_id_short = case_id[:8] if len(case_id) > 8 else case_id
+
+                # Escape special characters for MarkdownV2
+                title_escaped = title.replace("_", "\\_").replace("*", "\\*").replace("[", "\\[").replace("]", "\\]").replace("(", "\\(").replace(")", "\\)").replace("~", "\\~").replace("`", "\\`").replace(">", "\\>").replace("#", "\\#").replace("+", "\\+").replace("-", "\\-").replace("=", "\\=").replace("|", "\\|").replace("{", "\\{").replace("}", "\\}").replace(".", "\\.").replace("!", "\\!")
+                status_escaped = status.replace("_", "\\_")
+                case_id_escaped = case_id_short.replace("-", "\\-")
+
+                text += f"{idx}\\. {status_emoji} *{title_escaped}*\n"
+                text += f"   ID: `{case_id_escaped}`\n"
+                text += f"   Статус: {status_escaped}\n\n"
+
+            # Add navigation hints
+            text += "\n💡 *Навигация:*\n"
+            text += "• `/case_get <case_id>` — открыть кейс\n"
+            if total_count > limit:
+                next_page = page + 1
+                text += f"• `/case_list {next_page}` — следующая страница\n"
+            if page > 1:
+                prev_page = page - 1
+                text += f"• `/case_list {prev_page}` — предыдущая страница"
+
+            await message.reply_text(text, parse_mode="MarkdownV2")
+            logger.info(
+                "telegram.case_list.sent",
+                user_id=user_id,
+                page=page,
+                count=total_count,
+            )
+        else:
+            error_msg = response.error or "Failed to retrieve cases"
+            await message.reply_text(f"❌ Error: {error_msg}", parse_mode=None)
+            logger.error("telegram.case_list.failed", user_id=user_id, error=error_msg)
+    except Exception as e:
+        logger.exception("telegram.case_list.exception", user_id=user_id, error=str(e))
+        await message.reply_text(f"❌ Exception: {e!s}", parse_mode=None)
+
+
 async def handle_case_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Handle callback queries from inline buttons in case messages."""
     bot_context = _bot_context(context)
@@ -284,5 +400,6 @@ def get_handlers(bot_context: BotContext):
         CommandHandler("case_create", case_create),
         CommandHandler("case_get", case_get),
         CommandHandler("case_active", case_active),
+        CommandHandler("case_list", case_list),
         CallbackQueryHandler(handle_case_callback, pattern="^case_"),
     ]

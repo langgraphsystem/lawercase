@@ -39,6 +39,7 @@ HELP_TEXT = (
     "/case_create <title> | <description> — Create a new case.\n"
     "/case_get <case_id> — Fetch case details.\n"
     "/case_active — Show current active case.\n"
+    "/case_list [page] — List all your cases.\n"
     "/ask <question> — Ask MegaAgent.\n"
     "/memory_lookup <query> — Search semantic memory.\n"
     "/generate_letter <title> — Generate letter draft.\n"
