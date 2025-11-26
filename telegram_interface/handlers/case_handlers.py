@@ -168,6 +168,8 @@ async def case_get(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
                 case_id=display_case_id,
                 status=status,
             )
+            # Offer to resume intake if there's unfinished progress
+            await _maybe_offer_resume(bot_context, update, display_case_id, title)
         else:
             error_msg = response.error or "case not found"
             # Use parse_mode=None to avoid Markdown parsing errors
