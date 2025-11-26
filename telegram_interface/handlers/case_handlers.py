@@ -171,10 +171,33 @@ async def case_create(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
                 await bot_context.set_active_case(update, reply_case_id)
             case_title = case_data.get("title") or result_payload.get("title") or title
 
+            # Escape special characters for MarkdownV2
+            case_title_escaped = (
+                case_title.replace("_", "\\_")
+                .replace("*", "\\*")
+                .replace("[", "\\[")
+                .replace("]", "\\]")
+                .replace("(", "\\(")
+                .replace(")", "\\)")
+                .replace("~", "\\~")
+                .replace("`", "\\`")
+                .replace(">", "\\>")
+                .replace("#", "\\#")
+                .replace("+", "\\+")
+                .replace("-", "\\-")
+                .replace("=", "\\=")
+                .replace("|", "\\|")
+                .replace("{", "\\{")
+                .replace("}", "\\}")
+                .replace(".", "\\.")
+                .replace("!", "\\!")
+            )
+            case_id_escaped = (reply_case_id or "unknown").replace("-", "\\-")
+
             # Enhanced message with intake guidance and inline buttons
             success_message = (
-                f"✅ *Кейс создан: {case_title}*\n"
-                f"ID: `{reply_case_id or 'unknown'}`\n\n"
+                f"✅ *Кейс создан: {case_title_escaped}*\n"
+                f"ID: `{case_id_escaped}`\n\n"
                 f"Этот кейс теперь активен\\. Давайте соберём информацию для построения сильной петиции\\.\n\n"
                 f"*Что дальше?*\n"
                 f"Рекомендую пройти анкетирование — это поможет мне лучше понять ваши достижения и цели\\."

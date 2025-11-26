@@ -179,10 +179,10 @@ async def intake_status(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
         return
 
     # Calculate statistics
-    completed_count = len(progress.get("completed_blocks", []))
+    completed_count = len(progress.completed_blocks)
     total_blocks = len(INTAKE_BLOCKS)
-    current_block_id = progress.get("current_block")
-    current_step = progress.get("current_step", 0)
+    current_block_id = progress.current_block
+    current_step = progress.current_step
 
     current_block = BLOCKS_BY_ID.get(current_block_id)
     block_title = current_block.title if current_block else "Неизвестно"
@@ -237,7 +237,7 @@ async def intake_cancel(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
         "intake.cancelled",
         user_id=user_id,
         case_id=active_case_id,
-        completed_blocks=len(progress.get("completed_blocks", [])),
+        completed_blocks=len(progress.completed_blocks),
     )
 
     await message.reply_text(
@@ -318,22 +318,22 @@ async def handle_intake_callback(update: Update, context: ContextTypes.DEFAULT_T
             await query.message.reply_text("❌ Анкета не найдена.")
             return
 
-        current_step = progress.get("current_step", 0)
+        current_step = progress.current_step
         if current_step > 0:
             # Go back within current block
             new_step = current_step - 1
             await set_progress(
                 user_id=user_id,
                 case_id=active_case_id,
-                current_block=progress.get("current_block"),
+                current_block=progress.current_block,
                 current_step=new_step,
-                completed_blocks=progress.get("completed_blocks", []),
+                completed_blocks=progress.completed_blocks,
             )
             await query.message.reply_text("⬅️ Возвращаемся к предыдущему вопросу...")
             await _send_question_batch(bot_context, update, user_id, active_case_id)
         else:
             # At beginning of block, go to previous block
-            completed_blocks = progress.get("completed_blocks", [])
+            completed_blocks = progress.completed_blocks
             if completed_blocks:
                 # Remove last completed block, go back to it
                 prev_block_id = completed_blocks[-1]
@@ -382,8 +382,8 @@ async def handle_intake_response(bot_context: BotContext, update: Update, user_t
         return False
 
     # Get current block and question
-    current_block_id = progress.get("current_block")
-    current_step = progress.get("current_step", 0)
+    current_block_id = progress.current_block
+    current_step = progress.current_step
 
     current_block = BLOCKS_BY_ID.get(current_block_id)
     if not current_block:
@@ -506,9 +506,9 @@ async def _send_question_batch(
         await message.reply_text("❌ Анкета не найдена.")
         return
 
-    current_block_id = progress.get("current_block")
-    current_step = progress.get("current_step", 0)
-    completed_blocks = progress.get("completed_blocks", [])
+    current_block_id = progress.current_block
+    current_step = progress.current_step
+    completed_blocks = progress.completed_blocks
 
     current_block = BLOCKS_BY_ID.get(current_block_id)
     if not current_block:
