@@ -15,16 +15,30 @@ from telegram import Update
 from telegram.constants import ParseMode
 from telegram.ext import ContextTypes
 
-from core.intake.schema import (BLOCKS_BY_ID, INTAKE_BLOCKS, IntakeBlock,
-                                IntakeQuestion, QuestionType)
+from core.intake.schema import (
+    BLOCKS_BY_ID,
+    INTAKE_BLOCKS,
+    IntakeBlock,
+    IntakeQuestion,
+    QuestionType,
+)
 from core.intake.synthesis import synthesize_intake_fact
-from core.intake.validation import (is_media_message, parse_list,
-                                    validate_date, validate_select,
-                                    validate_text, validate_yes_no)
+from core.intake.validation import (
+    is_media_message,
+    parse_list,
+    validate_date,
+    validate_select,
+    validate_text,
+    validate_yes_no,
+)
 from core.memory.models import MemoryRecord
-from core.storage.intake_progress import (advance_step, complete_block,
-                                          get_progress, reset_progress,
-                                          set_progress)
+from core.storage.intake_progress import (
+    advance_step,
+    complete_block,
+    get_progress,
+    reset_progress,
+    set_progress,
+)
 
 from .context import BotContext
 
@@ -87,7 +101,7 @@ async def intake_start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
 
     # Get case details
     try:
-        from core.groupagents.mega_agent import CommandType, MegaAgentCommand
+        from core.groupagents.mega_agent import CommandType, MegaAgentCommand, UserRole
 
         command = MegaAgentCommand(
             user_id=user_id,
@@ -95,9 +109,9 @@ async def intake_start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
             action="get",
             payload={"case_id": active_case_id},
         )
-        result = await bot_context.mega_agent.execute(command)
+        response = await bot_context.mega_agent.handle_command(command, user_role=UserRole.LAWYER)
 
-        case_data = result.get("case", {})
+        case_data = response.result.get("case", {}) if response.success else {}
         case_title = case_data.get("title", "Без названия")
 
     except Exception as e:
@@ -710,7 +724,7 @@ async def _complete_intake(
 
     # Get case title
     try:
-        from core.groupagents.mega_agent import CommandType, MegaAgentCommand
+        from core.groupagents.mega_agent import CommandType, MegaAgentCommand, UserRole
 
         command = MegaAgentCommand(
             user_id=user_id,
@@ -718,8 +732,8 @@ async def _complete_intake(
             action="get",
             payload={"case_id": case_id},
         )
-        result = await bot_context.mega_agent.execute(command)
-        case_data = result.get("case", {})
+        response = await bot_context.mega_agent.handle_command(command, user_role=UserRole.LAWYER)
+        case_data = response.result.get("case", {}) if response.success else {}
         case_title = case_data.get("title", "Без названия")
     except Exception:
         case_title = "Без названия"
@@ -807,8 +821,7 @@ async def handle_text_message(update: Update, context: ContextTypes.DEFAULT_TYPE
 
 def get_handlers(bot_context: BotContext):
     """Return list of handlers to register with the Telegram application."""
-    from telegram.ext import (CallbackQueryHandler, CommandHandler,
-                              MessageHandler, filters)
+    from telegram.ext import CallbackQueryHandler, CommandHandler, MessageHandler, filters
 
     return [
         # Command handlers
