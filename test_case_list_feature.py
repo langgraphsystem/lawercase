@@ -8,7 +8,7 @@ from unittest.mock import AsyncMock, MagicMock
 import pytest
 
 
-@pytest.mark.asyncio()
+@pytest.mark.asyncio
 async def test_case_list_handler_registration():
     """Test that case_list handler is properly registered."""
     from telegram_interface.handlers.case_handlers import get_handlers
@@ -35,7 +35,7 @@ async def test_case_list_handler_registration():
     print("✅ case_list handler is properly registered")
 
 
-@pytest.mark.asyncio()
+@pytest.mark.asyncio
 async def test_case_list_help_text():
     """Test that /case_list is included in help text."""
     from telegram_interface.handlers.admin_handlers import HELP_TEXT
@@ -45,7 +45,7 @@ async def test_case_list_help_text():
     print("✅ /case_list is documented in help text")
 
 
-@pytest.mark.asyncio()
+@pytest.mark.asyncio
 async def test_case_list_basic_flow():
     """Test basic case_list flow with mocked dependencies."""
     from telegram import Chat, Message, Update, User
@@ -125,7 +125,7 @@ async def test_case_list_basic_flow():
     print("✅ case_list basic flow works correctly")
 
 
-@pytest.mark.asyncio()
+@pytest.mark.asyncio
 async def test_case_list_empty_state():
     """Test case_list with no cases (empty state)."""
     from telegram import Message, Update, User

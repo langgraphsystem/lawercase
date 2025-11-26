@@ -286,7 +286,9 @@ async def case_list(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         )
 
         response = await bot_context.mega_agent.handle_command(command, user_role=UserRole.LAWYER)
-        logger.info("telegram.case_list.response_received", user_id=user_id, success=response.success)
+        logger.info(
+            "telegram.case_list.response_received", user_id=user_id, success=response.success
+        )
 
         if response.success and response.result:
             case_result = response.result.get("case_result", {})
@@ -301,7 +303,9 @@ async def case_list(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
                         "/case_create <название> | <описание>"
                     )
                 else:
-                    await message.reply_text(f"📁 Страница {page} пуста. Используйте /case_list для первой страницы.")
+                    await message.reply_text(
+                        f"📁 Страница {page} пуста. Используйте /case_list для первой страницы."
+                    )
                 logger.info("telegram.case_list.no_cases", user_id=user_id, page=page)
                 return
 
@@ -325,7 +329,26 @@ async def case_list(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
                 case_id_short = case_id[:8] if len(case_id) > 8 else case_id
 
                 # Escape special characters for MarkdownV2
-                title_escaped = title.replace("_", "\\_").replace("*", "\\*").replace("[", "\\[").replace("]", "\\]").replace("(", "\\(").replace(")", "\\)").replace("~", "\\~").replace("`", "\\`").replace(">", "\\>").replace("#", "\\#").replace("+", "\\+").replace("-", "\\-").replace("=", "\\=").replace("|", "\\|").replace("{", "\\{").replace("}", "\\}").replace(".", "\\.").replace("!", "\\!")
+                title_escaped = (
+                    title.replace("_", "\\_")
+                    .replace("*", "\\*")
+                    .replace("[", "\\[")
+                    .replace("]", "\\]")
+                    .replace("(", "\\(")
+                    .replace(")", "\\)")
+                    .replace("~", "\\~")
+                    .replace("`", "\\`")
+                    .replace(">", "\\>")
+                    .replace("#", "\\#")
+                    .replace("+", "\\+")
+                    .replace("-", "\\-")
+                    .replace("=", "\\=")
+                    .replace("|", "\\|")
+                    .replace("{", "\\{")
+                    .replace("}", "\\}")
+                    .replace(".", "\\.")
+                    .replace("!", "\\!")
+                )
                 status_escaped = status.replace("_", "\\_")
                 case_id_escaped = case_id_short.replace("-", "\\-")
 
