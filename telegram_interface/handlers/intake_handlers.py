@@ -31,7 +31,7 @@ from .context import BotContext
 logger = structlog.get_logger(__name__)
 
 # Configuration
-QUESTIONS_PER_BATCH = 5  # Send 5 questions at a time (mid-range of 3-7)
+QUESTIONS_PER_BATCH = 1  # Send 1 question at a time for better UX
 
 
 def _bot_context(context: ContextTypes.DEFAULT_TYPE) -> BotContext:
@@ -461,14 +461,11 @@ async def handle_intake_response(bot_context: BotContext, update: Update, user_t
         # More questions in current batch
         remaining = len(questions) - (batch_question_idx + 1)
         if remaining > 0:
-            await message.reply_text(
-                f"✅ Принято! Следующий вопрос (осталось {remaining} в партии):"
-            )
+            # Note: with QUESTIONS_PER_BATCH=1, this branch never executes
+            await message.reply_text("✅ Принято! Следующий вопрос:")
             # Send next question immediately
             next_question = questions[batch_question_idx + 1]
-            await _send_single_question(
-                message, next_question, batch_question_idx + 2, len(questions)
-            )
+            await _send_single_question(message, next_question)
         else:
             await _send_question_batch(bot_context, update, user_id, active_case_id)
 
@@ -557,25 +554,25 @@ async def _send_question_batch(
         await _send_question_batch(bot_context, update, user_id, case_id)
         return
 
-    # Send batch header
-    batch_num = (current_step // QUESTIONS_PER_BATCH) + 1
-    total_batches = (total_questions + QUESTIONS_PER_BATCH - 1) // QUESTIONS_PER_BATCH
+    # Send batch header (simplified for single-question mode)
+    question_num = current_step + 1  # 1-indexed for display
 
     if current_step == 0:
-        # First batch in block
+        # First question in block - show block description
         header = (
             f"📋 *Блок: {current_block.title}*\n"
             f"{current_block.description}\n\n"
-            f"Партия {batch_num}/{total_batches} ({len(questions)} вопросов):"
+            f"Вопрос {question_num} из {total_questions}"
         )
     else:
-        header = f"📋 *{current_block.title}* - Партия {batch_num}/{total_batches}:"
+        # Subsequent questions - compact header
+        header = f"📋 *{current_block.title}* (вопрос {question_num}/{total_questions})"
 
     await message.reply_text(header, parse_mode=ParseMode.MARKDOWN)
 
-    # Send questions
-    for idx, question in enumerate(questions, 1):
-        await _send_single_question(message, question, idx, len(questions))
+    # Send questions (now always 1 question per batch)
+    for question in questions:
+        await _send_single_question(message, question)
 
     # If batch has been fully sent, show navigation buttons
     # (user needs to answer all questions first, buttons shown after last answer)
@@ -584,11 +581,10 @@ async def _send_question_batch(
 async def _send_single_question(
     message,
     question: IntakeQuestion,
-    num: int,
-    total: int,
 ) -> None:
     """Send a single question with formatting."""
-    question_text = f"*Вопрос {num}/{total}:*\n{question.text_template}"
+    # Simplified: just show the question text without numbering
+    question_text = f"{question.text_template}"
 
     if question.hint:
         question_text += f"\n\n💡 _Подсказка: {question.hint}_"
