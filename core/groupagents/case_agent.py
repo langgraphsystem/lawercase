@@ -14,22 +14,16 @@ from uuid import UUID
 
 from sqlalchemy import select
 
-from ..exceptions import AgentError, NotFoundError, ValidationError as MegaValidationError
+from ..exceptions import AgentError, NotFoundError
+from ..exceptions import ValidationError as MegaValidationError
 from ..logging_config import StructuredLogger
 from ..memory.memory_manager import MemoryManager
 from ..memory.models import AuditEvent, MemoryRecord
 from ..storage.connection import DatabaseManager
 from ..storage.models import CaseDB
-from .models import (
-    CaseExhibit,
-    CaseOperationResult,
-    CaseQuery,
-    CaseRecord,
-    CaseStatus,
-    CaseVersion,
-    CaseWorkflowState,
-    ValidationResult,
-)
+from .models import (CaseExhibit, CaseOperationResult, CaseQuery, CaseRecord,
+                     CaseStatus, CaseVersion, CaseWorkflowState,
+                     ValidationResult)
 
 
 class CaseNotFoundError(NotFoundError):
