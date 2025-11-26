@@ -15,30 +15,16 @@ from telegram import Update
 from telegram.constants import ParseMode
 from telegram.ext import ContextTypes
 
-from core.intake.schema import (
-    BLOCKS_BY_ID,
-    INTAKE_BLOCKS,
-    IntakeBlock,
-    IntakeQuestion,
-    QuestionType,
-)
+from core.intake.schema import (BLOCKS_BY_ID, INTAKE_BLOCKS, IntakeBlock,
+                                IntakeQuestion, QuestionType)
 from core.intake.synthesis import synthesize_intake_fact
-from core.intake.validation import (
-    is_media_message,
-    parse_list,
-    validate_date,
-    validate_select,
-    validate_text,
-    validate_yes_no,
-)
+from core.intake.validation import (is_media_message, parse_list,
+                                    validate_date, validate_select,
+                                    validate_text, validate_yes_no)
 from core.memory.models import MemoryRecord
-from core.storage.intake_progress import (
-    advance_step,
-    complete_block,
-    get_progress,
-    reset_progress,
-    set_progress,
-)
+from core.storage.intake_progress import (advance_step, complete_block,
+                                          get_progress, reset_progress,
+                                          set_progress)
 
 from .context import BotContext
 
@@ -101,7 +87,8 @@ async def intake_start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
 
     # Get case details
     try:
-        from core.groupagents.mega_agent import CommandType, MegaAgentCommand, UserRole
+        from core.groupagents.mega_agent import (CommandType, MegaAgentCommand,
+                                                 UserRole)
 
         command = MegaAgentCommand(
             user_id=user_id,
@@ -724,7 +711,8 @@ async def _complete_intake(
 
     # Get case title
     try:
-        from core.groupagents.mega_agent import CommandType, MegaAgentCommand, UserRole
+        from core.groupagents.mega_agent import (CommandType, MegaAgentCommand,
+                                                 UserRole)
 
         command = MegaAgentCommand(
             user_id=user_id,
@@ -821,7 +809,8 @@ async def handle_text_message(update: Update, context: ContextTypes.DEFAULT_TYPE
 
 def get_handlers(bot_context: BotContext):
     """Return list of handlers to register with the Telegram application."""
-    from telegram.ext import CallbackQueryHandler, CommandHandler, MessageHandler, filters
+    from telegram.ext import (CallbackQueryHandler, CommandHandler,
+                              MessageHandler, filters)
 
     return [
         # Command handlers
