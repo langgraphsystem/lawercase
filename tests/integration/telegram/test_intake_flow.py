@@ -8,31 +8,25 @@ These tests ensure that:
 4. Race conditions are handled correctly
 """
 
-import asyncio
-from datetime import datetime
-from unittest.mock import AsyncMock, MagicMock, Mock, patch
+from __future__ import annotations
+
+from unittest.mock import AsyncMock, MagicMock, Mock
 from uuid import uuid4
 
 import pytest
 from sqlalchemy import select
 
-from core.groupagents.case_agent import CaseAgent, CaseNotFoundError
+from core.groupagents.case_agent import CaseAgent
 from core.groupagents.mega_agent import MegaAgent
-from core.groupagents.models import CaseRecord, CaseType
+from core.groupagents.models import CaseType
 from core.memory.memory_manager import MemoryManager
 from core.storage.connection import get_db_manager
-from core.storage.intake_progress import (
-    CaseIntakeProgressDB,
-    get_progress,
-    set_progress,
-)
+from core.storage.intake_progress import (CaseIntakeProgressDB, get_progress,
+                                          set_progress)
 from core.storage.models import CaseDB
 from telegram_interface.handlers.context import BotContext
-from telegram_interface.handlers.intake_handlers import (
-    ensure_case_exists,
-    handle_text_message,
-    intake_start,
-)
+from telegram_interface.handlers.intake_handlers import (ensure_case_exists,
+                                                         intake_start)
 
 
 @pytest.fixture
@@ -87,8 +81,7 @@ async def cleanup_test_data(db_manager, user_id: str, case_id: str):
     async with db_manager.session() as session:
         # Delete intake progress
         stmt = select(CaseIntakeProgressDB).where(
-            CaseIntakeProgressDB.user_id == user_id,
-            CaseIntakeProgressDB.case_id == case_id
+            CaseIntakeProgressDB.user_id == user_id, CaseIntakeProgressDB.case_id == case_id
         )
         result = await session.execute(stmt)
         progress = result.scalar_one_or_none()
@@ -97,6 +90,7 @@ async def cleanup_test_data(db_manager, user_id: str, case_id: str):
 
         # Delete case
         from uuid import UUID
+
         stmt = select(CaseDB).where(CaseDB.case_id == UUID(case_id))
         result = await session.execute(stmt)
         case = result.scalar_one_or_none()
@@ -110,9 +104,7 @@ class TestIntakeStartAtomicity:
     """Test that /intake_start creates both case and progress atomically."""
 
     @pytest.mark.asyncio
-    async def test_intake_start_creates_both_records(
-        self, db_manager, mock_update, mock_context
-    ):
+    async def test_intake_start_creates_both_records(self, db_manager, mock_update, mock_context):
         """Test that /intake_start creates both case and intake progress."""
         user_id = str(mock_update.effective_user.id)
         case_id = None
@@ -133,6 +125,7 @@ class TestIntakeStartAtomicity:
             # Verify case exists in database
             async with db_manager.session() as session:
                 from uuid import UUID
+
                 stmt = select(CaseDB).where(CaseDB.case_id == UUID(case_id))
                 result = await session.execute(stmt)
                 case = result.scalar_one_or_none()
@@ -165,7 +158,7 @@ class TestIntakeStartAtomicity:
                 "client_id": user_id,
                 "case_type": CaseType.IMMIGRATION.value,
                 "status": "draft",
-            }
+            },
         )
         case_id = case.case_id
 
@@ -236,7 +229,7 @@ class TestEnsureCaseExistsDecorator:
                 "client_id": user_id,
                 "case_type": CaseType.IMMIGRATION.value,
                 "status": "draft",
-            }
+            },
         )
         case_id = case.case_id
 
@@ -316,7 +309,7 @@ class TestDataRecovery:
                 case_id=case_id,
                 current_block="basic_info",
                 current_step=0,
-                completed_blocks=[]
+                completed_blocks=[],
             )
 
             # Find orphans

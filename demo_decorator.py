@@ -2,8 +2,9 @@
 Demo script showing how @ensure_case_exists decorator works
 """
 
+from __future__ import annotations
+
 import asyncio
-from unittest.mock import AsyncMock, MagicMock
 
 
 # Simplified version of the decorator for demo purposes
@@ -11,6 +12,7 @@ def ensure_case_exists_demo(func):
     """
     Demo decorator showing the protection logic.
     """
+
     async def wrapper(case_id, *args, **kwargs):
         print(f"\n🔍 Checking if case {case_id} exists...")
 

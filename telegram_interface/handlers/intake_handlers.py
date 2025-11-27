@@ -60,6 +60,7 @@ def ensure_case_exists(func):
         async def intake_handler(update, context):
             ...
     """
+
     async def wrapper(update: Update, context: ContextTypes.DEFAULT_TYPE, *args, **kwargs):
         bot_context = _bot_context(context)
         user_id = str(update.effective_user.id)
@@ -83,7 +84,7 @@ def ensure_case_exists(func):
                 case_id=active_case_id,
                 handler=func.__name__,
                 error=str(e),
-                action="creating_case_automatically"
+                action="creating_case_automatically",
             )
 
             try:
@@ -98,7 +99,7 @@ def ensure_case_exists(func):
                         "client_id": user_id,
                         "case_type": CaseType.IMMIGRATION.value,
                         "status": "draft",
-                    }
+                    },
                 )
 
                 logger.info(
@@ -160,7 +161,7 @@ async def intake_start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
                     "client_id": user_id,
                     "case_type": CaseType.IMMIGRATION.value,
                     "status": "draft",
-                }
+                },
             )
             active_case_id = case.case_id
             case_title = case.title
@@ -172,14 +173,14 @@ async def intake_start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
                 "intake.case_created",
                 user_id=user_id,
                 case_id=active_case_id,
-                reason="No active case for intake"
+                reason="No active case for intake",
             )
 
         except Exception as e:
             logger.error("intake.start.create_case_failed", error=str(e), user_id=user_id)
             await message.reply_text(
                 "❌ Не удалось создать кейс для анкетирования. Попробуйте снова.\n\n"
-                f"Ошибка: {str(e)}"
+                f"Ошибка: {e!s}"
             )
             return
     else:
@@ -194,7 +195,7 @@ async def intake_start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
                 user_id=user_id,
                 case_id=active_case_id,
                 error=str(e),
-                action="creating_case_retroactively"
+                action="creating_case_retroactively",
             )
             try:
                 from core.groupagents.models import CaseType
@@ -208,7 +209,7 @@ async def intake_start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
                         "client_id": user_id,
                         "case_type": CaseType.IMMIGRATION.value,
                         "status": "draft",
-                    }
+                    },
                 )
                 case_title = case.title
 
@@ -219,13 +220,9 @@ async def intake_start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
                 )
             except Exception as create_error:
                 logger.error(
-                    "intake.case_recovery_failed",
-                    error=str(create_error),
-                    case_id=active_case_id
+                    "intake.case_recovery_failed", error=str(create_error), case_id=active_case_id
                 )
-                await message.reply_text(
-                    "❌ Не удалось восстановить кейс. Попробуйте снова."
-                )
+                await message.reply_text("❌ Не удалось восстановить кейс. Попробуйте снова.")
                 return
 
     # Check if intake is already in progress
@@ -253,11 +250,9 @@ async def intake_start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
             "intake.start.create_progress_failed",
             error=str(e),
             case_id=active_case_id,
-            user_id=user_id
+            user_id=user_id,
         )
-        await message.reply_text(
-            "❌ Не удалось начать анкетирование. Попробуйте снова."
-        )
+        await message.reply_text("❌ Не удалось начать анкетирование. Попробуйте снова.")
         return
 
     logger.info(

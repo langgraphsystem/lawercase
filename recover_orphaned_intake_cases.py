@@ -21,18 +21,18 @@ Options:
     --dry-run    Show what would be recovered without making changes
 """
 
+from __future__ import annotations
+
 import asyncio
 import sys
 from datetime import datetime
-from uuid import UUID
 
 import structlog
-from sqlalchemy import select, text
+from sqlalchemy import text
 
 from core.groupagents.case_agent import CaseAgent
 from core.groupagents.models import CaseType
 from core.storage.connection import get_db_manager
-from core.storage.intake_progress import CaseIntakeProgressDB
 
 logger = structlog.get_logger(__name__)
 
@@ -67,7 +67,9 @@ async def find_orphaned_intake_records():
         return [(row[0], row[1]) for row in orphans]
 
 
-async def recover_orphaned_case(case_agent: CaseAgent, user_id: str, case_id: str, dry_run: bool = False):
+async def recover_orphaned_case(
+    case_agent: CaseAgent, user_id: str, case_id: str, dry_run: bool = False
+):
     """
     Create a case record for an orphaned intake progress.
 
@@ -82,10 +84,7 @@ async def recover_orphaned_case(case_agent: CaseAgent, user_id: str, case_id: st
     """
     if dry_run:
         logger.info(
-            "recovery.dry_run",
-            user_id=user_id,
-            case_id=case_id,
-            action="would_create_case"
+            "recovery.dry_run", user_id=user_id, case_id=case_id, action="would_create_case"
         )
         return True
 
@@ -100,15 +99,10 @@ async def recover_orphaned_case(case_agent: CaseAgent, user_id: str, case_id: st
                 "client_id": user_id,
                 "case_type": CaseType.IMMIGRATION.value,
                 "status": "draft",
-            }
+            },
         )
 
-        logger.info(
-            "recovery.case_created",
-            user_id=user_id,
-            case_id=case_id,
-            status="success"
-        )
+        logger.info("recovery.case_created", user_id=user_id, case_id=case_id, status="success")
         return True
 
     except Exception as e:
@@ -117,7 +111,7 @@ async def recover_orphaned_case(case_agent: CaseAgent, user_id: str, case_id: st
             user_id=user_id,
             case_id=case_id,
             error=str(e),
-            error_type=type(e).__name__
+            error_type=type(e).__name__,
         )
         return False
 
@@ -162,7 +156,7 @@ async def main(dry_run: bool = False):
     if not dry_run:
         # Ask for confirmation
         response = input("Do you want to recover these cases? (yes/no): ").strip().lower()
-        if response not in ('yes', 'y'):
+        if response not in ("yes", "y"):
             print("❌ Recovery cancelled by user")
             return 1
         print()
