@@ -47,6 +47,81 @@ async def _is_authorized(bot_context: BotContext, update: Update) -> bool:
     return False
 
 
+def ensure_case_exists(func):
+    """
+    Decorator to ensure case exists before processing intake operations.
+
+    Automatically creates missing case records to prevent orphaned intake progress.
+    This is a critical protection against the bug where intake_progress exists
+    but the corresponding case record is missing.
+
+    Usage:
+        @ensure_case_exists
+        async def intake_handler(update, context):
+            ...
+    """
+    async def wrapper(update: Update, context: ContextTypes.DEFAULT_TYPE, *args, **kwargs):
+        bot_context = _bot_context(context)
+        user_id = str(update.effective_user.id)
+
+        # Get active case ID from context
+        active_case_id = await bot_context.get_active_case(update)
+
+        if not active_case_id:
+            # No active case - handler will deal with it
+            return await func(update, context, *args, **kwargs)
+
+        # Verify case exists in database
+        try:
+            await bot_context.mega_agent.case_agent.aget_case(active_case_id, user_id)
+            # Case exists - proceed normally
+        except Exception as e:
+            # Case not found - auto-create missing case (ORPHAN RECOVERY)
+            logger.warning(
+                "ensure_case_exists.case_missing",
+                user_id=user_id,
+                case_id=active_case_id,
+                handler=func.__name__,
+                error=str(e),
+                action="creating_case_automatically"
+            )
+
+            try:
+                from core.groupagents.models import CaseType
+
+                case = await bot_context.mega_agent.case_agent.acreate_case(
+                    user_id=user_id,
+                    case_data={
+                        "case_id": active_case_id,  # Preserve existing case_id
+                        "title": "Intake Session (Recovered)",
+                        "description": "Case automatically created to fix orphaned intake progress",
+                        "client_id": user_id,
+                        "case_type": CaseType.IMMIGRATION.value,
+                        "status": "draft",
+                    }
+                )
+
+                logger.info(
+                    "ensure_case_exists.case_created",
+                    user_id=user_id,
+                    case_id=active_case_id,
+                    handler=func.__name__,
+                )
+
+            except Exception as create_error:
+                logger.error(
+                    "ensure_case_exists.case_creation_failed",
+                    error=str(create_error),
+                    case_id=active_case_id,
+                    handler=func.__name__,
+                )
+                # Continue anyway - let the handler deal with the error
+
+        return await func(update, context, *args, **kwargs)
+
+    return wrapper
+
+
 # --- Command Handlers ---
 
 
@@ -54,6 +129,8 @@ async def intake_start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
     """
     Start the intake questionnaire for the active case.
     Usage: /intake_start
+
+    CRITICAL: Creates Case record BEFORE intake progress to prevent orphaned records.
     """
     bot_context = _bot_context(context)
     if not await _is_authorized(bot_context, update):
@@ -65,15 +142,91 @@ async def intake_start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
 
     user_id = str(update.effective_user.id)
 
-    # Get active case
+    # Get or create active case
     active_case_id = await bot_context.get_active_case(update)
+    case_title = "Intake Session"
+
+    # STEP 1: Ensure Case exists BEFORE creating intake progress (CRITICAL FIX)
     if not active_case_id:
-        await message.reply_text(
-            "❌ Активный кейс не найден. Пожалуйста, создайте или выберите кейс:\n"
-            "• /case_create <название> - Создать новый кейс\n"
-            "• /case_get <case_id> - Выбрать существующий кейс"
-        )
-        return
+        # No active case - create a new one for intake
+        try:
+            from core.groupagents.models import CaseType
+
+            case = await bot_context.mega_agent.case_agent.acreate_case(
+                user_id=user_id,
+                case_data={
+                    "title": "Intake Session",
+                    "description": "Case created during intake questionnaire",
+                    "client_id": user_id,
+                    "case_type": CaseType.IMMIGRATION.value,
+                    "status": "draft",
+                }
+            )
+            active_case_id = case.case_id
+            case_title = case.title
+
+            # Set as active case
+            await bot_context.set_active_case(update, active_case_id)
+
+            logger.info(
+                "intake.case_created",
+                user_id=user_id,
+                case_id=active_case_id,
+                reason="No active case for intake"
+            )
+
+        except Exception as e:
+            logger.error("intake.start.create_case_failed", error=str(e), user_id=user_id)
+            await message.reply_text(
+                "❌ Не удалось создать кейс для анкетирования. Попробуйте снова.\n\n"
+                f"Ошибка: {str(e)}"
+            )
+            return
+    else:
+        # Verify case exists in database (protection against orphaned intake progress)
+        try:
+            case = await bot_context.mega_agent.case_agent.aget_case(active_case_id, user_id)
+            case_title = case.title
+        except Exception as e:
+            # Case not found - create it retroactively
+            logger.warning(
+                "intake.case_missing",
+                user_id=user_id,
+                case_id=active_case_id,
+                error=str(e),
+                action="creating_case_retroactively"
+            )
+            try:
+                from core.groupagents.models import CaseType
+
+                case = await bot_context.mega_agent.case_agent.acreate_case(
+                    user_id=user_id,
+                    case_data={
+                        "case_id": active_case_id,  # Use existing case_id
+                        "title": "Intake Session (Recovered)",
+                        "description": "Case created retroactively for existing intake progress",
+                        "client_id": user_id,
+                        "case_type": CaseType.IMMIGRATION.value,
+                        "status": "draft",
+                    }
+                )
+                case_title = case.title
+
+                logger.info(
+                    "intake.case_recovered",
+                    user_id=user_id,
+                    case_id=active_case_id,
+                )
+            except Exception as create_error:
+                logger.error(
+                    "intake.case_recovery_failed",
+                    error=str(create_error),
+                    case_id=active_case_id
+                )
+                await message.reply_text(
+                    "❌ Не удалось восстановить кейс. Попробуйте снова."
+                )
+                return
 
     # Check if intake is already in progress
     existing_progress = await get_progress(user_id, active_case_id)
@@ -85,36 +238,27 @@ async def intake_start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
         )
         return
 
-    # Get case details
-    try:
-        from core.groupagents.mega_agent import (CommandType, MegaAgentCommand,
-                                                 UserRole)
-
-        command = MegaAgentCommand(
-            user_id=user_id,
-            command_type=CommandType.CASE,
-            action="get",
-            payload={"case_id": active_case_id},
-        )
-        response = await bot_context.mega_agent.handle_command(command, user_role=UserRole.LAWYER)
-
-        case_data = response.result.get("case", {}) if response.success else {}
-        case_title = case_data.get("title", "Без названия")
-
-    except Exception as e:
-        logger.error("intake.start.get_case_failed", error=str(e), case_id=active_case_id)
-        await message.reply_text("❌ Не удалось получить данные кейса. Попробуйте снова.")
-        return
-
-    # Initialize intake progress - start with first block
+    # STEP 2: Initialize intake progress - ONLY AFTER case exists
     first_block = INTAKE_BLOCKS[0]
-    await set_progress(
-        user_id=user_id,
-        case_id=active_case_id,
-        current_block=first_block.id,
-        current_step=0,
-        completed_blocks=[],
-    )
+    try:
+        await set_progress(
+            user_id=user_id,
+            case_id=active_case_id,
+            current_block=first_block.id,
+            current_step=0,
+            completed_blocks=[],
+        )
+    except Exception as e:
+        logger.error(
+            "intake.start.create_progress_failed",
+            error=str(e),
+            case_id=active_case_id,
+            user_id=user_id
+        )
+        await message.reply_text(
+            "❌ Не удалось начать анкетирование. Попробуйте снова."
+        )
+        return
 
     logger.info(
         "intake.started",
@@ -148,6 +292,7 @@ async def intake_start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
     await _send_question_batch(bot_context, update, user_id, active_case_id)
 
 
+@ensure_case_exists
 async def intake_status(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """
     Show current progress through the intake questionnaire.
@@ -212,6 +357,7 @@ async def intake_status(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
     await message.reply_text(status_text, parse_mode=ParseMode.MARKDOWN, reply_markup=reply_markup)
 
 
+@ensure_case_exists
 async def intake_cancel(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """
     Cancel the current intake questionnaire.
@@ -254,6 +400,7 @@ async def intake_cancel(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
     )
 
 
+@ensure_case_exists
 async def intake_resume(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """
     Resume a paused intake questionnaire.
@@ -286,6 +433,7 @@ async def intake_resume(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
     await _send_question_batch(bot_context, update, user_id, active_case_id)
 
 
+@ensure_case_exists
 async def handle_intake_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """
     Handle callback queries from inline keyboard buttons.
@@ -780,6 +928,7 @@ async def _complete_intake(
 # --- Text Message Handler for Intake Responses ---
 
 
+@ensure_case_exists
 async def handle_text_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """
     Handle text messages that might be intake responses.
