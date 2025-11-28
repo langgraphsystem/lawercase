@@ -3,8 +3,8 @@
 from __future__ import annotations
 
 import asyncio
-from datetime import datetime
 import os
+from datetime import datetime
 
 from dotenv import load_dotenv
 from openai import AsyncOpenAI
