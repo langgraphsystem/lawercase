@@ -15,16 +15,30 @@ from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
 from telegram.constants import ParseMode
 from telegram.ext import ContextTypes
 
-from core.intake.schema import (BLOCKS_BY_ID, INTAKE_BLOCKS, IntakeBlock,
-                                IntakeQuestion, QuestionType)
+from core.intake.schema import (
+    BLOCKS_BY_ID,
+    INTAKE_BLOCKS,
+    IntakeBlock,
+    IntakeQuestion,
+    QuestionType,
+)
 from core.intake.synthesis import synthesize_intake_fact
-from core.intake.validation import (is_media_message, parse_list,
-                                    validate_date, validate_select,
-                                    validate_text, validate_yes_no)
+from core.intake.validation import (
+    is_media_message,
+    parse_list,
+    validate_date,
+    validate_select,
+    validate_text,
+    validate_yes_no,
+)
 from core.memory.models import MemoryRecord
-from core.storage.intake_progress import (advance_step, complete_block,
-                                          get_progress, reset_progress,
-                                          set_progress)
+from core.storage.intake_progress import (
+    advance_step,
+    complete_block,
+    get_progress,
+    reset_progress,
+    set_progress,
+)
 
 from .context import BotContext
 
@@ -842,12 +856,24 @@ async def _save_response_to_memory(
             question_id=question.id,
         )
     except Exception as e:
-        logger.error(
+        # Use logger.exception() to get full stack trace
+        logger.exception(
             "intake.save_memory_failed",
             error=str(e),
             case_id=case_id,
             question_id=question.id,
         )
+
+        # Notify user about the issue (but don't stop the questionnaire)
+        try:
+            await update.effective_message.reply_text(
+                "⚠️ Ваш ответ записан, но возникла проблема с сохранением в долговременную память. "
+                "Администратор уведомлён. Вы можете продолжать анкету.",
+                parse_mode=None,
+            )
+        except Exception:
+            # If notification fails, just log it (don't break the flow)
+            logger.exception("intake.user_notification_failed")
 
 
 async def _complete_intake(
@@ -863,8 +889,7 @@ async def _complete_intake(
 
     # Get case title
     try:
-        from core.groupagents.mega_agent import (CommandType, MegaAgentCommand,
-                                                 UserRole)
+        from core.groupagents.mega_agent import CommandType, MegaAgentCommand, UserRole
 
         command = MegaAgentCommand(
             user_id=user_id,
@@ -962,8 +987,7 @@ async def handle_text_message(update: Update, context: ContextTypes.DEFAULT_TYPE
 
 def get_handlers(bot_context: BotContext):
     """Return list of handlers to register with the Telegram application."""
-    from telegram.ext import (CallbackQueryHandler, CommandHandler,
-                              MessageHandler, filters)
+    from telegram.ext import CallbackQueryHandler, CommandHandler, MessageHandler, filters
 
     return [
         # Command handlers

@@ -34,7 +34,7 @@ class StorageConfig(BaseSettings):
         default="default", description="Default namespace for vector storage (multi-tenancy)"
     )
     embedding_dimension: int = Field(
-        default=1536, description="Embedding vector dimension (default for text-embedding-3-large)"
+        default=2000, description="Embedding vector dimension (max for pgvector HNSW index: 2000)"
     )
 
     # Pinecone Vector Store (optional)
@@ -93,3 +93,54 @@ def get_storage_config() -> StorageConfig:
     if _storage_config is None:
         _storage_config = StorageConfig()
     return _storage_config
+
+
+def validate_memory_config() -> list[str]:
+    """
+    Validate memory system configuration.
+
+    Returns:
+        List of error messages. Empty list means all valid.
+    """
+    import os
+
+    errors = []
+    config = get_storage_config()
+
+    # Check database connection
+    if not config.postgres_dsn:
+        errors.append("POSTGRES_DSN not set - database connection required")
+
+    # Check embeddings endpoint
+    if not config.supabase_vector_url:
+        errors.append(
+            "SUPABASE_VECTOR_URL not set - required for semantic memory embeddings "
+            "(e.g., https://api.openai.com/v1/embeddings)"
+        )
+
+    # Check API keys (either Supabase service role key or OpenAI API key)
+    has_supabase_key = config.supabase_service_role_key is not None
+    has_openai_key = os.getenv("OPENAI_API_KEY") is not None
+
+    if not has_supabase_key and not has_openai_key:
+        errors.append(
+            "Neither SUPABASE_SERVICE_ROLE_KEY nor OPENAI_API_KEY set - "
+            "at least one API key required for embeddings"
+        )
+
+    # Check embedding dimensions match model
+    # NOTE: Using 2000 dimensions (max for pgvector HNSW index)
+    # OpenAI text-embedding-3-large supports variable dimensions via API parameter
+    expected_dims = {
+        "text-embedding-3-large": 2000,  # Max for pgvector HNSW (API param: dimensions=2000)
+        "text-embedding-3-small": 1536,  # Default dimension for text-embedding-3-small
+        "text-embedding-ada-002": 1536,  # Default dimension for ada-002
+    }
+    model = config.supabase_embedding_model
+    if model in expected_dims and config.embedding_dimension != expected_dims[model]:
+        errors.append(
+            f"EMBEDDING_DIMENSION mismatch: {config.embedding_dimension} "
+            f"!= {expected_dims[model]} for model {model}"
+        )
+
+    return errors

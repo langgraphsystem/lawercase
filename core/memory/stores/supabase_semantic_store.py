@@ -44,13 +44,47 @@ class SupabaseSemanticStore:
         if not records_list:
             return 0
 
+        logger.info(
+            "supabase_semantic_store.ainsert.start",
+            count=len(records_list),
+            namespace=self.namespace,
+        )
+
         texts = [record.text for record in records_list]
-        embeddings = await self.embedder.aembed_documents(texts)
-        if len(embeddings) != len(records_list):
-            raise ValueError("Mismatch between records and embeddings count")
+
+        try:
+            logger.info(
+                "supabase_semantic_store.creating_embeddings",
+                texts_count=len(texts),
+                model=self.embedding_model,
+                dimension=self.embedding_dimension,
+            )
+
+            embeddings = await self.embedder.aembed_documents(texts)
+
+            logger.info(
+                "supabase_semantic_store.embeddings_created",
+                embeddings_count=len(embeddings),
+                dimension=len(embeddings[0]) if embeddings else 0,
+            )
+
+            if len(embeddings) != len(records_list):
+                raise ValueError(
+                    f"Mismatch between records ({len(records_list)}) "
+                    f"and embeddings ({len(embeddings)}) count"
+                )
+
+        except Exception as e:
+            logger.exception(
+                "supabase_semantic_store.embedding_failed",
+                error=str(e),
+                texts_count=len(texts),
+                model=self.embedding_model,
+            )
+            raise
 
         async with self.db.session() as session:
-            for record, embedding in zip(records_list, embeddings, strict=False):
+            for i, (record, embedding) in enumerate(zip(records_list, embeddings, strict=False)):
                 record_id = _ensure_uuid(record.id)
                 record.id = str(record_id)
 
@@ -82,6 +116,21 @@ class SupabaseSemanticStore:
                     embedding_dimension=self.embedding_dimension,
                 )
                 session.add(db_record)
+
+                logger.debug(
+                    "supabase_semantic_store.record_added",
+                    record_id=str(record_id),
+                    user_id=record.user_id,
+                    case_id=record.case_id,
+                    index=i + 1,
+                    total=len(records_list),
+                )
+
+        logger.info(
+            "supabase_semantic_store.ainsert.complete",
+            count=len(records_list),
+            namespace=self.namespace,
+        )
 
         return len(records_list)
 

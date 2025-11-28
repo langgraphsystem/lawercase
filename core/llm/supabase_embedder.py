@@ -32,7 +32,14 @@ class SupabaseEmbedder:
         if key is None:
             raise ValueError("Supabase Vector API key is required")
 
-        self.api_url = (api_url or config.supabase_vector_url).rstrip("/")
+        # Validate embeddings endpoint URL (CRITICAL: prevents AttributeError)
+        url = api_url or config.supabase_vector_url
+        if url is None:
+            raise ValueError(
+                "SUPABASE_VECTOR_URL environment variable is required. "
+                "Set it to your embeddings endpoint (e.g., https://api.openai.com/v1/embeddings)"
+            )
+        self.api_url = url.rstrip("/")
         self.api_key = key.get_secret_value()
         self.model = model or config.supabase_embedding_model
         self.dimension = dimension or config.embedding_dimension
@@ -59,6 +66,12 @@ class SupabaseEmbedder:
             "apikey": self.api_key,
             "Authorization": f"Bearer {self.api_key}",
         }
+
+        # Add dimensions parameter for variable-dimension models (text-embedding-3-*)
+        # This allows us to use 2000 dimensions (max for pgvector HNSW index)
+        # instead of the default 3072 for text-embedding-3-large
+        if "text-embedding-3" in self.model and self.dimension != 3072:
+            payload["dimensions"] = self.dimension
         async with httpx.AsyncClient(timeout=self.timeout) as client:
             response = await client.post(self.api_url, json=payload, headers=headers)
             response.raise_for_status()
