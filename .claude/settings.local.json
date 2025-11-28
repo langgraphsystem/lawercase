@@ -123,7 +123,9 @@
       "Bash(railway logs:*)",
       "Bash(railway up:*)",
       "Bash(railway link:*)",
-      "Bash(railway variables:*)"
+      "Bash(railway variables:*)",
+      "Bash(railway run:*)",
+      "Bash(pip show:*)"
     ],
     "deny": [],
     "ask": []

@@ -5,8 +5,12 @@ from __future__ import annotations
 from contextlib import asynccontextmanager
 from typing import TYPE_CHECKING
 
-from sqlalchemy.ext.asyncio import (AsyncEngine, AsyncSession,
-                                    async_sessionmaker, create_async_engine)
+from sqlalchemy.ext.asyncio import (
+    AsyncEngine,
+    AsyncSession,
+    async_sessionmaker,
+    create_async_engine,
+)
 
 from .config import get_storage_config
 
@@ -52,7 +56,8 @@ class DatabaseManager:
         if self._engine is None:
             # Add SSL and connection parameters for Supabase compatibility
             connect_args = {
-                "server_settings": {"jit": "off"},  # Disable JIT for better compatibility
+                # NOTE: JIT parameter removed for pgbouncer compatibility (port 6543)
+                # pgbouncer doesn't support server_settings like "jit": "off"
                 "ssl": "prefer",  # Use SSL if available
                 "timeout": 30,  # Connection timeout
                 # PgBouncer in transaction/statement mode breaks prepared statements.

@@ -17,6 +17,26 @@ class StorageConfig(BaseSettings):
     pool_recycle: int = Field(default=3600, description="Recycle connections after N seconds")
     echo_sql: bool = Field(default=False, description="Echo SQL queries for debugging")
 
+    # Supabase Configuration
+    supabase_url: str | None = Field(default=None, description="Supabase project URL")
+    supabase_service_role_key: SecretStr | None = Field(
+        default=None, description="Supabase service role key"
+    )
+    supabase_vector_url: str | None = Field(
+        default=None, description="Supabase Vector API URL for embeddings"
+    )
+    supabase_embedding_model: str = Field(
+        default="text-embedding-3-large", description="Embedding model to use"
+    )
+
+    # Vector Store Configuration
+    vector_namespace: str = Field(
+        default="default", description="Default namespace for vector storage (multi-tenancy)"
+    )
+    embedding_dimension: int = Field(
+        default=1536, description="Embedding vector dimension (default for text-embedding-3-large)"
+    )
+
     # Pinecone Vector Store (optional)
     pinecone_api_key: SecretStr | None = Field(default=None, description="Pinecone API key")
     pinecone_environment: str = Field(

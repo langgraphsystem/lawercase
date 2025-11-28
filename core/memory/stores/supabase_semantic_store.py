@@ -53,12 +53,19 @@ class SupabaseSemanticStore:
             for record, embedding in zip(records_list, embeddings, strict=False):
                 record_id = _ensure_uuid(record.id)
                 record.id = str(record_id)
+
+                # Collect metadata including case_id
                 metadata = {
                     "thread_id": record.thread_id,
+                    "case_id": record.case_id,  # Added for intake questionnaire
                     "salience": record.salience,
                     "confidence": record.confidence,
                     "tags": record.tags,
                 }
+
+                # Merge with record.metadata if present
+                if record.metadata:
+                    metadata.update(record.metadata)
 
                 db_record = SemanticMemoryDB(
                     record_id=record_id,

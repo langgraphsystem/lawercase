@@ -24,11 +24,11 @@ Options:
 from __future__ import annotations
 
 import asyncio
-import sys
 from datetime import datetime
+import sys
 
-import structlog
 from sqlalchemy import text
+import structlog
 
 from core.groupagents.case_agent import CaseAgent
 from core.groupagents.models import CaseType
