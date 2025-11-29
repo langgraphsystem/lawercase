@@ -43,6 +43,10 @@ if [ $? -ne 0 ]; then
   }
 fi
 
+# Run database migrations/creations
+echo "[startup] Running database schema setup..."
+"$PYTHON_BIN" /app/create_cases_table.py
+
 exec "$PYTHON_BIN" -m uvicorn --app-dir /app api.main:app \
     --host 0.0.0.0 \
     --port "$PORT" \

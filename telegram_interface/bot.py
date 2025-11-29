@@ -12,6 +12,7 @@ from config.logging import setup_logging
 from config.settings import AppSettings, get_settings
 from core.groupagents.mega_agent import MegaAgent
 from core.memory.memory_manager import MemoryManager
+from core.memory.stores.supabase_semantic_store import SupabaseSemanticStore
 from telegram_interface.handlers import register_handlers
 from telegram_interface.middlewares.di_injection import setup_di_middleware
 
@@ -37,7 +38,10 @@ def build_application(
     if not token:
         raise RuntimeError("TELEGRAM_TOKEN is not configured")
 
-    memory_manager = MemoryManager()
+    # CRITICAL FIX: Use SupabaseSemanticStore instead of in-memory SemanticStore
+    # This ensures intake answers are persisted to database
+    logger.info("telegram.memory.initializing_supabase_store")
+    memory_manager = MemoryManager(semantic=SupabaseSemanticStore())
     mega_agent = mega_agent or MegaAgent(memory_manager=memory_manager)
 
     application: Application = (

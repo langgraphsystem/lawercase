@@ -2,11 +2,15 @@
 
 from __future__ import annotations
 
+from typing import Any
+
 import structlog
-from telegram import Update
-from telegram.ext import CommandHandler, ContextTypes
+from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
+from telegram.ext import CallbackQueryHandler, CommandHandler, ContextTypes
 
 from core.groupagents.mega_agent import CommandType, MegaAgentCommand, UserRole
+from core.intake.schema import BLOCKS_BY_ID
+from core.storage.intake_progress import get_progress
 
 from .context import BotContext
 
@@ -17,14 +21,92 @@ def _bot_context(context: ContextTypes.DEFAULT_TYPE) -> BotContext:
     return context.application.bot_data["bot_context"]
 
 
-def _is_authorized(bot_context: BotContext, update: Update) -> bool:
+def _extract_case_payload(
+    result: dict[str, Any] | None,
+) -> tuple[dict[str, Any], dict[str, Any], str | None]:
+    """
+    Normalizes MegaAgent responses by surfacing the actual case payload and ID.
+
+    Returns:
+        (result_dict, case_dict, case_id)
+    """
+    result_dict = result or {}
+    case_data = result_dict.get("case")
+    if not isinstance(case_data, dict):
+        case_result = result_dict.get("case_result")
+        if isinstance(case_result, dict):
+            nested_case = case_result.get("case")
+            if isinstance(nested_case, dict):
+                case_data = nested_case
+    if not isinstance(case_data, dict):
+        case_data = {}
+
+    case_id = result_dict.get("case_id") or case_data.get("case_id")
+    return result_dict, case_data, case_id
+
+
+async def _is_authorized(bot_context: BotContext, update: Update) -> bool:
     user_id = update.effective_user.id if update.effective_user else None
     if bot_context.is_authorized(user_id):
         return True
     if update.effective_message:
-        update.effective_message.reply_text("🚫 Access denied.")
+        await update.effective_message.reply_text("🚫 Access denied.")
     logger.warning("telegram.case.unauthorized", user_id=user_id)
     return False
+
+
+async def _maybe_offer_resume(
+    bot_context: BotContext, update: Update, case_id: str, case_title: str
+) -> None:
+    """If there is unfinished intake for the case, offer to resume from last step."""
+
+    user = update.effective_user
+    user_id = str(user.id) if user else None
+    if not user_id:
+        return
+
+    try:
+        progress = await get_progress(user_id, case_id)
+    except Exception as exc:  # pragma: no cover - defensive guard around DB access
+        logger.warning(
+            "telegram.case_active.progress_lookup_failed",
+            user_id=user_id,
+            case_id=case_id,
+            error=str(exc),
+        )
+        return
+
+    if not progress or progress.current_block == "intake_complete":
+        return
+
+    block = BLOCKS_BY_ID.get(progress.current_block)
+    block_title = block.title if block else progress.current_block
+    total_questions = len(block.questions) if block else None
+    question_progress = f"{progress.current_step + 1}"
+    if total_questions:
+        question_progress = f"{question_progress}/{total_questions}"
+
+    followup_text = (
+        "⏳ Для этого кейса есть незавершённые шаги анкетирования.\n"
+        f"Кейс: {case_title}\n"
+        f"Блок: {block_title}\n"
+        f"Текущий вопрос: {question_progress}\n\n"
+        "Продолжить с места остановки? Можно также использовать /intake_status или "
+        "/intake_cancel."
+    )
+
+    keyboard = InlineKeyboardMarkup(
+        [[InlineKeyboardButton("▶️ Продолжить анкету", callback_data="intake_continue")]]
+    )
+
+    await update.effective_message.reply_text(followup_text, reply_markup=keyboard)
+    logger.info(
+        "telegram.case_active.offer_resume",
+        user_id=user_id,
+        case_id=case_id,
+        block=progress.current_block,
+        step=progress.current_step,
+    )
 
 
 async def case_get(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -32,7 +114,7 @@ async def case_get(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     logger.info("telegram.case_get.received", user_id=user_id)
 
     bot_context = _bot_context(context)
-    if not _is_authorized(bot_context, update):
+    if not await _is_authorized(bot_context, update):
         logger.warning("telegram.case_get.unauthorized", user_id=user_id)
         return
 
@@ -63,11 +145,31 @@ async def case_get(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         )
 
         if response.success and response.result:
-            case = response.result.get("case") or {}
-            title = case.get("title", "(no title)")
-            status = case.get("status", "unknown")
-            await message.reply_text(f"📁 {case_id}: {title}\nStatus: {status}")
-            logger.info("telegram.case_get.sent", user_id=user_id, case_id=case_id, status=status)
+            result_payload, case_data, normalized_case_id = _extract_case_payload(response.result)
+            title = (
+                case_data.get("title")
+                or result_payload.get("title")
+                or result_payload.get("case_title")
+                or "(no title)"
+            )
+            status = (
+                case_data.get("status")
+                or result_payload.get("status")
+                or result_payload.get("case_status")
+                or "unknown"
+            )
+            display_case_id = normalized_case_id or case_id
+            await message.reply_text(f"📁 {display_case_id}: {title}\nStatus: {status}")
+            # Set as active case after successful retrieval
+            await bot_context.set_active_case(update, display_case_id)
+            logger.info(
+                "telegram.case_get.sent",
+                user_id=user_id,
+                case_id=display_case_id,
+                status=status,
+            )
+            # Offer to resume intake if there's unfinished progress
+            await _maybe_offer_resume(bot_context, update, display_case_id, title)
         else:
             error_msg = response.error or "case not found"
             # Use parse_mode=None to avoid Markdown parsing errors
@@ -88,7 +190,7 @@ async def case_create(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
     logger.info("telegram.case_create.received", user_id=user_id)
 
     bot_context = _bot_context(context)
-    if not _is_authorized(bot_context, update):
+    if not await _is_authorized(bot_context, update):
         logger.warning("telegram.case_create.unauthorized", user_id=user_id)
         return
 
@@ -103,9 +205,13 @@ async def case_create(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
     description = parts[1] if len(parts) > 1 else None
 
     try:
-        payload = {"title": title}
-        if description:
-            payload["description"] = description
+        # Prepare case creation payload with required fields
+        payload = {
+            "title": title,
+            "description": description or f"Case: {title}",  # description is required
+            "case_type": "immigration",  # default to immigration (most common type)
+            "client_id": str(update.effective_user.id),  # use telegram user_id as client_id
+        }
 
         command = MegaAgentCommand(
             user_id=str(update.effective_user.id),
@@ -117,12 +223,57 @@ async def case_create(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
         response = await bot_context.mega_agent.handle_command(command, user_role=UserRole.LAWYER)
 
         if response.success and response.result:
-            case = response.result.get("case") or {}
-            case_id = case.get("case_id")
-            if case_id:
-                await bot_context.set_active_case(update, case_id)
-            await message.reply_text(f"📁 Case created: {case.get('title', title)}\nID: {case_id}")
-            logger.info("telegram.case_create.success", user_id=user_id, case_id=case_id)
+            result_payload, case_data, case_id = _extract_case_payload(response.result)
+            reply_case_id = case_id or result_payload.get("case_id")
+            if reply_case_id:
+                await bot_context.set_active_case(update, reply_case_id)
+            case_title = case_data.get("title") or result_payload.get("title") or title
+
+            # Escape special characters for MarkdownV2
+            case_title_escaped = (
+                case_title.replace("_", "\\_")
+                .replace("*", "\\*")
+                .replace("[", "\\[")
+                .replace("]", "\\]")
+                .replace("(", "\\(")
+                .replace(")", "\\)")
+                .replace("~", "\\~")
+                .replace("`", "\\`")
+                .replace(">", "\\>")
+                .replace("#", "\\#")
+                .replace("+", "\\+")
+                .replace("-", "\\-")
+                .replace("=", "\\=")
+                .replace("|", "\\|")
+                .replace("{", "\\{")
+                .replace("}", "\\}")
+                .replace(".", "\\.")
+                .replace("!", "\\!")
+            )
+            case_id_escaped = (reply_case_id or "unknown").replace("-", "\\-")
+
+            # Enhanced message with intake guidance and inline buttons
+            success_message = (
+                f"✅ *Кейс создан: {case_title_escaped}*\n"
+                f"ID: `{case_id_escaped}`\n\n"
+                f"Этот кейс теперь активен\\. Давайте соберём информацию для построения сильной петиции\\.\n\n"
+                f"*Что дальше?*\n"
+                f"Рекомендую пройти анкетирование — это поможет мне лучше понять ваши достижения и цели\\."
+            )
+
+            # Create inline keyboard with action buttons
+            keyboard = [
+                [
+                    InlineKeyboardButton("🧾 Начать анкету", callback_data="case_start_intake"),
+                    InlineKeyboardButton("⏳ Потом", callback_data="case_later"),
+                ]
+            ]
+            reply_markup = InlineKeyboardMarkup(keyboard)
+
+            await message.reply_text(
+                success_message, parse_mode="MarkdownV2", reply_markup=reply_markup
+            )
+            logger.info("telegram.case_create.success", user_id=user_id, case_id=reply_case_id)
         else:
             error_msg = response.error or "case creation failed"
             await message.reply_text(f"❌ Error: {error_msg}", parse_mode=None)
@@ -137,7 +288,7 @@ async def case_active(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
     logger.info("telegram.case_active.received", user_id=user_id)
 
     bot_context = _bot_context(context)
-    if not _is_authorized(bot_context, update):
+    if not await _is_authorized(bot_context, update):
         return
 
     message = update.effective_message
@@ -156,11 +307,14 @@ async def case_active(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
         )
         response = await bot_context.mega_agent.handle_command(command, user_role=UserRole.LAWYER)
         if response.success and response.result:
-            case = response.result.get("case") or {}
+            result_payload, case_data, case_id = _extract_case_payload(response.result)
+            case_id_display = case_id or active_case
+            case_title = case_data.get("title") or result_payload.get("title") or "(no title)"
+            case_status = case_data.get("status") or result_payload.get("status") or "unknown"
             await message.reply_text(
-                f"📌 Active case: {case.get('case_id', active_case)}\n"
-                f"Title: {case.get('title', '(no title)')}\nStatus: {case.get('status', 'unknown')}"
+                f"📌 Active case: {case_id_display}\nTitle: {case_title}\nStatus: {case_status}"
             )
+            await _maybe_offer_resume(bot_context, update, case_id_display, case_title)
         else:
             await message.reply_text(
                 f"⚠️ Active case id {active_case} not found (maybe deleted).",
@@ -171,9 +325,186 @@ async def case_active(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
         await message.reply_text(f"❌ Exception: {e!s}", parse_mode=None)
 
 
+async def case_list(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """List all user's cases with pagination."""
+    user_id = update.effective_user.id if update.effective_user else None
+    logger.info("telegram.case_list.received", user_id=user_id)
+
+    bot_context = _bot_context(context)
+    if not await _is_authorized(bot_context, update):
+        logger.warning("telegram.case_list.unauthorized", user_id=user_id)
+        return
+
+    message = update.effective_message
+
+    # Parse optional page argument (default: page 1)
+    page = 1
+    if context.args:
+        try:
+            page = int(context.args[0])
+            page = max(page, 1)
+        except ValueError:
+            await message.reply_text("Usage: /case_list [page_number]")
+            return
+
+    # Calculate offset (10 cases per page)
+    limit = 10
+    offset = (page - 1) * limit
+
+    try:
+        command = MegaAgentCommand(
+            user_id=str(update.effective_user.id),
+            command_type=CommandType.CASE,
+            action="search",
+            payload={"limit": limit, "offset": offset},
+            context={"thread_id": bot_context.thread_id_for_update(update)},
+        )
+        logger.info(
+            "telegram.case_list.command_created",
+            user_id=user_id,
+            page=page,
+            limit=limit,
+            offset=offset,
+        )
+
+        response = await bot_context.mega_agent.handle_command(command, user_role=UserRole.LAWYER)
+        logger.info(
+            "telegram.case_list.response_received", user_id=user_id, success=response.success
+        )
+
+        if response.success and response.result:
+            case_result = response.result.get("case_result", {})
+            cases = case_result.get("cases", [])
+            total_count = case_result.get("count", 0)
+
+            if not cases:
+                if page == 1:
+                    await message.reply_text(
+                        "📁 У вас пока нет кейсов.\n\n"
+                        "Создайте первый кейс с помощью:\n"
+                        "/case_create <название> | <описание>"
+                    )
+                else:
+                    await message.reply_text(
+                        f"📁 Страница {page} пуста. Используйте /case_list для первой страницы."
+                    )
+                logger.info("telegram.case_list.no_cases", user_id=user_id, page=page)
+                return
+
+            # Format case list
+            text = f"📁 *Ваши кейсы* \\(страница {page}\\):\n\n"
+
+            for idx, case in enumerate(cases, start=offset + 1):
+                status = case.get("status", "unknown")
+                status_emoji = {
+                    "draft": "📝",
+                    "in_progress": "⏳",
+                    "review": "🔍",
+                    "submitted": "✅",
+                    "approved": "🎉",
+                    "rejected": "❌",
+                    "archived": "📦",
+                }.get(status, "📄")
+
+                title = case.get("title", "(no title)")
+                case_id = case.get("case_id", "unknown")
+                case_id_short = case_id[:8] if len(case_id) > 8 else case_id
+
+                # Escape special characters for MarkdownV2
+                title_escaped = (
+                    title.replace("_", "\\_")
+                    .replace("*", "\\*")
+                    .replace("[", "\\[")
+                    .replace("]", "\\]")
+                    .replace("(", "\\(")
+                    .replace(")", "\\)")
+                    .replace("~", "\\~")
+                    .replace("`", "\\`")
+                    .replace(">", "\\>")
+                    .replace("#", "\\#")
+                    .replace("+", "\\+")
+                    .replace("-", "\\-")
+                    .replace("=", "\\=")
+                    .replace("|", "\\|")
+                    .replace("{", "\\{")
+                    .replace("}", "\\}")
+                    .replace(".", "\\.")
+                    .replace("!", "\\!")
+                )
+                status_escaped = status.replace("_", "\\_")
+                case_id_escaped = case_id_short.replace("-", "\\-")
+
+                text += f"{idx}\\. {status_emoji} *{title_escaped}*\n"
+                text += f"   ID: `{case_id_escaped}`\n"
+                text += f"   Статус: {status_escaped}\n\n"
+
+            # Add navigation hints
+            text += "\n💡 *Навигация:*\n"
+            text += "• `/case_get <case_id>` — открыть кейс\n"
+            if total_count > limit:
+                next_page = page + 1
+                text += f"• `/case_list {next_page}` — следующая страница\n"
+            if page > 1:
+                prev_page = page - 1
+                text += f"• `/case_list {prev_page}` — предыдущая страница"
+
+            await message.reply_text(text, parse_mode="MarkdownV2")
+            logger.info(
+                "telegram.case_list.sent",
+                user_id=user_id,
+                page=page,
+                count=total_count,
+            )
+        else:
+            error_msg = response.error or "Failed to retrieve cases"
+            await message.reply_text(f"❌ Error: {error_msg}", parse_mode=None)
+            logger.error("telegram.case_list.failed", user_id=user_id, error=error_msg)
+    except Exception as e:
+        logger.exception("telegram.case_list.exception", user_id=user_id, error=str(e))
+        await message.reply_text(f"❌ Exception: {e!s}", parse_mode=None)
+
+
+async def handle_case_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Handle callback queries from inline buttons in case messages."""
+    bot_context = _bot_context(context)
+    query = update.callback_query
+    if not query:
+        return
+
+    await query.answer()
+
+    if not await _is_authorized(bot_context, update):
+        return
+
+    user_id = update.effective_user.id if update.effective_user else None
+    data = query.data
+
+    if data == "case_start_intake":
+        # User wants to start intake questionnaire
+        logger.info("telegram.case_callback.start_intake", user_id=user_id)
+        await query.message.reply_text(
+            "🚀 Отлично! Запускаю анкетирование...\n\n" "Используйте /intake_start для начала."
+        )
+        # Automatically trigger intake_start
+        from .intake_handlers import intake_start
+
+        await intake_start(update, context)
+
+    elif data == "case_later":
+        # User wants to postpone intake
+        logger.info("telegram.case_callback.later", user_id=user_id)
+        await query.message.reply_text(
+            "👌 Хорошо, вы можете начать анкетирование позже.\n\n"
+            "Когда будете готовы, используйте /intake_start\n"
+            "Или просто задайте мне вопрос с помощью /ask"
+        )
+
+
 def get_handlers(bot_context: BotContext):
     return [
         CommandHandler("case_create", case_create),
         CommandHandler("case_get", case_get),
         CommandHandler("case_active", case_active),
+        CommandHandler("case_list", case_list),
+        CallbackQueryHandler(handle_case_callback, pattern="^case_"),
     ]

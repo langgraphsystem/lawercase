@@ -60,9 +60,11 @@ class SemanticMemoryDB(Base):
     metadata_json: Mapped[dict] = mapped_column(JSONB, default=dict)
 
     # Embedding (pgvector) + metadata
-    embedding: Mapped[list[float]] = mapped_column(Vector(1536))
+    # NOTE: Using 2000 dimensions (max for pgvector HNSW index)
+    # text-embedding-3-large supports variable dimensions via API parameter
+    embedding: Mapped[list[float]] = mapped_column(Vector(2000))
     embedding_model: Mapped[str] = mapped_column(String(100), default="text-embedding-3-large")
-    embedding_dimension: Mapped[int] = mapped_column(default=1536)
+    embedding_dimension: Mapped[int] = mapped_column(default=2000)
 
     # Timestamps
     created_at: Mapped[datetime] = mapped_column(TIMESTAMP(timezone=True), default=datetime.utcnow)
