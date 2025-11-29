@@ -13,8 +13,8 @@ from __future__ import annotations
 import asyncio
 import sys
 
-from sqlalchemy import text
 import structlog
+from sqlalchemy import text
 
 from core.storage.connection import get_db_manager
 
