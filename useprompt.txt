@@ -1,0 +1,219 @@
+Ниже готовый **чёткий, структурированный промпт**, который можно вставить в Claude/GPT/разработчику, чтобы **исправить баг**, **добавить защиту**, **восстановить данные**, и **модернизировать архитектуру**.
+
+---
+
+# ✅ **ПРОМПТ ДЛЯ ИСПРАВЛЕНИЯ БАГА + РЕКОМЕНДАЦИИ**
+
+Используй следующий промпт как техническое задание / инструкцию:
+
+---
+
+# 📌 **PROMPT: Fix Intake Case Creation Bug + Implement Atomic Flow**
+
+You are an expert Python/AsyncIO engineer working with SQLAlchemy, PostgreSQL, and a multi-agent architecture.
+Your task is to **fix the intake onboarding flow**, where **intake progress is created without creating the actual case record**, causing orphaned records and `CaseNotFoundError`.
+
+Below are the findings and what must be fixed.
+
+---
+
+# ❗ Problem Summary
+
+The system currently performs:
+
+```
+/intake_start:
+    → creates intake progress (in case_intake_progress)
+    → DOES NOT create case in mega_agent.cases
+```
+
+As a result:
+
+* `case_intake_progress` exists
+* Case with same `case_id` does NOT exist in `cases` table
+* Any call to `CaseAgent.aget_case(case_id)` fails with `CaseNotFoundError`
+* User cannot resume intake correctly
+* Further memory writes also cannot map to a case
+
+This is a **critical architectural bug**.
+
+---
+
+# 🎯 OBJECTIVES
+
+1. **Make case creation atomic**
+   `/intake_start` must create:
+
+   * a `CaseDB` record **before**
+   * a `case_intake_progress` record
+     in the same transaction.
+
+2. **Add automatic case existence check**
+   Any intake answer must guarantee:
+
+   * case exists
+   * if not: create it automatically
+
+3. **Add decorator `ensure_case_exists`**
+   Wrap all intake handlers.
+
+4. **Fix race conditions & async issues**
+   Only create progress AFTER case commit.
+
+5. **Provide migration / data recovery script**
+   For all orphaned intake progress records:
+
+   * Create matching case records retroactively.
+
+6. **Improve UX**
+   `/intake_start` MUST ALWAYS return a valid case.
+
+7. **Add logging + telemetry**
+   Log when orphan detection occurs.
+
+---
+
+# 🧩 REQUIRED IMPLEMENTATION DETAILS
+
+## 1. Fix `/intake_start` logic
+
+Modify handler:
+
+```python
+async def handle_intake_start(update, context):
+    user_id = str(update.effective_user.id)
+
+    # Step 1 — create case (must come first)
+    case = await case_agent.acreate_case(
+        user_id=user_id,
+        case_data={
+            "title": "Intake Session",
+            "client_id": user_id,
+            "case_type": "EB1A",
+            "status": "draft",
+        }
+    )
+
+    # Step 2 — create intake progress
+    await progress_repo.create(
+        user_id=user_id,
+        case_id=str(case.case_id),
+        current_block="basic_info",
+        current_step=0,
+        completed_blocks=[]
+    )
+
+    return case.case_id
+```
+
+Make sure both operations are in **ONE TRANSACTION**.
+
+---
+
+## 2. Add decorator `@ensure_case_exists`
+
+```python
+def ensure_case_exists(func):
+    async def wrapper(update, context, *args, **kwargs):
+        user_id = str(update.effective_user.id)
+        case_id = get_case_id_from_context(context)
+
+        try:
+            await case_agent.aget_case(case_id)
+        except CaseNotFoundError:
+            # Auto-create missing case
+            await case_agent.acreate_case(
+                user_id=user_id,
+                case_data={
+                    "case_id": case_id,
+                    "title": "Intake Session (Recovered)",
+                    "client_id": user_id,
+                    "status": "draft",
+                    "case_type": "EB1A",
+                }
+            )
+        return await func(update, context, *args, **kwargs)
+
+    return wrapper
+```
+
+Apply to ALL intake handlers.
+
+---
+
+## 3. Create data recovery script
+
+Pseudo-code:
+
+```python
+SELECT case_id, user_id 
+FROM mega_agent.case_intake_progress
+WHERE case_id NOT IN (SELECT case_id FROM mega_agent.cases)
+```
+
+For each orphan:
+
+```python
+await case_agent.acreate_case(
+    user_id=user_id,
+    case_data={
+        "case_id": orphan_case_id,
+        "title": "Intake (Recovered)",
+        "client_id": user_id,
+        "status": "draft",
+        "case_type": "EB1A",
+    }
+)
+```
+
+---
+
+## 4. Add validation before every intake message
+
+```
+IF no case record:
+   auto-create one
+```
+
+---
+
+## 5. Add tests
+
+### Test 1: `/intake_start` creates both records
+
+### Test 2: Intake answer auto-creates missing case
+
+### Test 3: Race condition (parallel intake answers)
+
+### Test 4: Full flow end-to-end
+
+---
+
+# 🛠 RECOMMENDATIONS FOR IMPROVEMENT
+
+1. **Make case creation fully atomic** using async session with `session.begin()`
+2. **Add uniqueness constraints** for user_id + case creation timestamp
+3. **Move client_id into main columns**, not JSONB
+4. **Implement service-level layer**, not direct DB calls in handlers
+5. **Add retry mechanism** if DB connection is unstable
+6. **Increase observability**:
+
+   * log orphan detection,
+   * log missing case recovery,
+   * log race conditions.
+
+---
+
+# 📌 DELIVERABLES EXPECTED FROM YOU
+
+1. Updated code for `/intake_start`
+2. Decorator `@ensure_case_exists`
+3. Patched intake handlers
+4. New data recovery script
+5. Regression tests
+6. PR description summarizing the fix
+7. Short architectural note
+
+---
+
+# END OF PROMPT
