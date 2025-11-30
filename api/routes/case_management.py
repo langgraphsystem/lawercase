@@ -166,6 +166,23 @@ async def create_case(
     return _case_to_response(case)
 
 
+@router.get("/statuses", tags=["Cases"])
+async def get_available_statuses() -> dict[str, Any]:
+    """Get available case statuses and valid transitions."""
+    return {
+        "statuses": [s.value for s in CaseStatus],
+        "case_types": [t.value for t in CaseType],
+        "valid_transitions": {
+            "draft": ["open", "archived"],
+            "open": ["in_progress", "closed", "archived"],
+            "in_progress": ["pending_review", "open", "closed"],
+            "pending_review": ["in_progress", "closed"],
+            "closed": ["archived", "open"],
+            "archived": ["draft"],
+        },
+    }
+
+
 @router.get("/{case_id}", response_model=CaseResponse)
 async def get_case(
     case_id: UUID,
@@ -370,20 +387,3 @@ async def list_cases(
         offset=result.offset,
         has_more=result.has_more,
     )
-
-
-@router.get("/statuses", tags=["Cases"])
-async def get_available_statuses() -> dict[str, Any]:
-    """Get available case statuses and valid transitions."""
-    return {
-        "statuses": [s.value for s in CaseStatus],
-        "case_types": [t.value for t in CaseType],
-        "valid_transitions": {
-            "draft": ["open", "archived"],
-            "open": ["in_progress", "closed", "archived"],
-            "in_progress": ["pending_review", "open", "closed"],
-            "pending_review": ["in_progress", "closed"],
-            "closed": ["archived", "open"],
-            "archived": ["draft"],
-        },
-    }
