@@ -6,8 +6,8 @@ Uses in-memory storage to avoid database dependencies.
 
 from __future__ import annotations
 
-from datetime import datetime
 import os
+from datetime import datetime
 from uuid import uuid4
 
 import pytest
@@ -27,16 +27,9 @@ class TestModuleImports:
 
     def test_import_core_classes(self) -> None:
         """Test importing core service classes."""
-        from core.services import (
-            Case,
-            CaseListFilter,
-            CaseListResult,
-            CaseService,
-            CaseStatus,
-            CaseType,
-            CaseVersion,
-            get_case_service,
-        )
+        from core.services import (Case, CaseListFilter, CaseListResult,
+                                   CaseService, CaseStatus, CaseType,
+                                   CaseVersion, get_case_service)
 
         assert Case is not None
         assert CaseListFilter is not None

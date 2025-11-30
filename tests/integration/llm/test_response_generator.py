@@ -21,15 +21,9 @@ class TestModuleImports:
 
     def test_import_core_classes(self) -> None:
         """Test importing core LLM classes."""
-        from core.llm import (
-            GenerationResult,
-            LLMConfig,
-            LLMProvider,
-            Message,
-            ResponseGenerator,
-            StreamChunk,
-            create_response_generator,
-        )
+        from core.llm import (GenerationResult, LLMConfig, LLMProvider,
+                              Message, ResponseGenerator, StreamChunk,
+                              create_response_generator)
 
         assert LLMProvider is not None
         assert Message is not None
@@ -217,12 +211,8 @@ class TestMockedGeneration:
     @pytest.mark.asyncio
     async def test_generate_returns_result(self) -> None:
         """Test that generate returns a GenerationResult."""
-        from core.llm import (
-            GenerationResult,
-            LLMProvider,
-            Message,
-            create_response_generator,
-        )
+        from core.llm import (GenerationResult, LLMProvider, Message,
+                              create_response_generator)
 
         generator = create_response_generator(
             provider=LLMProvider.OPENAI,
@@ -253,12 +243,8 @@ class TestMockedGeneration:
     @pytest.mark.asyncio
     async def test_stream_yields_chunks(self) -> None:
         """Test that generate_stream yields StreamChunks."""
-        from core.llm import (
-            LLMProvider,
-            Message,
-            StreamChunk,
-            create_response_generator,
-        )
+        from core.llm import (LLMProvider, Message, StreamChunk,
+                              create_response_generator)
 
         generator = create_response_generator(
             provider=LLMProvider.OPENAI,
