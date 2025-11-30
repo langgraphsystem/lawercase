@@ -7,9 +7,9 @@ This agent provides:
 - Source attribution and ranking
 
 Implementation phases:
-- Phase 1: Keyword-based search (current)
-- Phase 2: Embedding-based semantic search (future)
-- Phase 3: Hybrid retrieval (future)
+- Phase 1: Keyword-based search
+- Phase 2: Embedding-based semantic search
+- Phase 3: Hybrid retrieval with reranking (current)
 """
 
 from __future__ import annotations
@@ -17,8 +17,8 @@ from __future__ import annotations
 from datetime import datetime, timedelta
 from typing import Any
 
-import structlog
 from pydantic import BaseModel, Field
+import structlog
 
 from ..memory.memory_manager import MemoryManager
 from ..memory.models import MemoryRecord
@@ -323,7 +323,7 @@ class RagPipelineAgent:
                 continue
 
             # Extract case info
-            case_id = record.record_id
+            case_id = record.id or ""
             case_title = self._extract_title(record.text, tags)
             case_type_extracted = self._extract_case_type(tags)
             matching_criteria = self._extract_matching_criteria(query, record.text)
@@ -531,7 +531,7 @@ class RagPipelineAgent:
             relevance = self._calculate_similarity_simple(query, record.text)
 
             source = RagSource(
-                source_id=record.record_id,
+                source_id=record.id or "",
                 source_type="memory",
                 content=record.text,
                 relevance_score=relevance,
