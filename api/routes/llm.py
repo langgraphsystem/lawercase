@@ -13,12 +13,8 @@ from fastapi import APIRouter, HTTPException, status
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
 
-from core.llm import (
-    LLMProvider,
-    Message,
-    ResponseGenerator,
-    create_response_generator,
-)
+from core.llm import (LLMProvider, Message, ResponseGenerator,
+                      create_response_generator)
 from core.logging_utils import get_logger
 
 logger = get_logger(__name__)

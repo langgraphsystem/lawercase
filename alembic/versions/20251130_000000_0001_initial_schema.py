@@ -17,8 +17,8 @@ from __future__ import annotations
 
 from collections.abc import Sequence
 
-from pgvector.sqlalchemy import Vector
 import sqlalchemy as sa
+from pgvector.sqlalchemy import Vector
 from sqlalchemy.dialects import postgresql
 
 from alembic import op

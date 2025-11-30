@@ -18,12 +18,8 @@ from fastapi import APIRouter, HTTPException, Query, status
 from pydantic import BaseModel, Field
 
 from core.logging_utils import get_logger
-from core.services.case_service import (
-    CaseListFilter,
-    CaseStatus,
-    CaseType,
-    get_case_service,
-)
+from core.services.case_service import (CaseListFilter, CaseStatus, CaseType,
+                                        get_case_service)
 
 logger = get_logger(__name__)
 

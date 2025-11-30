@@ -8,16 +8,8 @@ Provides service layer implementations:
 
 from __future__ import annotations
 
-from .case_service import (
-    Case,
-    CaseListFilter,
-    CaseListResult,
-    CaseService,
-    CaseStatus,
-    CaseType,
-    CaseVersion,
-    get_case_service,
-)
+from .case_service import (Case, CaseListFilter, CaseListResult, CaseService,
+                           CaseStatus, CaseType, CaseVersion, get_case_service)
 
 __all__ = [
     "Case",
