@@ -7,10 +7,13 @@ from uuid import UUID, uuid4
 
 from sqlalchemy import delete, func, select
 
+from ...logging_utils import get_logger
 from ...storage.config import get_storage_config
 from ...storage.connection import get_db_manager
 from ...storage.models import SemanticMemoryDB
 from ..models import MemoryRecord
+
+logger = get_logger(__name__)
 
 if TYPE_CHECKING:
     from collections.abc import Iterable
