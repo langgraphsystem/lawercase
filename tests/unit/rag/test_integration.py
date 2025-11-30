@@ -11,15 +11,9 @@ import pytest
 from core.memory.memory_manager import MemoryManager
 from core.memory.models import MemoryRecord
 from core.memory.stores.semantic_store import SemanticStore
-from core.rag import (
-    BM25Retriever,
-    Document,
-    HybridRetriever,
-    MemoryManagerAdapter,
-    RAGPipeline,
-    SemanticStoreAdapter,
-    create_memory_adapter,
-)
+from core.rag import (BM25Retriever, Document, HybridRetriever,
+                      MemoryManagerAdapter, RAGPipeline, SemanticStoreAdapter,
+                      create_memory_adapter)
 
 
 class TestSemanticStoreAdapter:

@@ -7,14 +7,8 @@ from __future__ import annotations
 
 import pytest
 
-from core.rag import (
-    ChunkingStrategy,
-    Document,
-    DocumentStore,
-    RAGPipeline,
-    RAGResult,
-    create_rag_pipeline,
-)
+from core.rag import (ChunkingStrategy, Document, DocumentStore, RAGPipeline,
+                      RAGResult, create_rag_pipeline)
 
 
 class TestDocument:

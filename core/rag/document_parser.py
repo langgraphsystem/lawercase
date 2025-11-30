@@ -9,9 +9,9 @@ Phase 3: Hybrid RAG Pipeline
 from __future__ import annotations
 
 import asyncio
+import mimetypes
 from dataclasses import dataclass
 from enum import Enum
-import mimetypes
 from pathlib import Path
 from typing import Any
 

@@ -9,11 +9,8 @@ from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
-from core.rag.fusion import (
-    HybridRetriever,
-    ReciprocalRankFusion,
-    create_hybrid_retriever,
-)
+from core.rag.fusion import (HybridRetriever, ReciprocalRankFusion,
+                             create_hybrid_retriever)
 
 
 class TestReciprocalRankFusion:

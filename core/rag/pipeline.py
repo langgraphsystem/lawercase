@@ -12,11 +12,11 @@ Phase 3: Hybrid RAG Pipeline
 
 from __future__ import annotations
 
+import hashlib
+import time
 from collections.abc import Iterator
 from dataclasses import dataclass, field
 from datetime import datetime
-import hashlib
-import time
 from typing import Any
 
 import structlog

@@ -8,9 +8,9 @@ Phase 3: Hybrid RAG Pipeline
 
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass
 from enum import Enum
-import re
 from typing import Any
 
 # Type aliases
