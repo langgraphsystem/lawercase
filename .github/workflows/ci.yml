@@ -33,6 +33,14 @@ jobs:
           pip-audit --progress-spinner off \
             --ignore-vuln GHSA-wj6h-64fc-37mp \
             --ignore-vuln GHSA-4xh5-x5gv-qwph
+      - name: Validate Alembic migrations
+        run: |
+          # Check migration files are valid Python
+          python -m py_compile alembic/env.py
+          for f in alembic/versions/*.py; do
+            [ -f "$f" ] && python -m py_compile "$f"
+          done
+          echo "✓ All migration files are valid Python"
 
   secret-scan:
     runs-on: ubuntu-latest
