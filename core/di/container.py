@@ -257,12 +257,14 @@ def _initialize_container(container: Container) -> None:
     """
     from core.groupagents.mega_agent import MegaAgent
     from core.memory.memory_manager import MemoryManager
+    from core.memory.stores.supabase_semantic_store import SupabaseSemanticStore
     from core.tools.tool_registry import get_tool_registry
 
     logger.info("di.container.initializing_defaults")
 
-    # Singletons - shared across all components
-    container.register_singleton("memory_manager", MemoryManager())
+    # CRITICAL FIX: Use SupabaseSemanticStore for database persistence
+    # This ensures intake answers are saved to PostgreSQL, not in-memory
+    container.register_singleton("memory_manager", MemoryManager(semantic=SupabaseSemanticStore()))
     container.register_singleton("tool_registry", get_tool_registry())
 
     # Factories - create on demand

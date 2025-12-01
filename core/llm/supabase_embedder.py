@@ -3,16 +3,30 @@
 The Supabase Vector API exposes an OpenAI-compatible interface for embeddings.
 This client wraps that endpoint and provides async helpers the rest of the
 codebase can rely on without pulling in OpenAI/Voyage-specific dependencies.
+
+Supports multiple API key sources (in priority order):
+1. Explicit api_key parameter
+2. SUPABASE_SERVICE_ROLE_KEY environment variable
+3. OPENAI_API_KEY environment variable (fallback)
+
+Supports multiple URL sources (in priority order):
+1. Explicit api_url parameter
+2. SUPABASE_VECTOR_URL environment variable
+3. Default OpenAI embeddings endpoint (fallback)
 """
 
 from __future__ import annotations
 
+import os
 from typing import Any
 
 import httpx
 from pydantic import SecretStr
 
 from ..storage.config import get_storage_config
+
+# Default OpenAI embeddings endpoint
+OPENAI_EMBEDDINGS_URL = "https://api.openai.com/v1/embeddings"
 
 
 class SupabaseEmbedder:
@@ -28,17 +42,25 @@ class SupabaseEmbedder:
         timeout_seconds: float = 30.0,
     ) -> None:
         config = get_storage_config()
+
+        # API key resolution: explicit > SUPABASE_SERVICE_ROLE_KEY > OPENAI_API_KEY
         key = api_key or config.supabase_service_role_key
         if key is None:
-            raise ValueError("Supabase Vector API key is required")
+            # Fallback to OPENAI_API_KEY
+            openai_key = os.getenv("OPENAI_API_KEY")
+            if openai_key:
+                key = SecretStr(openai_key)
+        if key is None:
+            raise ValueError(
+                "API key required. Set one of: SUPABASE_SERVICE_ROLE_KEY or OPENAI_API_KEY"
+            )
 
-        # Validate embeddings endpoint URL (CRITICAL: prevents AttributeError)
+        # URL resolution: explicit > SUPABASE_VECTOR_URL > OpenAI default
         url = api_url or config.supabase_vector_url
         if url is None:
-            raise ValueError(
-                "SUPABASE_VECTOR_URL environment variable is required. "
-                "Set it to your embeddings endpoint (e.g., https://api.openai.com/v1/embeddings)"
-            )
+            # Fallback to OpenAI embeddings endpoint
+            url = OPENAI_EMBEDDINGS_URL
+
         self.api_url = url.rstrip("/")
         self.api_key = key.get_secret_value()
         self.model = model or config.supabase_embedding_model
