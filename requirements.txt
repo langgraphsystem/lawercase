@@ -85,3 +85,6 @@ boto3>=1.34.0,<2.0.0
 
 # RAG BM25 retrieval
 rank-bm25>=0.2.2
+
+# JSON Logging
+python-json-logger>=2.0.7
