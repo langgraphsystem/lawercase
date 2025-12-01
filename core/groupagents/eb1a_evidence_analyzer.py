@@ -15,8 +15,8 @@ from datetime import datetime
 from enum import Enum
 from typing import Any
 
-import structlog
 from pydantic import BaseModel, Field
+import structlog
 
 from ..memory.memory_manager import MemoryManager
 from ..workflows.eb1a.eb1a_coordinator import EB1ACriterion, EB1AEvidence
@@ -1434,42 +1434,85 @@ async def analyze_intake_for_eb1a(
         record_count=len(records),
     )
 
-    # 2. Map intake tags to EB-1A criteria
+    # 2. Map intake tags to EB-1A criteria (expanded for full intake coverage)
     tag_to_criterion: dict[str, EB1ACriterion] = {
-        # Awards criterion
+        # ═══════════════════════════════════════════════════════════════════
+        # CRITERION 2.1: AWARDS - Nationally/internationally recognized awards
+        # ═══════════════════════════════════════════════════════════════════
         "major_awards": EB1ACriterion.AWARDS,
         "awards": EB1ACriterion.AWARDS,
-        "achievements": EB1ACriterion.AWARDS,
-        # Membership criterion
+        "competitions": EB1ACriterion.AWARDS,
+        "grants_scholarships": EB1ACriterion.AWARDS,
+        "school_olympiads": EB1ACriterion.AWARDS,
+        "university_awards": EB1ACriterion.AWARDS,
+        # ═══════════════════════════════════════════════════════════════════
+        # CRITERION 2.2: MEMBERSHIP - Membership requiring outstanding achievements
+        # ═══════════════════════════════════════════════════════════════════
         "associations_memberships": EB1ACriterion.MEMBERSHIP,
         "memberships": EB1ACriterion.MEMBERSHIP,
         "professional_associations": EB1ACriterion.MEMBERSHIP,
-        # Press criterion
+        "university_organizations": EB1ACriterion.MEMBERSHIP,
+        # ═══════════════════════════════════════════════════════════════════
+        # CRITERION 2.3: PRESS - Published material in professional/major media
+        # ═══════════════════════════════════════════════════════════════════
         "media_press": EB1ACriterion.PRESS,
         "press_coverage": EB1ACriterion.PRESS,
         "publications_about": EB1ACriterion.PRESS,
-        # Judging criterion
+        "media": EB1ACriterion.PRESS,
+        "press": EB1ACriterion.PRESS,
+        # ═══════════════════════════════════════════════════════════════════
+        # CRITERION 2.4: JUDGING - Participation as judge of work of others
+        # ═══════════════════════════════════════════════════════════════════
         "expert_roles": EB1ACriterion.JUDGING,
         "judging": EB1ACriterion.JUDGING,
         "peer_review": EB1ACriterion.JUDGING,
-        # Original contribution criterion
+        "mentorship_teaching": EB1ACriterion.JUDGING,
+        # ═══════════════════════════════════════════════════════════════════
+        # CRITERION 2.5: ORIGINAL CONTRIBUTION - Original contributions of major significance
+        # ═══════════════════════════════════════════════════════════════════
         "patents": EB1ACriterion.ORIGINAL_CONTRIBUTION,
         "projects_research": EB1ACriterion.ORIGINAL_CONTRIBUTION,
         "innovations": EB1ACriterion.ORIGINAL_CONTRIBUTION,
-        # Scholarly articles criterion
+        "research": EB1ACriterion.ORIGINAL_CONTRIBUTION,
+        "university_research": EB1ACriterion.ORIGINAL_CONTRIBUTION,
+        "university_thesis": EB1ACriterion.ORIGINAL_CONTRIBUTION,
+        "open_source": EB1ACriterion.ORIGINAL_CONTRIBUTION,
+        "career_key_projects": EB1ACriterion.ORIGINAL_CONTRIBUTION,
+        # ═══════════════════════════════════════════════════════════════════
+        # CRITERION 2.6: SCHOLARLY ARTICLES - Authorship of scholarly articles
+        # ═══════════════════════════════════════════════════════════════════
         "conferences_talks": EB1ACriterion.SCHOLARLY_ARTICLES,
         "publications": EB1ACriterion.SCHOLARLY_ARTICLES,
         "scholarly": EB1ACriterion.SCHOLARLY_ARTICLES,
-        # Leading role criterion
+        "metrics": EB1ACriterion.SCHOLARLY_ARTICLES,
+        "talks_public_activity": EB1ACriterion.SCHOLARLY_ARTICLES,
+        # ═══════════════════════════════════════════════════════════════════
+        # CRITERION 2.7: LEADING ROLE - Critical/leading role in distinguished orgs
+        # ═══════════════════════════════════════════════════════════════════
         "leadership": EB1ACriterion.LEADING_ROLE,
         "career": EB1ACriterion.LEADING_ROLE,
         "management": EB1ACriterion.LEADING_ROLE,
-        # High salary criterion
+        "career_critical_role": EB1ACriterion.LEADING_ROLE,
+        "career_positions": EB1ACriterion.LEADING_ROLE,
+        "career_team_size": EB1ACriterion.LEADING_ROLE,
+        "school_roles": EB1ACriterion.LEADING_ROLE,
+        # ═══════════════════════════════════════════════════════════════════
+        # CRITERION 2.8: HIGH SALARY - High salary or remuneration
+        # ═══════════════════════════════════════════════════════════════════
         "salary": EB1ACriterion.HIGH_SALARY,
         "compensation": EB1ACriterion.HIGH_SALARY,
-        # Commercial success criterion
+        "career_high_salary": EB1ACriterion.HIGH_SALARY,
+        # ═══════════════════════════════════════════════════════════════════
+        # CRITERION 2.9: COMMERCIAL SUCCESS - Commercial success in performing arts
+        # ═══════════════════════════════════════════════════════════════════
         "commercial_products": EB1ACriterion.COMMERCIAL_SUCCESS,
         "business_success": EB1ACriterion.COMMERCIAL_SUCCESS,
+        "career_achievements_metrics": EB1ACriterion.COMMERCIAL_SUCCESS,
+        # ═══════════════════════════════════════════════════════════════════
+        # SPECIAL TAGS - Generic tags that map based on context
+        # ═══════════════════════════════════════════════════════════════════
+        "achievements": EB1ACriterion.AWARDS,
+        "eb1a_criterion": EB1ACriterion.LEADING_ROLE,
     }
 
     # 3. Convert MemoryRecords to EB1AEvidence and group by criterion
@@ -1667,9 +1710,14 @@ async def analyze_and_generate_draft(
 
     try:
         # Import WriterAgent
-        from .writer_agent import (DocumentRequest, DocumentType,
-                                   GeneratedDocument, Language, ToneStyle,
-                                   WriterAgent)
+        from .writer_agent import (
+            DocumentRequest,
+            DocumentType,
+            GeneratedDocument,
+            Language,
+            ToneStyle,
+            WriterAgent,
+        )
 
         # Initialize WriterAgent
         writer = WriterAgent(memory_manager)
