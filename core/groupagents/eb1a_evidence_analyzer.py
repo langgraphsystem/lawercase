@@ -2113,7 +2113,7 @@ async def analyze_intake_potential_batch(
         llm_client = OpenAIClient(
             model="gpt-5.1",
             reasoning_effort="low",  # Fast analysis
-            max_tokens=2000,
+            max_tokens=4000,  # Increased from 2000 to prevent truncation
         )
 
         prompt = BATCH_POTENTIAL_PROMPT.format(criteria_data=criteria_text)
