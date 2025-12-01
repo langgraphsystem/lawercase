@@ -15,8 +15,8 @@ from datetime import datetime
 from enum import Enum
 from typing import TYPE_CHECKING, Any
 
-from pydantic import BaseModel, Field
 import structlog
+from pydantic import BaseModel, Field
 
 from ..memory.memory_manager import MemoryManager
 from ..workflows.eb1a.eb1a_coordinator import EB1ACriterion, EB1AEvidence
@@ -1713,14 +1713,9 @@ async def analyze_and_generate_draft(
 
     try:
         # Import WriterAgent
-        from .writer_agent import (
-            DocumentRequest,
-            DocumentType,
-            GeneratedDocument,
-            Language,
-            ToneStyle,
-            WriterAgent,
-        )
+        from .writer_agent import (DocumentRequest, DocumentType,
+                                   GeneratedDocument, Language, ToneStyle,
+                                   WriterAgent)
 
         # Initialize WriterAgent
         writer = WriterAgent(memory_manager)
