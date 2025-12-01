@@ -19,7 +19,7 @@ class OpenAIClient:
     """OpenAI client with support for GPT-5.1 and latest models (November 2025).
 
     GPT-5.1 Models (Released November 12, 2025):
-    - gpt-5.1-chat-latest: GPT-5.1 Instant with adaptive reasoning (NEW DEFAULT)
+    - gpt-5.1: GPT-5.1 Instant with adaptive reasoning (NEW DEFAULT)
       Context: 272K input, 128K output (400K total)
       Pricing: $1.25/1M input, $10/1M output, $0.125/1M cached
     - gpt-5.1: GPT-5.1 Thinking (advanced reasoning)
@@ -33,7 +33,7 @@ class OpenAIClient:
 
     Legacy GPT-5 Models (August 2025):
     - gpt-5-2025-08-07: Original GPT-5 stable version
-    - gpt-5-chat-latest: Auto-updates to latest (currently gpt-5.1-chat-latest)
+    - gpt-5-chat-latest: Auto-updates to latest (currently gpt-5.1)
 
     GPT-5.1 Features:
     - Adaptive Reasoning: Dynamically adjusts thinking time based on task complexity
@@ -65,8 +65,8 @@ class OpenAIClient:
     """
 
     # GPT-5.1 model identifiers (November 2025 - PRIMARY)
-    GPT_5_1_INSTANT = "gpt-5.1-chat-latest"  # NEW DEFAULT
-    GPT_5_1_THINKING = "gpt-5.1"
+    GPT_5_1_INSTANT = "gpt-5.1"  # NEW DEFAULT
+    GPT_5_1_THINKING = "gpt-5.1-2025-11-13"  # Specific version
     GPT_5_1_CODEX = "gpt-5.1-codex"
     GPT_5_1_CODEX_MINI = "gpt-5.1-codex-mini"
 
@@ -74,7 +74,7 @@ class OpenAIClient:
     GPT_5 = "gpt-5-2025-08-07"
     GPT_5_MINI = "gpt-5-mini"
     GPT_5_NANO = "gpt-5-nano"
-    GPT_5_CHAT_LATEST = "gpt-5-chat-latest"  # Redirects to gpt-5.1-chat-latest
+    GPT_5_CHAT_LATEST = "gpt-5-chat-latest"  # Redirects to gpt-5.1
 
     # Reasoning models
     O3_MINI = "o3-mini"
@@ -86,8 +86,7 @@ class OpenAIClient:
         GPT_5_1_THINKING,
         GPT_5_1_CODEX,
         GPT_5_1_CODEX_MINI,
-        "gpt-5.1",
-        "gpt-5.1-chat-latest",
+        "gpt-5.1-2025-11-13",
     }
 
     # All GPT-5 family models that support verbosity parameter
@@ -122,7 +121,7 @@ class OpenAIClient:
         """Initialize OpenAI client with GPT-5.1 support (November 2025).
 
         Args:
-            model: Model identifier (default: gpt-5.1-chat-latest)
+            model: Model identifier (default: gpt-5.1)
             api_key: OpenAI API key (or set OPENAI_API_KEY env var)
             temperature: Randomness (0.0-2.0, default 1.0) [not for reasoning models]
             max_tokens: Max tokens in completion (default 4096)

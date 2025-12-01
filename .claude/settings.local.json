@@ -143,7 +143,11 @@
       "Bash(npx:*)",
       "WebFetch(domain:github.com)",
       "WebFetch(domain:learn.netdata.cloud)",
-      "Bash(gh api:*)"
+      "Bash(gh api:*)",
+      "WebFetch(domain:platform.openai.com)",
+      "WebFetch(domain:openai.com)",
+      "WebFetch(domain:openrouter.ai)",
+      "WebFetch(domain:docs.aimlapi.com)"
     ],
     "deny": [],
     "ask": []

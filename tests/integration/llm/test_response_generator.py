@@ -55,7 +55,7 @@ class TestModuleImports:
 
         result = GenerationResult(
             content="Test response",
-            model="gpt-5.1-chat-latest",
+            model="gpt-5.1",
             provider=LLMProvider.OPENAI,
             prompt_tokens=10,
             completion_tokens=20,
@@ -97,7 +97,7 @@ class TestResponseGenerator:
 
         generator = create_response_generator(
             provider=LLMProvider.OPENAI,
-            model="gpt-5.1-chat-latest",
+            model="gpt-5.1",
         )
         assert generator is not None
 
@@ -139,7 +139,7 @@ class TestResponseGenerator:
 
         generator = create_response_generator(
             provider=LLMProvider.OPENAI,
-            model="gpt-5.1-chat-latest",
+            model="gpt-5.1",
         )
         assert hasattr(generator, "generate")
         assert callable(generator.generate)
@@ -150,7 +150,7 @@ class TestResponseGenerator:
 
         generator = create_response_generator(
             provider=LLMProvider.OPENAI,
-            model="gpt-5.1-chat-latest",
+            model="gpt-5.1",
         )
         assert hasattr(generator, "generate_stream")
         assert callable(generator.generate_stream)
@@ -161,7 +161,7 @@ class TestResponseGenerator:
 
         generator = create_response_generator(
             provider=LLMProvider.OPENAI,
-            model="gpt-5.1-chat-latest",
+            model="gpt-5.1",
         )
         assert hasattr(generator, "get_stats")
         stats = generator.get_stats()
@@ -182,10 +182,10 @@ class TestLLMConfig:
 
         config = LLMConfig(
             provider=LLMProvider.OPENAI,
-            model="gpt-5.1-chat-latest",
+            model="gpt-5.1",
         )
         assert config.provider == LLMProvider.OPENAI
-        assert config.model == "gpt-5.1-chat-latest"
+        assert config.model == "gpt-5.1"
 
     def test_config_defaults(self) -> None:
         """Test LLMConfig default values."""
@@ -193,7 +193,7 @@ class TestLLMConfig:
 
         config = LLMConfig(
             provider=LLMProvider.OPENAI,
-            model="gpt-5.1-chat-latest",
+            model="gpt-5.1",
         )
         # Check defaults are set
         assert hasattr(config, "temperature")
@@ -216,13 +216,13 @@ class TestMockedGeneration:
 
         generator = create_response_generator(
             provider=LLMProvider.OPENAI,
-            model="gpt-5.1-chat-latest",
+            model="gpt-5.1",
         )
 
         # Mock the internal generate method
         mock_result = GenerationResult(
             content="Mocked response",
-            model="gpt-5.1-chat-latest",
+            model="gpt-5.1",
             provider=LLMProvider.OPENAI,
             prompt_tokens=10,
             completion_tokens=20,
@@ -248,7 +248,7 @@ class TestMockedGeneration:
 
         generator = create_response_generator(
             provider=LLMProvider.OPENAI,
-            model="gpt-5.1-chat-latest",
+            model="gpt-5.1",
         )
 
         async def mock_stream(*args: Any, **kwargs: Any):
@@ -280,7 +280,7 @@ class TestStatistics:
 
         generator = create_response_generator(
             provider=LLMProvider.OPENAI,
-            model="gpt-5.1-chat-latest",
+            model="gpt-5.1",
         )
 
         stats = generator.get_stats()
@@ -293,7 +293,7 @@ class TestStatistics:
 
         generator = create_response_generator(
             provider=LLMProvider.OPENAI,
-            model="gpt-5.1-chat-latest",
+            model="gpt-5.1",
         )
 
         stats = generator.get_stats()

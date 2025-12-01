@@ -23,16 +23,16 @@ class TestGPT51Models:
     """Test GPT-5.1 model support."""
 
     def test_default_model_is_gpt51_instant(self):
-        """Default model should be gpt-5.1-chat-latest."""
+        """Default model should be gpt-5.1."""
         with patch("core.llm_interface.openai_client.AsyncOpenAI"):
             client = OpenAIClient(api_key="test-key")
-            assert client.model == "gpt-5.1-chat-latest"
+            assert client.model == "gpt-5.1"
 
     def test_gpt51_models_detection(self):
         """_is_gpt5_1_model() should detect GPT-5.1 models."""
         with patch("core.llm_interface.openai_client.AsyncOpenAI"):
             # GPT-5.1 models
-            for model in ["gpt-5.1-chat-latest", "gpt-5.1", "gpt-5.1-codex", "gpt-5.1-codex-mini"]:
+            for model in ["gpt-5.1", "gpt-5.1", "gpt-5.1-codex", "gpt-5.1-codex-mini"]:
                 client = OpenAIClient(model=model, api_key="test-key")
                 assert client._is_gpt5_1_model() is True
 
@@ -45,7 +45,7 @@ class TestGPT51Models:
         """reasoning_effort='none' should be supported."""
         with patch("core.llm_interface.openai_client.AsyncOpenAI"):
             client = OpenAIClient(
-                model="gpt-5.1-chat-latest", reasoning_effort="none", api_key="test-key"
+                model="gpt-5.1", reasoning_effort="none", api_key="test-key"
             )
             assert client.reasoning_effort == "none"
 
@@ -53,7 +53,7 @@ class TestGPT51Models:
         """prompt_cache_retention parameter should be stored."""
         with patch("core.llm_interface.openai_client.AsyncOpenAI"):
             client = OpenAIClient(
-                model="gpt-5.1-chat-latest", prompt_cache_retention="24h", api_key="test-key"
+                model="gpt-5.1", prompt_cache_retention="24h", api_key="test-key"
             )
             assert client.prompt_cache_retention == "24h"
 
@@ -80,7 +80,7 @@ class TestFunctionCalling:
             ]
 
             client = OpenAIClient(
-                model="gpt-5.1-chat-latest", tools=tools, tool_choice="auto", api_key="test-key"
+                model="gpt-5.1", tools=tools, tool_choice="auto", api_key="test-key"
             )
 
             assert client.tools == tools
@@ -99,13 +99,13 @@ class TestFunctionCalling:
             mock_response.choices[0].message.content = "Test response"
             mock_response.choices[0].finish_reason = "stop"
             mock_response.usage = MagicMock(prompt_tokens=10, completion_tokens=5, total_tokens=15)
-            mock_response.model = "gpt-5.1-chat-latest"
+            mock_response.model = "gpt-5.1"
 
             mock_client.chat.completions.create = AsyncMock(return_value=mock_response)
 
             # Create client with tools
             tools = [{"type": "function", "function": {"name": "test_tool"}}]
-            client = OpenAIClient(model="gpt-5.1-chat-latest", tools=tools, api_key="test-key")
+            client = OpenAIClient(model="gpt-5.1", tools=tools, api_key="test-key")
 
             # Call acomplete
             await client.acomplete("Test prompt")
@@ -136,12 +136,12 @@ class TestFunctionCalling:
             mock_response.choices[0].message.tool_calls = [mock_tool_call]
             mock_response.choices[0].finish_reason = "tool_calls"
             mock_response.usage = MagicMock(prompt_tokens=10, completion_tokens=5, total_tokens=15)
-            mock_response.model = "gpt-5.1-chat-latest"
+            mock_response.model = "gpt-5.1"
 
             mock_client.chat.completions.create = AsyncMock(return_value=mock_response)
 
             # Create client
-            client = OpenAIClient(model="gpt-5.1-chat-latest", api_key="test-key")
+            client = OpenAIClient(model="gpt-5.1", api_key="test-key")
 
             # Call acomplete
             result = await client.acomplete("What's the weather?")

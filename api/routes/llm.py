@@ -13,8 +13,7 @@ from fastapi import APIRouter, HTTPException, status
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
 
-from core.llm import (LLMProvider, Message, ResponseGenerator,
-                      create_response_generator)
+from core.llm import LLMProvider, Message, ResponseGenerator, create_response_generator
 from core.logging_utils import get_logger
 
 logger = get_logger(__name__)
@@ -38,7 +37,7 @@ class GenerateRequest(BaseModel):
     """Request for LLM generation."""
 
     messages: list[MessageRequest] = Field(..., description="Chat messages")
-    model: str = Field(default="gpt-5.1-chat-latest", description="Model identifier")
+    model: str = Field(default="gpt-5.1", description="Model identifier")
     provider: str = Field(default="openai", description="LLM provider")
     temperature: float = Field(default=0.7, ge=0.0, le=2.0)
     max_tokens: int = Field(default=4096, ge=1, le=128000)
@@ -112,7 +111,7 @@ async def generate(request: GenerateRequest) -> GenerateResponse:
             "messages": [
                 {"role": "user", "content": "What is EB-1A visa?"}
             ],
-            "model": "gpt-5.1-chat-latest",
+            "model": "gpt-5.1",
             "temperature": 0.7
         }
     """
@@ -169,7 +168,7 @@ async def generate_stream(request: GenerateRequest) -> StreamingResponse:
             "messages": [
                 {"role": "user", "content": "Explain EB-1A requirements"}
             ],
-            "model": "gpt-5.1-chat-latest",
+            "model": "gpt-5.1",
             "stream": true
         }
 
@@ -232,14 +231,14 @@ async def list_models() -> dict[str, Any]:
         "providers": {
             "openai": {
                 "models": [
-                    "gpt-5.1-chat-latest",
+                    "gpt-5.1",
                     "gpt-5.1",
                     "gpt-5.1-codex",
                     "gpt-5.1-codex-mini",
                     "gpt-5-mini",
                     "gpt-5-nano",
                 ],
-                "default": "gpt-5.1-chat-latest",
+                "default": "gpt-5.1",
             },
             "anthropic": {
                 "models": [

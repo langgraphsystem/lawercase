@@ -126,7 +126,7 @@ class TestExecuteToolLoop:
             mock_response.choices[0].message.tool_calls = None
             mock_response.choices[0].finish_reason = "stop"
             mock_response.usage = MagicMock(prompt_tokens=10, completion_tokens=5, total_tokens=15)
-            mock_response.model = "gpt-5.1-chat-latest"
+            mock_response.model = "gpt-5.1"
 
             # Return same response every time (using return_value, not side_effect)
             mock_client_instance.chat.completions.create = AsyncMock(return_value=mock_response)
@@ -191,7 +191,7 @@ class TestExecuteToolLoop:
             mock_response_1.usage = MagicMock(
                 prompt_tokens=10, completion_tokens=5, total_tokens=15
             )
-            mock_response_1.model = "gpt-5.1-chat-latest"
+            mock_response_1.model = "gpt-5.1"
 
             # Second call: LLM provides final answer
             mock_response_2 = MagicMock()
@@ -204,7 +204,7 @@ class TestExecuteToolLoop:
             mock_response_2.usage = MagicMock(
                 prompt_tokens=20, completion_tokens=10, total_tokens=30
             )
-            mock_response_2.model = "gpt-5.1-chat-latest"
+            mock_response_2.model = "gpt-5.1"
 
             mock_client_instance.chat.completions.create = AsyncMock(
                 side_effect=[mock_response_1, mock_response_2]
@@ -248,7 +248,7 @@ class TestExecuteToolLoop:
             mock_response.choices[0].message.tool_calls = [mock_tool_call]
             mock_response.choices[0].finish_reason = "tool_calls"
             mock_response.usage = MagicMock(prompt_tokens=10, completion_tokens=5, total_tokens=15)
-            mock_response.model = "gpt-5.1-chat-latest"
+            mock_response.model = "gpt-5.1"
 
             mock_client_instance.chat.completions.create = AsyncMock(return_value=mock_response)
 
@@ -306,7 +306,7 @@ class TestExecuteToolLoop:
             mock_response_1.usage = MagicMock(
                 prompt_tokens=10, completion_tokens=5, total_tokens=15
             )
-            mock_response_1.model = "gpt-5.1-chat-latest"
+            mock_response_1.model = "gpt-5.1"
 
             # Second call: LLM acknowledges error
             mock_response_2 = MagicMock()
@@ -317,7 +317,7 @@ class TestExecuteToolLoop:
             mock_response_2.usage = MagicMock(
                 prompt_tokens=20, completion_tokens=10, total_tokens=30
             )
-            mock_response_2.model = "gpt-5.1-chat-latest"
+            mock_response_2.model = "gpt-5.1"
 
             mock_client_instance.chat.completions.create = AsyncMock(
                 side_effect=[mock_response_1, mock_response_2]

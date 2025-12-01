@@ -11,10 +11,10 @@ Provides unified interface for LLM response generation:
 from __future__ import annotations
 
 import asyncio
-import time
 from collections.abc import AsyncIterator
 from dataclasses import dataclass, field
 from enum import Enum
+import time
 from typing import Any
 
 import structlog
@@ -43,7 +43,7 @@ class LLMConfig:
     """Configuration for LLM generation."""
 
     provider: LLMProvider = LLMProvider.OPENAI
-    model: str = "gpt-5.1-chat-latest"
+    model: str = "gpt-5.1"
     temperature: float = 0.7
     max_tokens: int = 4096
     top_p: float = 1.0
@@ -659,14 +659,14 @@ def create_response_generator(
         ... )
     """
     default_models = {
-        LLMProvider.OPENAI: "gpt-5.1-chat-latest",
+        LLMProvider.OPENAI: "gpt-5.1",
         LLMProvider.ANTHROPIC: "claude-3-5-sonnet-20241022",
         LLMProvider.GOOGLE: "gemini-1.5-flash",
     }
 
     config = LLMConfig(
         provider=provider,
-        model=model or default_models.get(provider, "gpt-5.1-chat-latest"),
+        model=model or default_models.get(provider, "gpt-5.1"),
         **kwargs,
     )
 
