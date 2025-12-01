@@ -14,7 +14,7 @@ from pathlib import Path
 
 import structlog
 
-from core.memory.memory_manager_v2 import MemoryManager
+from core.memory.memory_manager import MemoryManager
 from core.memory.models import MemoryRecord
 from core.rag.chunking import ChunkingStrategy, DocumentChunk, create_chunker
 from core.rag.document_parser import MarkitdownParser, ParsedDocument

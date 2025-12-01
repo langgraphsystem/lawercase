@@ -11,7 +11,7 @@ from telegram import Update
 from telegram.ext import ContextTypes, MessageHandler, filters
 
 from core.ingestion import PDFIngestionService
-from core.memory.memory_manager_v2 import MemoryManager
+from core.memory.memory_manager import MemoryManager
 
 from .context import BotContext
 
@@ -193,10 +193,11 @@ def _get_memory_manager(bot_ctx: BotContext) -> MemoryManager:
     if hasattr(bot_ctx.mega_agent, "memory") and bot_ctx.mega_agent.memory:
         return bot_ctx.mega_agent.memory
 
-    # Fallback: create new memory manager
-    from core.memory.memory_manager_v2 import create_memory_manager
+    # Fallback: use DI container's memory manager (uses SupabaseSemanticStore)
+    from core.di.container import get_container
 
-    return create_memory_manager()
+    container = get_container()
+    return container.get("memory_manager")
 
 
 def _format_criterion_name(criterion_tag: str) -> str:
