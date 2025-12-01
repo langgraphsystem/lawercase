@@ -507,8 +507,7 @@ async def eb1_potential(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
 
     try:
         from core.di.container import get_container
-        from core.groupagents.eb1a_evidence_analyzer import \
-            analyze_intake_potential_batch
+        from core.groupagents.eb1a_evidence_analyzer import analyze_intake_potential_batch
 
         container = get_container()
         memory = container.get("memory_manager")
@@ -527,6 +526,7 @@ async def eb1_potential(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
             potential_score=result.overall_potential_score,
             potential_criteria=result.potential_criteria_count,
             llm_calls=result.llm_call_count,
+            warnings=len(getattr(result, "warnings", []) or []),
         )
 
     except Exception as e:
@@ -573,14 +573,32 @@ def _format_eb1a_potential(result: Any, case_id: str) -> str:
             lines.append(f"  ✅ {criterion}")
         lines.append("")
 
+    # Weakest criteria
+    if result.weakest_criteria:
+        lines.append("<b>⚠️ Weakest Criteria:</b>")
+        for criterion in result.weakest_criteria[:3]:
+            lines.append(f"  ❗ {criterion}")
+            # Inline advice/missing info if available
+            assessments = getattr(result, "criteria_assessments", {}) or {}
+            assessment = assessments.get(criterion, {})
+            advice = assessment.get("advice")
+            missing = assessment.get("missing_info") or []
+            if missing:
+                lines.append(f"     ⏳ Missing: {', '.join([str(m) for m in missing[:2]])}")
+            if advice:
+                lines.append(f"     💡 Advice: {advice}")
+        lines.append("")
+
     # Criteria assessments
     if result.criteria_assessments:
         lines.append("<b>📋 Criteria Breakdown:</b>")
         for crit_name, assessment in list(result.criteria_assessments.items())[:6]:
             score = assessment.get("potential_score", 0)
             has_potential = assessment.get("has_potential", False)
+            strength = assessment.get("evidence_strength")
             status = "✅" if has_potential else "❌"
-            lines.append(f"  {status} {crit_name}: {score}%")
+            suffix = f" ({strength})" if strength else ""
+            lines.append(f"  {status} {crit_name}: {score}%{suffix}")
         lines.append("")
 
     # Priority actions
@@ -593,6 +611,17 @@ def _format_eb1a_potential(result: Any, case_id: str) -> str:
     # Recommendation
     if result.recommendation:
         lines.append(f"🎯 <b>Next Steps:</b> {result.recommendation}")
+
+    # Warnings surfaced to user
+    if getattr(result, "warnings", None):
+        lines.append("")
+        lines.append("<b>⚠️ Warnings:</b>")
+        for warning in result.warnings[:3]:
+            lines.append(f"  • {warning}")
+    elif getattr(result, "llm_call_count", 1) == 0:
+        lines.append("")
+        lines.append("<b>⚠️ Warnings:</b>")
+        lines.append("  • Used heuristic fallback because LLM analysis was unavailable.")
 
     return "\n".join(lines)
 
@@ -637,8 +666,7 @@ async def eb1_analyze(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
 
     try:
         from core.di.container import get_container
-        from core.groupagents.eb1a_evidence_analyzer import \
-            analyze_intake_for_eb1a
+        from core.groupagents.eb1a_evidence_analyzer import analyze_intake_for_eb1a
 
         container = get_container()
         memory = container.get("memory_manager")

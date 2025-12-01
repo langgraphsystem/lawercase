@@ -15,8 +15,8 @@ from datetime import datetime
 from enum import Enum
 from typing import TYPE_CHECKING, Any
 
-import structlog
 from pydantic import BaseModel, Field
+import structlog
 
 from ..memory.memory_manager import MemoryManager
 from ..workflows.eb1a.eb1a_coordinator import EB1ACriterion, EB1AEvidence
@@ -1713,9 +1713,14 @@ async def analyze_and_generate_draft(
 
     try:
         # Import WriterAgent
-        from .writer_agent import (DocumentRequest, DocumentType,
-                                   GeneratedDocument, Language, ToneStyle,
-                                   WriterAgent)
+        from .writer_agent import (
+            DocumentRequest,
+            DocumentType,
+            GeneratedDocument,
+            Language,
+            ToneStyle,
+            WriterAgent,
+        )
 
         # Initialize WriterAgent
         writer = WriterAgent(memory_manager)
@@ -1854,7 +1859,7 @@ def _generate_basic_feedback(analysis: CaseStrengthAnalysis) -> str:
 # =============================================================================
 
 # Prompt for batch EB-1A potential assessment
-BATCH_POTENTIAL_PROMPT = """You are an experienced EB-1A immigration attorney assessing a potential case.
+BATCH_POTENTIAL_PROMPT = """You are a top-tier, board-certified U.S. immigration attorney focused on EB-1A.
 
 Based on the client's intake questionnaire answers, provide a PRELIMINARY POTENTIAL assessment.
 This is NOT an evaluation of documents - the client has only answered questions about their background.
@@ -1874,15 +1879,12 @@ This is NOT an evaluation of documents - the client has only answered questions 
 ## CLIENT'S INTAKE DATA BY CRITERION:
 {criteria_data}
 
-## TASK:
-Analyze the client's CLAIMS (not documents!) and provide:
-1. Potential score for each mentioned criterion (0-100)
-2. Overall potential score (0-100)
-3. Which criteria have the STRONGEST potential based on claims
-4. Which criteria need MORE information to assess
-5. Specific actionable advice to strengthen the case
+## TASK (be concise, expert, and practical):
+- Judge potential ONLY from claims. If claims are vague, state what is missing.
+- Be realistic but encouraging; give targeted, actionable steps like an expert attorney.
+- Keep JSON strictly valid; no prose outside JSON.
 
-Respond in JSON format:
+Respond in JSON format ONLY:
 {{
   "overall_potential_score": <0-100>,
   "potential_criteria_count": <number of criteria with score >= 60>,
@@ -1933,6 +1935,9 @@ class IntakePotentialResult(BaseModel):
     )
     risk_level: str = Field(default="moderate", description="Risk level")
     recommendation: str = Field(default="", description="Next steps recommendation")
+    warnings: list[str] = Field(
+        default_factory=list, description="Non-fatal warnings during analysis"
+    )
 
     # Metadata
     llm_call_count: int = Field(default=1, description="Number of LLM calls made")
@@ -1969,6 +1974,7 @@ async def analyze_intake_potential_batch(
         case_id=case_id,
         user_id=user_id,
     )
+    warnings: list[str] = []
 
     # 1. Fetch all intake records for this case
     records = await memory_manager.semantic.afetch_by_case_id(case_id)
@@ -1982,6 +1988,8 @@ async def analyze_intake_potential_batch(
             priority_actions=["Complete intake questionnaire with /intake_start"],
             risk_level="critical",
             recommendation="Start by completing the intake questionnaire.",
+            warnings=["No intake data found. Please complete the intake questionnaire first."],
+            llm_call_count=0,
         )
 
     logger.info(
@@ -2073,6 +2081,18 @@ async def analyze_intake_potential_batch(
             if record.text not in criteria_data["GENERAL"]:
                 criteria_data["GENERAL"].append(record.text)
 
+    general_count = len(criteria_data.get("GENERAL", []))
+    if general_count:
+        warnings.append(
+            f"{general_count} intake answers were not mapped to a specific EB-1A criterion (tag them for better analysis)."
+        )
+
+    covered_criteria = [c for c in criteria_data if c != "GENERAL"]
+    if len(covered_criteria) < 3:
+        warnings.append(
+            "Data covers fewer than 3 criteria; potential assessment may be incomplete."
+        )
+
     logger.info(
         "analyze_intake_potential_batch.criteria_grouped",
         case_id=case_id,
@@ -2123,6 +2143,8 @@ async def analyze_intake_potential_batch(
             # Try to find raw JSON
             json_match = re.search(r"\{[\s\S]*\}", output)
             json_str = json_match.group(0) if json_match else "{}"
+            if not json_match:
+                warnings.append("LLM response did not contain JSON; using defaults.")
 
         try:
             parsed = json.loads(json_str)
@@ -2133,34 +2155,67 @@ async def analyze_intake_potential_batch(
                 output=output[:200],
             )
             parsed = {}
+            warnings.append("Failed to parse LLM JSON response; used defaults.")
+
+        def _coerce_float(value: Any, default: float) -> float:
+            try:
+                return float(value)
+            except (TypeError, ValueError):
+                return default
+
+        def _normalize_list(value: Any) -> list[str]:
+            if isinstance(value, list):
+                return [str(v) for v in value]
+            return []
+
+        criteria_assessments_raw = parsed.get("criteria_assessments", {})
+        if not isinstance(criteria_assessments_raw, dict):
+            warnings.append("criteria_assessments missing or invalid; using empty set.")
+            criteria_assessments_raw = {}
+
+        def _compute_potential_count(assessments: dict[str, dict[str, Any]]) -> int:
+            count = 0
+            for assessment in assessments.values():
+                score = _coerce_float(assessment.get("potential_score"), 0.0)
+                has_potential = assessment.get("has_potential")
+                if has_potential is True or score >= 60:
+                    count += 1
+            return count
+
+        potential_criteria_count = parsed.get("potential_criteria_count")
+        if not isinstance(potential_criteria_count, int):
+            potential_criteria_count = _compute_potential_count(criteria_assessments_raw)
 
         # 7. Build result
         return IntakePotentialResult(
-            overall_potential_score=parsed.get("overall_potential_score", 50.0),
-            potential_criteria_count=parsed.get("potential_criteria_count", 0),
-            criteria_assessments=parsed.get("criteria_assessments", {}),
-            strongest_criteria=parsed.get("strongest_criteria", []),
-            weakest_criteria=parsed.get("weakest_criteria", []),
+            overall_potential_score=_coerce_float(parsed.get("overall_potential_score"), 50.0),
+            potential_criteria_count=potential_criteria_count,
+            criteria_assessments=criteria_assessments_raw,
+            strongest_criteria=_normalize_list(parsed.get("strongest_criteria")),
+            weakest_criteria=_normalize_list(parsed.get("weakest_criteria")),
             overall_assessment=parsed.get("overall_assessment", "Analysis complete."),
-            priority_actions=parsed.get("priority_actions", []),
-            risk_level=parsed.get("risk_level", "moderate"),
+            priority_actions=_normalize_list(parsed.get("priority_actions")),
+            risk_level=str(parsed.get("risk_level", "moderate")),
             recommendation=parsed.get("recommendation", "Continue with document collection."),
+            warnings=warnings,
             llm_call_count=1,
         )
 
     except Exception as e:
+        warnings.append(f"LLM error: {e!s}")
         logger.exception(
             "analyze_intake_potential_batch.error",
             case_id=case_id,
             error=str(e),
         )
         # Fallback to heuristic assessment
-        return _fallback_potential_assessment(criteria_data, case_id)
+        return _fallback_potential_assessment(criteria_data, case_id, warnings=warnings)
 
 
 def _fallback_potential_assessment(
     criteria_data: dict[str, list[str]],
     case_id: str,
+    warnings: list[str] | None = None,
 ) -> IntakePotentialResult:
     """Fallback heuristic assessment when LLM fails."""
     criteria_count = len([c for c in criteria_data if c != "GENERAL"])
@@ -2187,5 +2242,6 @@ def _fallback_potential_assessment(
         ],
         risk_level="moderate" if criteria_count >= 3 else "high",
         recommendation="Complete document gathering to confirm potential.",
+        warnings=warnings or ["Used heuristic fallback because LLM analysis failed."],
         llm_call_count=0,
     )
