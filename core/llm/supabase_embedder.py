@@ -4,15 +4,14 @@ The Supabase Vector API exposes an OpenAI-compatible interface for embeddings.
 This client wraps that endpoint and provides async helpers the rest of the
 codebase can rely on without pulling in OpenAI/Voyage-specific dependencies.
 
-Supports multiple API key sources (in priority order):
-1. Explicit api_key parameter
-2. SUPABASE_SERVICE_ROLE_KEY environment variable
-3. OPENAI_API_KEY environment variable (fallback)
-
 Supports multiple URL sources (in priority order):
 1. Explicit api_url parameter
 2. SUPABASE_VECTOR_URL environment variable
 3. Default OpenAI embeddings endpoint (fallback)
+
+API key selection depends on the endpoint:
+- For OpenAI endpoint (api.openai.com): prefer OPENAI_API_KEY
+- For Supabase endpoint: prefer SUPABASE_SERVICE_ROLE_KEY
 """
 
 from __future__ import annotations
@@ -43,18 +42,6 @@ class SupabaseEmbedder:
     ) -> None:
         config = get_storage_config()
 
-        # API key resolution: explicit > SUPABASE_SERVICE_ROLE_KEY > OPENAI_API_KEY
-        key = api_key or config.supabase_service_role_key
-        if key is None:
-            # Fallback to OPENAI_API_KEY
-            openai_key = os.getenv("OPENAI_API_KEY")
-            if openai_key:
-                key = SecretStr(openai_key)
-        if key is None:
-            raise ValueError(
-                "API key required. Set one of: SUPABASE_SERVICE_ROLE_KEY or OPENAI_API_KEY"
-            )
-
         # URL resolution: explicit > SUPABASE_VECTOR_URL > OpenAI default
         url = api_url or config.supabase_vector_url
         if url is None:
@@ -62,6 +49,33 @@ class SupabaseEmbedder:
             url = OPENAI_EMBEDDINGS_URL
 
         self.api_url = url.rstrip("/")
+
+        # API key resolution depends on the URL endpoint
+        # For OpenAI endpoint: prefer OPENAI_API_KEY
+        # For Supabase endpoint: prefer SUPABASE_SERVICE_ROLE_KEY
+        is_openai_endpoint = "api.openai.com" in self.api_url
+        key = api_key
+        if key is None:
+            if is_openai_endpoint:
+                # For OpenAI endpoint, prefer OPENAI_API_KEY
+                openai_key = os.getenv("OPENAI_API_KEY")
+                if openai_key:
+                    key = SecretStr(openai_key)
+                # Fallback to Supabase key if no OpenAI key
+                if key is None:
+                    key = config.supabase_service_role_key
+            else:
+                # For Supabase endpoint, prefer SUPABASE_SERVICE_ROLE_KEY
+                key = config.supabase_service_role_key
+                if key is None:
+                    openai_key = os.getenv("OPENAI_API_KEY")
+                    if openai_key:
+                        key = SecretStr(openai_key)
+        if key is None:
+            raise ValueError(
+                "API key required. Set one of: SUPABASE_SERVICE_ROLE_KEY or OPENAI_API_KEY"
+            )
+
         self.api_key = key.get_secret_value()
         self.model = model or config.supabase_embedding_model
         self.dimension = dimension or config.embedding_dimension
