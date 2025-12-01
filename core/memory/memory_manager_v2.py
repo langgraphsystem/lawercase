@@ -13,7 +13,7 @@ if TYPE_CHECKING:
 
 from .embedders import DeterministicEmbedder
 from .models import AuditEvent, ConsolidateStats, MemoryRecord, RetrievalQuery
-from .policies import select_salient_facts
+from .policies import ConsolidationConfig, ConsolidationPolicy, select_salient_facts
 
 
 class Embedder(Protocol):
@@ -46,6 +46,7 @@ class MemoryManager:
         episodic: Any | None = None,
         working: Any | None = None,
         embedder: Embedder | None = None,
+        consolidation_config: ConsolidationConfig | None = None,
         use_production: bool = False,
     ) -> None:
         """
@@ -56,15 +57,23 @@ class MemoryManager:
             episodic: EpisodicStore instance (in-memory or PostgreSQL)
             working: WorkingMemory instance (in-memory or PostgreSQL)
             embedder: Embedder instance (NoOp, Gemini, or Voyage)
+            consolidation_config: Configuration for consolidation policy
             use_production: Auto-setup production stores if True
         """
+        # Initialize consolidation policy
+        self._consolidation_policy = ConsolidationPolicy(
+            config=consolidation_config
+            or ConsolidationConfig(
+                use_semantic_dedup=use_production,  # Use semantic dedup in production
+                enable_decay=True,
+            )
+        )
+
         if use_production:
             # Auto-initialize production stores
             from ..llm.voyage_embedder import create_voyage_embedder
-            from ..storage.postgres_stores import (PostgresEpisodicStore,
-                                                   PostgresWorkingMemory)
-            from .stores.pinecone_semantic_store import \
-                PineconeSemanticStoreAdapter
+            from ..storage.postgres_stores import PostgresEpisodicStore, PostgresWorkingMemory
+            from .stores.pinecone_semantic_store import PineconeSemanticStoreAdapter
 
             self.semantic = semantic or PineconeSemanticStoreAdapter()
             self.episodic = episodic or PostgresEpisodicStore()
@@ -188,51 +197,57 @@ class MemoryManager:
         )
 
     # ---- Consolidate ----
-    async def aconsolidate(self, *, user_id: str | None = None) -> ConsolidateStats:
+    async def aconsolidate(
+        self,
+        *,
+        user_id: str | None = None,
+        use_semantic_dedup: bool | None = None,
+    ) -> ConsolidateStats:
         """
-        Consolidate memory: deduplicate and prune.
+        Consolidate memory: deduplicate, apply decay, and optionally compress.
 
-        Note: In production mode (Pinecone), this is a no-op as Pinecone
-        handles deduplication via upsert with same ID.
+        Features:
+        - Semantic deduplication using cosine similarity (production)
+        - Exact text deduplication (development)
+        - Importance decay over time
+        - Memory compression (optional, requires LLM)
 
         Args:
             user_id: Optional user_id to consolidate
+            use_semantic_dedup: Override semantic deduplication setting
 
         Returns:
             ConsolidateStats with consolidation results
         """
-        if self._is_production:
-            # Pinecone handles deduplication automatically
-            count = await self.semantic.acount()
-            return ConsolidateStats(deduplicated=0, total_after=count)
-
-        # In-memory consolidation (original logic)
+        # Get all items
         all_items = await self.semantic.aall(user_id=user_id)
-        seen = set()
-        deduped: list[MemoryRecord] = []
-        deduplicated = 0
 
-        for r in all_items:
-            key = (r.user_id, r.type, r.text)
-            if key in seen:
-                deduplicated += 1
-                continue
-            seen.add(key)
-            deduped.append(r)
+        if not all_items:
+            return ConsolidateStats(deduplicated=0, total_after=0)
 
-        # Replace items (only works for in-memory store)
+        # Override semantic dedup if specified
+        if use_semantic_dedup is not None:
+            self._consolidation_policy.config.use_semantic_dedup = use_semantic_dedup
+
+        # Run consolidation using policy
+        consolidated, result = await self._consolidation_policy.consolidate(
+            all_items, user_id=user_id
+        )
+
+        # Replace items in store (only works for in-memory store)
         if hasattr(self.semantic, "_items"):
             if user_id is None:
-                self.semantic._items = deduped  # type: ignore[attr-defined]
+                self.semantic._items = consolidated  # type: ignore[attr-defined]
             else:
-                self.semantic._items = [  # type: ignore[attr-defined]
-                    r for r in self.semantic._items if r.user_id != user_id
-                ] + deduped
+                # Keep items from other users, replace user's items
+                other_items = [
+                    r
+                    for r in self.semantic._items  # type: ignore[attr-defined]
+                    if r.user_id != user_id
+                ]
+                self.semantic._items = other_items + consolidated  # type: ignore[attr-defined]
 
-        return ConsolidateStats(
-            deduplicated=deduplicated,
-            total_after=len(deduped) if hasattr(self.semantic, "_items") else 0,
-        )
+        return self._consolidation_policy.to_stats(result)
 
     # ---- Snapshot ----
     async def asnapshot_thread(self, thread_id: str) -> str:
@@ -347,8 +362,7 @@ def create_production_memory_manager(
         >>> # Now uses Pinecone, PostgreSQL, and Voyage AI
     """
     from ..llm.voyage_embedder import create_voyage_embedder
-    from ..storage.postgres_stores import (PostgresEpisodicStore,
-                                           PostgresWorkingMemory)
+    from ..storage.postgres_stores import PostgresEpisodicStore, PostgresWorkingMemory
     from .stores.pinecone_semantic_store import PineconeSemanticStoreAdapter
 
     return MemoryManager(
