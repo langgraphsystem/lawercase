@@ -257,7 +257,8 @@ def _initialize_container(container: Container) -> None:
     """
     from core.groupagents.mega_agent import MegaAgent
     from core.memory.memory_manager import MemoryManager
-    from core.memory.stores.supabase_semantic_store import SupabaseSemanticStore
+    from core.memory.stores.supabase_semantic_store import \
+        SupabaseSemanticStore
     from core.tools.tool_registry import get_tool_registry
 
     logger.info("di.container.initializing_defaults")
