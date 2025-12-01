@@ -2,13 +2,12 @@
 
 from __future__ import annotations
 
-import logging
 from abc import ABC, abstractmethod
 from enum import Enum
+import logging
 from typing import Any
 
-from .context_manager import (ContextBlock, ContextManager, ContextTemplate,
-                              ContextType)
+from .context_manager import ContextBlock, ContextManager, ContextTemplate, ContextType
 
 logger = logging.getLogger(__name__)
 
@@ -22,6 +21,7 @@ class ContextPipelineType(str, Enum):
     SUPERVISOR_AGENT = "supervisor_agent"
     RAG_PIPELINE = "rag_pipeline"
     LEGAL_RESEARCH = "legal_research"
+    EB1A_WORKFLOW = "eb1a_workflow"
     DEFAULT = "default"
 
 
@@ -431,6 +431,180 @@ class SupervisorAgentPipeline(ContextPipeline):
         )
 
 
+class EB1AWorkflowPipeline(ContextPipeline):
+    """Context pipeline for EB-1A Visa workflow."""
+
+    def setup_templates(self) -> None:
+        """Setup EB-1A workflow templates."""
+        template = ContextTemplate(
+            name="eb1a_workflow",
+            description="Context template for EB-1A extraordinary ability visa workflow",
+            template="""You are an EB-1A Visa Workflow Specialist Agent helping process extraordinary ability visa cases.
+
+**Current Task:** {task}
+
+**EB-1A Criteria (must meet 3+ of 10):**
+1. Awards/Prizes - Nationally/internationally recognized awards
+2. Membership - Membership in associations requiring outstanding achievement
+3. Published Material - Published material about the alien in professional publications
+4. Judging - Participation as a judge of others' work
+5. Original Contributions - Original scientific, scholarly, or business contributions
+6. Authorship - Authorship of scholarly articles
+7. Artistic Exhibitions - Display of work at artistic exhibitions
+8. Leading/Critical Role - Leading or critical role in distinguished organizations
+9. High Salary - Commanding a high salary or remuneration
+10. Commercial Success - Commercial successes in the performing arts
+
+**Current Evidence Status:**
+{evidence_summary}
+
+**Applicant Information:**
+{applicant_info}
+
+**Workflow Stage:** {workflow_stage}
+
+**Guidelines:**
+- Evaluate evidence against USCIS criteria rigorously
+- Provide specific suggestions for strengthening weak criteria
+- Maintain objectivity in assessment
+- Document all findings with references
+- Consider precedent decisions (AAO, court cases)
+- Ensure evidence meets "sustained national or international acclaim" standard
+
+{additional_context}""",
+            max_tokens=3000,
+            priority=12,
+            required_fields=["task", "workflow_stage"],
+            optional_fields=["evidence_summary", "applicant_info", "additional_context"],
+            context_type=ContextType.SYSTEM,
+        )
+        self.context_manager.register_template(template)
+
+        # Additional template for evidence analysis
+        evidence_template = ContextTemplate(
+            name="eb1a_evidence_analysis",
+            description="Template for analyzing EB-1A evidence",
+            template="""You are analyzing evidence for EB-1A criterion: {criterion}
+
+**Criterion Description:** {criterion_description}
+
+**Evidence Submitted:**
+{evidence_text}
+
+**Analysis Framework:**
+1. Does evidence demonstrate extraordinary ability?
+2. Is the achievement nationally or internationally recognized?
+3. Does it meet the specific criterion requirements?
+4. How does it compare to peers in the field?
+5. Are there any gaps or weaknesses?
+
+**Previous Assessment:** {previous_assessment}
+
+Provide a thorough analysis with:
+- Strength assessment (1-10)
+- Key supporting points
+- Potential weaknesses
+- Recommendations for strengthening""",
+            max_tokens=2000,
+            priority=11,
+            required_fields=["criterion", "criterion_description", "evidence_text"],
+            optional_fields=["previous_assessment"],
+            context_type=ContextType.TASK,
+        )
+        self.context_manager.register_template(evidence_template)
+
+    def build_context(
+        self,
+        task: str,
+        workflow_stage: str,
+        evidence_summary: str | None = None,
+        applicant_info: dict[str, Any] | None = None,
+        **kwargs: Any,
+    ) -> str:
+        """Build EB-1A workflow context.
+
+        Args:
+            task: Current task description
+            workflow_stage: Current workflow stage (intake, analysis, etc.)
+            evidence_summary: Summary of submitted evidence
+            applicant_info: Applicant details
+            **kwargs: Additional parameters
+
+        Returns:
+            Optimized context string
+        """
+        additional_blocks = []
+
+        # Format applicant info
+        if applicant_info:
+            applicant_content = "\n".join(f"- {k}: {v}" for k, v in applicant_info.items())
+        else:
+            applicant_content = "Not provided"
+
+        # Add RAG context if available
+        if "rag_context" in kwargs:
+            additional_blocks.append(
+                ContextBlock(
+                    content=f"**Relevant Legal References:**\n{kwargs['rag_context']}",
+                    context_type=ContextType.REFERENCE,
+                    priority=8,
+                    source="rag_retrieval",
+                )
+            )
+
+        # Add previous assessments if available
+        if "previous_assessments" in kwargs:
+            assessments = kwargs["previous_assessments"]
+            assessment_text = "\n".join(
+                f"- {a.get('criterion', 'Unknown')}: "
+                f"Score {a.get('score', 'N/A')}/10 - {a.get('summary', 'No summary')}"
+                for a in assessments
+            )
+            additional_blocks.append(
+                ContextBlock(
+                    content=f"**Previous Criterion Assessments:**\n{assessment_text}",
+                    context_type=ContextType.BACKGROUND,
+                    priority=9,
+                    source="assessment_history",
+                )
+            )
+
+        return self.context_manager.build_context(
+            template_name="eb1a_workflow",
+            additional_context=additional_blocks,
+            task=task,
+            workflow_stage=workflow_stage,
+            evidence_summary=evidence_summary or "No evidence submitted yet",
+            applicant_info=applicant_content,
+        )
+
+    def build_evidence_analysis_context(
+        self,
+        criterion: str,
+        criterion_description: str,
+        evidence_text: str,
+        previous_assessment: str | None = None,
+    ) -> str:
+        """Build context for evidence analysis.
+
+        Args:
+            criterion: EB-1A criterion name
+            criterion_description: Description of the criterion
+            evidence_text: Text of the evidence to analyze
+            previous_assessment: Previous assessment if any
+
+        Returns:
+            Optimized context string
+        """
+        return self.context_manager.build_context(
+            template_name="eb1a_evidence_analysis",
+            criterion=criterion,
+            criterion_description=criterion_description,
+            evidence_text=evidence_text,
+            previous_assessment=previous_assessment or "None",
+        )
+
+
 class DefaultPipeline(ContextPipeline):
     """Default context pipeline."""
 
@@ -481,6 +655,7 @@ _PIPELINES: dict[ContextPipelineType, type[ContextPipeline]] = {
     ContextPipelineType.WRITER_AGENT: WriterAgentPipeline,
     ContextPipelineType.VALIDATOR_AGENT: ValidatorAgentPipeline,
     ContextPipelineType.SUPERVISOR_AGENT: SupervisorAgentPipeline,
+    ContextPipelineType.EB1A_WORKFLOW: EB1AWorkflowPipeline,
     ContextPipelineType.DEFAULT: DefaultPipeline,
 }
 
