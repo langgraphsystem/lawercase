@@ -15,8 +15,8 @@ from datetime import datetime
 from enum import Enum
 from typing import Any
 
-import structlog
 from pydantic import BaseModel, Field
+import structlog
 
 from ..memory.memory_manager import MemoryManager
 from ..workflows.eb1a.eb1a_coordinator import EB1ACriterion, EB1AEvidence
@@ -1027,3 +1027,175 @@ class EB1AEvidenceAnalyzer:
         # If critical issues (below minimum)
         criteria_needed = 3 - satisfied_count
         return 90 + (criteria_needed * 30)  # ~3 months + 1 month per missing criterion
+
+
+# =============================================================================
+# Bridge Functions: Intake → EB-1A Analysis
+# =============================================================================
+
+
+async def analyze_intake_for_eb1a(
+    case_id: str,
+    user_id: str,
+    memory_manager: MemoryManager,
+) -> CaseStrengthAnalysis:
+    """
+    Analyze intake questionnaire data for EB-1A criteria satisfaction.
+
+    This bridge function:
+    1. Fetches all semantic memory records for a case
+    2. Maps intake tags to EB-1A criteria
+    3. Converts MemoryRecord to EB1AEvidence format
+    4. Runs the full EB1AEvidenceAnalyzer analysis
+
+    Args:
+        case_id: The case ID to analyze
+        user_id: The user ID (for logging)
+        memory_manager: MemoryManager with SupabaseSemanticStore
+
+    Returns:
+        CaseStrengthAnalysis with overall score, criteria evaluations,
+        and recommendations
+    """
+
+    logger.info(
+        "analyze_intake_for_eb1a.start",
+        case_id=case_id,
+        user_id=user_id,
+    )
+
+    # 1. Fetch all intake records for this case
+    records = await memory_manager.semantic.afetch_by_case_id(case_id)
+
+    if not records:
+        logger.warning("analyze_intake_for_eb1a.no_records", case_id=case_id)
+        return CaseStrengthAnalysis(
+            overall_score=0.0,
+            approval_probability=0.0,
+            risk_level=RiskLevel.CRITICAL,
+            satisfied_criteria_count=0,
+            meets_minimum_criteria=False,
+            risks=["No intake data found for this case"],
+            priority_recommendations=["Complete intake questionnaire first"],
+        )
+
+    logger.info(
+        "analyze_intake_for_eb1a.records_found",
+        case_id=case_id,
+        record_count=len(records),
+    )
+
+    # 2. Map intake tags to EB-1A criteria
+    tag_to_criterion: dict[str, EB1ACriterion] = {
+        # Awards criterion
+        "major_awards": EB1ACriterion.AWARDS,
+        "awards": EB1ACriterion.AWARDS,
+        "achievements": EB1ACriterion.AWARDS,
+        # Membership criterion
+        "associations_memberships": EB1ACriterion.MEMBERSHIP,
+        "memberships": EB1ACriterion.MEMBERSHIP,
+        "professional_associations": EB1ACriterion.MEMBERSHIP,
+        # Press criterion
+        "media_press": EB1ACriterion.PRESS,
+        "press_coverage": EB1ACriterion.PRESS,
+        "publications_about": EB1ACriterion.PRESS,
+        # Judging criterion
+        "expert_roles": EB1ACriterion.JUDGING,
+        "judging": EB1ACriterion.JUDGING,
+        "peer_review": EB1ACriterion.JUDGING,
+        # Original contribution criterion
+        "patents": EB1ACriterion.ORIGINAL_CONTRIBUTION,
+        "projects_research": EB1ACriterion.ORIGINAL_CONTRIBUTION,
+        "innovations": EB1ACriterion.ORIGINAL_CONTRIBUTION,
+        # Scholarly articles criterion
+        "conferences_talks": EB1ACriterion.SCHOLARLY_ARTICLES,
+        "publications": EB1ACriterion.SCHOLARLY_ARTICLES,
+        "scholarly": EB1ACriterion.SCHOLARLY_ARTICLES,
+        # Leading role criterion
+        "leadership": EB1ACriterion.LEADING_ROLE,
+        "career": EB1ACriterion.LEADING_ROLE,
+        "management": EB1ACriterion.LEADING_ROLE,
+        # High salary criterion
+        "salary": EB1ACriterion.HIGH_SALARY,
+        "compensation": EB1ACriterion.HIGH_SALARY,
+        # Commercial success criterion
+        "commercial_products": EB1ACriterion.COMMERCIAL_SUCCESS,
+        "business_success": EB1ACriterion.COMMERCIAL_SUCCESS,
+    }
+
+    # 3. Convert MemoryRecords to EB1AEvidence and group by criterion
+    evidence_by_criterion: dict[EB1ACriterion, list[EB1AEvidence]] = {}
+
+    for record in records:
+        for tag in record.tags:
+            if tag in TAG_TO_CRITERION:
+                criterion = TAG_TO_CRITERION[tag]
+                evidence = _convert_memory_to_evidence(record, criterion)
+                evidence_by_criterion.setdefault(criterion, []).append(evidence)
+
+    logger.info(
+        "analyze_intake_for_eb1a.criteria_mapped",
+        case_id=case_id,
+        criteria_count=len(evidence_by_criterion),
+        criteria=list(evidence_by_criterion.keys()),
+    )
+
+    # 4. Run analysis using EB1AEvidenceAnalyzer
+    analyzer = EB1AEvidenceAnalyzer(memory_manager)
+    analysis = await analyzer.calculate_case_strength(evidence_by_criterion)
+
+    logger.info(
+        "analyze_intake_for_eb1a.complete",
+        case_id=case_id,
+        overall_score=analysis.overall_score,
+        satisfied_criteria=analysis.satisfied_criteria_count,
+        meets_minimum=analysis.meets_minimum_criteria,
+    )
+
+    return analysis
+
+
+def _convert_memory_to_evidence(
+    record: MemoryRecord,
+    criterion: EB1ACriterion,
+) -> EB1AEvidence:
+    """
+    Convert a MemoryRecord from intake to EB1AEvidence format.
+
+    Args:
+        record: The MemoryRecord from semantic memory
+        criterion: The EB-1A criterion this evidence supports
+
+    Returns:
+        EB1AEvidence object for the analyzer
+    """
+    from ..workflows.eb1a.eb1a_coordinator import EvidenceType
+
+    # Determine evidence type based on criterion
+    criterion_to_evidence_type = {
+        EB1ACriterion.AWARDS: EvidenceType.AWARD_CERTIFICATE,
+        EB1ACriterion.MEMBERSHIP: EvidenceType.MEMBERSHIP_LETTER,
+        EB1ACriterion.PRESS: EvidenceType.PRESS_ARTICLE,
+        EB1ACriterion.JUDGING: EvidenceType.RECOMMENDATION_LETTER,
+        EB1ACriterion.ORIGINAL_CONTRIBUTION: EvidenceType.PATENT,
+        EB1ACriterion.SCHOLARLY_ARTICLES: EvidenceType.PUBLICATION,
+        EB1ACriterion.LEADING_ROLE: EvidenceType.EMPLOYMENT_LETTER,
+        EB1ACriterion.HIGH_SALARY: EvidenceType.SALARY_EVIDENCE,
+        EB1ACriterion.COMMERCIAL_SUCCESS: EvidenceType.IMPACT_METRICS,
+        EB1ACriterion.ARTISTIC_EXHIBITION: EvidenceType.IMPACT_METRICS,
+    }
+
+    evidence_type = criterion_to_evidence_type.get(criterion, EvidenceType.IMPACT_METRICS)
+
+    # Create title from tags
+    tags_str = ", ".join(record.tags[:3]) if record.tags else "intake data"
+
+    return EB1AEvidence(
+        criterion=criterion,
+        evidence_type=evidence_type,
+        title=f"Intake: {tags_str}",
+        description=record.text,
+        date=record.created_at,
+        source=record.source or "intake_questionnaire",
+        metadata=record.metadata or {},
+    )

@@ -464,6 +464,139 @@ async def case_list(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         await message.reply_text(f"❌ Exception: {e!s}", parse_mode=None)
 
 
+async def eb1_analyze(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """
+    Analyze EB-1A criteria satisfaction for a case.
+
+    Usage:
+        /eb1_analyze [case_id]   - Analyze specific case or active case
+    """
+    user_id = update.effective_user.id if update.effective_user else None
+    logger.info("telegram.eb1_analyze.received", user_id=user_id)
+
+    bot_context = _bot_context(context)
+    if not await _is_authorized(bot_context, update):
+        logger.warning("telegram.eb1_analyze.unauthorized", user_id=user_id)
+        return
+
+    message = update.effective_message
+
+    # Get case_id from args or active case
+    if context.args:
+        case_id = context.args[0]
+    else:
+        case_id = await bot_context.get_active_case(update)
+        if not case_id:
+            await message.reply_text(
+                "❌ Укажите case_id или выберите активный кейс.\n\n"
+                "Использование:\n"
+                "• `/eb1_analyze <case_id>` — анализ конкретного кейса\n"
+                "• `/case_get <case_id>` — выбрать активный кейс",
+                parse_mode="Markdown",
+            )
+            return
+
+    await message.reply_text(
+        f"🔍 Анализирую критерии EB-1A для кейса `{case_id[:8]}...`\n\n"
+        "Это может занять несколько секунд...",
+        parse_mode="Markdown",
+    )
+
+    try:
+        from core.di.container import get_container
+        from core.groupagents.eb1a_evidence_analyzer import analyze_intake_for_eb1a
+
+        container = get_container()
+        memory = container.get("memory_manager")
+
+        analysis = await analyze_intake_for_eb1a(case_id, str(user_id), memory)
+
+        # Format response
+        response = _format_eb1a_analysis(analysis, case_id)
+        await message.reply_text(response, parse_mode="HTML")
+
+        logger.info(
+            "telegram.eb1_analyze.success",
+            user_id=user_id,
+            case_id=case_id,
+            overall_score=analysis.overall_score,
+            satisfied_criteria=analysis.satisfied_criteria_count,
+        )
+
+    except Exception as e:
+        logger.exception(
+            "telegram.eb1_analyze.exception",
+            user_id=user_id,
+            case_id=case_id,
+            error=str(e),
+        )
+        await message.reply_text(f"❌ Ошибка анализа: {e!s}", parse_mode=None)
+
+
+def _format_eb1a_analysis(analysis: Any, case_id: str) -> str:
+    """Format CaseStrengthAnalysis for Telegram."""
+    # Emoji based on risk level
+    risk_emoji = {
+        "low": "🟢",
+        "moderate": "🟡",
+        "high": "🟠",
+        "critical": "🔴",
+    }
+    risk_display = risk_emoji.get(analysis.risk_level.value, "⚪")
+
+    lines = [
+        "📊 <b>EB-1A Analysis</b>",
+        f"Case: <code>{case_id[:8]}...</code>",
+        "",
+        f"🎯 <b>Overall Score:</b> {analysis.overall_score:.0f}/100",
+        f"📈 <b>Approval Probability:</b> {analysis.approval_probability:.0%}",
+        f"{risk_display} <b>Risk Level:</b> {analysis.risk_level.value.upper()}",
+        "",
+        f"✅ <b>Criteria Met:</b> {analysis.satisfied_criteria_count}/10",
+    ]
+
+    # Minimum criteria check
+    if analysis.meets_minimum_criteria:
+        lines.append("✅ <b>Minimum 3 criteria:</b> MET")
+    else:
+        lines.append("❌ <b>Minimum 3 criteria:</b> NOT MET")
+
+    # Criterion evaluations (if available)
+    if analysis.criterion_evaluations:
+        lines.append("")
+        lines.append("<b>📋 Criteria Breakdown:</b>")
+        for criterion, evaluation in analysis.criterion_evaluations.items():
+            status = "✅" if evaluation.is_satisfied else "❌"
+            score = evaluation.strength_score
+            criterion_name = (
+                criterion.value.split("_", 1)[1].upper()
+                if "_" in criterion.value
+                else criterion.value
+            )
+            lines.append(f"  {status} {criterion_name}: {score:.0f}%")
+
+    # Strengths
+    if analysis.strengths:
+        lines.append("")
+        lines.append("<b>💪 Strengths:</b>")
+        for strength in analysis.strengths[:3]:
+            lines.append(f"  • {strength}")
+
+    # Priority recommendations
+    if analysis.priority_recommendations:
+        lines.append("")
+        lines.append("<b>📝 Recommendations:</b>")
+        for rec in analysis.priority_recommendations[:3]:
+            lines.append(f"  • {rec}")
+
+    # Time estimate
+    if analysis.estimated_days_to_ready:
+        lines.append("")
+        lines.append(f"⏱️ <b>Estimated time to filing:</b> ~{analysis.estimated_days_to_ready} days")
+
+    return "\n".join(lines)
+
+
 async def handle_case_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Handle callback queries from inline buttons in case messages."""
     bot_context = _bot_context(context)
@@ -506,5 +639,6 @@ def get_handlers(bot_context: BotContext):
         CommandHandler("case_get", case_get),
         CommandHandler("case_active", case_active),
         CommandHandler("case_list", case_list),
+        CommandHandler("eb1_analyze", eb1_analyze),
         CallbackQueryHandler(handle_case_callback, pattern="^case_"),
     ]

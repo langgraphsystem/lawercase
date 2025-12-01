@@ -209,6 +209,49 @@ class SupabaseSemanticStore:
             for row in rows
         ]
 
+    async def afetch_by_case_id(self, case_id: str, limit: int = 100) -> list[MemoryRecord]:
+        """Fetch all records for a specific case_id from metadata_json.
+
+        Args:
+            case_id: The case ID to fetch records for
+            limit: Maximum number of records to return
+
+        Returns:
+            List of MemoryRecord objects for this case
+        """
+        stmt = (
+            select(SemanticMemoryDB)
+            .where(SemanticMemoryDB.namespace == self.namespace)
+            .where(SemanticMemoryDB.metadata_json["case_id"].astext == case_id)
+            .order_by(SemanticMemoryDB.created_at.desc())
+            .limit(limit)
+        )
+
+        async with self.db.session() as session:
+            result = await session.execute(stmt)
+            rows = result.scalars().all()
+
+        logger.info(
+            "supabase_semantic_store.afetch_by_case_id",
+            case_id=case_id,
+            records_found=len(rows),
+        )
+
+        return [
+            MemoryRecord(
+                id=str(row.record_id),
+                user_id=row.user_id,
+                case_id=row.metadata_json.get("case_id") if row.metadata_json else None,
+                type=row.type,
+                text=row.text,
+                source=row.source,
+                tags=row.tags,
+                metadata=row.metadata_json,
+                created_at=row.created_at,
+            )
+            for row in rows
+        ]
+
     async def acount(self) -> int:
         """Count records in namespace."""
         stmt = select(func.count()).select_from(
