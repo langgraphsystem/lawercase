@@ -2,20 +2,18 @@
 
 from __future__ import annotations
 
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 import pytest
 
 from core.memory.models import MemoryRecord
-from core.memory.policies.consolidation import (
-    ConsolidationConfig,
-    ConsolidationPolicy,
-    apply_importance_decay,
-    calculate_decay,
-    cosine_similarity,
-    find_semantic_duplicates,
-    merge_duplicate_records,
-)
+from core.memory.policies.consolidation import (ConsolidationConfig,
+                                                ConsolidationPolicy,
+                                                apply_importance_decay,
+                                                calculate_decay,
+                                                cosine_similarity,
+                                                find_semantic_duplicates,
+                                                merge_duplicate_records)
 
 
 class TestCosineSimilarity:
@@ -114,7 +112,7 @@ class TestMergeDuplicates:
 
     def test_merge_keeps_highest_salience(self):
         """Merged record should have highest salience from group."""
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         records = [
             MemoryRecord(
                 id="r1",
@@ -159,20 +157,20 @@ class TestImportanceDecay:
 
     def test_no_decay_for_new_record(self):
         """Recent records should have decay factor ~1.0."""
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         decay = calculate_decay(now, half_life_days=30.0)
         assert decay == pytest.approx(1.0, abs=0.01)
 
     def test_half_decay_at_half_life(self):
         """Record at half-life should have decay ~0.5."""
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         created = now - timedelta(days=30)
         decay = calculate_decay(created, half_life_days=30.0, reference_time=now)
         assert decay == pytest.approx(0.5, abs=0.01)
 
     def test_decay_respects_minimum(self):
         """Very old records should not go below minimum."""
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         very_old = now - timedelta(days=365)
         decay = calculate_decay(
             very_old,
@@ -184,7 +182,7 @@ class TestImportanceDecay:
 
     def test_apply_decay_to_records(self):
         """Should update salience based on age."""
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         records = [
             MemoryRecord(
                 id="r1",
