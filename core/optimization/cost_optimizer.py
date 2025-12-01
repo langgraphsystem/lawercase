@@ -39,12 +39,12 @@ class ModelCost:
 # Default model costs (примерные цены)
 DEFAULT_MODEL_COSTS = {
     "claude-3-opus": ModelCost(
-        model_name="claude-3-opus",
+        model_name="claude-3-opus",  # Maps to Claude Opus 4.5
         tier=ModelTier.ULTRA,
         cost_per_1k_input_tokens=0.015,
         cost_per_1k_output_tokens=0.075,
-        avg_latency_ms=2000,
-        quality_score=0.95,
+        avg_latency_ms=2500,  # Slightly higher for deep reasoning
+        quality_score=0.99,  # Top tier
     ),
     "claude-3-sonnet": ModelCost(
         model_name="claude-3-sonnet",

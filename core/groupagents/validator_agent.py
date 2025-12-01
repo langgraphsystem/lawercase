@@ -19,6 +19,7 @@ from typing import Any
 
 from pydantic import BaseModel, Field
 
+from ..llm_interface.intelligent_router import IntelligentRouter, LLMRequest
 from ..memory.memory_manager import MemoryManager
 from ..memory.models import AuditEvent
 from .models import ValidationResult
@@ -62,6 +63,7 @@ class ValidationRuleType(str, Enum):
     FORMAT = "format"
     STRUCTURE = "structure"
     LOGIC = "logic"
+    SEMANTIC = "semantic"
 
 
 class ValidationRule(_ValidatorBaseModel):
@@ -159,14 +161,20 @@ class ValidatorAgent:
     - Интеграция с workflow
     """
 
-    def __init__(self, memory_manager: MemoryManager | None = None):
+    def __init__(
+        self,
+        memory_manager: MemoryManager | None = None,
+        llm_router: IntelligentRouter | None = None,
+    ):
         """
         Инициализация ValidatorAgent.
 
         Args:
             memory_manager: Менеджер памяти для persistence
+            llm_router: Роутер для доступа к LLM (Claude Opus 4.5)
         """
         self.memory = memory_manager or MemoryManager()
+        self.llm_router = llm_router
 
         # Хранилища
         self._validation_rules: dict[str, ValidationRule] = {}
@@ -429,6 +437,8 @@ class ValidatorAgent:
                 issues.extend(self._check_structure(content, rule))
             elif rule.rule_type == ValidationRuleType.LOGIC:
                 issues.extend(self._check_logic(content, rule))
+            elif rule.rule_type == ValidationRuleType.SEMANTIC:
+                issues.extend(await self._check_semantic(content, rule))
 
         except Exception as e:
             # Логирование ошибки правила но продолжение валидации
@@ -573,6 +583,64 @@ class ValidatorAgent:
 
         return issues
 
+    async def _check_semantic(self, content: str, rule: ValidationRule) -> list[ValidationIssue]:
+        """Семантическая проверка с помощью LLM (Claude Opus 4.5)"""
+        if not self.llm_router:
+            # Fallback if no LLM available
+            return []
+
+        issues = []
+        import json
+
+        prompt = (
+            f"You are an expert legal document validator (using Claude Opus 4.5 logic). "
+            f"Analyze the following text against this specific rule:\n\n"
+            f"RULE: {rule.name}\n"
+            f"DESCRIPTION: {rule.message}\n"
+            f"CATEGORY: {rule.category.value}\n\n"
+            f"TEXT TO ANALYZE:\n{content[:4000]}...\n\n"  # Truncate if too long, though Opus handles 200k
+            f"Return a JSON object with these fields:\n"
+            f"- is_valid (bool): true if the rule is satisfied\n"
+            f"- issue (string): description of the violation if any, else null\n"
+            f"- suggestion (string): how to fix it, else null\n"
+            f"- severity (string): 'error' or 'warning'\n"
+        )
+
+        try:
+            request = LLMRequest(
+                prompt=prompt,
+                temperature=0.0,
+                task_complexity="ultra",  # Requesting Claude Opus 4.5 tier
+                metadata={"preferred_model": "claude-3-opus", "agent": "ValidatorAgent"},
+            )
+
+            response = await self.llm_router.acomplete(request)
+            response_text = response.get("response", "")
+
+            # Simple JSON extraction
+            start = response_text.find("{")
+            end = response_text.rfind("}")
+            if start != -1 and end != -1:
+                json_str = response_text[start : end + 1]
+                data = json.loads(json_str)
+
+                if not data.get("is_valid", True):
+                    issues.append(
+                        ValidationIssue(
+                            rule_id=rule.rule_id,
+                            category=rule.category,
+                            severity=data.get("severity", rule.severity),
+                            message=data.get("issue") or rule.message,
+                            suggestion=data.get("suggestion"),
+                            auto_fixable=False,
+                        )
+                    )
+        except Exception as e:
+            # Log but don't crash validation
+            print(f"Semantic validation failed: {e}")
+
+        return issues
+
     async def _perform_magcc_assessment(self, request: ValidationRequest) -> MAGCCAssessment:
         """Выполнение MAGCC quality assessment"""
 
@@ -712,6 +780,21 @@ class ValidatorAgent:
                 "rule_type": ValidationRuleType.LOGIC,
                 "severity": "warning",
                 "message": "Document should have coherent structure",
+            },
+            # Семантические правила (LLM)
+            {
+                "name": "Legal Consistency Check",
+                "category": ValidationCategory.LEGAL,
+                "rule_type": ValidationRuleType.SEMANTIC,
+                "severity": "error",
+                "message": "Ensure there are no logical contradictions or factual inconsistencies in the legal arguments.",
+            },
+            {
+                "name": "Professional Tone",
+                "category": ValidationCategory.LINGUISTIC,
+                "rule_type": ValidationRuleType.SEMANTIC,
+                "severity": "warning",
+                "message": "Ensure the tone is professional, objective, and suitable for a USCIS petition.",
             },
         ]
 
