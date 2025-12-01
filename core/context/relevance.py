@@ -1,13 +1,59 @@
-"""Context relevance scoring utilities."""
+"""Context relevance scoring utilities.
+
+This module provides:
+- Keyword-based relevance scoring
+- Embedding-based semantic similarity
+- Recency and importance weighting
+- Context ranking and filtering
+"""
 
 from __future__ import annotations
 
+from dataclasses import dataclass, field
+from datetime import UTC, datetime
 import logging
 import re
-from dataclasses import dataclass
-from typing import Any
+from typing import TYPE_CHECKING, Any, Protocol
+
+import numpy as np
+
+if TYPE_CHECKING:
+    pass
 
 logger = logging.getLogger(__name__)
+
+
+class Embedder(Protocol):
+    """Protocol for embedding providers."""
+
+    async def aembed(self, texts: list[str]) -> list[list[float]]:  # pragma: no cover
+        ...
+
+
+def cosine_similarity(vec1: list[float], vec2: list[float]) -> float:
+    """Calculate cosine similarity between two vectors.
+
+    Args:
+        vec1: First embedding vector
+        vec2: Second embedding vector
+
+    Returns:
+        Cosine similarity score between 0.0 and 1.0
+    """
+    if not vec1 or not vec2 or len(vec1) != len(vec2):
+        return 0.0
+
+    a = np.array(vec1)
+    b = np.array(vec2)
+
+    dot_product = np.dot(a, b)
+    norm_a = np.linalg.norm(a)
+    norm_b = np.linalg.norm(b)
+
+    if norm_a == 0 or norm_b == 0:
+        return 0.0
+
+    return float(dot_product / (norm_a * norm_b))
 
 
 @dataclass
@@ -19,6 +65,7 @@ class RelevanceMetrics:
     recency_score: float = 0.0  # How recent is the information
     importance_score: float = 0.0  # Explicit importance marking
     overall_score: float = 0.0  # Combined score
+    embedding: list[float] = field(default_factory=list)  # Cached embedding
 
     def calculate_overall(self, weights: dict[str, float] | None = None) -> float:
         """Calculate weighted overall score.
@@ -31,27 +78,49 @@ class RelevanceMetrics:
         """
         if weights is None:
             weights = {
-                "keyword": 0.3,
-                "semantic": 0.3,
-                "recency": 0.2,
-                "importance": 0.2,
+                "keyword": 0.25,
+                "semantic": 0.40,  # Higher weight for semantic in production
+                "recency": 0.20,
+                "importance": 0.15,
             }
 
         self.overall_score = (
-            self.keyword_score * weights.get("keyword", 0.3)
-            + self.semantic_score * weights.get("semantic", 0.3)
-            + self.recency_score * weights.get("recency", 0.2)
-            + self.importance_score * weights.get("importance", 0.2)
+            self.keyword_score * weights.get("keyword", 0.25)
+            + self.semantic_score * weights.get("semantic", 0.40)
+            + self.recency_score * weights.get("recency", 0.20)
+            + self.importance_score * weights.get("importance", 0.15)
         )
 
         return self.overall_score
 
 
 class ContextRelevanceScorer:
-    """Scores context relevance for adaptive selection."""
+    """Scores context relevance for adaptive selection.
 
-    def __init__(self) -> None:
-        """Initialize relevance scorer."""
+    Supports:
+    - Keyword overlap scoring (Jaccard similarity)
+    - Embedding-based semantic similarity
+    - Recency-based scoring with exponential decay
+    - Importance weighting from metadata
+    """
+
+    def __init__(
+        self,
+        embedder: Embedder | None = None,
+        weights: dict[str, float] | None = None,
+        recency_half_life_hours: float = 24.0,
+    ) -> None:
+        """Initialize relevance scorer.
+
+        Args:
+            embedder: Optional embedder for semantic similarity
+            weights: Custom weights for scoring components
+            recency_half_life_hours: Hours for recency score to halve
+        """
+        self.embedder = embedder
+        self.weights = weights
+        self.recency_half_life_hours = recency_half_life_hours
+        self._embedding_cache: dict[str, list[float]] = {}
         logger.info("ContextRelevanceScorer initialized")
 
     def score_relevance(
@@ -82,12 +151,17 @@ class ContextRelevanceScorer:
         if metadata and "timestamp" in metadata:
             metrics.recency_score = self._recency_score(metadata["timestamp"])
 
-        # Importance score (if priority in metadata)
-        if metadata and "priority" in metadata:
-            metrics.importance_score = min(1.0, metadata["priority"] / 10.0)
+        # Importance score (from priority, salience, or importance in metadata)
+        if metadata:
+            if "priority" in metadata:
+                metrics.importance_score = min(1.0, metadata["priority"] / 10.0)
+            elif "salience" in metadata:
+                metrics.importance_score = float(metadata["salience"])
+            elif "importance" in metadata:
+                metrics.importance_score = float(metadata["importance"])
 
         # Calculate overall
-        metrics.calculate_overall()
+        metrics.calculate_overall(self.weights)
 
         return metrics
 
@@ -186,17 +260,189 @@ class ContextRelevanceScorer:
         return min(1.0, score)
 
     def _recency_score(self, timestamp: Any) -> float:
-        """Calculate recency score.
+        """Calculate recency score using exponential decay.
 
         Args:
-            timestamp: Timestamp (datetime or other)
+            timestamp: Timestamp (datetime, str, or float)
 
         Returns:
             Score between 0.0 and 1.0 (1.0 = most recent)
         """
-        # Simplified: in production, calculate based on actual time difference
-        # For now, return default
-        return 0.7
+        now = datetime.now(UTC)
+
+        # Parse timestamp
+        if isinstance(timestamp, datetime):
+            ts = timestamp
+            if ts.tzinfo is None:
+                ts = ts.replace(tzinfo=UTC)
+        elif isinstance(timestamp, str):
+            try:
+                ts = datetime.fromisoformat(timestamp.replace("Z", "+00:00"))
+            except ValueError:
+                return 0.5  # Default if unparseable
+        elif isinstance(timestamp, int | float):
+            ts = datetime.fromtimestamp(timestamp, tz=UTC)
+        else:
+            return 0.5  # Default for unknown types
+
+        # Calculate age in hours
+        age_hours = (now - ts).total_seconds() / 3600.0
+
+        if age_hours <= 0:
+            return 1.0
+
+        # Exponential decay
+        import math
+
+        decay = math.pow(0.5, age_hours / self.recency_half_life_hours)
+
+        return max(0.1, decay)  # Floor at 0.1
+
+    async def ascore_relevance(
+        self,
+        context: str,
+        query: str,
+        metadata: dict[str, Any] | None = None,
+        query_embedding: list[float] | None = None,
+    ) -> RelevanceMetrics:
+        """Async score relevance with embedding-based semantic similarity.
+
+        Args:
+            context: Context text to score
+            query: Query/task to compare against
+            metadata: Optional metadata (timestamp, priority, embedding)
+            query_embedding: Pre-computed query embedding
+
+        Returns:
+            RelevanceMetrics with scores
+        """
+        metrics = RelevanceMetrics()
+
+        # Keyword score (sync)
+        metrics.keyword_score = self._keyword_overlap_score(context, query)
+
+        # Semantic score with embeddings
+        if self.embedder:
+            metrics.semantic_score = await self._embedding_semantic_score(
+                context, query, metadata, query_embedding
+            )
+        else:
+            metrics.semantic_score = self._simple_semantic_score(context, query)
+
+        # Recency score
+        if metadata and "timestamp" in metadata:
+            metrics.recency_score = self._recency_score(metadata["timestamp"])
+
+        # Importance score
+        if metadata:
+            if "priority" in metadata:
+                metrics.importance_score = min(1.0, metadata["priority"] / 10.0)
+            elif "salience" in metadata:
+                metrics.importance_score = float(metadata["salience"])
+            elif "importance" in metadata:
+                metrics.importance_score = float(metadata["importance"])
+
+        # Calculate overall
+        metrics.calculate_overall(self.weights)
+
+        return metrics
+
+    async def _embedding_semantic_score(
+        self,
+        context: str,
+        query: str,
+        metadata: dict[str, Any] | None = None,
+        query_embedding: list[float] | None = None,
+    ) -> float:
+        """Calculate semantic similarity using embeddings.
+
+        Args:
+            context: Context text
+            query: Query text
+            metadata: Optional metadata containing pre-computed embedding
+            query_embedding: Pre-computed query embedding
+
+        Returns:
+            Cosine similarity score between 0.0 and 1.0
+        """
+        if not self.embedder:
+            return self._simple_semantic_score(context, query)
+
+        # Get context embedding (from metadata cache or compute)
+        context_embedding: list[float] = []
+        if metadata and "embedding" in metadata:
+            context_embedding = metadata["embedding"]
+        elif context in self._embedding_cache:
+            context_embedding = self._embedding_cache[context]
+        else:
+            try:
+                embeddings = await self.embedder.aembed([context])
+                if embeddings and embeddings[0]:
+                    context_embedding = embeddings[0]
+                    # Cache for future use
+                    self._embedding_cache[context] = context_embedding
+            except Exception as e:
+                logger.warning(f"Failed to compute context embedding: {e}")
+                return self._simple_semantic_score(context, query)
+
+        # Get query embedding
+        if query_embedding is None:
+            if query in self._embedding_cache:
+                query_embedding = self._embedding_cache[query]
+            else:
+                try:
+                    embeddings = await self.embedder.aembed([query])
+                    if embeddings and embeddings[0]:
+                        query_embedding = embeddings[0]
+                        self._embedding_cache[query] = query_embedding
+                except Exception as e:
+                    logger.warning(f"Failed to compute query embedding: {e}")
+                    return self._simple_semantic_score(context, query)
+
+        if not context_embedding or not query_embedding:
+            return self._simple_semantic_score(context, query)
+
+        similarity = cosine_similarity(context_embedding, query_embedding)
+        logger.debug(f"Embedding similarity: {similarity:.3f}")
+
+        return similarity
+
+    async def arank_contexts(
+        self,
+        contexts: list[tuple[str, dict[str, Any]]],
+        query: str,
+    ) -> list[tuple[str, RelevanceMetrics]]:
+        """Async rank multiple contexts by relevance with embeddings.
+
+        Args:
+            contexts: List of (context_text, metadata) tuples
+            query: Query to compare against
+
+        Returns:
+            Sorted list of (context, metrics) tuples (highest score first)
+        """
+        # Pre-compute query embedding once
+        query_embedding: list[float] | None = None
+        if self.embedder:
+            try:
+                embeddings = await self.embedder.aembed([query])
+                if embeddings and embeddings[0]:
+                    query_embedding = embeddings[0]
+            except Exception as e:
+                logger.warning(f"Failed to compute query embedding: {e}")
+
+        scored_contexts: list[tuple[str, RelevanceMetrics]] = []
+
+        for context, metadata in contexts:
+            metrics = await self.ascore_relevance(context, query, metadata, query_embedding)
+            scored_contexts.append((context, metrics))
+
+        # Sort by overall score (descending)
+        scored_contexts.sort(key=lambda x: x[1].overall_score, reverse=True)
+
+        logger.debug(f"Ranked {len(scored_contexts)} contexts with embeddings")
+
+        return scored_contexts
 
     def rank_contexts(
         self,
