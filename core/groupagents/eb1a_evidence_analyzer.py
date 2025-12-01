@@ -1477,8 +1477,8 @@ async def analyze_intake_for_eb1a(
 
     for record in records:
         for tag in record.tags:
-            if tag in TAG_TO_CRITERION:
-                criterion = TAG_TO_CRITERION[tag]
+            if tag in tag_to_criterion:
+                criterion = tag_to_criterion[tag]
                 evidence = _convert_memory_to_evidence(record, criterion)
                 evidence_by_criterion.setdefault(criterion, []).append(evidence)
 
