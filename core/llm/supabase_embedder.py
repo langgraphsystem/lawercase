@@ -85,7 +85,32 @@ class SupabaseEmbedder:
         """Generate embeddings for document chunks."""
         if not texts:
             return []
-        return await self._create_embeddings({"input": texts, "model": self.model})
+        # Preprocess texts: clean and truncate
+        cleaned_texts = [self._preprocess_text(t) for t in texts]
+        # Filter out empty texts after cleaning
+        cleaned_texts = [t if t else " " for t in cleaned_texts]
+        return await self._create_embeddings({"input": cleaned_texts, "model": self.model})
+
+    def _preprocess_text(self, text: str, max_chars: int = 8000) -> str:
+        """Clean and truncate text for embedding API.
+
+        Args:
+            text: Input text
+            max_chars: Max characters (8191 tokens ~ 32k chars, use 8k to be safe)
+
+        Returns:
+            Cleaned and truncated text
+        """
+        if not text:
+            return ""
+        # Remove null bytes and other control characters
+        text = text.replace("\x00", "").replace("\ufffd", "")
+        # Remove excessive whitespace
+        text = " ".join(text.split())
+        # Truncate to max length
+        if len(text) > max_chars:
+            text = text[:max_chars]
+        return text
 
     async def aembed_query(self, text: str) -> list[float]:
         """Generate embedding for a single query string."""
