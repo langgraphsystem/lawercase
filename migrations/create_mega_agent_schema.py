@@ -239,6 +239,39 @@ def create_schema_and_tables():
         )
         print("✅ Intake answers indexes created")
 
+        # 9. Create case_intake_progress table
+        print("\n📦 Creating case_intake_progress table...")
+        cur.execute(
+            """
+            CREATE TABLE IF NOT EXISTS mega_agent.case_intake_progress (
+                user_id VARCHAR(255) NOT NULL,
+                case_id VARCHAR(255) NOT NULL,
+                current_block VARCHAR(100) NOT NULL,
+                current_step INTEGER NOT NULL DEFAULT 0,
+                completed_blocks TEXT[] DEFAULT ARRAY[]::TEXT[],
+                updated_at TIMESTAMPTZ DEFAULT NOW(),
+                PRIMARY KEY (user_id, case_id),
+                CONSTRAINT intake_user_id_not_empty CHECK (length(user_id) > 0),
+                CONSTRAINT intake_case_id_not_empty CHECK (length(case_id) > 0),
+                CONSTRAINT intake_current_block_not_empty CHECK (length(current_block) > 0),
+                CONSTRAINT intake_current_step_non_negative CHECK (current_step >= 0)
+            )
+        """
+        )
+        print("✅ mega_agent.case_intake_progress created")
+
+        # Create indexes for case_intake_progress
+        cur.execute(
+            "CREATE INDEX IF NOT EXISTS idx_case_intake_user ON mega_agent.case_intake_progress(user_id)"
+        )
+        cur.execute(
+            "CREATE INDEX IF NOT EXISTS idx_case_intake_case ON mega_agent.case_intake_progress(case_id)"
+        )
+        cur.execute(
+            "CREATE INDEX IF NOT EXISTS idx_case_intake_updated ON mega_agent.case_intake_progress(updated_at)"
+        )
+        print("✅ Case intake progress indexes created")
+
         # Verify all tables exist
         print("\n🔍 Verifying created tables...")
         cur.execute(
@@ -252,6 +285,7 @@ def create_schema_and_tables():
         print(f"✅ Tables in mega_agent schema: {tables}")
 
         expected_tables = [
+            "case_intake_progress",
             "cases",
             "documents",
             "episodic_memory",
