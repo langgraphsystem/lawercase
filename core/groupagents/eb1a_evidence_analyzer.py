@@ -13,13 +13,16 @@ from __future__ import annotations
 
 from datetime import datetime
 from enum import Enum
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import structlog
 from pydantic import BaseModel, Field
 
 from ..memory.memory_manager import MemoryManager
 from ..workflows.eb1a.eb1a_coordinator import EB1ACriterion, EB1AEvidence
+
+if TYPE_CHECKING:
+    from ..memory.models import MemoryRecord
 
 logger = structlog.get_logger(__name__)
 
@@ -1844,3 +1847,345 @@ def _generate_basic_feedback(analysis: CaseStrengthAnalysis) -> str:
             lines.append(f"• {risk}")
 
     return "\n".join(lines)
+
+
+# =============================================================================
+# BATCH POTENTIAL ANALYSIS (Single LLM Call)
+# =============================================================================
+
+# Prompt for batch EB-1A potential assessment
+BATCH_POTENTIAL_PROMPT = """You are an experienced EB-1A immigration attorney assessing a potential case.
+
+Based on the client's intake questionnaire answers, provide a PRELIMINARY POTENTIAL assessment.
+This is NOT an evaluation of documents - the client has only answered questions about their background.
+
+## EB-1A Criteria (need 3 of 10):
+1. AWARDS - Nationally/internationally recognized awards
+2. MEMBERSHIP - Membership in associations requiring outstanding achievement
+3. PRESS - Published material about the person in professional/major media
+4. JUDGING - Participation as judge of others' work in the field
+5. ORIGINAL_CONTRIBUTION - Original scientific/scholarly/business contributions
+6. SCHOLARLY_ARTICLES - Authorship of scholarly articles
+7. LEADING_ROLE - Critical/leading role in distinguished organizations
+8. HIGH_SALARY - High salary or remuneration
+9. COMMERCIAL_SUCCESS - Commercial success in performing arts
+10. ARTISTIC_EXHIBITION - Display of work at artistic exhibitions
+
+## CLIENT'S INTAKE DATA BY CRITERION:
+{criteria_data}
+
+## TASK:
+Analyze the client's CLAIMS (not documents!) and provide:
+1. Potential score for each mentioned criterion (0-100)
+2. Overall potential score (0-100)
+3. Which criteria have the STRONGEST potential based on claims
+4. Which criteria need MORE information to assess
+5. Specific actionable advice to strengthen the case
+
+Respond in JSON format:
+{{
+  "overall_potential_score": <0-100>,
+  "potential_criteria_count": <number of criteria with score >= 60>,
+  "criteria_assessments": {{
+    "<criterion_name>": {{
+      "potential_score": <0-100>,
+      "has_potential": <true/false>,
+      "evidence_strength": "<weak|moderate|strong>",
+      "key_claims": ["<claim1>", "<claim2>"],
+      "missing_info": ["<what's needed>"],
+      "advice": "<specific advice>"
+    }}
+  }},
+  "strongest_criteria": ["<criterion1>", "<criterion2>"],
+  "weakest_criteria": ["<criterion1>", "<criterion2>"],
+  "overall_assessment": "<1-2 sentence summary>",
+  "priority_actions": ["<action1>", "<action2>", "<action3>"],
+  "risk_level": "<low|moderate|high|critical>",
+  "recommendation": "<1-2 sentence recommendation for next steps>"
+}}
+
+Be realistic but encouraging. Focus on POTENTIAL based on claims, not definitive evaluation.
+If claims suggest strong potential, explain why. If claims are vague, ask for specifics.
+"""
+
+
+class IntakePotentialResult(BaseModel):
+    """Result of batch intake potential analysis."""
+
+    overall_potential_score: float = Field(
+        ge=0.0, le=100.0, description="Overall potential score (0-100)"
+    )
+    potential_criteria_count: int = Field(
+        ge=0, description="Number of criteria with potential >= 60"
+    )
+    criteria_assessments: dict[str, dict[str, Any]] = Field(
+        default_factory=dict, description="Assessment per criterion"
+    )
+    strongest_criteria: list[str] = Field(
+        default_factory=list, description="Criteria with strongest potential"
+    )
+    weakest_criteria: list[str] = Field(
+        default_factory=list, description="Criteria needing improvement"
+    )
+    overall_assessment: str = Field(default="", description="1-2 sentence summary")
+    priority_actions: list[str] = Field(
+        default_factory=list, description="Priority actions to take"
+    )
+    risk_level: str = Field(default="moderate", description="Risk level")
+    recommendation: str = Field(default="", description="Next steps recommendation")
+
+    # Metadata
+    llm_call_count: int = Field(default=1, description="Number of LLM calls made")
+    analyzed_at: datetime = Field(default_factory=datetime.utcnow)
+
+
+async def analyze_intake_potential_batch(
+    case_id: str,
+    user_id: str,
+    memory_manager: MemoryManager,
+) -> IntakePotentialResult:
+    """
+    Analyze intake questionnaire for EB-1A POTENTIAL using SINGLE LLM call.
+
+    This is a batch analysis that:
+    1. Fetches all intake records for the case
+    2. Groups them by EB-1A criteria
+    3. Makes ONE LLM call with all data
+    4. Returns complete potential assessment
+
+    Unlike analyze_intake_for_eb1a() which makes many LLM calls,
+    this function is optimized for speed and cost.
+
+    Args:
+        case_id: The case ID to analyze
+        user_id: The user ID
+        memory_manager: MemoryManager with semantic store
+
+    Returns:
+        IntakePotentialResult with complete potential assessment
+    """
+    logger.info(
+        "analyze_intake_potential_batch.start",
+        case_id=case_id,
+        user_id=user_id,
+    )
+
+    # 1. Fetch all intake records for this case
+    records = await memory_manager.semantic.afetch_by_case_id(case_id)
+
+    if not records:
+        logger.warning("analyze_intake_potential_batch.no_records", case_id=case_id)
+        return IntakePotentialResult(
+            overall_potential_score=0.0,
+            potential_criteria_count=0,
+            overall_assessment="No intake data found. Please complete the questionnaire first.",
+            priority_actions=["Complete intake questionnaire with /intake_start"],
+            risk_level="critical",
+            recommendation="Start by completing the intake questionnaire.",
+        )
+
+    logger.info(
+        "analyze_intake_potential_batch.records_found",
+        case_id=case_id,
+        record_count=len(records),
+    )
+
+    # 2. Map tags to criteria (same as analyze_intake_for_eb1a)
+    tag_to_criterion: dict[str, str] = {
+        # CRITERION 2.1: AWARDS
+        "major_awards": "AWARDS",
+        "awards": "AWARDS",
+        "competitions": "AWARDS",
+        "grants_scholarships": "AWARDS",
+        "school_olympiads": "AWARDS",
+        "university_awards": "AWARDS",
+        # CRITERION 2.2: MEMBERSHIP
+        "associations_memberships": "MEMBERSHIP",
+        "memberships": "MEMBERSHIP",
+        "professional_associations": "MEMBERSHIP",
+        "university_organizations": "MEMBERSHIP",
+        # CRITERION 2.3: PRESS
+        "media_press": "PRESS",
+        "press_coverage": "PRESS",
+        "publications_about": "PRESS",
+        "media": "PRESS",
+        "press": "PRESS",
+        # CRITERION 2.4: JUDGING
+        "expert_roles": "JUDGING",
+        "judging": "JUDGING",
+        "peer_review": "JUDGING",
+        "mentorship_teaching": "JUDGING",
+        # CRITERION 2.5: ORIGINAL CONTRIBUTION
+        "patents": "ORIGINAL_CONTRIBUTION",
+        "projects_research": "ORIGINAL_CONTRIBUTION",
+        "innovations": "ORIGINAL_CONTRIBUTION",
+        "research": "ORIGINAL_CONTRIBUTION",
+        "university_research": "ORIGINAL_CONTRIBUTION",
+        "university_thesis": "ORIGINAL_CONTRIBUTION",
+        "open_source": "ORIGINAL_CONTRIBUTION",
+        "career_key_projects": "ORIGINAL_CONTRIBUTION",
+        # CRITERION 2.6: SCHOLARLY ARTICLES
+        "conferences_talks": "SCHOLARLY_ARTICLES",
+        "publications": "SCHOLARLY_ARTICLES",
+        "scholarly": "SCHOLARLY_ARTICLES",
+        "metrics": "SCHOLARLY_ARTICLES",
+        "talks_public_activity": "SCHOLARLY_ARTICLES",
+        # CRITERION 2.7: LEADING ROLE
+        "leadership": "LEADING_ROLE",
+        "career": "LEADING_ROLE",
+        "management": "LEADING_ROLE",
+        "career_critical_role": "LEADING_ROLE",
+        "career_positions": "LEADING_ROLE",
+        "career_team_size": "LEADING_ROLE",
+        "school_roles": "LEADING_ROLE",
+        # CRITERION 2.8: HIGH SALARY
+        "salary": "HIGH_SALARY",
+        "compensation": "HIGH_SALARY",
+        "career_high_salary": "HIGH_SALARY",
+        # CRITERION 2.9: COMMERCIAL SUCCESS
+        "commercial_products": "COMMERCIAL_SUCCESS",
+        "business_success": "COMMERCIAL_SUCCESS",
+        "career_achievements_metrics": "COMMERCIAL_SUCCESS",
+        # SPECIAL TAGS
+        "achievements": "AWARDS",
+        "eb1a_criterion": "LEADING_ROLE",
+    }
+
+    # 3. Group records by criterion
+    criteria_data: dict[str, list[str]] = {}
+    for record in records:
+        criterion_found = False
+        for tag in record.tags:
+            if tag in tag_to_criterion:
+                criterion_name = tag_to_criterion[tag]
+                if criterion_name not in criteria_data:
+                    criteria_data[criterion_name] = []
+                # Add text if not duplicate
+                if record.text not in criteria_data[criterion_name]:
+                    criteria_data[criterion_name].append(record.text)
+                criterion_found = True
+                break  # Only assign to first matching criterion
+
+        # If no criterion matched, put in general bucket
+        if not criterion_found and record.text:
+            if "GENERAL" not in criteria_data:
+                criteria_data["GENERAL"] = []
+            if record.text not in criteria_data["GENERAL"]:
+                criteria_data["GENERAL"].append(record.text)
+
+    logger.info(
+        "analyze_intake_potential_batch.criteria_grouped",
+        case_id=case_id,
+        criteria_count=len(criteria_data),
+        criteria=list(criteria_data.keys()),
+    )
+
+    # 4. Format data for LLM prompt
+    criteria_text_parts = []
+    for criterion, texts in criteria_data.items():
+        criteria_text_parts.append(f"\n### {criterion}:")
+        for i, text in enumerate(texts[:10], 1):  # Limit to 10 items per criterion
+            # Truncate long texts
+            truncated = text[:500] + "..." if len(text) > 500 else text
+            criteria_text_parts.append(f"  {i}. {truncated}")
+
+    criteria_text = "\n".join(criteria_text_parts)
+
+    # 5. Make SINGLE LLM call
+    try:
+        from ..llm_interface.openai_client import OpenAIClient
+
+        llm_client = OpenAIClient(
+            model="gpt-5.1",
+            reasoning_effort="low",  # Fast analysis
+            max_tokens=2000,
+        )
+
+        prompt = BATCH_POTENTIAL_PROMPT.format(criteria_data=criteria_text)
+        result = await llm_client.acomplete(prompt)
+        output = result.get("output", "")
+
+        logger.info(
+            "analyze_intake_potential_batch.llm_complete",
+            case_id=case_id,
+            output_length=len(output),
+        )
+
+        # 6. Parse JSON response
+        import json
+        import re
+
+        # Extract JSON from response (handle markdown code blocks)
+        json_match = re.search(r"```(?:json)?\s*([\s\S]*?)```", output)
+        if json_match:
+            json_str = json_match.group(1).strip()
+        else:
+            # Try to find raw JSON
+            json_match = re.search(r"\{[\s\S]*\}", output)
+            json_str = json_match.group(0) if json_match else "{}"
+
+        try:
+            parsed = json.loads(json_str)
+        except json.JSONDecodeError:
+            logger.warning(
+                "analyze_intake_potential_batch.json_parse_failed",
+                case_id=case_id,
+                output=output[:200],
+            )
+            parsed = {}
+
+        # 7. Build result
+        return IntakePotentialResult(
+            overall_potential_score=parsed.get("overall_potential_score", 50.0),
+            potential_criteria_count=parsed.get("potential_criteria_count", 0),
+            criteria_assessments=parsed.get("criteria_assessments", {}),
+            strongest_criteria=parsed.get("strongest_criteria", []),
+            weakest_criteria=parsed.get("weakest_criteria", []),
+            overall_assessment=parsed.get("overall_assessment", "Analysis complete."),
+            priority_actions=parsed.get("priority_actions", []),
+            risk_level=parsed.get("risk_level", "moderate"),
+            recommendation=parsed.get("recommendation", "Continue with document collection."),
+            llm_call_count=1,
+        )
+
+    except Exception as e:
+        logger.exception(
+            "analyze_intake_potential_batch.error",
+            case_id=case_id,
+            error=str(e),
+        )
+        # Fallback to heuristic assessment
+        return _fallback_potential_assessment(criteria_data, case_id)
+
+
+def _fallback_potential_assessment(
+    criteria_data: dict[str, list[str]],
+    case_id: str,
+) -> IntakePotentialResult:
+    """Fallback heuristic assessment when LLM fails."""
+    criteria_count = len([c for c in criteria_data if c != "GENERAL"])
+    avg_items = sum(len(v) for v in criteria_data.values()) / max(len(criteria_data), 1)
+
+    # Simple scoring based on coverage
+    base_score = min(100, criteria_count * 12 + avg_items * 3)
+
+    return IntakePotentialResult(
+        overall_potential_score=base_score,
+        potential_criteria_count=criteria_count,
+        criteria_assessments={
+            c: {"potential_score": 50, "has_potential": len(v) >= 2}
+            for c, v in criteria_data.items()
+            if c != "GENERAL"
+        },
+        strongest_criteria=list(criteria_data.keys())[:3],
+        weakest_criteria=[],
+        overall_assessment=f"Found data for {criteria_count} criteria. More details needed for accurate assessment.",
+        priority_actions=[
+            "Provide more specific details about achievements",
+            "Quantify impact where possible",
+            "Gather supporting documents",
+        ],
+        risk_level="moderate" if criteria_count >= 3 else "high",
+        recommendation="Complete document gathering to confirm potential.",
+        llm_call_count=0,
+    )

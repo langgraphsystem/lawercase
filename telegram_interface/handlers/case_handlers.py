@@ -464,6 +464,138 @@ async def case_list(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         await message.reply_text(f"❌ Exception: {e!s}", parse_mode=None)
 
 
+async def eb1_potential(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """
+    Batch EB-1A POTENTIAL assessment from intake data (single LLM call).
+
+    This provides a preliminary assessment based on questionnaire answers,
+    NOT an evaluation of actual documents.
+
+    Usage:
+        /eb1_potential [case_id]   - Assess potential for specific case or active case
+    """
+    user_id = update.effective_user.id if update.effective_user else None
+    logger.info("telegram.eb1_potential.received", user_id=user_id)
+
+    bot_context = _bot_context(context)
+    if not await _is_authorized(bot_context, update):
+        logger.warning("telegram.eb1_potential.unauthorized", user_id=user_id)
+        return
+
+    message = update.effective_message
+
+    # Get case_id from args or active case
+    if context.args:
+        case_id = context.args[0]
+    else:
+        case_id = await bot_context.get_active_case(update)
+        if not case_id:
+            await message.reply_text(
+                "❌ Укажите case_id или выберите активный кейс.\n\n"
+                "Использование:\n"
+                "• `/eb1_potential <case_id>` — оценка потенциала кейса\n"
+                "• `/case_get <case_id>` — выбрать активный кейс",
+                parse_mode="Markdown",
+            )
+            return
+
+    await message.reply_text(
+        f"🔍 Оцениваю потенциал EB-1A для кейса `{case_id[:8]}...`\n\n"
+        "⏳ Анализ одним запросом (batch)...",
+        parse_mode="Markdown",
+    )
+
+    try:
+        from core.di.container import get_container
+        from core.groupagents.eb1a_evidence_analyzer import analyze_intake_potential_batch
+
+        container = get_container()
+        memory = container.get("memory_manager")
+
+        # Single LLM call batch analysis
+        result = await analyze_intake_potential_batch(case_id, str(user_id), memory)
+
+        # Format response
+        response = _format_eb1a_potential(result, case_id)
+        await message.reply_text(response, parse_mode="HTML")
+
+        logger.info(
+            "telegram.eb1_potential.success",
+            user_id=user_id,
+            case_id=case_id,
+            potential_score=result.overall_potential_score,
+            potential_criteria=result.potential_criteria_count,
+            llm_calls=result.llm_call_count,
+        )
+
+    except Exception as e:
+        logger.exception(
+            "telegram.eb1_potential.exception",
+            user_id=user_id,
+            case_id=case_id,
+            error=str(e),
+        )
+        await message.reply_text(f"❌ Ошибка анализа: {e!s}", parse_mode=None)
+
+
+def _format_eb1a_potential(result: Any, case_id: str) -> str:
+    """Format IntakePotentialResult for Telegram."""
+    # Emoji based on risk level
+    risk_emoji = {
+        "low": "🟢",
+        "moderate": "🟡",
+        "high": "🟠",
+        "critical": "🔴",
+    }
+    risk_display = risk_emoji.get(result.risk_level, "⚪")
+
+    lines = [
+        "📊 <b>EB-1A Potential Assessment</b>",
+        f"Case: <code>{case_id[:8]}...</code>",
+        "<i>(Based on intake questionnaire, 1 LLM call)</i>",
+        "",
+        f"🎯 <b>Potential Score:</b> {result.overall_potential_score:.0f}/100",
+        f"📈 <b>Criteria with potential:</b> {result.potential_criteria_count}/10",
+        f"{risk_display} <b>Risk Level:</b> {result.risk_level.upper()}",
+        "",
+    ]
+
+    # Overall assessment
+    if result.overall_assessment:
+        lines.append(f"💡 <b>Summary:</b> {result.overall_assessment}")
+        lines.append("")
+
+    # Strongest criteria
+    if result.strongest_criteria:
+        lines.append("<b>💪 Strongest Criteria:</b>")
+        for criterion in result.strongest_criteria[:3]:
+            lines.append(f"  ✅ {criterion}")
+        lines.append("")
+
+    # Criteria assessments
+    if result.criteria_assessments:
+        lines.append("<b>📋 Criteria Breakdown:</b>")
+        for crit_name, assessment in list(result.criteria_assessments.items())[:6]:
+            score = assessment.get("potential_score", 0)
+            has_potential = assessment.get("has_potential", False)
+            status = "✅" if has_potential else "❌"
+            lines.append(f"  {status} {crit_name}: {score}%")
+        lines.append("")
+
+    # Priority actions
+    if result.priority_actions:
+        lines.append("<b>📝 Priority Actions:</b>")
+        for action in result.priority_actions[:3]:
+            lines.append(f"  • {action}")
+        lines.append("")
+
+    # Recommendation
+    if result.recommendation:
+        lines.append(f"🎯 <b>Next Steps:</b> {result.recommendation}")
+
+    return "\n".join(lines)
+
+
 async def eb1_analyze(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """
     Analyze EB-1A criteria satisfaction for a case.
@@ -504,8 +636,7 @@ async def eb1_analyze(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
 
     try:
         from core.di.container import get_container
-        from core.groupagents.eb1a_evidence_analyzer import \
-            analyze_intake_for_eb1a
+        from core.groupagents.eb1a_evidence_analyzer import analyze_intake_for_eb1a
 
         container = get_container()
         memory = container.get("memory_manager")
@@ -641,5 +772,6 @@ def get_handlers(bot_context: BotContext):
         CommandHandler("case_active", case_active),
         CommandHandler("case_list", case_list),
         CommandHandler("eb1_analyze", eb1_analyze),
+        CommandHandler("eb1_potential", eb1_potential),  # Batch single-call analysis
         CallbackQueryHandler(handle_case_callback, pattern="^case_"),
     ]
