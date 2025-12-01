@@ -104,12 +104,15 @@ class SupabaseSemanticStore:
                 if record.metadata:
                     metadata.update(record.metadata)
 
+                # Clean text for PostgreSQL (remove null bytes)
+                clean_text = _sanitize_text(record.text)
+
                 db_record = SemanticMemoryDB(
                     record_id=record_id,
                     namespace=self.namespace,
                     user_id=record.user_id or "anonymous",
                     thread_id=record.thread_id,
-                    text=record.text,
+                    text=clean_text,
                     type=record.type,
                     source=record.source,
                     tags=record.tags,
@@ -280,6 +283,24 @@ class SupabaseSemanticStore:
             return True
         except Exception:
             return False
+
+
+def _sanitize_text(text: str) -> str:
+    """Remove null bytes and other invalid characters for PostgreSQL UTF-8.
+
+    Args:
+        text: Input text potentially containing invalid characters
+
+    Returns:
+        Cleaned text safe for PostgreSQL
+    """
+    if not text:
+        return ""
+    # Remove null bytes (0x00) which are invalid in PostgreSQL
+    text = text.replace("\x00", "")
+    # Remove Unicode replacement character
+    text = text.replace("\ufffd", "")
+    return text
 
 
 def _ensure_uuid(record_id: str | None) -> UUID:
