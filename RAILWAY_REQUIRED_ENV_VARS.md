@@ -71,7 +71,7 @@ OPENAI_API_KEY=sk-proj-...
 
 **Где взять**:
 - https://platform.openai.com/api-keys
-- Нужен API key с доступом к GPT-4 или GPT-3.5
+- Нужен API key с доступом к GPT-5.1 (или GPT-5)
 
 ---
 

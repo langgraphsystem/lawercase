@@ -212,7 +212,7 @@ class TestLLMEndpoints:
             mock_generator = MagicMock()
             mock_result = MagicMock()
             mock_result.content = "Test response"
-            mock_result.model = "gpt-4o-mini"
+            mock_result.model = "gpt-5.1-chat-latest"
             mock_result.provider = MagicMock(value="openai")
             mock_result.prompt_tokens = 10
             mock_result.completion_tokens = 20
@@ -228,7 +228,7 @@ class TestLLMEndpoints:
                 "/api/v1/llm/generate",
                 json={
                     "messages": [{"role": "user", "content": "Hello"}],
-                    "model": "gpt-4o-mini",
+                    "model": "gpt-5.1-chat-latest",
                     "provider": "openai",
                 },
             )
@@ -236,7 +236,7 @@ class TestLLMEndpoints:
             assert response.status_code == 200
             data = response.json()
             assert data["content"] == "Test response"
-            assert data["model"] == "gpt-4o-mini"
+            assert data["model"] == "gpt-5.1-chat-latest"
 
     def test_generate_invalid_provider(self, client: TestClient) -> None:
         """Test generate with invalid provider returns error."""
