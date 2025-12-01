@@ -44,17 +44,13 @@ class TestGPT51Models:
     def test_reasoning_effort_none(self):
         """reasoning_effort='none' should be supported."""
         with patch("core.llm_interface.openai_client.AsyncOpenAI"):
-            client = OpenAIClient(
-                model="gpt-5.1", reasoning_effort="none", api_key="test-key"
-            )
+            client = OpenAIClient(model="gpt-5.1", reasoning_effort="none", api_key="test-key")
             assert client.reasoning_effort == "none"
 
     def test_prompt_cache_retention(self):
         """prompt_cache_retention parameter should be stored."""
         with patch("core.llm_interface.openai_client.AsyncOpenAI"):
-            client = OpenAIClient(
-                model="gpt-5.1", prompt_cache_retention="24h", api_key="test-key"
-            )
+            client = OpenAIClient(model="gpt-5.1", prompt_cache_retention="24h", api_key="test-key")
             assert client.prompt_cache_retention == "24h"
 
 
