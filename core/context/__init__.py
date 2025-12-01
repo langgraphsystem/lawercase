@@ -10,22 +10,13 @@ This module provides adaptive context management for LLM agents:
 
 from __future__ import annotations
 
-from .compression import (
-    CompressionStrategy,
-    ContextCompressor,
-    count_tokens,
-    estimate_tokens,
-    trim_to_tokens,
-)
-from .context_manager import (
-    ContextBlock,
-    ContextManager,
-    ContextTemplate,
-    ContextType,
-    get_context_manager,
-)
+from .compression import (CompressionStrategy, ContextCompressor, count_tokens,
+                          estimate_tokens, trim_to_tokens)
+from .context_manager import (ContextBlock, ContextManager, ContextTemplate,
+                              ContextType, get_context_manager)
 from .pipelines import ContextPipeline, ContextPipelineType, create_pipeline
-from .relevance import ContextRelevanceScorer, RelevanceMetrics, cosine_similarity
+from .relevance import (ContextRelevanceScorer, RelevanceMetrics,
+                        cosine_similarity)
 
 __all__ = [
     "CompressionStrategy",

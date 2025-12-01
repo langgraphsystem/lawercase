@@ -9,9 +9,9 @@ This module provides:
 
 from __future__ import annotations
 
-from enum import Enum
 import logging
 import re
+from enum import Enum
 from typing import Any
 
 logger = logging.getLogger(__name__)

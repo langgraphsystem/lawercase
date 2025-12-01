@@ -9,10 +9,10 @@ This module provides:
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
-from datetime import UTC, datetime
 import logging
 import re
+from dataclasses import dataclass, field
+from datetime import UTC, datetime
 from typing import TYPE_CHECKING, Any, Protocol
 
 import numpy as np
