@@ -507,7 +507,8 @@ async def eb1_potential(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
 
     try:
         from core.di.container import get_container
-        from core.groupagents.eb1a_evidence_analyzer import analyze_intake_potential_batch
+        from core.groupagents.eb1a_evidence_analyzer import \
+            analyze_intake_potential_batch
 
         container = get_container()
         memory = container.get("memory_manager")
@@ -636,7 +637,8 @@ async def eb1_analyze(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
 
     try:
         from core.di.container import get_container
-        from core.groupagents.eb1a_evidence_analyzer import analyze_intake_for_eb1a
+        from core.groupagents.eb1a_evidence_analyzer import \
+            analyze_intake_for_eb1a
 
         container = get_container()
         memory = container.get("memory_manager")
