@@ -43,6 +43,9 @@ class OpenAIClient:
     - New Developer Tools: apply_patch (code editing), shell (shell commands)
     - Function calling with tools parameter (March 2025 API)
     - 90% cache discount for repeated input tokens
+    - Multimodal Input: Text, images, and files
+    - Web Search: Built-in web search ($10/K searches)
+    - Structured Outputs: JSON Schema support for response_format
 
     Reasoning Models:
     - o3-mini: Exceptional STEM capabilities
@@ -393,8 +396,9 @@ class OpenAIClient:
             if verbosity in {"low", "medium", "high"}:
                 api_params["verbosity"] = verbosity
 
-            # Add reasoning effort for GPT-5
-            if reasoning_effort in {"minimal", "low", "medium", "high"}:
+            # Add reasoning effort for GPT-5/GPT-5.1
+            # GPT-5.1 adds "none" for latency-sensitive tasks (no reasoning overhead)
+            if reasoning_effort in {"none", "minimal", "low", "medium", "high"}:
                 api_params["reasoning_effort"] = reasoning_effort
             # GPT-5 chat-completions expects `max_completion_tokens`
             api_params["max_completion_tokens"] = max_tokens
@@ -644,6 +648,122 @@ class OpenAIClient:
             return {
                 "model": self.model,
                 "prompt": prompt,
+                "output": f"Error: {e!s}",
+                "provider": "openai",
+                "error": str(e),
+            }
+
+    async def acomplete_multimodal(
+        self,
+        text: str,
+        images: list[str] | None = None,
+        **params: Any,
+    ) -> dict[str, Any]:
+        """Async multimodal completion with text and images (GPT-5.1 feature).
+
+        GPT-5.1 supports multimodal input: text, images, and files.
+
+        Args:
+            text: Text prompt
+            images: List of image URLs or base64-encoded images
+            **params: Additional parameters
+
+        Returns:
+            dict with completion result
+
+        Example:
+            >>> result = await client.acomplete_multimodal(
+            ...     text="What's in this image?",
+            ...     images=["https://example.com/image.jpg"]
+            ... )
+        """
+        # Build multimodal content
+        content: list[dict[str, Any]] = [{"type": "text", "text": text}]
+
+        if images:
+            for img in images:
+                if img.startswith("data:"):
+                    # Base64 encoded image
+                    content.append(
+                        {
+                            "type": "image_url",
+                            "image_url": {"url": img},
+                        }
+                    )
+                elif img.startswith("http"):
+                    # URL image
+                    content.append(
+                        {
+                            "type": "image_url",
+                            "image_url": {"url": img},
+                        }
+                    )
+                else:
+                    # Assume base64 without data prefix
+                    content.append(
+                        {
+                            "type": "image_url",
+                            "image_url": {"url": f"data:image/jpeg;base64,{img}"},
+                        }
+                    )
+
+        # Build API request
+        api_params: dict[str, Any] = {
+            "model": self.model,
+            "messages": [{"role": "user", "content": content}],
+        }
+
+        # Add GPT-5.1 specific parameters
+        if self._is_gpt5_1_model():
+            reasoning_effort = params.get("reasoning_effort", self.reasoning_effort)
+            if reasoning_effort in {"none", "minimal", "low", "medium", "high"}:
+                api_params["reasoning_effort"] = reasoning_effort
+
+            max_tokens = params.get("max_tokens", self.max_tokens)
+            api_params["max_completion_tokens"] = max_tokens
+
+            prompt_cache_retention = params.get(
+                "prompt_cache_retention", self.prompt_cache_retention
+            )
+            if prompt_cache_retention:
+                api_params["prompt_cache_retention"] = prompt_cache_retention
+
+        try:
+            self.logger.info(
+                "llm.openai.multimodal.request",
+                model=self.model,
+                text_length=len(text),
+                num_images=len(images) if images else 0,
+            )
+
+            response = await self.client.chat.completions.create(**api_params)
+
+            output_text = ""
+            if response.choices and len(response.choices) > 0:
+                output_text = self._extract_output_text(response.choices[0].message)
+
+            return {
+                "model": self.model,
+                "prompt": text,
+                "output": output_text,
+                "provider": "openai",
+                "usage": {
+                    "prompt_tokens": response.usage.prompt_tokens if response.usage else 0,
+                    "completion_tokens": (
+                        response.usage.completion_tokens if response.usage else 0
+                    ),
+                    "total_tokens": response.usage.total_tokens if response.usage else 0,
+                },
+                "finish_reason": (
+                    response.choices[0].finish_reason if response.choices else "unknown"
+                ),
+            }
+
+        except Exception as e:
+            self.logger.exception("llm.openai.multimodal.error", model=self.model, error=str(e))
+            return {
+                "model": self.model,
+                "prompt": text,
                 "output": f"Error: {e!s}",
                 "provider": "openai",
                 "error": str(e),
