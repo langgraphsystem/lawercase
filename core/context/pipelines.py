@@ -2,12 +2,13 @@
 
 from __future__ import annotations
 
+import logging
 from abc import ABC, abstractmethod
 from enum import Enum
-import logging
 from typing import Any
 
-from .context_manager import ContextBlock, ContextManager, ContextTemplate, ContextType
+from .context_manager import (ContextBlock, ContextManager, ContextTemplate,
+                              ContextType)
 
 logger = logging.getLogger(__name__)
 
