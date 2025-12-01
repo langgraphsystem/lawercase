@@ -91,6 +91,102 @@ class MemoryManager:
             query=query, user_id=user_id, topk=topk or 8, filters=filters
         )
 
+    async def aretrieve_knowledge_base(
+        self,
+        query: str,
+        topk: int = 8,
+    ) -> list[MemoryRecord]:
+        """Retrieve from knowledge base only (approved petitions, reference cases).
+
+        Use this method when agents need reference materials but NOT
+        case-specific client documents.
+
+        Args:
+            query: Search query text
+            topk: Maximum number of results
+
+        Returns:
+            List of MemoryRecord from knowledge base only
+        """
+        if hasattr(self.semantic, "aretrieve_knowledge_base"):
+            return await self.semantic.aretrieve_knowledge_base(query=query, topk=topk)
+        # Fallback for stores without this method
+        return await self.semantic.aretrieve(
+            query=query,
+            topk=topk,
+            filters={"tags": ["knowledge_base"]},
+        )
+
+    async def aretrieve_case_documents(
+        self,
+        query: str,
+        case_id: str,
+        user_id: str | None = None,
+        topk: int = 8,
+    ) -> list[MemoryRecord]:
+        """Retrieve case-specific documents with semantic ranking.
+
+        Use this method when agents need client-specific evidence
+        but NOT general knowledge base materials.
+
+        Args:
+            query: Search query text
+            case_id: Case ID to filter by
+            user_id: Optional user ID filter
+            topk: Maximum number of results
+
+        Returns:
+            List of MemoryRecord for the specific case
+        """
+        if hasattr(self.semantic, "aretrieve_case_documents"):
+            return await self.semantic.aretrieve_case_documents(
+                query=query, case_id=case_id, user_id=user_id, topk=topk
+            )
+        # Fallback for stores without this method
+        return await self.semantic.aretrieve(
+            query=query,
+            user_id=user_id,
+            topk=topk,
+            filters={"case_id": case_id},
+        )
+
+    async def aretrieve_hybrid(
+        self,
+        query: str,
+        case_id: str | None = None,
+        user_id: str | None = None,
+        topk: int = 8,
+        knowledge_weight: float = 0.3,
+    ) -> list[MemoryRecord]:
+        """Retrieve from both knowledge base and case documents.
+
+        Use this method when agents need BOTH reference materials
+        AND case-specific evidence (e.g., for EB-1A analysis).
+
+        Args:
+            query: Search query text
+            case_id: Optional case ID for case-specific documents
+            user_id: Optional user ID filter
+            topk: Maximum number of results
+            knowledge_weight: Weight for knowledge base results (0-1)
+                0.0 = only case documents
+                1.0 = only knowledge base
+                0.3 = 30% knowledge, 70% case (default)
+
+        Returns:
+            List of MemoryRecord from both sources, merged by relevance
+        """
+        if hasattr(self.semantic, "aretrieve_hybrid"):
+            return await self.semantic.aretrieve_hybrid(
+                query=query,
+                case_id=case_id,
+                user_id=user_id,
+                topk=topk,
+                knowledge_weight=knowledge_weight,
+            )
+        # Fallback: just use regular retrieve
+        return await self.semantic.aretrieve(query=query, user_id=user_id, topk=topk)
+
     # ---- Consolidate ----
     async def aconsolidate(self, *, user_id: str | None = None) -> ConsolidateStats:
         """Placeholder consolidation: deduplicate identical texts per user."""

@@ -147,7 +147,22 @@ class SupabaseSemanticStore:
         topk: int = 8,
         filters: dict[str, Any] | None = None,
     ) -> list[MemoryRecord]:
-        """Retrieve similar memories using pgvector cosine distance."""
+        """Retrieve similar memories using pgvector cosine distance.
+
+        Args:
+            query: Search query text
+            user_id: Optional user ID filter
+            topk: Maximum number of results
+            filters: Optional filters dict with keys:
+                - type: Memory type filter
+                - tags: List of tags (all must match)
+                - source: Source filter
+                - case_id: Case ID filter (from metadata_json)
+                - exclude_tags: List of tags to exclude
+
+        Returns:
+            List of MemoryRecord sorted by similarity
+        """
         query_embedding = await self.embedder.aembed_query(query)
 
         stmt = select(
@@ -165,6 +180,13 @@ class SupabaseSemanticStore:
             stmt = stmt.where(SemanticMemoryDB.tags.contains(tags))
         if source := filters.get("source"):
             stmt = stmt.where(SemanticMemoryDB.source == source)
+        # NEW: case_id filter from metadata_json
+        if case_id := filters.get("case_id"):
+            stmt = stmt.where(SemanticMemoryDB.metadata_json["case_id"].astext == case_id)
+        # NEW: exclude_tags filter - exclude records containing any of these tags
+        if exclude_tags := filters.get("exclude_tags"):
+            for tag in exclude_tags:
+                stmt = stmt.where(~SemanticMemoryDB.tags.contains([tag]))
 
         stmt = stmt.order_by("distance").limit(topk)
 
@@ -179,15 +201,145 @@ class SupabaseSemanticStore:
                 MemoryRecord(
                     id=str(db_record.record_id),
                     user_id=db_record.user_id,
+                    case_id=(
+                        db_record.metadata_json.get("case_id") if db_record.metadata_json else None
+                    ),
                     type=db_record.type,
                     text=db_record.text,
                     source=db_record.source,
                     tags=db_record.tags,
+                    metadata=db_record.metadata_json,
                     confidence=similarity,
                     created_at=db_record.created_at,
                 )
             )
         return memories
+
+    async def aretrieve_knowledge_base(
+        self,
+        query: str,
+        topk: int = 8,
+    ) -> list[MemoryRecord]:
+        """Retrieve from knowledge base only (approved petitions, reference cases).
+
+        Automatically filters to records tagged with 'knowledge_base'.
+        Excludes case-specific documents.
+
+        Args:
+            query: Search query text
+            topk: Maximum number of results
+
+        Returns:
+            List of MemoryRecord from knowledge base only
+        """
+        logger.info(
+            "supabase_semantic_store.aretrieve_knowledge_base",
+            query=query[:100],
+            topk=topk,
+        )
+        return await self.aretrieve(
+            query=query,
+            user_id=None,  # Knowledge base is shared across all users
+            topk=topk,
+            filters={
+                "tags": ["knowledge_base"],
+                "exclude_tags": ["case_document"],
+            },
+        )
+
+    async def aretrieve_case_documents(
+        self,
+        query: str,
+        case_id: str,
+        user_id: str | None = None,
+        topk: int = 8,
+    ) -> list[MemoryRecord]:
+        """Retrieve case-specific documents with semantic ranking.
+
+        Automatically filters to records for the specific case.
+        Excludes general knowledge base documents.
+
+        Args:
+            query: Search query text
+            case_id: Case ID to filter by
+            user_id: Optional user ID filter
+            topk: Maximum number of results
+
+        Returns:
+            List of MemoryRecord for the specific case
+        """
+        logger.info(
+            "supabase_semantic_store.aretrieve_case_documents",
+            query=query[:100],
+            case_id=case_id,
+            topk=topk,
+        )
+        return await self.aretrieve(
+            query=query,
+            user_id=user_id,
+            topk=topk,
+            filters={
+                "case_id": case_id,
+                "exclude_tags": ["knowledge_base"],
+            },
+        )
+
+    async def aretrieve_hybrid(
+        self,
+        query: str,
+        case_id: str | None = None,
+        user_id: str | None = None,
+        topk: int = 8,
+        knowledge_weight: float = 0.3,
+    ) -> list[MemoryRecord]:
+        """Retrieve from both knowledge base and case documents.
+
+        Combines results from both sources with configurable weighting.
+        Useful when agents need both reference materials and case-specific data.
+
+        Args:
+            query: Search query text
+            case_id: Optional case ID for case-specific documents
+            user_id: Optional user ID filter
+            topk: Maximum number of results
+            knowledge_weight: Weight for knowledge base results (0-1)
+                0.0 = only case documents
+                1.0 = only knowledge base
+                0.3 = 30% knowledge, 70% case (default)
+
+        Returns:
+            List of MemoryRecord from both sources, merged by relevance
+        """
+        knowledge_k = max(1, int(topk * knowledge_weight))
+        case_k = max(1, topk - knowledge_k)
+
+        # Get knowledge base results
+        knowledge_results = await self.aretrieve_knowledge_base(query=query, topk=knowledge_k)
+
+        # Get case-specific results if case_id provided
+        case_results: list[MemoryRecord] = []
+        if case_id:
+            case_results = await self.aretrieve_case_documents(
+                query=query,
+                case_id=case_id,
+                user_id=user_id,
+                topk=case_k,
+            )
+
+        # Merge and sort by confidence
+        all_results = knowledge_results + case_results
+        all_results.sort(key=lambda r: r.confidence or 0.0, reverse=True)
+
+        logger.info(
+            "supabase_semantic_store.aretrieve_hybrid",
+            query=query[:100],
+            case_id=case_id,
+            knowledge_count=len(knowledge_results),
+            case_count=len(case_results),
+            total=len(all_results),
+        )
+
+        return all_results[:topk]
 
     async def aall(self, user_id: str | None = None) -> list[MemoryRecord]:
         """Fetch all records (optionally filtered by user)."""
