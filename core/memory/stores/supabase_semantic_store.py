@@ -421,6 +421,53 @@ class SupabaseSemanticStore:
             result = await session.execute(stmt)
             return int(result.scalar() or 0)
 
+    async def acount_by_tags(self, tags: list[str]) -> int:
+        """Count records that contain all specified tags.
+
+        Args:
+            tags: List of tags that must all be present
+
+        Returns:
+            Count of matching records
+        """
+        stmt = select(func.count()).select_from(
+            select(SemanticMemoryDB.record_id)
+            .where(SemanticMemoryDB.namespace == self.namespace)
+            .where(SemanticMemoryDB.tags.contains(type_coerce(tags, ARRAY(Text))))
+            .subquery()
+        )
+        async with self.db.session() as session:
+            result = await session.execute(stmt)
+            return int(result.scalar() or 0)
+
+    async def aget_unique_sources(self, tags: list[str] | None = None) -> list[dict]:
+        """Get unique sources with record counts.
+
+        Args:
+            tags: Optional list of tags to filter by
+
+        Returns:
+            List of dicts with source and count
+        """
+        stmt = (
+            select(
+                SemanticMemoryDB.source,
+                func.count(SemanticMemoryDB.record_id).label("count"),
+            )
+            .where(SemanticMemoryDB.namespace == self.namespace)
+            .group_by(SemanticMemoryDB.source)
+            .order_by(func.count(SemanticMemoryDB.record_id).desc())
+        )
+
+        if tags:
+            stmt = stmt.where(SemanticMemoryDB.tags.contains(type_coerce(tags, ARRAY(Text))))
+
+        async with self.db.session() as session:
+            result = await session.execute(stmt)
+            rows = result.all()
+
+        return [{"source": row.source, "count": row.count} for row in rows]
+
     async def adelete_by_user(self, user_id: str) -> None:
         """Delete all records for a user."""
         stmt = (

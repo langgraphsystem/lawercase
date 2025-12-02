@@ -153,42 +153,36 @@ async def kb_stats(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         # Count total records
         total_count = await semantic_store.acount()
 
-        # Try to get sample of knowledge base records
-        # Use a general query to see what's in KB
-        kb_sample = await memory.aretrieve_knowledge_base(query="EB-1A immigration", topk=10)
+        # Count knowledge_base records specifically
+        kb_count = await semantic_store.acount_by_tags(["knowledge_base"])
 
-        # Collect tag statistics from sample
-        tag_counts: dict[str, int] = {}
-        source_counts: dict[str, int] = {}
-        for record in kb_sample:
-            for tag in record.tags or []:
-                tag_counts[tag] = tag_counts.get(tag, 0) + 1
-            if record.source:
-                source_short = record.source.split("/")[-1][:20]
-                source_counts[source_short] = source_counts.get(source_short, 0) + 1
+        # Count case documents
+        case_doc_count = await semantic_store.acount_by_tags(["case_document"])
+
+        # Get sources for knowledge base documents
+        kb_sources = await semantic_store.aget_unique_sources(tags=["knowledge_base"])
 
         # Format response (plain text to avoid markdown parsing issues)
         lines = [
             "📊 Статистика базы знаний:",
             "",
-            f"📁 Всего записей в namespace: {total_count}",
-            f"📚 Выборка KB записей: {len(kb_sample)}",
+            f"📁 Всего записей: {total_count}",
+            f"📚 База знаний (knowledge_base): {kb_count}",
+            f"📂 Документы по кейсам (case_document): {case_doc_count}",
             "",
         ]
 
-        if tag_counts:
-            lines.append("🏷️ Теги в выборке:")
-            for tag, count in sorted(tag_counts.items(), key=lambda x: -x[1])[:10]:
-                lines.append(f"  • {tag}: {count}")
+        if kb_sources:
+            lines.append("📄 Документы в базе знаний:")
+            for src in kb_sources[:10]:
+                source_name = src["source"] or "unknown"
+                # Shorten long filenames
+                if len(source_name) > 40:
+                    source_name = source_name[:37] + "..."
+                lines.append(f"  • {source_name}: {src['count']} фрагментов")
             lines.append("")
 
-        if source_counts:
-            lines.append("📄 Источники:")
-            for source, count in sorted(source_counts.items(), key=lambda x: -x[1])[:5]:
-                lines.append(f"  • {source}: {count}")
-            lines.append("")
-
-        if kb_sample:
+        if kb_count > 0:
             lines.append("✅ База знаний доступна и содержит документы.")
             lines.append("")
             lines.append("💡 Используйте /kb_search <запрос> для поиска.")
@@ -206,8 +200,9 @@ async def kb_stats(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
             "telegram.kb_stats.success",
             user_id=user_id,
             total_count=total_count,
-            kb_sample_count=len(kb_sample),
-            tags=list(tag_counts.keys()),
+            kb_count=kb_count,
+            case_doc_count=case_doc_count,
+            sources_count=len(kb_sources),
         )
 
     except Exception as e:
