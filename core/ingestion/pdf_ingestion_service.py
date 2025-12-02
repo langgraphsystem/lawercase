@@ -7,10 +7,10 @@ Phase 3: Hybrid RAG Pipeline Integration
 
 from __future__ import annotations
 
-import re
-import uuid
 from dataclasses import dataclass, field
 from pathlib import Path
+import re
+import uuid
 
 import structlog
 
@@ -228,6 +228,7 @@ class PDFIngestionService:
         case_id: str | None = None,
         auto_tag_eb1a: bool = True,
         additional_tags: list[str] | None = None,
+        original_file_name: str | None = None,
     ) -> IngestionResult:
         """Ingest PDF document into semantic memory.
 
@@ -237,6 +238,7 @@ class PDFIngestionService:
             case_id: Optional case ID to associate with records
             auto_tag_eb1a: Whether to auto-tag by EB-1A criteria
             additional_tags: Additional tags to apply to all chunks
+            original_file_name: Original filename (for temp files from uploads)
 
         Returns:
             IngestionResult with statistics
@@ -247,9 +249,11 @@ class PDFIngestionService:
         """
         file_path = Path(file_path)
         document_id = str(uuid.uuid4())
+        # Use original filename if provided (for temp file uploads)
+        display_name = original_file_name or file_path.name
         result = IngestionResult(
             document_id=document_id,
-            file_name=file_path.name,
+            file_name=display_name,
         )
 
         logger.info(
@@ -310,11 +314,12 @@ class PDFIngestionService:
                     user_id=user_id,
                     case_id=case_id,
                     type="semantic",
-                    source=f"pdf://{file_path.name}",
+                    source=f"pdf://{display_name}",
                     tags=chunk_tags,
                     metadata={
                         "document_id": document_id,
                         "document_source": str(file_path),
+                        "original_filename": display_name,
                         "chunk_id": chunk.chunk_id,
                         "chunk_index": chunk.metadata.get("chunk_index", 0),
                         "start_pos": chunk.start_pos,
@@ -454,9 +459,8 @@ class PDFIngestionService:
                 case_id=case_id,
                 auto_tag_eb1a=auto_tag_eb1a,
                 additional_tags=additional_tags,
+                original_file_name=file_name,  # Pass original filename
             )
-            # Update file name to original
-            result.file_name = file_name
             return result
         finally:
             # Cleanup temp file
