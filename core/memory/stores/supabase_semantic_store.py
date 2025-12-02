@@ -5,7 +5,8 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Any
 from uuid import UUID, uuid4
 
-from sqlalchemy import delete, func, select
+from sqlalchemy import Text, delete, func, select, type_coerce
+from sqlalchemy.dialects.postgresql import ARRAY
 
 from ...logging_utils import get_logger
 from ...storage.config import get_storage_config
@@ -177,7 +178,8 @@ class SupabaseSemanticStore:
         if record_type := filters.get("type"):
             stmt = stmt.where(SemanticMemoryDB.type == record_type)
         if tags := filters.get("tags"):
-            stmt = stmt.where(SemanticMemoryDB.tags.contains(tags))
+            # Explicit cast to TEXT[] to match PostgreSQL column type
+            stmt = stmt.where(SemanticMemoryDB.tags.contains(type_coerce(tags, ARRAY(Text))))
         if source := filters.get("source"):
             stmt = stmt.where(SemanticMemoryDB.source == source)
         # NEW: case_id filter from metadata_json
@@ -186,7 +188,8 @@ class SupabaseSemanticStore:
         # NEW: exclude_tags filter - exclude records containing any of these tags
         if exclude_tags := filters.get("exclude_tags"):
             for tag in exclude_tags:
-                stmt = stmt.where(~SemanticMemoryDB.tags.contains([tag]))
+                # Explicit cast to TEXT[] to match PostgreSQL column type
+                stmt = stmt.where(~SemanticMemoryDB.tags.contains(type_coerce([tag], ARRAY(Text))))
 
         stmt = stmt.order_by("distance").limit(topk)
 

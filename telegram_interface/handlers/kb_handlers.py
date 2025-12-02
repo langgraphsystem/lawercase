@@ -78,10 +78,10 @@ async def kb_search(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
             logger.info("telegram.kb_search.no_results", user_id=user_id, query=query)
             return
 
-        # Format results
+        # Format results (plain text to avoid markdown parsing issues)
         lines = [
-            "📚 **Результаты поиска в базе знаний:**",
-            f"Запрос: `{query}`",
+            "📚 Результаты поиска в базе знаний:",
+            f"Запрос: {query}",
             f"Найдено: {len(results)} документов",
             "",
         ]
@@ -98,7 +98,7 @@ async def kb_search(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
             tags = record.tags or []
             tags_str = ", ".join(tags[:3]) if tags else "нет тегов"
 
-            lines.append(f"**{i}. [{confidence:.0%} match]**")
+            lines.append(f"{i}. [{confidence:.0%} match]")
             lines.append(f"📝 {text_preview}")
             lines.append(f"🏷️ Теги: {tags_str}")
             if record.source:
@@ -113,7 +113,7 @@ async def kb_search(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         if len(response) > 4000:
             response = response[:4000] + "\n\n... (обрезано)"
 
-        await message.reply_text(response, parse_mode="Markdown")
+        await message.reply_text(response, parse_mode=None)
         logger.info(
             "telegram.kb_search.success",
             user_id=user_id,
@@ -167,9 +167,9 @@ async def kb_stats(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
                 source_short = record.source.split("/")[-1][:20]
                 source_counts[source_short] = source_counts.get(source_short, 0) + 1
 
-        # Format response
+        # Format response (plain text to avoid markdown parsing issues)
         lines = [
-            "📊 **Статистика базы знаний:**",
+            "📊 Статистика базы знаний:",
             "",
             f"📁 Всего записей в namespace: {total_count}",
             f"📚 Выборка KB записей: {len(kb_sample)}",
@@ -177,30 +177,30 @@ async def kb_stats(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         ]
 
         if tag_counts:
-            lines.append("🏷️ **Теги в выборке:**")
+            lines.append("🏷️ Теги в выборке:")
             for tag, count in sorted(tag_counts.items(), key=lambda x: -x[1])[:10]:
                 lines.append(f"  • {tag}: {count}")
             lines.append("")
 
         if source_counts:
-            lines.append("📄 **Источники:**")
+            lines.append("📄 Источники:")
             for source, count in sorted(source_counts.items(), key=lambda x: -x[1])[:5]:
                 lines.append(f"  • {source}: {count}")
             lines.append("")
 
         if kb_sample:
-            lines.append("✅ **База знаний доступна и содержит документы.**")
+            lines.append("✅ База знаний доступна и содержит документы.")
             lines.append("")
-            lines.append("💡 Используйте `/kb_search <запрос>` для поиска.")
+            lines.append("💡 Используйте /kb_search <запрос> для поиска.")
         else:
-            lines.append("⚠️ **База знаний пуста.**")
+            lines.append("⚠️ База знаний пуста.")
             lines.append("")
             lines.append("Загрузите референсные документы:")
             lines.append("1. Отправьте PDF файл")
             lines.append('2. Выберите "📚 Общие знания"')
 
         response = "\n".join(lines)
-        await message.reply_text(response, parse_mode="Markdown")
+        await message.reply_text(response, parse_mode=None)
 
         logger.info(
             "telegram.kb_stats.success",
