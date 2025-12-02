@@ -15,8 +15,7 @@ from uuid import UUID, uuid4
 
 from pgvector.sqlalchemy import Vector
 from sqlalchemy import TIMESTAMP, CheckConstraint, Index, String, Text
-from sqlalchemy.dialects.postgresql import ARRAY, JSONB
-from sqlalchemy.dialects.postgresql import UUID as PG_UUID
+from sqlalchemy.dialects.postgresql import ARRAY, JSONB, UUID as PG_UUID
 from sqlalchemy.ext.asyncio import AsyncAttrs
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 
@@ -56,7 +55,7 @@ class SemanticMemoryDB(Base):
     text: Mapped[str] = mapped_column(Text, nullable=False)
     type: Mapped[str] = mapped_column(String(50), default="fact")
     source: Mapped[str | None] = mapped_column(String(100), nullable=True)
-    tags: Mapped[list[str]] = mapped_column(ARRAY(String), default=list)
+    tags: Mapped[list[str]] = mapped_column(ARRAY(Text), default=list)
     metadata_json: Mapped[dict] = mapped_column(JSONB, default=dict)
 
     # Embedding (pgvector) + metadata
@@ -104,7 +103,7 @@ class EpisodicMemoryDB(Base):
     source: Mapped[str] = mapped_column(String(100), nullable=False)
     action: Mapped[str] = mapped_column(String(100), nullable=False)
     payload: Mapped[dict] = mapped_column(JSONB, nullable=False, default=dict)
-    tags: Mapped[list[str]] = mapped_column(ARRAY(String), default=list)
+    tags: Mapped[list[str]] = mapped_column(ARRAY(Text), default=list)
 
     # Timestamp
     timestamp: Mapped[datetime] = mapped_column(TIMESTAMP(timezone=True), default=datetime.utcnow)
@@ -232,7 +231,7 @@ class DocumentDB(Base):
     r2_url: Mapped[str | None] = mapped_column(Text, nullable=True)
 
     document_type: Mapped[str | None] = mapped_column(String(100), nullable=True)
-    tags: Mapped[list[str]] = mapped_column(ARRAY(String), default=list)
+    tags: Mapped[list[str]] = mapped_column(ARRAY(Text), default=list)
     metadata_json: Mapped[dict] = mapped_column(JSONB, default=dict)
 
     # Processing status
