@@ -7,10 +7,10 @@ Phase 3: Hybrid RAG Pipeline Integration
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
-from pathlib import Path
 import re
 import uuid
+from dataclasses import dataclass, field
+from pathlib import Path
 
 import structlog
 
