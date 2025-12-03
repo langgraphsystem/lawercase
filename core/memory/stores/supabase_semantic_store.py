@@ -344,6 +344,133 @@ class SupabaseSemanticStore:
 
         return all_results[:topk]
 
+    async def aretrieve_rfe_knowledge(
+        self,
+        query: str,
+        topk: int = 8,
+    ) -> list[MemoryRecord]:
+        """Search RFE knowledge base using pgvector similarity.
+
+        Searches the mega_agent.rfe_knowledge table which contains
+        RFE response patterns, USCIS quotes, and success strategies.
+
+        Args:
+            query: Search query text
+            topk: Maximum number of results
+
+        Returns:
+            List of MemoryRecord from RFE knowledge base
+        """
+        from sqlalchemy import text
+
+        query_embedding = await self.embedder.aembed_query(query)
+        embedding_str = "[" + ",".join(str(x) for x in query_embedding) + "]"
+
+        sql = text(
+            """
+            SELECT
+                id::text,
+                criterion,
+                issue_type,
+                uscis_quote,
+                problem_description,
+                success_response,
+                1 - (embedding <=> :embedding::vector) as similarity
+            FROM mega_agent.rfe_knowledge
+            WHERE embedding IS NOT NULL
+            ORDER BY embedding <=> :embedding::vector
+            LIMIT :topk
+        """
+        )
+
+        async with self.db.session() as session:
+            result = await session.execute(sql, {"embedding": embedding_str, "topk": topk})
+            rows = result.fetchall()
+
+        memories: list[MemoryRecord] = []
+        for row in rows:
+            # Build text from RFE fields
+            text_parts = []
+            if row.criterion:
+                text_parts.append(f"Criterion: {row.criterion}")
+            if row.issue_type:
+                text_parts.append(f"Issue: {row.issue_type}")
+            if row.problem_description:
+                text_parts.append(f"Problem: {row.problem_description}")
+            if row.uscis_quote:
+                text_parts.append(f"USCIS: {row.uscis_quote}")
+            if row.success_response:
+                text_parts.append(f"Response: {row.success_response}")
+
+            text_content = "\n".join(text_parts)
+
+            memories.append(
+                MemoryRecord(
+                    id=row.id,
+                    user_id=None,
+                    type="rfe_knowledge",
+                    text=text_content,
+                    source="rfe_knowledge",
+                    tags=["rfe", row.criterion] if row.criterion else ["rfe"],
+                    confidence=float(row.similarity) if row.similarity else 0.0,
+                )
+            )
+
+        logger.info(
+            "supabase_semantic_store.aretrieve_rfe_knowledge",
+            query=query[:100],
+            topk=topk,
+            results=len(memories),
+        )
+
+        return memories
+
+    async def aretrieve_all_sources(
+        self,
+        query: str,
+        topk: int = 10,
+    ) -> list[MemoryRecord]:
+        """Search ALL memory sources without user filtering.
+
+        Combines results from:
+        - semantic_memory table (knowledge base, case docs, etc.)
+        - rfe_knowledge table (RFE patterns and responses)
+
+        Args:
+            query: Search query text
+            topk: Maximum total results
+
+        Returns:
+            List of MemoryRecord from all sources, sorted by relevance
+        """
+        # Get from semantic memory (no user filter)
+        semantic_results = await self.aretrieve(
+            query=query,
+            user_id=None,  # No user filter - search all
+            topk=topk,
+            filters=None,
+        )
+
+        # Get from RFE knowledge
+        rfe_results = await self.aretrieve_rfe_knowledge(
+            query=query,
+            topk=topk,
+        )
+
+        # Combine and sort by confidence/similarity
+        all_results = semantic_results + rfe_results
+        all_results.sort(key=lambda r: r.confidence or 0.0, reverse=True)
+
+        logger.info(
+            "supabase_semantic_store.aretrieve_all_sources",
+            query=query[:100],
+            semantic_count=len(semantic_results),
+            rfe_count=len(rfe_results),
+            total=len(all_results),
+        )
+
+        return all_results[:topk]
+
     async def aall(self, user_id: str | None = None) -> list[MemoryRecord]:
         """Fetch all records (optionally filtered by user)."""
         stmt = select(SemanticMemoryDB).where(SemanticMemoryDB.namespace == self.namespace)

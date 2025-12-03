@@ -187,6 +187,28 @@ class MemoryManager:
         # Fallback: just use regular retrieve
         return await self.semantic.aretrieve(query=query, user_id=user_id, topk=topk)
 
+    async def aretrieve_all_sources(
+        self,
+        query: str,
+        topk: int = 10,
+    ) -> list[MemoryRecord]:
+        """Retrieve from ALL memory sources without user filtering.
+
+        Searches both semantic_memory and rfe_knowledge tables.
+        Use this for global knowledge lookup when user context is not needed.
+
+        Args:
+            query: Search query text
+            topk: Maximum number of results
+
+        Returns:
+            List of MemoryRecord from all sources, sorted by relevance
+        """
+        if hasattr(self.semantic, "aretrieve_all_sources"):
+            return await self.semantic.aretrieve_all_sources(query=query, topk=topk)
+        # Fallback for stores without this method
+        return await self.semantic.aretrieve(query=query, user_id=None, topk=topk)
+
     # ---- Consolidate ----
     async def aconsolidate(self, *, user_id: str | None = None) -> ConsolidateStats:
         """Placeholder consolidation: deduplicate identical texts per user."""
