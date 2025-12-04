@@ -463,6 +463,205 @@ async def case_list(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         await message.reply_text(f"❌ Exception: {e!s}", parse_mode=None)
 
 
+async def case_update(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Update case title or description.
+
+    Usage: /case_update <case_id> <new_title> | <new_description>
+    """
+    user_id = update.effective_user.id if update.effective_user else None
+    logger.info("telegram.case_update.received", user_id=user_id)
+
+    bot_context = _bot_context(context)
+    if not await _is_authorized(bot_context, update):
+        return
+
+    message = update.effective_message
+    if not context.args:
+        await message.reply_text(
+            "📝 *Редактирование кейса*\n\n"
+            "Использование: `/case_update <case_id> <новое название> | <описание>`\n\n"
+            "Пример: `/case_update abc123 Новое название | Новое описание`\n\n"
+            "💡 Используйте `/case_list` чтобы увидеть ID кейсов",
+            parse_mode="Markdown",
+        )
+        return
+
+    case_id = context.args[0]
+    raw = " ".join(context.args[1:]) if len(context.args) > 1 else ""
+
+    if not raw:
+        await message.reply_text(
+            "❌ Укажите новое название или описание.\n\n"
+            "Пример: `/case_update abc123 Новое название | Новое описание`",
+            parse_mode="Markdown",
+        )
+        return
+
+    parts = [part.strip() for part in raw.split("|", 1)]
+    new_title = parts[0] if parts[0] else None
+    new_description = parts[1] if len(parts) > 1 else None
+
+    try:
+        payload = {"case_id": case_id}
+        if new_title:
+            payload["title"] = new_title
+        if new_description:
+            payload["description"] = new_description
+
+        command = MegaAgentCommand(
+            user_id=str(update.effective_user.id),
+            command_type=CommandType.CASE,
+            action="update",
+            payload=payload,
+            context={"thread_id": bot_context.thread_id_for_update(update)},
+        )
+
+        response = await bot_context.mega_agent.handle_command(command, user_role=UserRole.LAWYER)
+
+        if response.success:
+            await message.reply_text(
+                f"✅ Кейс обновлён!\n\n"
+                f"📁 ID: `{case_id}`\n"
+                f"📋 Название: {new_title or '(без изменений)'}\n"
+                f"📝 Описание: {new_description or '(без изменений)'}",
+                parse_mode="Markdown",
+            )
+            logger.info("telegram.case_update.success", user_id=user_id, case_id=case_id)
+        else:
+            error_msg = response.error or "update failed"
+            await message.reply_text(f"❌ Ошибка: {error_msg}", parse_mode=None)
+            logger.error("telegram.case_update.failed", user_id=user_id, error=error_msg)
+    except Exception as e:
+        logger.exception("telegram.case_update.exception", user_id=user_id, error=str(e))
+        await message.reply_text(f"❌ Ошибка: {e!s}", parse_mode=None)
+
+
+async def case_delete(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Delete a case (with confirmation).
+
+    Usage: /case_delete <case_id>
+    """
+    user_id = update.effective_user.id if update.effective_user else None
+    logger.info("telegram.case_delete.received", user_id=user_id)
+
+    bot_context = _bot_context(context)
+    if not await _is_authorized(bot_context, update):
+        return
+
+    message = update.effective_message
+    if not context.args:
+        await message.reply_text(
+            "🗑️ *Удаление кейса*\n\n"
+            "Использование: `/case_delete <case_id>`\n\n"
+            "⚠️ Это действие необратимо!\n\n"
+            "💡 Используйте `/case_list` чтобы увидеть ID кейсов\n"
+            "💡 Используйте `/case_archive` для архивации вместо удаления",
+            parse_mode="Markdown",
+        )
+        return
+
+    case_id = context.args[0]
+
+    # Check for confirmation flag
+    confirmed = len(context.args) > 1 and context.args[1].lower() in ("confirm", "yes", "да")
+
+    if not confirmed:
+        # Show confirmation prompt
+        keyboard = InlineKeyboardMarkup(
+            [
+                [
+                    InlineKeyboardButton(
+                        "✅ Да, удалить", callback_data=f"case_delete_confirm_{case_id}"
+                    ),
+                    InlineKeyboardButton("❌ Отмена", callback_data="case_delete_cancel"),
+                ]
+            ]
+        )
+        await message.reply_text(
+            f"⚠️ *Подтвердите удаление*\n\n"
+            f"Вы уверены, что хотите удалить кейс `{case_id}`?\n\n"
+            f"Это действие *необратимо*! Все данные кейса будут потеряны.",
+            parse_mode="Markdown",
+            reply_markup=keyboard,
+        )
+        return
+
+    try:
+        command = MegaAgentCommand(
+            user_id=str(update.effective_user.id),
+            command_type=CommandType.CASE,
+            action="delete",
+            payload={"case_id": case_id},
+            context={"thread_id": bot_context.thread_id_for_update(update)},
+        )
+
+        response = await bot_context.mega_agent.handle_command(command, user_role=UserRole.LAWYER)
+
+        if response.success:
+            await message.reply_text(f"🗑️ Кейс `{case_id}` удалён.", parse_mode="Markdown")
+            logger.info("telegram.case_delete.success", user_id=user_id, case_id=case_id)
+        else:
+            error_msg = response.error or "delete failed"
+            await message.reply_text(f"❌ Ошибка: {error_msg}", parse_mode=None)
+            logger.error("telegram.case_delete.failed", user_id=user_id, error=error_msg)
+    except Exception as e:
+        logger.exception("telegram.case_delete.exception", user_id=user_id, error=str(e))
+        await message.reply_text(f"❌ Ошибка: {e!s}", parse_mode=None)
+
+
+async def case_archive(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Archive a case (soft delete).
+
+    Usage: /case_archive <case_id>
+    """
+    user_id = update.effective_user.id if update.effective_user else None
+    logger.info("telegram.case_archive.received", user_id=user_id)
+
+    bot_context = _bot_context(context)
+    if not await _is_authorized(bot_context, update):
+        return
+
+    message = update.effective_message
+    if not context.args:
+        await message.reply_text(
+            "📦 *Архивация кейса*\n\n"
+            "Использование: `/case_archive <case_id>`\n\n"
+            "Кейс будет перемещён в архив и скрыт из списка.\n"
+            "Данные сохраняются и могут быть восстановлены.\n\n"
+            "💡 Используйте `/case_list` чтобы увидеть ID кейсов",
+            parse_mode="Markdown",
+        )
+        return
+
+    case_id = context.args[0]
+
+    try:
+        command = MegaAgentCommand(
+            user_id=str(update.effective_user.id),
+            command_type=CommandType.CASE,
+            action="update",
+            payload={"case_id": case_id, "status": "archived"},
+            context={"thread_id": bot_context.thread_id_for_update(update)},
+        )
+
+        response = await bot_context.mega_agent.handle_command(command, user_role=UserRole.LAWYER)
+
+        if response.success:
+            await message.reply_text(
+                f"📦 Кейс `{case_id}` архивирован.\n\n"
+                "Кейс скрыт из основного списка, но данные сохранены.",
+                parse_mode="Markdown",
+            )
+            logger.info("telegram.case_archive.success", user_id=user_id, case_id=case_id)
+        else:
+            error_msg = response.error or "archive failed"
+            await message.reply_text(f"❌ Ошибка: {error_msg}", parse_mode=None)
+            logger.error("telegram.case_archive.failed", user_id=user_id, error=error_msg)
+    except Exception as e:
+        logger.exception("telegram.case_archive.exception", user_id=user_id, error=str(e))
+        await message.reply_text(f"❌ Ошибка: {e!s}", parse_mode=None)
+
+
 async def eb1_potential(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """
     Batch EB-1A POTENTIAL assessment from intake data (single LLM call).
@@ -802,6 +1001,9 @@ def get_handlers(bot_context: BotContext):
         CommandHandler("case_get", case_get),
         CommandHandler("case_active", case_active),
         CommandHandler("case_list", case_list),
+        CommandHandler("case_update", case_update),
+        CommandHandler("case_delete", case_delete),
+        CommandHandler("case_archive", case_archive),
         CommandHandler("eb1_analyze", eb1_analyze),
         CommandHandler("eb1_potential", eb1_potential),  # Batch single-call analysis
         CallbackQueryHandler(handle_case_callback, pattern="^case_"),

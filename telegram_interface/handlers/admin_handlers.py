@@ -6,8 +6,8 @@ import asyncio
 import os
 
 import structlog
-from telegram import Update
-from telegram.ext import CommandHandler, ContextTypes, MessageHandler, filters
+from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
+from telegram.ext import CallbackQueryHandler, CommandHandler, ContextTypes, MessageHandler, filters
 
 from core.groupagents.mega_agent import CommandType, MegaAgentCommand, UserRole
 
@@ -34,18 +34,45 @@ def _split_for_telegram(text: str) -> list[str]:
     return chunks
 
 
-HELP_TEXT = (
-    "Available commands:\n"
-    "/case_create <title> | <description> — Create a new case.\n"
-    "/case_get <case_id> — Fetch case details.\n"
-    "/case_active — Show current active case.\n"
-    "/case_list [page] — List all your cases.\n"
-    "/ask <question> — Ask MegaAgent.\n"
-    "/memory_lookup <query> — Search semantic memory.\n"
-    "/generate_letter <title> — Generate letter draft.\n"
-    "/chat <prompt> — Direct GPT-5 response via OpenAI SDK.\n"
-    "/models — List available OpenAI models."
-)
+HELP_TEXT = """📋 *Доступные команды MegaAgent EB-1A:*
+
+*🗂️ Управление кейсами:*
+/case_create <title> | <desc> — Создать новый кейс
+/case_get <case_id> — Открыть кейс
+/case_list [page] — Список всех кейсов
+/case_active — Показать активный кейс
+/case_update <case_id> — Редактировать кейс
+/case_delete <case_id> — Удалить кейс
+/case_archive <case_id> — Архивировать кейс
+
+*📝 Анкетирование:*
+/intake_start — Начать анкетирование
+/intake_status — Прогресс анкеты
+/intake_resume — Продолжить с паузы
+/intake_cancel — Отменить анкету
+
+*📊 EB-1A Анализ:*
+/eb1_potential [case_id] — Быстрая оценка потенциала
+/eb1_analyze [case_id] — Полный анализ критериев
+
+*🔍 Поиск и память:*
+/ask <вопрос> — Спросить MegaAgent
+/kb_search <запрос> — Поиск в базе знаний
+/memory_search <запрос> — Поиск по всей памяти
+/kb_stats — Статистика базы знаний
+/memory_stats — Полная статистика памяти
+
+*📄 Документы:*
+/generate_letter <title> — Сгенерировать письмо
+_Отправьте PDF файл для загрузки документов_
+
+*⚙️ Система:*
+/menu — Главное меню
+/status — Статус системы
+/cancel — Отменить текущее действие
+/chat <prompt> — Прямой запрос к GPT
+/models — Список моделей OpenAI
+/help — Эта справка"""
 
 
 def _bot_context(context: ContextTypes.DEFAULT_TYPE) -> BotContext:
@@ -92,7 +119,7 @@ async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
         logger.warning("telegram.help_command.unauthorized", user_id=user_id)
         return
     try:
-        sent = await update.effective_message.reply_text(HELP_TEXT)
+        sent = await update.effective_message.reply_text(HELP_TEXT, parse_mode="Markdown")
         logger.info(
             "telegram.help_command.sent",
             user_id=user_id,
@@ -262,57 +289,176 @@ async def ask_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
             pass
 
 
-async def memory_lookup_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+async def menu_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Show main menu with inline keyboard buttons."""
     user_id = update.effective_user.id if update.effective_user else None
-    username = update.effective_user.username if update.effective_user else None
-    logger.info("telegram.memory_lookup.received", user_id=user_id, username=username)
+    logger.info("telegram.menu.received", user_id=user_id)
 
     bot_context = _bot_context(context)
     if not _is_authorized(bot_context, update):
-        logger.warning("telegram.memory_lookup.unauthorized", user_id=user_id)
+        return
+
+    keyboard = [
+        [
+            InlineKeyboardButton("📁 Мои кейсы", callback_data="menu_cases"),
+            InlineKeyboardButton("➕ Новый кейс", callback_data="menu_new_case"),
+        ],
+        [
+            InlineKeyboardButton("📝 Анкета", callback_data="menu_intake"),
+            InlineKeyboardButton("📊 EB-1A анализ", callback_data="menu_eb1"),
+        ],
+        [
+            InlineKeyboardButton("🔍 Поиск", callback_data="menu_search"),
+            InlineKeyboardButton("📄 Документы", callback_data="menu_docs"),
+        ],
+        [
+            InlineKeyboardButton("⚙️ Статус", callback_data="menu_status"),
+            InlineKeyboardButton("❓ Помощь", callback_data="menu_help"),
+        ],
+    ]
+    reply_markup = InlineKeyboardMarkup(keyboard)
+
+    await update.effective_message.reply_text(
+        "🏠 *Главное меню MegaAgent EB-1A*\n\n" "Выберите действие:",
+        reply_markup=reply_markup,
+        parse_mode="Markdown",
+    )
+    logger.info("telegram.menu.sent", user_id=user_id)
+
+
+async def menu_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Handle menu button callbacks."""
+    query = update.callback_query
+    await query.answer()
+
+    user_id = update.effective_user.id if update.effective_user else None
+    action = query.data
+
+    logger.info("telegram.menu.callback", user_id=user_id, action=action)
+
+    responses = {
+        "menu_cases": "📁 *Управление кейсами:*\n\n"
+        "/case_list — Список всех кейсов\n"
+        "/case_active — Текущий активный кейс\n"
+        "/case_get <id> — Открыть кейс",
+        "menu_new_case": "➕ *Создание кейса:*\n\n"
+        "Используйте команду:\n"
+        "`/case_create Название | Описание`\n\n"
+        "Пример:\n"
+        "`/case_create John Smith | EB-1A petition for researcher`",
+        "menu_intake": "📝 *Анкетирование клиента:*\n\n"
+        "/intake_start — Начать анкету\n"
+        "/intake_status — Прогресс\n"
+        "/intake_resume — Продолжить\n"
+        "/intake_cancel — Отменить",
+        "menu_eb1": "📊 *EB-1A Анализ:*\n\n"
+        "/eb1_potential — Быстрая оценка\n"
+        "/eb1_analyze — Полный анализ критериев",
+        "menu_search": "🔍 *Поиск:*\n\n"
+        "/ask <вопрос> — Спросить MegaAgent\n"
+        "/kb_search <запрос> — Поиск в базе знаний\n"
+        "/memory_search <запрос> — Поиск по памяти",
+        "menu_docs": "📄 *Документы:*\n\n"
+        "/generate_letter <тип> — Генерация письма\n\n"
+        "Для загрузки PDF просто отправьте файл в чат.",
+        "menu_status": "⚙️ Используйте /status для проверки системы",
+        "menu_help": "❓ Используйте /help для полного списка команд",
+    }
+
+    text = responses.get(action, "Неизвестное действие")
+    await query.edit_message_text(text, parse_mode="Markdown")
+
+
+async def status_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Show system status and diagnostics."""
+    user_id = update.effective_user.id if update.effective_user else None
+    logger.info("telegram.status.received", user_id=user_id)
+
+    bot_context = _bot_context(context)
+    if not _is_authorized(bot_context, update):
         return
 
     message = update.effective_message
-    if not context.args:
-        logger.warning("telegram.memory_lookup.no_args", user_id=user_id)
-        await message.reply_text("Usage: /memory_lookup <query>")
-        return
-
-    query = " ".join(context.args)
-    logger.info("telegram.memory_lookup.processing", user_id=user_id, query_length=len(query))
+    await message.reply_text("⏳ Проверяю статус системы...")
 
     try:
-        command = MegaAgentCommand(
-            user_id=str(update.effective_user.id),
-            command_type=CommandType.ADMIN,
-            action="memory_lookup",
-            payload={"query": query},
-        )
-        logger.info(
-            "telegram.memory_lookup.command_created", user_id=user_id, command_id=command.command_id
+        # Check MegaAgent status
+        mega_agent = bot_context.mega_agent
+        agent_status = "✅ Активен" if mega_agent else "❌ Не инициализирован"
+
+        # Check memory status
+        memory_status = "❌ Недоступна"
+        memory_records = 0
+        if hasattr(mega_agent, "memory") and mega_agent.memory:
+            memory_status = "✅ Подключена"
+            try:
+                # Try to get stats from memory
+                if hasattr(mega_agent.memory, "stats"):
+                    stats = await mega_agent.memory.stats()
+                    memory_records = stats.get("total_records", 0)
+            except Exception:  # nosec B110 - optional stats
+                pass
+
+        # Get active case
+        active_case = await bot_context.get_active_case(update)
+        case_status = f"`{active_case}`" if active_case else "Не выбран"
+
+        # Build status message
+        status_text = (
+            "⚙️ *Статус системы MegaAgent EB-1A*\n"
+            "━━━━━━━━━━━━━━━━━━━━━\n\n"
+            f"🤖 *MegaAgent:* {agent_status}\n"
+            f"💾 *Память:* {memory_status}\n"
+            f"📊 *Записей:* {memory_records}\n"
+            f"📁 *Активный кейс:* {case_status}\n"
+            f"👤 *User ID:* `{user_id}`\n\n"
+            "━━━━━━━━━━━━━━━━━━━━━\n"
+            "✅ Система работает нормально"
         )
 
-        response = await bot_context.mega_agent.handle_command(command, user_role=UserRole.ADMIN)
-        logger.info(
-            "telegram.memory_lookup.response_received", user_id=user_id, success=response.success
-        )
+        await message.reply_text(status_text, parse_mode="Markdown")
+        logger.info("telegram.status.sent", user_id=user_id)
 
-        if response.success and response.result:
-            results = response.result.get("results", [])
-            lines = ["🔍 Memory hits:"]
-            for item in results[:5]:
-                text = item.get("text") or item.get("metadata", {}).get("summary")
-                if text:
-                    lines.append(f"• {text}")
-            await message.reply_text("\n".join(lines))
-            logger.info("telegram.memory_lookup.sent", user_id=user_id, results_count=len(results))
-        else:
-            error_msg = response.error or "lookup failed"
-            await message.reply_text(f"❌ Error: {error_msg}")
-            logger.error("telegram.memory_lookup.failed", user_id=user_id, error=error_msg)
     except Exception as e:
-        logger.exception("telegram.memory_lookup.exception", user_id=user_id, error=str(e))
-        await message.reply_text(f"❌ Exception: {e!s}")
+        logger.exception("telegram.status.error", user_id=user_id, error=str(e))
+        await message.reply_text(f"❌ Ошибка получения статуса: {e!s}")
+
+
+async def cancel_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Cancel current operation and clear user state."""
+    user_id = update.effective_user.id if update.effective_user else None
+    logger.info("telegram.cancel.received", user_id=user_id)
+
+    bot_context = _bot_context(context)
+    if not _is_authorized(bot_context, update):
+        return
+
+    # Clear any pending operations in user_data
+    cleared_items = []
+
+    if context.user_data:
+        # Clear pending PDF
+        if "pending_pdf" in context.user_data:
+            del context.user_data["pending_pdf"]
+            cleared_items.append("PDF загрузка")
+
+        # Clear intake state
+        if "intake_state" in context.user_data:
+            del context.user_data["intake_state"]
+            cleared_items.append("Анкета")
+
+        # Clear any pending confirmations
+        if "pending_confirmation" in context.user_data:
+            del context.user_data["pending_confirmation"]
+            cleared_items.append("Подтверждение")
+
+    if cleared_items:
+        text = "🚫 Отменено:\n• " + "\n• ".join(cleared_items)
+    else:
+        text = "✅ Нет активных операций для отмены."
+
+    await update.effective_message.reply_text(text)
+    logger.info("telegram.cancel.done", user_id=user_id, cleared=cleared_items)
 
 
 async def unknown_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -337,10 +483,14 @@ def get_handlers(bot_context: BotContext):
     return [
         CommandHandler("start", start),
         CommandHandler("help", help_command),
+        CommandHandler("menu", menu_command),
+        CommandHandler("status", status_command),
+        CommandHandler("cancel", cancel_command),
         CommandHandler("ask", ask_command),
         # Fallback regex to catch '/ask@bot' or formatting edge cases
         MessageHandler(filters.TEXT & filters.Regex(r"^/ask(?:@[A-Za-z0-9_]+)?\b"), ask_command),
-        CommandHandler("memory_lookup", memory_lookup_command),
+        # Menu callback handler
+        CallbackQueryHandler(menu_callback, pattern="^menu_"),
     ]
 
 

@@ -12,8 +12,7 @@ from __future__ import annotations
 
 import structlog
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
-from telegram.ext import (CallbackQueryHandler, ContextTypes, MessageHandler,
-                          filters)
+from telegram.ext import CallbackQueryHandler, ContextTypes, MessageHandler, filters
 
 from core.ingestion import PDFIngestionService
 from core.memory.memory_manager import MemoryManager
@@ -260,7 +259,7 @@ async def handle_pdf_callback(
         response_lines.extend(
             [
                 "",
-                "🔍 Используйте /search <запрос> для поиска в документе",
+                "🔍 Используйте /kb_search <запрос> для поиска в базе знаний",
             ]
         )
 
