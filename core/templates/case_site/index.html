@@ -1,0 +1,35 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard{% endblock %}
+
+{% block content %}
+<header>
+    <h1>Case Dashboard</h1>
+    <div class="meta">Case ID: {{ case.case_id }} | Created: {{ case.created_at }}</div>
+</header>
+
+<div class="overview">
+    <div class="card">
+        <h3>Client Information</h3>
+        <p><strong>Name:</strong> {{ case.user_data.full_name }}</p>
+        <p><strong>Email:</strong> {{ case.user_data.email }}</p>
+        <p><strong>Field:</strong> {{ case.case_data.field }}</p>
+        <p><strong>Status:</strong> <span class="status-badge status-{{ case.status }}">{{ case.status|title }}</span></p>
+    </div>
+
+    <div class="card" style="margin-top: 20px;">
+        <h3>Progress</h3>
+        <p>Petition Draft: {{ progress.petition_percent }}%</p>
+        <progress value="{{ progress.petition_percent }}" max="100" style="width: 100%"></progress>
+        
+        <p>Exhibits Collected: {{ progress.exhibits_count }} / {{ progress.exhibits_target }}</p>
+        <progress value="{{ progress.exhibits_count }}" max="{{ progress.exhibits_target }}" style="width: 100%"></progress>
+    </div>
+
+    <div class="actions" style="margin-top: 20px;">
+        <h3>Quick Actions</h3>
+        <a href="petition/index.html" class="btn">View Petition Draft</a>
+        <a href="forms/index.html" class="btn" style="background-color: #6c757d;">Manage Forms</a>
+    </div>
+</div>
+{% endblock %}

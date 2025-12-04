@@ -1,0 +1,41 @@
+{% extends "base.html" %}
+
+{% block title %}USCIS Forms{% endblock %}
+
+{% block content %}
+<header>
+    <h1>USCIS Forms</h1>
+    <div class="meta">Manage required immigration forms for Case {{ case.case_id }}</div>
+</header>
+
+<table style="width: 100%; border-collapse: collapse;">
+    <thead>
+        <tr style="background: #f8f9fa; text-align: left;">
+            <th style="padding: 12px; border-bottom: 2px solid #dee2e6;">Form</th>
+            <th style="padding: 12px; border-bottom: 2px solid #dee2e6;">Description</th>
+            <th style="padding: 12px; border-bottom: 2px solid #dee2e6;">Status</th>
+            <th style="padding: 12px; border-bottom: 2px solid #dee2e6;">Action</th>
+        </tr>
+    </thead>
+    <tbody>
+        <tr>
+            <td style="padding: 12px; border-bottom: 1px solid #dee2e6;"><strong>I-140</strong></td>
+            <td style="padding: 12px; border-bottom: 1px solid #dee2e6;">Immigrant Petition for Alien Workers</td>
+            <td style="padding: 12px; border-bottom: 1px solid #dee2e6;"><span class="status-badge status-pending">Drafting</span></td>
+            <td style="padding: 12px; border-bottom: 1px solid #dee2e6;"><a href="#">Edit</a></td>
+        </tr>
+        <tr>
+            <td style="padding: 12px; border-bottom: 1px solid #dee2e6;"><strong>I-907</strong></td>
+            <td style="padding: 12px; border-bottom: 1px solid #dee2e6;">Request for Premium Processing Service</td>
+            <td style="padding: 12px; border-bottom: 1px solid #dee2e6;"><span class="status-badge status-pending">Pending</span></td>
+            <td style="padding: 12px; border-bottom: 1px solid #dee2e6;"><a href="#">Start</a></td>
+        </tr>
+        <tr>
+            <td style="padding: 12px; border-bottom: 1px solid #dee2e6;"><strong>G-28</strong></td>
+            <td style="padding: 12px; border-bottom: 1px solid #dee2e6;">Notice of Entry of Appearance as Attorney</td>
+            <td style="padding: 12px; border-bottom: 1px solid #dee2e6;"><span class="status-badge status-active">Completed</span></td>
+            <td style="padding: 12px; border-bottom: 1px solid #dee2e6;"><a href="#">View</a></td>
+        </tr>
+    </tbody>
+</table>
+{% endblock %}
