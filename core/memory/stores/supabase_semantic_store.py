@@ -447,19 +447,51 @@ class SupabaseSemanticStore:
         Returns:
             List of MemoryRecord from all sources, sorted by relevance
         """
-        # Get from semantic memory (no user filter)
-        semantic_results = await self.aretrieve(
-            query=query,
-            user_id=None,  # No user filter - search all
-            topk=topk,
-            filters=None,
+        import asyncio
+
+        # Run both searches in parallel with timeouts
+        semantic_task = asyncio.create_task(
+            self.aretrieve(
+                query=query,
+                user_id=None,  # No user filter - search all
+                topk=topk,
+                filters=None,
+            )
         )
 
-        # Get from RFE knowledge
-        rfe_results = await self.aretrieve_rfe_knowledge(
-            query=query,
-            topk=topk,
+        rfe_task = asyncio.create_task(
+            self._aretrieve_rfe_with_timeout(query=query, topk=topk, timeout=15.0)
         )
+
+        # Wait for both with overall timeout
+        try:
+            semantic_results, rfe_results = await asyncio.wait_for(
+                asyncio.gather(semantic_task, rfe_task, return_exceptions=True),
+                timeout=30.0,
+            )
+        except asyncio.TimeoutError:
+            logger.warning(
+                "supabase_semantic_store.aretrieve_all_sources.timeout",
+                query=query[:100],
+            )
+            # Try to get whatever completed
+            semantic_results = []
+            rfe_results = []
+
+        # Handle exceptions from tasks
+        if isinstance(semantic_results, Exception):
+            logger.error(
+                "supabase_semantic_store.semantic_search_failed",
+                error=str(semantic_results),
+            )
+            semantic_results = []
+
+        if isinstance(rfe_results, Exception):
+            logger.warning(
+                "supabase_semantic_store.rfe_search_failed",
+                error=str(rfe_results),
+            )
+            rfe_results = []
 
         # Combine and sort by confidence/similarity
         all_results = semantic_results + rfe_results
@@ -474,6 +506,35 @@ class SupabaseSemanticStore:
         )
 
         return all_results[:topk]
+
+    async def _aretrieve_rfe_with_timeout(
+        self,
+        query: str,
+        topk: int,
+        timeout: float = 15.0,
+    ) -> list[MemoryRecord]:
+        """Search RFE knowledge with timeout and graceful fallback."""
+        import asyncio
+
+        try:
+            return await asyncio.wait_for(
+                self.aretrieve_rfe_knowledge(query=query, topk=topk),
+                timeout=timeout,
+            )
+        except asyncio.TimeoutError:
+            logger.warning(
+                "supabase_semantic_store.rfe_search_timeout",
+                query=query[:100],
+                timeout=timeout,
+            )
+            return []
+        except Exception as e:
+            logger.warning(
+                "supabase_semantic_store.rfe_search_error",
+                query=query[:100],
+                error=str(e),
+            )
+            return []
 
     async def aall(self, user_id: str | None = None) -> list[MemoryRecord]:
         """Fetch all records (optionally filtered by user)."""
