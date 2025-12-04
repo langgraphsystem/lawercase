@@ -375,10 +375,10 @@ class SupabaseSemanticStore:
                 uscis_quote,
                 problem_description,
                 success_response,
-                1 - (embedding <=> :embedding::vector) as similarity
+                1 - (embedding <=> CAST(:embedding AS vector)) as similarity
             FROM mega_agent.rfe_knowledge
             WHERE embedding IS NOT NULL
-            ORDER BY embedding <=> :embedding::vector
+            ORDER BY embedding <=> CAST(:embedding AS vector)
             LIMIT :topk
         """
         )

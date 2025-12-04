@@ -7,8 +7,7 @@ import os
 
 import structlog
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
-from telegram.ext import (CallbackQueryHandler, CommandHandler, ContextTypes,
-                          MessageHandler, filters)
+from telegram.ext import CallbackQueryHandler, CommandHandler, ContextTypes, MessageHandler, filters
 
 from core.groupagents.mega_agent import CommandType, MegaAgentCommand, UserRole
 
@@ -18,44 +17,42 @@ from .response_utils import send_response
 logger = structlog.get_logger(__name__)
 
 
-HELP_TEXT = """📋 *Доступные команды MegaAgent EB-1A:*
+HELP_TEXT = """📋 Доступные команды MegaAgent EB-1A:
 
-*🗂️ Управление кейсами:*
-/case_create <title> | <desc> — Создать новый кейс
-/case_get <case_id> — Открыть кейс
-/case_list [page] — Список всех кейсов
+🗂️ Управление кейсами:
+/case_create — Создать новый кейс
+/case_get — Открыть кейс по ID
+/case_list — Список всех кейсов
 /case_active — Показать активный кейс
-/case_update <case_id> — Редактировать кейс
-/case_delete <case_id> — Удалить кейс
-/case_archive <case_id> — Архивировать кейс
+/case_update — Редактировать кейс
+/case_delete — Удалить кейс
+/case_archive — Архивировать кейс
 
-*📝 Анкетирование:*
+📝 Анкетирование:
 /intake_start — Начать анкетирование
 /intake_status — Прогресс анкеты
 /intake_resume — Продолжить с паузы
 /intake_cancel — Отменить анкету
 
-*📊 EB-1A Анализ:*
-/eb1_potential [case_id] — Быстрая оценка потенциала
-/eb1_analyze [case_id] — Полный анализ критериев
+📊 EB-1A Анализ:
+/eb1_potential — Быстрая оценка потенциала
+/eb1_analyze — Полный анализ критериев
 
-*🔍 Поиск и память:*
-/ask <вопрос> — Спросить MegaAgent
-/kb_search <запрос> — Поиск в базе знаний
-/memory_search <запрос> — Поиск по всей памяти
+🔍 Поиск и память:
+/ask — Спросить MegaAgent
+/kb_search — Поиск в базе знаний
+/memory_search — Поиск по всей памяти
 /kb_stats — Статистика базы знаний
 /memory_stats — Полная статистика памяти
 
-*📄 Документы:*
-/generate_letter <title> — Сгенерировать письмо
-_Отправьте PDF файл для загрузки документов_
+📄 Документы:
+/generate_letter — Сгенерировать письмо
+(Отправьте PDF файл для загрузки)
 
-*⚙️ Система:*
+⚙️ Система:
 /menu — Главное меню
 /status — Статус системы
 /cancel — Отменить текущее действие
-/chat <prompt> — Прямой запрос к GPT
-/models — Список моделей OpenAI
 /help — Эта справка"""
 
 
@@ -103,7 +100,7 @@ async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
         logger.warning("telegram.help_command.unauthorized", user_id=user_id)
         return
     try:
-        sent = await update.effective_message.reply_text(HELP_TEXT, parse_mode="Markdown")
+        sent = await update.effective_message.reply_text(HELP_TEXT)
         logger.info(
             "telegram.help_command.sent",
             user_id=user_id,
