@@ -23,6 +23,7 @@ class QuestionType(str, Enum):
     DATE = "date"  # Date in YYYY-MM-DD format
     SELECT = "select"  # Single choice from options
     LIST = "list"  # Multiple items (comma/newline separated)
+    DOCUMENT = "document"  # File upload (PDF, images, documents)
 
 
 class IntakeCondition(BaseModel):
@@ -124,6 +125,20 @@ BLOCK_BASIC_INFO = IntakeBlock(
             type=QuestionType.TEXT,
             hint="Например: машинное обучение, биотехнологии, финансовые технологии",
             tags=["intake", "basic_info", "career"],
+        ),
+        IntakeQuestion(
+            id="doc_passport",
+            text_template="📎 Загрузите скан/фото вашего паспорта (главная страница с фото и данными)",
+            type=QuestionType.DOCUMENT,
+            hint="Отправьте файл PDF или фото. Можно пропустить, отправив 'пропустить'",
+            tags=["intake", "basic_info", "document", "identity"],
+        ),
+        IntakeQuestion(
+            id="doc_birth_certificate",
+            text_template="📎 Загрузите свидетельство о рождении (если есть)",
+            type=QuestionType.DOCUMENT,
+            hint="Отправьте файл PDF или фото. Можно пропустить, отправив 'пропустить'",
+            tags=["intake", "basic_info", "document", "identity"],
         ),
     ],
 )
@@ -283,6 +298,20 @@ BLOCK_UNIVERSITY = IntakeBlock(
             hint="Например: Проф. Петров П.П., научный руководитель диплома, знаком с 2012 года",
             tags=["intake", "university", "recommender"],
         ),
+        IntakeQuestion(
+            id="doc_diploma",
+            text_template="📎 Загрузите ваш диплом о высшем образовании",
+            type=QuestionType.DOCUMENT,
+            hint="Отправьте файл PDF или фото. Можно пропустить, отправив 'пропустить'",
+            tags=["intake", "university", "document", "education"],
+        ),
+        IntakeQuestion(
+            id="doc_transcript",
+            text_template="📎 Загрузите приложение к диплому / транскрипт оценок (если есть)",
+            type=QuestionType.DOCUMENT,
+            hint="Отправьте файл PDF или фото. Можно пропустить, отправив 'пропустить'",
+            tags=["intake", "university", "document", "education"],
+        ),
     ],
 )
 
@@ -402,6 +431,20 @@ BLOCK_PROJECTS_RESEARCH = IntakeBlock(
             type=QuestionType.TEXT,
             tags=["intake", "projects_research", "achievements"],
         ),
+        IntakeQuestion(
+            id="doc_publications",
+            text_template="📎 Загрузите PDF ваших ключевых публикаций или статей (можно несколько файлов)",
+            type=QuestionType.DOCUMENT,
+            hint="Отправляйте по одному файлу. Когда закончите, напишите 'готово' или 'пропустить'",
+            tags=["intake", "projects_research", "document", "publications"],
+        ),
+        IntakeQuestion(
+            id="doc_patents",
+            text_template="📎 Загрузите документы о патентах (если есть)",
+            type=QuestionType.DOCUMENT,
+            hint="Отправьте файл PDF или фото. Можно пропустить, отправив 'пропустить'",
+            tags=["intake", "projects_research", "document", "patents"],
+        ),
     ],
 )
 
@@ -432,6 +475,13 @@ BLOCK_AWARDS = IntakeBlock(
             type=QuestionType.TEXT,
             hint="Например: грант NSF CAREER, стипендия Fulbright",
             tags=["intake", "awards", "achievements"],
+        ),
+        IntakeQuestion(
+            id="doc_awards",
+            text_template="📎 Загрузите документы о наградах, дипломы, сертификаты (можно несколько файлов)",
+            type=QuestionType.DOCUMENT,
+            hint="Отправляйте по одному файлу. Когда закончите, напишите 'готово' или 'пропустить'",
+            tags=["intake", "awards", "document", "achievements"],
         ),
     ],
 )

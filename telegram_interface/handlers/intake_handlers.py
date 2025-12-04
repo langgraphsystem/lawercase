@@ -15,16 +15,29 @@ from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
 from telegram.constants import ParseMode
 from telegram.ext import ContextTypes
 
-from core.intake.schema import (BLOCKS_BY_ID, INTAKE_BLOCKS, IntakeBlock,
-                                IntakeQuestion, QuestionType)
+from core.intake.schema import (
+    BLOCKS_BY_ID,
+    INTAKE_BLOCKS,
+    IntakeBlock,
+    IntakeQuestion,
+    QuestionType,
+)
 from core.intake.synthesis import synthesize_intake_fact
-from core.intake.validation import (is_media_message, parse_list,
-                                    validate_date, validate_select,
-                                    validate_text, validate_yes_no)
+from core.intake.validation import (
+    parse_list,
+    validate_date,
+    validate_select,
+    validate_text,
+    validate_yes_no,
+)
 from core.memory.models import MemoryRecord
-from core.storage.intake_progress import (advance_step, complete_block,
-                                          get_progress, reset_progress,
-                                          set_progress)
+from core.storage.intake_progress import (
+    advance_step,
+    complete_block,
+    get_progress,
+    reset_progress,
+    set_progress,
+)
 
 from .context import BotContext
 
@@ -745,6 +758,10 @@ async def _send_single_question(
             question_text += f"• {opt}\n"
     elif question.type == QuestionType.LIST:
         question_text += "\n\n(Перечислите через запятую или с новой строки)"
+    elif question.type == QuestionType.DOCUMENT:
+        question_text += (
+            "\n\n📤 Отправьте файл (PDF или фото) или напишите 'пропустить' чтобы пропустить."
+        )
 
     await message.reply_text(question_text, parse_mode=ParseMode.MARKDOWN)
 
@@ -801,6 +818,18 @@ async def _validate_response(question: IntakeQuestion, user_text: str) -> tuple[
         if not items:
             return (False, "❌ Пожалуйста, укажите хотя бы один элемент.")
         return (True, items)
+
+    if question.type == QuestionType.DOCUMENT:
+        # Allow skip commands for documents
+        skip_words = ["пропустить", "skip", "пропуск", "готово", "done", "нет"]
+        if user_text.lower().strip() in skip_words:
+            return (True, f"[Документ пропущен: {question.id}]")
+        # Otherwise, expect file upload - text response is invalid
+        return (
+            False,
+            "❌ Для этого вопроса нужно отправить файл (PDF или фото).\n"
+            "Или напишите 'пропустить', чтобы пропустить загрузку.",
+        )
 
     # Default: accept any text
     return (True, user_text)
@@ -875,8 +904,7 @@ async def _complete_intake(
 
     # Get case title
     try:
-        from core.groupagents.mega_agent import (CommandType, MegaAgentCommand,
-                                                 UserRole)
+        from core.groupagents.mega_agent import CommandType, MegaAgentCommand, UserRole
 
         command = MegaAgentCommand(
             user_id=user_id,
@@ -932,6 +960,204 @@ async def _complete_intake(
     await message.reply_text(completion_text, parse_mode=ParseMode.MARKDOWN)
 
 
+# --- Document Upload Handler for Intake ---
+
+
+@ensure_case_exists
+async def handle_document_upload(update: Update, context: ContextTypes.DEFAULT_TYPE) -> bool:
+    """
+    Handle document/photo uploads during active intake questionnaire.
+
+    Returns:
+        True if message was handled as intake document, False otherwise
+    """
+    bot_context = _bot_context(context)
+    message = update.effective_message
+    if not message:
+        return False
+
+    user_id = str(update.effective_user.id)
+    active_case_id = await bot_context.get_active_case(update)
+
+    if not active_case_id:
+        return False
+
+    # Check if intake is active
+    progress = await get_progress(user_id, active_case_id)
+    if not progress:
+        return False
+
+    # Get current question
+    current_block_id = progress.current_block
+    current_step = progress.current_step
+
+    current_block = BLOCKS_BY_ID.get(current_block_id)
+    if not current_block:
+        return False
+
+    questions = _get_questions_for_step(current_block, current_step)
+    if not questions:
+        return False
+
+    batch_start = (current_step // QUESTIONS_PER_BATCH) * QUESTIONS_PER_BATCH
+    batch_question_idx = current_step - batch_start
+
+    if batch_question_idx >= len(questions):
+        return False
+
+    current_question = questions[batch_question_idx]
+
+    # Only accept documents for DOCUMENT type questions
+    if current_question.type != QuestionType.DOCUMENT:
+        await message.reply_text(
+            "❌ Для этого вопроса нужен текстовый ответ, а не файл.\n"
+            "Пожалуйста, напишите ваш ответ текстом."
+        )
+        return True
+
+    # Get file info
+    file = None
+    file_name = "document"
+    file_type = "unknown"
+
+    if message.document:
+        file = message.document
+        file_name = message.document.file_name or "document"
+        file_type = message.document.mime_type or "application/octet-stream"
+    elif message.photo:
+        # Get largest photo
+        file = message.photo[-1]
+        file_name = f"photo_{file.file_id[:8]}.jpg"
+        file_type = "image/jpeg"
+
+    if not file:
+        return False
+
+    try:
+        # Download file
+        telegram_file = await file.get_file()
+
+        # Download to bytes
+        file_bytes = await telegram_file.download_as_bytearray()
+
+        logger.info(
+            "intake.document_received",
+            user_id=user_id,
+            case_id=active_case_id,
+            question_id=current_question.id,
+            file_name=file_name,
+            file_size=len(file_bytes),
+        )
+
+        # Process and save document
+        await _save_document_to_memory(
+            bot_context=bot_context,
+            update=update,
+            case_id=active_case_id,
+            question=current_question,
+            file_bytes=bytes(file_bytes),
+            file_name=file_name,
+            file_type=file_type,
+        )
+
+        # Advance to next question
+        await advance_step(user_id, active_case_id)
+
+        await message.reply_text(
+            f"✅ Документ '{file_name}' получен и сохранён!\n" "Переходим к следующему вопросу..."
+        )
+
+        # Send next question
+        await _send_question_batch(bot_context, update, user_id, active_case_id)
+        return True
+
+    except Exception as e:
+        logger.exception(
+            "intake.document_upload_failed",
+            error=str(e),
+            case_id=active_case_id,
+            question_id=current_question.id,
+        )
+        await message.reply_text(
+            f"❌ Ошибка при загрузке документа: {e!s}\n"
+            "Попробуйте снова или напишите 'пропустить'."
+        )
+        return True
+
+
+async def _save_document_to_memory(
+    bot_context: BotContext,
+    update: Update,
+    case_id: str,
+    question: IntakeQuestion,
+    file_bytes: bytes,
+    file_name: str,
+    file_type: str,
+) -> None:
+    """Save uploaded document to semantic memory and process if PDF."""
+    user_id = str(update.effective_user.id)
+
+    # Try to process document for text extraction
+    document_text = f"Загружен документ: {file_name}"
+
+    # Extract text from PDF and other documents using MarkitdownParser
+    if file_type == "application/pdf" or file_name.lower().endswith(".pdf"):
+        try:
+            from core.rag.document_parser import MarkitdownParser
+
+            parser = MarkitdownParser()
+            parsed_doc = await parser.parse_bytes(file_bytes, file_name)
+            if parsed_doc.content and len(parsed_doc.content) > 50:
+                # Truncate long documents for memory storage
+                content_preview = parsed_doc.content[:3000]
+                document_text = f"Документ '{file_name}':\n{content_preview}"
+                if len(parsed_doc.content) > 3000:
+                    document_text += "\n... (документ обрезан)"
+                logger.info(
+                    "intake.document_text_extracted",
+                    file_name=file_name,
+                    text_length=len(parsed_doc.content),
+                )
+        except Exception as e:
+            logger.warning("intake.document_extraction_failed", error=str(e), file_name=file_name)
+
+    # Create memory record
+    memory_record = MemoryRecord(
+        text=document_text,
+        user_id=user_id,
+        type="semantic",
+        case_id=case_id,
+        tags=(
+            [*question.tags, "uploaded_document"]
+            if question.tags
+            else ["intake", "uploaded_document"]
+        ),
+        metadata={
+            "source": "intake_document_upload",
+            "question_id": question.id,
+            "file_name": file_name,
+            "file_type": file_type,
+            "file_size": len(file_bytes),
+        },
+    )
+
+    try:
+        await bot_context.mega_agent.memory.awrite([memory_record])
+        logger.info(
+            "intake.document_saved_to_memory",
+            case_id=case_id,
+            question_id=question.id,
+            file_name=file_name,
+        )
+    except Exception as e:
+        logger.exception(
+            "intake.document_save_failed",
+            error=str(e),
+            case_id=case_id,
+            file_name=file_name,
+        )
+
+
 # --- Text Message Handler for Intake Responses ---
 
 
@@ -953,19 +1179,8 @@ async def handle_text_message(update: Update, context: ContextTypes.DEFAULT_TYPE
     if message.text.startswith("/"):
         return
 
-    # Check for media messages during intake
-    user_id = str(update.effective_user.id)
-    active_case_id = await bot_context.get_active_case(update)
-    if active_case_id:
-        progress = await get_progress(user_id, active_case_id)
-        if progress and is_media_message(update):
-            await message.reply_text(
-                "❌ Пожалуйста, отправьте текстовый ответ на вопрос.\n"
-                "Медиа-файлы (фото, документы, голосовые сообщения) не принимаются во время анкетирования."
-            )
-            return
-
     # Try to handle as intake response
+    # Note: document/photo uploads are handled by handle_document_upload handler
     await handle_intake_response(bot_context, update, message.text)
 
 
@@ -974,8 +1189,7 @@ async def handle_text_message(update: Update, context: ContextTypes.DEFAULT_TYPE
 
 def get_handlers(bot_context: BotContext):
     """Return list of handlers to register with the Telegram application."""
-    from telegram.ext import (CallbackQueryHandler, CommandHandler,
-                              MessageHandler, filters)
+    from telegram.ext import CallbackQueryHandler, CommandHandler, MessageHandler, filters
 
     return [
         # Command handlers
@@ -985,6 +1199,12 @@ def get_handlers(bot_context: BotContext):
         CommandHandler("intake_resume", intake_resume),
         # Callback query handler for inline buttons
         CallbackQueryHandler(handle_intake_callback, pattern="^intake_"),
+        # Document/photo handler for intake uploads (high priority for document questions)
+        MessageHandler(
+            filters.Document.ALL | filters.PHOTO,
+            handle_document_upload,
+            block=False,
+        ),
         # Text message handler for intake responses (should run before other text handlers)
         MessageHandler(
             filters.TEXT & ~filters.COMMAND,
