@@ -469,7 +469,7 @@ class SupabaseSemanticStore:
                 asyncio.gather(semantic_task, rfe_task, return_exceptions=True),
                 timeout=30.0,
             )
-        except asyncio.TimeoutError:
+        except TimeoutError:
             logger.warning(
                 "supabase_semantic_store.aretrieve_all_sources.timeout",
                 query=query[:100],
@@ -521,7 +521,7 @@ class SupabaseSemanticStore:
                 self.aretrieve_rfe_knowledge(query=query, topk=topk),
                 timeout=timeout,
             )
-        except asyncio.TimeoutError:
+        except TimeoutError:
             logger.warning(
                 "supabase_semantic_store.rfe_search_timeout",
                 query=query[:100],
