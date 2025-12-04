@@ -13,26 +13,9 @@ from telegram.ext import (CallbackQueryHandler, CommandHandler, ContextTypes,
 from core.groupagents.mega_agent import CommandType, MegaAgentCommand, UserRole
 
 from .context import BotContext
+from .response_utils import send_response
 
 logger = structlog.get_logger(__name__)
-
-_TELEGRAM_MAX_CHARS = 4096
-_TELEGRAM_SAFE_CHUNK = 3800
-
-
-def _split_for_telegram(text: str) -> list[str]:
-    """Split long responses into Telegram-friendly chunks."""
-
-    if len(text) <= _TELEGRAM_SAFE_CHUNK:
-        return [text]
-    chunks: list[str] = []
-    start = 0
-    length = len(text)
-    while start < length:
-        end = min(length, start + _TELEGRAM_SAFE_CHUNK)
-        chunks.append(text[start:end])
-        start = end
-    return chunks
 
 
 HELP_TEXT = """📋 *Доступные команды MegaAgent EB-1A:*
@@ -224,21 +207,17 @@ async def ask_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
                 result_keys=list(result.keys()),
             )
             if llm_answer:
-                chunks = _split_for_telegram(llm_answer)
-                for idx, chunk in enumerate(chunks):
-                    try:
-                        sent = await message.reply_text(chunk)
-                        logger.info(
-                            "telegram.ask.sent",
-                            user_id=user_id,
-                            response_length=len(chunk),
-                            chunk_index=idx,
-                            chunks_total=len(chunks),
-                            message_id=getattr(sent, "message_id", None),
-                        )
-                    except Exception as e:
-                        logger.exception("telegram.ask.send_failed", user_id=user_id, error=str(e))
-                        break
+                await send_response(
+                    message=message,
+                    text=llm_answer,
+                    filename="response.txt",
+                    parse_mode=None,  # LLM responses may have special chars
+                )
+                logger.info(
+                    "telegram.ask.sent",
+                    user_id=user_id,
+                    response_length=len(llm_answer),
+                )
                 return
             # Fallback: show prompt analysis and retrieved memory summary
             retrieved = result.get("retrieved", [])

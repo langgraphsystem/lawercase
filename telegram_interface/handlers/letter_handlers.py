@@ -9,24 +9,9 @@ from telegram.ext import CommandHandler, ContextTypes
 from core.groupagents.mega_agent import CommandType, MegaAgentCommand, UserRole
 
 from .context import BotContext
+from .response_utils import send_document_response
 
 logger = structlog.get_logger(__name__)
-
-_TELEGRAM_SAFE_CHUNK = 3800
-
-
-def _split_for_telegram(text: str) -> list[str]:
-    """Split long responses into Telegram-friendly chunks."""
-    if len(text) <= _TELEGRAM_SAFE_CHUNK:
-        return [text]
-    chunks: list[str] = []
-    start = 0
-    length = len(text)
-    while start < length:
-        end = min(length, start + _TELEGRAM_SAFE_CHUNK)
-        chunks.append(text[start:end])
-        start = end
-    return chunks
 
 
 def _bot_context(context: ContextTypes.DEFAULT_TYPE) -> BotContext:
@@ -135,32 +120,28 @@ async def generate_letter(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
                 pass
 
             if content:
-                # Send document with content
+                # Send document with header
                 header = (
-                    f"📝 *Документ сгенерирован*\n"
+                    f"📝 Документ сгенерирован\n"
                     f"📋 Тип: {doc_title}\n"
-                    f"📁 Кейс: `{active_case[:8]}...`\n"
+                    f"📁 Кейс: {active_case[:8]}...\n"
                     f"━━━━━━━━━━━━━━━━━━━━━\n\n"
                 )
-
-                # Split content if too long
                 full_text = header + content
-                chunks = _split_for_telegram(full_text)
 
-                for i, chunk in enumerate(chunks):
-                    if i == 0:
-                        await message.reply_text(chunk, parse_mode="Markdown")
-                    else:
-                        await message.reply_text(
-                            f"_(продолжение {i+1}/{len(chunks)})_\n\n{chunk}", parse_mode="Markdown"
-                        )
+                # Send as text or file based on length
+                await send_document_response(
+                    message=message,
+                    content=full_text,
+                    doc_title=doc_title,
+                    doc_type="letter",
+                )
 
                 logger.info(
                     "telegram.generate_letter.sent",
                     user_id=user_id,
                     format=doc_format,
                     content_length=len(content),
-                    chunks=len(chunks),
                 )
             else:
                 # Fallback: no content returned
