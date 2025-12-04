@@ -9,11 +9,11 @@ Supports multiple backends:
 
 from __future__ import annotations
 
-from datetime import UTC, datetime
 import os
+import uuid
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
-import uuid
 
 import structlog
 
