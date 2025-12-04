@@ -408,7 +408,6 @@ async def case_list(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
 
                 title = case.get("title", "(no title)")
                 case_id = case.get("case_id", "unknown")
-                case_id_short = case_id[:8] if len(case_id) > 8 else case_id
 
                 # Escape special characters for MarkdownV2
                 title_escaped = (
@@ -432,7 +431,7 @@ async def case_list(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
                     .replace("!", "\\!")
                 )
                 status_escaped = status.replace("_", "\\_")
-                case_id_escaped = case_id_short.replace("-", "\\-")
+                case_id_escaped = case_id.replace("-", "\\-")
 
                 text += f"{idx}\\. {status_emoji} *{title_escaped}*\n"
                 text += f"   ID: `{case_id_escaped}`\n"
@@ -507,8 +506,7 @@ async def eb1_potential(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
 
     try:
         from core.di.container import get_container
-        from core.groupagents.eb1a_evidence_analyzer import \
-            analyze_intake_potential_batch
+        from core.groupagents.eb1a_evidence_analyzer import analyze_intake_potential_batch
 
         container = get_container()
         memory = container.get("memory_manager")
@@ -667,8 +665,7 @@ async def eb1_analyze(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
 
     try:
         from core.di.container import get_container
-        from core.groupagents.eb1a_evidence_analyzer import \
-            analyze_intake_for_eb1a
+        from core.groupagents.eb1a_evidence_analyzer import analyze_intake_for_eb1a
 
         container = get_container()
         memory = container.get("memory_manager")
