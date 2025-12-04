@@ -7,8 +7,7 @@ import os
 
 import structlog
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
-from telegram.ext import (CallbackQueryHandler, CommandHandler, ContextTypes,
-                          MessageHandler, filters)
+from telegram.ext import CallbackQueryHandler, CommandHandler, ContextTypes, MessageHandler, filters
 
 from core.groupagents.mega_agent import CommandType, MegaAgentCommand, UserRole
 
@@ -157,7 +156,8 @@ async def ask_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
         logger.info("telegram.ask.command_created", user_id=user_id, command_id=command.command_id)
 
         try:
-            ask_timeout = float(os.getenv("TELEGRAM_ASK_TIMEOUT", "45.0"))
+            # Increased timeout to allow slow database queries (semantic + RFE)
+            ask_timeout = float(os.getenv("TELEGRAM_ASK_TIMEOUT", "65.0"))
             response = await asyncio.wait_for(
                 bot_context.mega_agent.handle_command(command, user_role=UserRole.LAWYER),
                 timeout=ask_timeout,
