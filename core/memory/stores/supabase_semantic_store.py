@@ -408,10 +408,14 @@ class SupabaseSemanticStore:
                 MemoryRecord(
                     id=row.id,
                     user_id=None,
-                    type="rfe_knowledge",
+                    type="semantic",  # RFE is reference knowledge
                     text=text_content,
                     source="rfe_knowledge",
-                    tags=["rfe", row.criterion] if row.criterion else ["rfe"],
+                    tags=(
+                        ["rfe", "rfe_knowledge", row.criterion]
+                        if row.criterion
+                        else ["rfe", "rfe_knowledge"]
+                    ),
                     confidence=float(row.similarity) if row.similarity else 0.0,
                 )
             )
