@@ -10,12 +10,17 @@ from __future__ import annotations
 
 from datetime import datetime
 from typing import Any
+from uuid import UUID
+
+from sqlalchemy import select
 
 from ..exceptions import AgentError, NotFoundError
 from ..exceptions import ValidationError as MegaValidationError
 from ..logging_config import StructuredLogger
 from ..memory.memory_manager import MemoryManager
 from ..memory.models import AuditEvent, MemoryRecord
+from ..storage.connection import DatabaseManager
+from ..storage.models import CaseDB
 from .models import (CaseExhibit, CaseOperationResult, CaseQuery, CaseRecord,
                      CaseStatus, CaseVersion, CaseWorkflowState,
                      ValidationResult)
@@ -80,17 +85,33 @@ class CaseAgent:
     - Управление версиями и изменениями
     """
 
-    def __init__(self, memory_manager: MemoryManager | None = None):
+    def __init__(
+        self,
+        memory_manager: MemoryManager | None = None,
+        db_manager: DatabaseManager | None = None,
+        use_database: bool = True,
+    ):
         """
         Инициализация CaseAgent.
 
         Args:
             memory_manager: Экземпляр MemoryManager для persistence
+            db_manager: Экземпляр DatabaseManager для работы с БД (опционально)
+            use_database: Использовать ли базу данных для хранения кейсов (по умолчанию True)
         """
         self.logger = StructuredLogger("core.groupagents.case_agent")
         self.memory = memory_manager or MemoryManager()
+        self.db_manager = db_manager
+        self.use_database = use_database and db_manager is not None
+
+        # In-memory storage (used only when database persistence is disabled explicitly)
         self._cases_store: dict[str, CaseRecord] = {}
         self._versions_store: dict[str, list[CaseVersion]] = {}
+
+        if self.use_database:
+            self.logger.info("CaseAgent initialized with database persistence")
+        else:
+            self.logger.info("CaseAgent initialized with in-memory storage only")
 
     # ---- Core CRUD Operations ----
 
@@ -132,8 +153,37 @@ class CaseAgent:
                     details={"user_id": user_id, "case_data": case_data},
                 )
 
-            # Сохранение в локальное хранилище
-            self._cases_store[case_record.case_id] = case_record
+            # Сохранение в базу данных или в память
+            if self.use_database and self.db_manager:
+                async with self.db_manager.session() as session:
+                    db_case = CaseDB(
+                        case_id=UUID(case_record.case_id),
+                        user_id=user_id,
+                        title=case_record.title,
+                        description=case_record.description,
+                        status=(
+                            case_record.status.value
+                            if isinstance(case_record.status, CaseStatus)
+                            else case_record.status
+                        ),
+                        case_type=case_record.case_type,
+                        data=case_record.model_dump(
+                            exclude={"case_id", "created_at", "updated_at", "version"}
+                        ),
+                        version=case_record.version,
+                    )
+                    session.add(db_case)
+                    await session.commit()
+                    await session.refresh(db_case)
+
+                    self.logger.info(
+                        "Case saved to database",
+                        case_id=str(db_case.case_id),
+                        user_id=user_id,
+                    )
+            else:
+                # Локальное хранилище используется только при явном отключении БД
+                self._cases_store[case_record.case_id] = case_record
 
             # Создание первой версии
             initial_version = CaseVersion(
@@ -195,7 +245,51 @@ class CaseAgent:
         Raises:
             CaseNotFoundError: Если дело не найдено
         """
-        if case_id not in self._cases_store:
+        case_record = None
+
+        # Попытка получения из базы данных
+        if self.use_database and self.db_manager:
+            async with self.db_manager.session() as session:
+                stmt = select(CaseDB).where(CaseDB.case_id == UUID(case_id))
+                result = await session.execute(stmt)
+                db_case = result.scalar_one_or_none()
+
+                if db_case:
+                    extra_data = {
+                        k: v
+                        for k, v in (db_case.data or {}).items()
+                        if k
+                        not in {
+                            "case_id",
+                            "title",
+                            "description",
+                            "status",
+                            "case_type",
+                            "created_by",
+                            "created_at",
+                            "updated_at",
+                            "version",
+                        }
+                    }
+                    case_record = CaseRecord(
+                        case_id=str(db_case.case_id),
+                        title=db_case.title,
+                        description=db_case.description or "",
+                        status=db_case.status,
+                        case_type=db_case.case_type or "",
+                        created_by=db_case.user_id,  # В CaseDB нет created_by, используем user_id
+                        created_at=db_case.created_at,
+                        updated_at=db_case.updated_at,
+                        version=db_case.version,
+                        **extra_data,  # Дополнительные данные из JSONB (без дубликатов)
+                    )
+                    self.logger.info("Case retrieved from database", case_id=case_id)
+        elif case_id in self._cases_store:
+            case_record = self._cases_store[case_id]
+            self.logger.info("Case retrieved from in-memory store", case_id=case_id)
+
+        # Если не найдено нигде
+        if case_record is None:
             if user_id:
                 await self._log_audit_event(
                     user_id=user_id,
@@ -204,8 +298,6 @@ class CaseAgent:
                     payload={"error": "Case not found"},
                 )
             raise CaseNotFoundError(case_id=case_id)
-
-        case_record = self._cases_store[case_id]
 
         if user_id:
             await self._log_audit_event(
@@ -266,7 +358,27 @@ class CaseAgent:
             raise CaseValidationError(f"Validation failed: {validation.errors}")
 
         # Сохранение
-        self._cases_store[case_id] = updated_case
+        if self.use_database and self.db_manager:
+            async with self.db_manager.session() as session:
+                db_case = await session.get(CaseDB, UUID(case_id))
+                if db_case is None:
+                    raise CaseNotFoundError(case_id=case_id)
+                db_case.title = updated_case.title
+                db_case.description = updated_case.description
+                db_case.status = (
+                    updated_case.status.value
+                    if isinstance(updated_case.status, CaseStatus)
+                    else updated_case.status
+                )
+                db_case.case_type = updated_case.case_type
+                db_case.version = updated_case.version
+                db_case.data = updated_case.model_dump(
+                    exclude={"case_id", "created_at", "updated_at", "version"}
+                )
+                await session.commit()
+                await session.refresh(db_case)
+        else:
+            self._cases_store[case_id] = updated_case
 
         # Создание версии изменений
         version = CaseVersion(
@@ -276,7 +388,7 @@ class CaseAgent:
             changed_by=user_id,
             change_reason=updates.get("change_reason", "Case update"),
         )
-        self._versions_store[case_id].append(version)
+        self._versions_store.setdefault(case_id, []).append(version)
 
         # Audit log
         await self._log_audit_event(
@@ -341,19 +453,78 @@ class CaseAgent:
         Returns:
             List[CaseRecord]: Найденные дела
         """
-        results = []
+        results: list[CaseRecord] = []
 
-        for case_record in self._cases_store.values():
-            if self._matches_query(case_record, query):
-                results.append(case_record)
+        if self.use_database and self.db_manager:
+            async with self.db_manager.session() as session:
+                stmt = select(CaseDB)
+                if user_id:
+                    stmt = stmt.where(CaseDB.user_id == user_id)
+                if query.case_type:
+                    stmt = stmt.where(CaseDB.case_type == query.case_type)
+                if query.status:
+                    status_value = (
+                        query.status.value if isinstance(query.status, CaseStatus) else query.status
+                    )
+                    stmt = stmt.where(CaseDB.status == status_value)
+                if query.created_after:
+                    stmt = stmt.where(CaseDB.created_at >= query.created_after)
+                if query.created_before:
+                    stmt = stmt.where(CaseDB.created_at <= query.created_before)
+                if query.query:
+                    pattern = f"%{query.query}%"
+                    stmt = stmt.where(
+                        (CaseDB.title.ilike(pattern)) | (CaseDB.description.ilike(pattern))
+                    )
 
-        # Сортировка по дате создания (новые первыми)
-        results.sort(key=lambda x: x.created_at, reverse=True)
+                stmt = (
+                    stmt.order_by(CaseDB.created_at.desc()).offset(query.offset).limit(query.limit)
+                )
+                db_rows = (await session.execute(stmt)).scalars().all()
 
-        # Применение offset и limit
-        start_idx = query.offset
-        end_idx = start_idx + query.limit
-        results = results[start_idx:end_idx]
+                for db_case in db_rows:
+                    extra_data = {
+                        k: v
+                        for k, v in (db_case.data or {}).items()
+                        if k
+                        not in {
+                            "case_id",
+                            "title",
+                            "description",
+                            "status",
+                            "case_type",
+                            "created_by",
+                            "created_at",
+                            "updated_at",
+                            "version",
+                        }
+                    }
+                    results.append(
+                        CaseRecord(
+                            case_id=str(db_case.case_id),
+                            title=db_case.title,
+                            description=db_case.description or "",
+                            status=db_case.status,
+                            case_type=db_case.case_type or "",
+                            created_by=db_case.user_id,
+                            created_at=db_case.created_at,
+                            updated_at=db_case.updated_at,
+                            version=db_case.version,
+                            **extra_data,
+                        )
+                    )
+        else:
+            for case_record in self._cases_store.values():
+                if self._matches_query(case_record, query):
+                    results.append(case_record)
+
+            # Сортировка по дате создания (новые первыми)
+            results.sort(key=lambda x: x.created_at, reverse=True)
+
+            # Применение offset и limit
+            start_idx = query.offset
+            end_idx = start_idx + query.limit
+            results = results[start_idx:end_idx]
 
         if user_id:
             await self._log_audit_event(
@@ -463,9 +634,9 @@ class CaseAgent:
         # Базовая валидация уже выполнена Pydantic
         # Дополнительная бизнес-логика валидации
 
-        # Title validation (minimum 5 characters for meaningful title)
-        if len(case_record.title.strip()) < 5:
-            errors.append("Case title must be at least 5 characters long for clarity")
+        # Title validation (minimum 3 characters for meaningful title)
+        if len(case_record.title.strip()) < 3:
+            errors.append("Case title must be at least 3 characters long for clarity")
 
         # Description validation
         if len(case_record.description.strip()) < 10:
@@ -556,20 +727,70 @@ class CaseAgent:
         await self.memory.alog_audit(event)
 
     async def _store_case_memory(self, case_record: CaseRecord, user_id: str) -> None:
-        """Сохранение дела в семантическую память"""
-        # Создание записи для семантической памяти
-        memory_text = f"Case: {case_record.title} - {case_record.description}"
-        memory_record = MemoryRecord(
-            text=memory_text,
-            user_id=user_id,
-            type="semantic",
-            metadata={
-                "case_id": case_record.case_id,
-                "case_type": case_record.case_type,
-                "status": case_record.status,
-                "priority": case_record.priority,
-                "tags": case_record.tags,
-            },
+        """Сохранение дела в семантическую память с расширенным контекстом"""
+        # Создаём несколько записей для более богатого контекста
+        memory_records = []
+
+        # 1. Основная запись о кейсе
+        overview_text = f"Case: {case_record.title} - {case_record.description}"
+        memory_records.append(
+            MemoryRecord(
+                text=overview_text,
+                user_id=user_id,
+                type="semantic",
+                case_id=case_record.case_id,
+                tags=[*case_record.tags, "case_overview"],
+                metadata={
+                    "case_type": case_record.case_type,
+                    "status": case_record.status,
+                    "priority": case_record.priority,
+                    "category": "overview",
+                },
+            )
         )
 
-        await self.memory.awrite([memory_record])
+        # 2. Запись о статусе кейса
+        status_text = f"Case '{case_record.title}' is newly created and requires initial intake questionnaire to collect petitioner information"
+        memory_records.append(
+            MemoryRecord(
+                text=status_text,
+                user_id=user_id,
+                type="semantic",
+                case_id=case_record.case_id,
+                tags=["case_status", "intake_required"],
+                metadata={
+                    "case_type": case_record.case_type,
+                    "status": case_record.status,
+                    "category": "status",
+                    "intake_completed": False,
+                },
+            )
+        )
+
+        # 3. Запись о цели иммиграции (если это иммиграционный кейс)
+        if case_record.case_type == "immigration":
+            category = case_record.metadata.get("category", "general_immigration")
+            goal_text = f"Immigration case goal: {category} petition preparation and filing"
+            if category == "EB1A":
+                goal_text += " - Focusing on demonstrating extraordinary ability in the field"
+            elif category == "O1":
+                goal_text += " - Focusing on demonstrating extraordinary achievement in arts, sciences, or business"
+            elif category == "NIW":
+                goal_text += " - Focusing on national interest waiver based on exceptional ability"
+
+            memory_records.append(
+                MemoryRecord(
+                    text=goal_text,
+                    user_id=user_id,
+                    type="semantic",
+                    case_id=case_record.case_id,
+                    tags=["immigration_goal", category.lower()],
+                    metadata={
+                        "case_type": case_record.case_type,
+                        "category": category,
+                        "visa_type": category,
+                    },
+                )
+            )
+
+        await self.memory.awrite(memory_records)

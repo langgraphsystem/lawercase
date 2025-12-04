@@ -1,0 +1,36 @@
+{% extends "base.html" %}
+
+{% block title %}Petition Draft{% endblock %}
+
+{% block content %}
+<header>
+    <h1>Petition Draft (EB-1A)</h1>
+    <div class="meta">Current Version: v0.1 | Last Updated: Today</div>
+</header>
+
+<div class="petition-structure">
+    <h3>Table of Contents</h3>
+    <ul>
+        <li><a href="#intro">I. Introduction</a></li>
+        <li><a href="#background">II. Beneficiary Background</a></li>
+        <li><a href="#awards">III. Criterion 1: Awards</a></li>
+        <li><a href="#membership">IV. Criterion 2: Membership</a></li>
+        <li><a href="#conclusion">V. Conclusion</a></li>
+    </ul>
+</div>
+
+<hr>
+
+<article id="intro" style="margin-top: 40px;">
+    <h2>I. Introduction</h2>
+    <p>
+        This petition is submitted on behalf of <strong>{{ case.user_data.full_name }}</strong>, a distinguished expert in the field of <strong>{{ case.case_data.field }}</strong>...
+    </p>
+    <p style="color: #999; font-style: italic;">[Content pending generation...]</p>
+</article>
+
+<article id="background" style="margin-top: 40px;">
+    <h2>II. Beneficiary Background</h2>
+    <p style="color: #999; font-style: italic;">[Content pending generation...]</p>
+</article>
+{% endblock %}

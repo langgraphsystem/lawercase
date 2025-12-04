@@ -32,6 +32,8 @@ class MemoryRecord(BaseModel):
 
     id: str | None = None
     user_id: str | None = None
+    case_id: str | None = None  # Added for intake questionnaire
+    thread_id: str | None = None  # Added for thread context
     type: MemoryType = Field("semantic")
     text: str
     embedding: list[float] | None = None
@@ -41,6 +43,7 @@ class MemoryRecord(BaseModel):
     created_at: datetime = Field(default_factory=datetime.utcnow)
     source: str | None = None
     tags: list[str] = Field(default_factory=list)
+    metadata: dict[str, Any] | None = None  # Added for flexible metadata storage
 
 
 class RetrievalQuery(BaseModel):

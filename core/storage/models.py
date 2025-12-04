@@ -56,13 +56,15 @@ class SemanticMemoryDB(Base):
     text: Mapped[str] = mapped_column(Text, nullable=False)
     type: Mapped[str] = mapped_column(String(50), default="fact")
     source: Mapped[str | None] = mapped_column(String(100), nullable=True)
-    tags: Mapped[list[str]] = mapped_column(ARRAY(String), default=list)
+    tags: Mapped[list[str]] = mapped_column(ARRAY(Text), default=list)
     metadata_json: Mapped[dict] = mapped_column(JSONB, default=dict)
 
     # Embedding (pgvector) + metadata
-    embedding: Mapped[list[float]] = mapped_column(Vector(1536))
+    # NOTE: Using 2000 dimensions (max for pgvector HNSW index)
+    # text-embedding-3-large supports variable dimensions via API parameter
+    embedding: Mapped[list[float]] = mapped_column(Vector(2000))
     embedding_model: Mapped[str] = mapped_column(String(100), default="text-embedding-3-large")
-    embedding_dimension: Mapped[int] = mapped_column(default=1536)
+    embedding_dimension: Mapped[int] = mapped_column(default=2000)
 
     # Timestamps
     created_at: Mapped[datetime] = mapped_column(TIMESTAMP(timezone=True), default=datetime.utcnow)
@@ -102,7 +104,7 @@ class EpisodicMemoryDB(Base):
     source: Mapped[str] = mapped_column(String(100), nullable=False)
     action: Mapped[str] = mapped_column(String(100), nullable=False)
     payload: Mapped[dict] = mapped_column(JSONB, nullable=False, default=dict)
-    tags: Mapped[list[str]] = mapped_column(ARRAY(String), default=list)
+    tags: Mapped[list[str]] = mapped_column(ARRAY(Text), default=list)
 
     # Timestamp
     timestamp: Mapped[datetime] = mapped_column(TIMESTAMP(timezone=True), default=datetime.utcnow)
@@ -230,7 +232,7 @@ class DocumentDB(Base):
     r2_url: Mapped[str | None] = mapped_column(Text, nullable=True)
 
     document_type: Mapped[str | None] = mapped_column(String(100), nullable=True)
-    tags: Mapped[list[str]] = mapped_column(ARRAY(String), default=list)
+    tags: Mapped[list[str]] = mapped_column(ARRAY(Text), default=list)
     metadata_json: Mapped[dict] = mapped_column(JSONB, default=dict)
 
     # Processing status

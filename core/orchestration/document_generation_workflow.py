@@ -191,17 +191,25 @@ async def node_generate_section(state: WorkflowState) -> WorkflowState:
             "max_tokens": current_section.get("max_tokens", 500),
         }
 
-        # Generate (simplified - real WriterAgent would have generate_section method)
-        # For now, we'll simulate the content generation
-        content_html = await _generate_section_content(
-            section_name=section_name,
-            prompt=section_prompt,
-            context=context,
-            writer=writer,
+        # Generate section content using WriterAgent
+        # We need to gather client_data from state or memory
+        # For now, we'll construct a basic client_data object
+        client_data = {
+            "case_id": state.case_id,
+            "beneficiary_name": "Beneficiary",  # In a real scenario, fetch this from case data
+            "field": "Extraordinary Ability Field",  # Fetch from case data
+            "evidence": [],  # Fetch from case data
+        }
+
+        # Call WriterAgent to generate the section
+        generated_section = await writer.agenerate_legal_section(
+            section_type=section_id, client_data=client_data, user_id=state.user_id
         )
 
+        content_html = generated_section.content
+
         # Count tokens (approximate)
-        tokens_used = len(content_html.split()) * 1.3  # Rough estimate
+        tokens_used = generated_section.word_count * 1.3
 
         # Update section with generated content
         await workflow_store.update_section(
@@ -342,44 +350,6 @@ async def node_finalize_document(state: WorkflowState) -> WorkflowState:
 # ═══════════════════════════════════════════════════════════════════════════
 # HELPER FUNCTIONS
 # ═══════════════════════════════════════════════════════════════════════════
-
-
-async def _generate_section_content(
-    section_name: str, prompt: str, context: str, writer: WriterAgent
-) -> str:
-    """Generate HTML content for a section.
-
-    This is a simplified implementation. Real implementation would:
-    - Use LLM to generate content based on prompt and context
-    - Apply legal document formatting
-    - Include proper citations
-    """
-
-    # For demo purposes, generate structured HTML
-    # In production, this would call writer.generate() or similar
-
-    await asyncio.sleep(2)  # Simulate generation time
-
-    html = f"""
-    <h2>{section_name}</h2>
-    <p class="no-indent">This petition is submitted on behalf of the beneficiary,
-    demonstrating extraordinary ability in their field. The beneficiary has achieved
-    sustained national and international acclaim through significant contributions.</p>
-
-    <p>The evidence presented herein establishes that the beneficiary meets the criteria
-    for classification as an alien of extraordinary ability pursuant to Section 203(b)(1)(A)
-    of the Immigration and Nationality Act (INA).</p>
-
-    <p>The beneficiary's achievements include:</p>
-    <ul>
-        <li>Recognition through prestigious awards and honors</li>
-        <li>Membership in associations requiring outstanding achievements</li>
-        <li>Published scholarly articles with significant citations</li>
-        <li>Critical roles in distinguished organizations</li>
-    </ul>
-    """
-
-    return html.strip()
 
 
 # ═══════════════════════════════════════════════════════════════════════════

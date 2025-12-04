@@ -13,7 +13,7 @@ from __future__ import annotations
 
 from datetime import datetime
 from enum import Enum
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import structlog
 from pydantic import BaseModel, Field
@@ -21,7 +21,105 @@ from pydantic import BaseModel, Field
 from ..memory.memory_manager import MemoryManager
 from ..workflows.eb1a.eb1a_coordinator import EB1ACriterion, EB1AEvidence
 
+if TYPE_CHECKING:
+    from ..memory.models import MemoryRecord
+
 logger = structlog.get_logger(__name__)
+
+
+# =============================================================================
+# LLM Prompts for Evidence Analysis (Immigration Lawyer Style)
+# =============================================================================
+
+LLM_CREDIBILITY_PROMPT = """You are an experienced EB-1A immigration attorney evaluating evidence credibility.
+
+EVIDENCE TO EVALUATE:
+Title: {title}
+Description: {description}
+Source: {source}
+Criterion: {criterion}
+
+Evaluate the SOURCE CREDIBILITY on a scale of 0-100:
+- 90-100: International recognition (Nobel, IEEE Fellow, ACM Fellow, major international awards)
+- 70-89: National recognition (NSF grants, federal appointments, national awards)
+- 50-69: Regional/state recognition (state awards, regional conferences)
+- 30-49: Local recognition (local awards, company recognition)
+- 10-29: Unknown or minimal source credibility
+
+Respond with ONLY a JSON object:
+{{"score": <0-100>, "level": "<international|national|regional|local|unknown>", "reasoning": "<brief explanation>"}}"""
+
+LLM_RELEVANCE_PROMPT = """You are an experienced EB-1A immigration attorney evaluating evidence relevance.
+
+EVIDENCE TO EVALUATE:
+Title: {title}
+Description: {description}
+Criterion: {criterion}
+
+EB-1A CRITERION REQUIREMENTS FOR "{criterion}":
+{criterion_requirements}
+
+Evaluate how RELEVANT this evidence is to the claimed criterion on a scale of 0-100:
+- 90-100: Exact match - directly satisfies the criterion requirement
+- 70-89: Strong relevance - clearly supports the criterion
+- 50-69: Moderate relevance - somewhat related
+- 30-49: Partial relevance - tangentially related
+- 0-29: Weak/no relevance - does not support this criterion
+
+Respond with ONLY a JSON object:
+{{"score": <0-100>, "level": "<exact_match|strong|moderate|partial|weak>", "reasoning": "<brief explanation>"}}"""
+
+LLM_IMPACT_PROMPT = """You are an experienced EB-1A immigration attorney evaluating evidence impact.
+
+EVIDENCE TO EVALUATE:
+Title: {title}
+Description: {description}
+Metrics: {metrics}
+
+Evaluate the MEASURABLE IMPACT on a scale of 0-100:
+- 90-100: Exceptional impact (field-changing, widely adopted, transformed industry)
+- 70-89: High impact (significant influence, recognized by peers, notable adoption)
+- 50-69: Moderate impact (some measurable results, modest recognition)
+- 30-49: Low impact (limited scope, minimal measurable outcomes)
+- 0-29: No measurable impact
+
+Respond with ONLY a JSON object:
+{{"score": <0-100>, "level": "<exceptional|high|moderate|low|none>", "reasoning": "<brief explanation>"}}"""
+
+LLM_FEEDBACK_PROMPT = """You are an experienced EB-1A immigration attorney providing actionable advice.
+
+CASE ANALYSIS:
+Overall Score: {overall_score}/100
+Approval Probability: {approval_probability}%
+Criteria Satisfied: {satisfied_count}/10
+Risk Level: {risk_level}
+
+WEAK AREAS:
+{weak_areas}
+
+As an experienced immigration lawyer, provide SPECIFIC, ACTIONABLE advice to strengthen this case.
+Focus on:
+1. What specific evidence can be gathered?
+2. Where to find this evidence?
+3. How to present it effectively?
+
+Respond in a warm but professional tone, giving the applicant hope while being realistic.
+
+Provide 3-5 specific recommendations:"""
+
+# Criterion requirements for relevance assessment
+CRITERION_REQUIREMENTS = {
+    "awards": "Major nationally or internationally recognized prizes or awards for excellence in the field",
+    "membership": "Membership in associations requiring outstanding achievements as judged by recognized experts",
+    "press": "Published material in professional or major trade publications about the alien's work",
+    "judging": "Participation as a judge of the work of others in the same or allied field",
+    "original_contribution": "Original scientific, scholarly, or business-related contributions of major significance",
+    "scholarly_articles": "Authorship of scholarly articles in professional journals or major media",
+    "artistic_exhibitions": "Display of work at artistic exhibitions or showcases",
+    "leading_role": "Performed in a leading or critical role for organizations with distinguished reputation",
+    "high_salary": "Commanded a high salary or remuneration relative to others in the field",
+    "commercial_success": "Commercial successes in the performing arts shown by box office receipts",
+}
 
 
 class SourceCredibility(str, Enum):
@@ -194,15 +292,260 @@ class EB1AEvidenceAnalyzer:
         "impact": 0.20,
     }
 
-    def __init__(self, memory_manager: MemoryManager | None = None):
+    def __init__(
+        self,
+        memory_manager: MemoryManager | None = None,
+        use_llm: bool = True,
+        llm_client: Any | None = None,
+    ):
         """
-        Initialize EB-1A Evidence Analyzer.
+        Initialize EB-1A Evidence Analyzer with LLM support.
 
         Args:
             memory_manager: Memory manager for evidence retrieval and storage
+            use_llm: If True, use LLM for semantic analysis; if False, use heuristics only
+            llm_client: Optional pre-configured LLM client (OpenAIClient)
         """
         self.memory = memory_manager or MemoryManager()
         self.logger = logger.bind(agent="eb1a_evidence_analyzer")
+        self.use_llm = use_llm
+        self._llm_client = llm_client
+
+    async def _get_llm_client(self) -> Any:
+        """Lazy initialization of LLM client."""
+        if self._llm_client is None and self.use_llm:
+            try:
+                from ..llm_interface.openai_client import OpenAIClient
+
+                self._llm_client = OpenAIClient(
+                    model="gpt-5.1",
+                    reasoning_effort="low",  # Fast responses for evidence analysis
+                    max_tokens=500,
+                )
+                self.logger.info("llm_client.initialized", model="gpt-5.1")
+            except Exception as e:
+                self.logger.warning("llm_client.init_failed", error=str(e))
+                self.use_llm = False
+        return self._llm_client
+
+    async def _llm_assess_credibility(
+        self, evidence: EB1AEvidence, context: dict[str, Any]
+    ) -> tuple[SourceCredibility, float]:
+        """Assess source credibility using LLM."""
+        try:
+            llm = await self._get_llm_client()
+            if not llm:
+                return self._assess_credibility_heuristic(evidence, context)
+
+            prompt = LLM_CREDIBILITY_PROMPT.format(
+                title=evidence.title or "N/A",
+                description=(evidence.description or "")[:500],
+                source=evidence.source or "Unknown",
+                criterion=evidence.criterion.value,
+            )
+
+            result = await llm.acomplete(prompt)
+            output = result.get("output", "")
+
+            # Parse JSON response
+            import json
+
+            try:
+                data = json.loads(output)
+                score = data.get("score", 50) / 100.0
+                level = data.get("level", "unknown")
+                reasoning = data.get("reasoning", "")
+
+                self.logger.debug(
+                    "llm.credibility.assessed",
+                    score=score,
+                    level=level,
+                    reasoning=reasoning[:100],
+                )
+
+                level_map = {
+                    "international": SourceCredibility.INTERNATIONAL,
+                    "national": SourceCredibility.NATIONAL,
+                    "regional": SourceCredibility.REGIONAL,
+                    "local": SourceCredibility.LOCAL,
+                    "unknown": SourceCredibility.UNKNOWN,
+                }
+                return level_map.get(level, SourceCredibility.UNKNOWN), score
+            except json.JSONDecodeError:
+                self.logger.warning("llm.credibility.parse_failed", output=output[:100])
+                return self._assess_credibility_heuristic(evidence, context)
+
+        except Exception as e:
+            self.logger.warning("llm.credibility.error", error=str(e))
+            return self._assess_credibility_heuristic(evidence, context)
+
+    async def _llm_assess_relevance(
+        self, evidence: EB1AEvidence, context: dict[str, Any]
+    ) -> tuple[RelevanceLevel, float]:
+        """Assess relevance using LLM."""
+        try:
+            llm = await self._get_llm_client()
+            if not llm:
+                return self._assess_relevance_heuristic(evidence, context)
+
+            criterion_key = evidence.criterion.value.split("_", 1)[-1].lower()
+            criterion_req = CRITERION_REQUIREMENTS.get(criterion_key, "N/A")
+
+            prompt = LLM_RELEVANCE_PROMPT.format(
+                title=evidence.title or "N/A",
+                description=(evidence.description or "")[:500],
+                criterion=evidence.criterion.value,
+                criterion_requirements=criterion_req,
+            )
+
+            result = await llm.acomplete(prompt)
+            output = result.get("output", "")
+
+            import json
+
+            try:
+                data = json.loads(output)
+                score = data.get("score", 50) / 100.0
+                level = data.get("level", "moderate")
+
+                level_map = {
+                    "exact_match": RelevanceLevel.EXACT_MATCH,
+                    "strong": RelevanceLevel.STRONG,
+                    "moderate": RelevanceLevel.MODERATE,
+                    "partial": RelevanceLevel.PARTIAL,
+                    "weak": RelevanceLevel.TANGENTIAL,
+                }
+                return level_map.get(level, RelevanceLevel.MODERATE), score
+            except json.JSONDecodeError:
+                return self._assess_relevance_heuristic(evidence, context)
+
+        except Exception as e:
+            self.logger.warning("llm.relevance.error", error=str(e))
+            return self._assess_relevance_heuristic(evidence, context)
+
+    async def _llm_assess_impact(
+        self, evidence: EB1AEvidence, context: dict[str, Any]
+    ) -> tuple[ImpactLevel, float]:
+        """Assess impact using LLM."""
+        try:
+            llm = await self._get_llm_client()
+            if not llm:
+                return self._assess_impact_heuristic(evidence, context)
+
+            metadata = evidence.metadata or {}
+            metrics_str = ", ".join(f"{k}: {v}" for k, v in metadata.items() if v)
+            if not metrics_str:
+                metrics_str = "No specific metrics provided"
+
+            prompt = LLM_IMPACT_PROMPT.format(
+                title=evidence.title or "N/A",
+                description=(evidence.description or "")[:500],
+                metrics=metrics_str,
+            )
+
+            result = await llm.acomplete(prompt)
+            output = result.get("output", "")
+
+            import json
+
+            try:
+                data = json.loads(output)
+                score = data.get("score", 40) / 100.0
+                level = data.get("level", "moderate")
+
+                level_map = {
+                    "exceptional": ImpactLevel.EXCEPTIONAL,
+                    "high": ImpactLevel.HIGH,
+                    "moderate": ImpactLevel.MODERATE,
+                    "low": ImpactLevel.LOW,
+                    "none": ImpactLevel.NONE,
+                }
+                return level_map.get(level, ImpactLevel.MODERATE), score
+            except json.JSONDecodeError:
+                return self._assess_impact_heuristic(evidence, context)
+
+        except Exception as e:
+            self.logger.warning("llm.impact.error", error=str(e))
+            return self._assess_impact_heuristic(evidence, context)
+
+    async def generate_feedback(self, analysis: CaseStrengthAnalysis) -> str:
+        """
+        Generate actionable feedback for weak cases using LLM.
+
+        This implements the Feedback Loop from TAST.txt:
+        - If Risk: HIGH, suggest improvements automatically
+        - Provide specific advice on what evidence to gather and where
+
+        Args:
+            analysis: The CaseStrengthAnalysis result
+
+        Returns:
+            Human-readable feedback with specific recommendations
+        """
+        if not self.use_llm:
+            return self._generate_feedback_heuristic(analysis)
+
+        try:
+            llm = await self._get_llm_client()
+            if not llm:
+                return self._generate_feedback_heuristic(analysis)
+
+            # Collect weak areas
+            weak_areas = []
+            for crit, evaluation in analysis.criterion_evaluations.items():
+                if not evaluation.is_satisfied:
+                    weak_areas.append(
+                        f"- {crit.value}: Score {evaluation.strength_score:.0f}/100 "
+                        f"(needs {self.CRITERION_SATISFIED_THRESHOLD}+)"
+                    )
+                    if evaluation.missing_elements:
+                        weak_areas.append(
+                            f"  Missing: {', '.join(evaluation.missing_elements[:2])}"
+                        )
+
+            if analysis.risks:
+                weak_areas.append("\nRisks:")
+                weak_areas.extend([f"- {r}" for r in analysis.risks[:3]])
+
+            prompt = LLM_FEEDBACK_PROMPT.format(
+                overall_score=analysis.overall_score,
+                approval_probability=analysis.approval_probability * 100,
+                satisfied_count=analysis.satisfied_criteria_count,
+                risk_level=analysis.risk_level.value.upper(),
+                weak_areas=(
+                    "\n".join(weak_areas) if weak_areas else "No major weaknesses identified"
+                ),
+            )
+
+            result = await llm.acomplete(prompt, max_tokens=800)
+            return result.get("output", self._generate_feedback_heuristic(analysis))
+
+        except Exception as e:
+            self.logger.warning("llm.feedback.error", error=str(e))
+            return self._generate_feedback_heuristic(analysis)
+
+    def _generate_feedback_heuristic(self, analysis: CaseStrengthAnalysis) -> str:
+        """Generate feedback using heuristics (fallback)."""
+        lines = [
+            "📊 Case Analysis Summary",
+            "",
+            f"Overall Score: {analysis.overall_score:.0f}/100",
+            f"Approval Probability: {analysis.approval_probability:.0%}",
+            f"Risk Level: {analysis.risk_level.value.upper()}",
+            "",
+        ]
+
+        if not analysis.meets_minimum_criteria:
+            lines.append("⚠️ CRITICAL: You need at least 3 criteria satisfied.")
+            lines.append(f"Currently: {analysis.satisfied_criteria_count} criteria met.")
+            lines.append("")
+
+        if analysis.priority_recommendations:
+            lines.append("📝 Priority Actions:")
+            for rec in analysis.priority_recommendations[:3]:
+                lines.append(f"  • {rec}")
+
+        return "\n".join(lines)
 
     async def analyze_evidence(
         self,
@@ -233,17 +576,26 @@ class EB1AEvidenceAnalyzer:
 
         context = context or {}
 
-        # 1. Assess completeness (0-1)
+        # 1. Assess completeness (0-1) - always use heuristic (fast)
         completeness = self._assess_completeness(evidence)
 
-        # 2. Assess source credibility (0-1)
-        credibility_enum, credibility = self._assess_credibility(evidence, context)
+        # 2. Assess source credibility (0-1) - use LLM if enabled
+        if self.use_llm:
+            credibility_enum, credibility = await self._llm_assess_credibility(evidence, context)
+        else:
+            credibility_enum, credibility = self._assess_credibility_heuristic(evidence, context)
 
-        # 3. Assess relevance to criterion (0-1)
-        relevance_enum, relevance = self._assess_relevance(evidence, context)
+        # 3. Assess relevance to criterion (0-1) - use LLM if enabled
+        if self.use_llm:
+            relevance_enum, relevance = await self._llm_assess_relevance(evidence, context)
+        else:
+            relevance_enum, relevance = self._assess_relevance_heuristic(evidence, context)
 
-        # 4. Assess measurable impact (0-1)
-        impact_enum, impact = self._assess_impact(evidence, context)
+        # 4. Assess measurable impact (0-1) - use LLM if enabled
+        if self.use_llm:
+            impact_enum, impact = await self._llm_assess_impact(evidence, context)
+        else:
+            impact_enum, impact = self._assess_impact_heuristic(evidence, context)
 
         # 5. Calculate weighted strength score
         strength_score = (
@@ -509,10 +861,10 @@ class EB1AEvidenceAnalyzer:
 
         return min(1.0, score / total_fields)
 
-    def _assess_credibility(
+    def _assess_credibility_heuristic(
         self, evidence: EB1AEvidence, context: dict[str, Any]
     ) -> tuple[SourceCredibility, float]:
-        """Assess source credibility (0-1)."""
+        """Assess source credibility using heuristics (0-1)."""
         source = (evidence.source or "").lower()
         metadata = evidence.metadata or {}
 
@@ -543,10 +895,10 @@ class EB1AEvidenceAnalyzer:
         # Default to unknown
         return SourceCredibility.UNKNOWN, 0.1
 
-    def _assess_relevance(
+    def _assess_relevance_heuristic(
         self, evidence: EB1AEvidence, context: dict[str, Any]
     ) -> tuple[RelevanceLevel, float]:
-        """Assess relevance to criterion (0-1)."""
+        """Assess relevance to criterion using heuristics (0-1)."""
         # Map evidence type to criterion for relevance scoring
         criterion = evidence.criterion
         evidence_type = evidence.evidence_type
@@ -587,10 +939,10 @@ class EB1AEvidenceAnalyzer:
         # Default to moderate
         return RelevanceLevel.MODERATE, 0.6
 
-    def _assess_impact(
+    def _assess_impact_heuristic(
         self, evidence: EB1AEvidence, context: dict[str, Any]
     ) -> tuple[ImpactLevel, float]:
-        """Assess measurable impact (0-1)."""
+        """Assess measurable impact using heuristics (0-1)."""
         metadata = evidence.metadata or {}
         description = (evidence.description or "").lower()
 
@@ -1027,3 +1379,864 @@ class EB1AEvidenceAnalyzer:
         # If critical issues (below minimum)
         criteria_needed = 3 - satisfied_count
         return 90 + (criteria_needed * 30)  # ~3 months + 1 month per missing criterion
+
+
+# =============================================================================
+# Bridge Functions: Intake → EB-1A Analysis
+# =============================================================================
+
+
+async def analyze_intake_for_eb1a(
+    case_id: str,
+    user_id: str,
+    memory_manager: MemoryManager,
+) -> CaseStrengthAnalysis:
+    """
+    Analyze intake questionnaire data for EB-1A criteria satisfaction.
+
+    This bridge function:
+    1. Fetches all semantic memory records for a case
+    2. Maps intake tags to EB-1A criteria
+    3. Converts MemoryRecord to EB1AEvidence format
+    4. Runs the full EB1AEvidenceAnalyzer analysis
+
+    Args:
+        case_id: The case ID to analyze
+        user_id: The user ID (for logging)
+        memory_manager: MemoryManager with SupabaseSemanticStore
+
+    Returns:
+        CaseStrengthAnalysis with overall score, criteria evaluations,
+        and recommendations
+    """
+
+    logger.info(
+        "analyze_intake_for_eb1a.start",
+        case_id=case_id,
+        user_id=user_id,
+    )
+
+    # 1. Fetch all intake records for this case
+    records = await memory_manager.semantic.afetch_by_case_id(case_id)
+
+    if not records:
+        logger.warning("analyze_intake_for_eb1a.no_records", case_id=case_id)
+        return CaseStrengthAnalysis(
+            overall_score=0.0,
+            approval_probability=0.0,
+            risk_level=RiskLevel.CRITICAL,
+            satisfied_criteria_count=0,
+            meets_minimum_criteria=False,
+            risks=["No intake data found for this case"],
+            priority_recommendations=["Complete intake questionnaire first"],
+        )
+
+    logger.info(
+        "analyze_intake_for_eb1a.records_found",
+        case_id=case_id,
+        record_count=len(records),
+    )
+
+    # 2. Map intake tags to EB-1A criteria (expanded for full intake coverage)
+    tag_to_criterion: dict[str, EB1ACriterion] = {
+        # ═══════════════════════════════════════════════════════════════════
+        # CRITERION 2.1: AWARDS - Nationally/internationally recognized awards
+        # ═══════════════════════════════════════════════════════════════════
+        "major_awards": EB1ACriterion.AWARDS,
+        "awards": EB1ACriterion.AWARDS,
+        "competitions": EB1ACriterion.AWARDS,
+        "grants_scholarships": EB1ACriterion.AWARDS,
+        "school_olympiads": EB1ACriterion.AWARDS,
+        "university_awards": EB1ACriterion.AWARDS,
+        # ═══════════════════════════════════════════════════════════════════
+        # CRITERION 2.2: MEMBERSHIP - Membership requiring outstanding achievements
+        # ═══════════════════════════════════════════════════════════════════
+        "associations_memberships": EB1ACriterion.MEMBERSHIP,
+        "memberships": EB1ACriterion.MEMBERSHIP,
+        "professional_associations": EB1ACriterion.MEMBERSHIP,
+        "university_organizations": EB1ACriterion.MEMBERSHIP,
+        # ═══════════════════════════════════════════════════════════════════
+        # CRITERION 2.3: PRESS - Published material in professional/major media
+        # ═══════════════════════════════════════════════════════════════════
+        "media_press": EB1ACriterion.PRESS,
+        "press_coverage": EB1ACriterion.PRESS,
+        "publications_about": EB1ACriterion.PRESS,
+        "media": EB1ACriterion.PRESS,
+        "press": EB1ACriterion.PRESS,
+        # ═══════════════════════════════════════════════════════════════════
+        # CRITERION 2.4: JUDGING - Participation as judge of work of others
+        # ═══════════════════════════════════════════════════════════════════
+        "expert_roles": EB1ACriterion.JUDGING,
+        "judging": EB1ACriterion.JUDGING,
+        "peer_review": EB1ACriterion.JUDGING,
+        "mentorship_teaching": EB1ACriterion.JUDGING,
+        # ═══════════════════════════════════════════════════════════════════
+        # CRITERION 2.5: ORIGINAL CONTRIBUTION - Original contributions of major significance
+        # ═══════════════════════════════════════════════════════════════════
+        "patents": EB1ACriterion.ORIGINAL_CONTRIBUTION,
+        "projects_research": EB1ACriterion.ORIGINAL_CONTRIBUTION,
+        "innovations": EB1ACriterion.ORIGINAL_CONTRIBUTION,
+        "research": EB1ACriterion.ORIGINAL_CONTRIBUTION,
+        "university_research": EB1ACriterion.ORIGINAL_CONTRIBUTION,
+        "university_thesis": EB1ACriterion.ORIGINAL_CONTRIBUTION,
+        "open_source": EB1ACriterion.ORIGINAL_CONTRIBUTION,
+        "career_key_projects": EB1ACriterion.ORIGINAL_CONTRIBUTION,
+        # ═══════════════════════════════════════════════════════════════════
+        # CRITERION 2.6: SCHOLARLY ARTICLES - Authorship of scholarly articles
+        # ═══════════════════════════════════════════════════════════════════
+        "conferences_talks": EB1ACriterion.SCHOLARLY_ARTICLES,
+        "publications": EB1ACriterion.SCHOLARLY_ARTICLES,
+        "scholarly": EB1ACriterion.SCHOLARLY_ARTICLES,
+        "metrics": EB1ACriterion.SCHOLARLY_ARTICLES,
+        "talks_public_activity": EB1ACriterion.SCHOLARLY_ARTICLES,
+        # ═══════════════════════════════════════════════════════════════════
+        # CRITERION 2.7: LEADING ROLE - Critical/leading role in distinguished orgs
+        # ═══════════════════════════════════════════════════════════════════
+        "leadership": EB1ACriterion.LEADING_ROLE,
+        "career": EB1ACriterion.LEADING_ROLE,
+        "management": EB1ACriterion.LEADING_ROLE,
+        "career_critical_role": EB1ACriterion.LEADING_ROLE,
+        "career_positions": EB1ACriterion.LEADING_ROLE,
+        "career_team_size": EB1ACriterion.LEADING_ROLE,
+        "school_roles": EB1ACriterion.LEADING_ROLE,
+        # ═══════════════════════════════════════════════════════════════════
+        # CRITERION 2.8: HIGH SALARY - High salary or remuneration
+        # ═══════════════════════════════════════════════════════════════════
+        "salary": EB1ACriterion.HIGH_SALARY,
+        "compensation": EB1ACriterion.HIGH_SALARY,
+        "career_high_salary": EB1ACriterion.HIGH_SALARY,
+        # ═══════════════════════════════════════════════════════════════════
+        # CRITERION 2.9: COMMERCIAL SUCCESS - Commercial success in performing arts
+        # ═══════════════════════════════════════════════════════════════════
+        "commercial_products": EB1ACriterion.COMMERCIAL_SUCCESS,
+        "business_success": EB1ACriterion.COMMERCIAL_SUCCESS,
+        "career_achievements_metrics": EB1ACriterion.COMMERCIAL_SUCCESS,
+        # ═══════════════════════════════════════════════════════════════════
+        # SPECIAL TAGS - Generic tags that map based on context
+        # ═══════════════════════════════════════════════════════════════════
+        "achievements": EB1ACriterion.AWARDS,
+        "eb1a_criterion": EB1ACriterion.LEADING_ROLE,
+    }
+
+    # 3. Convert MemoryRecords to EB1AEvidence and group by criterion
+    evidence_by_criterion: dict[EB1ACriterion, list[EB1AEvidence]] = {}
+
+    for record in records:
+        for tag in record.tags:
+            if tag in tag_to_criterion:
+                criterion = tag_to_criterion[tag]
+                evidence = _convert_memory_to_evidence(record, criterion)
+                evidence_by_criterion.setdefault(criterion, []).append(evidence)
+
+    logger.info(
+        "analyze_intake_for_eb1a.criteria_mapped",
+        case_id=case_id,
+        criteria_count=len(evidence_by_criterion),
+        criteria=list(evidence_by_criterion.keys()),
+    )
+
+    # 4. Run analysis using EB1AEvidenceAnalyzer
+    analyzer = EB1AEvidenceAnalyzer(memory_manager)
+    analysis = await analyzer.calculate_case_strength(evidence_by_criterion)
+
+    logger.info(
+        "analyze_intake_for_eb1a.complete",
+        case_id=case_id,
+        overall_score=analysis.overall_score,
+        satisfied_criteria=analysis.satisfied_criteria_count,
+        meets_minimum=analysis.meets_minimum_criteria,
+    )
+
+    return analysis
+
+
+def _convert_memory_to_evidence(
+    record: MemoryRecord,
+    criterion: EB1ACriterion,
+) -> EB1AEvidence:
+    """
+    Convert a MemoryRecord from intake to EB1AEvidence format.
+
+    Args:
+        record: The MemoryRecord from semantic memory
+        criterion: The EB-1A criterion this evidence supports
+
+    Returns:
+        EB1AEvidence object for the analyzer
+    """
+    from ..workflows.eb1a.eb1a_coordinator import EvidenceType
+
+    # Determine evidence type based on criterion
+    criterion_to_evidence_type = {
+        EB1ACriterion.AWARDS: EvidenceType.AWARD_CERTIFICATE,
+        EB1ACriterion.MEMBERSHIP: EvidenceType.MEMBERSHIP_LETTER,
+        EB1ACriterion.PRESS: EvidenceType.PRESS_ARTICLE,
+        EB1ACriterion.JUDGING: EvidenceType.RECOMMENDATION_LETTER,
+        EB1ACriterion.ORIGINAL_CONTRIBUTION: EvidenceType.PATENT,
+        EB1ACriterion.SCHOLARLY_ARTICLES: EvidenceType.PUBLICATION,
+        EB1ACriterion.LEADING_ROLE: EvidenceType.EMPLOYMENT_LETTER,
+        EB1ACriterion.HIGH_SALARY: EvidenceType.SALARY_EVIDENCE,
+        EB1ACriterion.COMMERCIAL_SUCCESS: EvidenceType.IMPACT_METRICS,
+        EB1ACriterion.ARTISTIC_EXHIBITION: EvidenceType.IMPACT_METRICS,
+    }
+
+    evidence_type = criterion_to_evidence_type.get(criterion, EvidenceType.IMPACT_METRICS)
+
+    # Create title from tags
+    tags_str = ", ".join(record.tags[:3]) if record.tags else "intake data"
+
+    return EB1AEvidence(
+        criterion=criterion,
+        evidence_type=evidence_type,
+        title=f"Intake: {tags_str}",
+        description=record.text,
+        date=record.created_at,
+        source=record.source or "intake_questionnaire",
+        metadata=record.metadata or {},
+    )
+
+
+# =============================================================================
+# Result Model for Analysis + Draft Generation
+# =============================================================================
+
+
+class AnalysisWithDraft(BaseModel):
+    """Result of analyze_and_generate_draft function."""
+
+    analysis: CaseStrengthAnalysis
+    draft_generated: bool = False
+    draft_document_id: str | None = None
+    draft_content: str | None = None
+    feedback: str | None = None
+
+
+# =============================================================================
+# Auto-trigger WriterAgent: Analysis + Draft Generation
+# =============================================================================
+
+# Threshold for auto-generating petition draft
+DRAFT_GENERATION_THRESHOLD = 70.0
+
+
+async def analyze_and_generate_draft(
+    case_id: str,
+    user_id: str,
+    memory_manager: MemoryManager,
+    beneficiary_name: str | None = None,
+    field: str | None = None,
+    auto_generate: bool = True,
+) -> AnalysisWithDraft:
+    """
+    Analyze intake data and auto-generate petition draft if score >= 70%.
+
+    This function combines:
+    1. EB-1A criteria analysis (via analyze_intake_for_eb1a)
+    2. LLM-based feedback generation for weak cases
+    3. Auto-triggering WriterAgent for strong cases (score >= 70%)
+
+    Per TAST.txt requirements:
+    - "Next Step -> Writer: Автоматический запуск генерации черновика, если оценка > 70%"
+    - Generates Cover Letter draft when analysis passes threshold
+
+    Args:
+        case_id: The case ID to analyze
+        user_id: The user ID for audit logging
+        memory_manager: MemoryManager with semantic store
+        beneficiary_name: Optional name for document generation
+        field: Optional field of expertise
+        auto_generate: Whether to auto-generate draft (default: True)
+
+    Returns:
+        AnalysisWithDraft containing:
+        - analysis: Full CaseStrengthAnalysis
+        - draft_generated: Whether a draft was created
+        - draft_document_id: ID of generated document (if any)
+        - draft_content: Content preview of draft (if any)
+        - feedback: LLM-generated feedback for weak cases
+    """
+    logger.info(
+        "analyze_and_generate_draft.start",
+        case_id=case_id,
+        user_id=user_id,
+        auto_generate=auto_generate,
+    )
+
+    # 1. Run EB-1A analysis
+    analysis = await analyze_intake_for_eb1a(case_id, user_id, memory_manager)
+
+    result = AnalysisWithDraft(analysis=analysis)
+
+    # 2. Generate feedback for weak cases (score < 70)
+    if analysis.overall_score < DRAFT_GENERATION_THRESHOLD:
+        logger.info(
+            "analyze_and_generate_draft.weak_case",
+            case_id=case_id,
+            score=analysis.overall_score,
+            threshold=DRAFT_GENERATION_THRESHOLD,
+        )
+
+        # Generate LLM feedback
+        try:
+            analyzer = EB1AEvidenceAnalyzer(memory_manager, use_llm=True)
+            feedback = await analyzer.generate_feedback(analysis)
+            result.feedback = feedback
+            logger.info(
+                "analyze_and_generate_draft.feedback_generated",
+                case_id=case_id,
+                feedback_length=len(feedback),
+            )
+        except Exception as e:
+            logger.warning(
+                "analyze_and_generate_draft.feedback_error",
+                case_id=case_id,
+                error=str(e),
+            )
+            result.feedback = _generate_basic_feedback(analysis)
+
+        return result
+
+    # 3. Auto-generate draft for strong cases (score >= 70)
+    if not auto_generate:
+        logger.info(
+            "analyze_and_generate_draft.skip_generation",
+            case_id=case_id,
+            reason="auto_generate=False",
+        )
+        return result
+
+    logger.info(
+        "analyze_and_generate_draft.generating_draft",
+        case_id=case_id,
+        score=analysis.overall_score,
+    )
+
+    try:
+        # Import WriterAgent
+        from .writer_agent import (DocumentRequest, DocumentType,
+                                   GeneratedDocument, Language, ToneStyle,
+                                   WriterAgent)
+
+        # Initialize WriterAgent
+        writer = WriterAgent(memory_manager)
+
+        # Prepare client data for document generation
+        satisfied_criteria = [
+            crit.value
+            for crit, eval_result in (analysis.criterion_evaluations or {}).items()
+            if eval_result.is_satisfied
+        ]
+
+        content_data = {
+            "recipient": "United States Citizenship and Immigration Services",
+            "recipient_name": "USCIS Officer",
+            "content": _build_cover_letter_content(
+                analysis=analysis,
+                beneficiary_name=beneficiary_name or "The Petitioner",
+                field=field or "their field of expertise",
+                satisfied_criteria=satisfied_criteria,
+            ),
+            "closing": "We respectfully request that this petition be approved.",
+            "sender": beneficiary_name or "Petitioner",
+            "subject": "I-140 Petition for Alien Worker - EB-1A Extraordinary Ability",
+            "date": datetime.now().strftime("%B %d, %Y"),
+        }
+
+        # Create document request
+        request = DocumentRequest(
+            document_type=DocumentType.PETITION,
+            content_data=content_data,
+            language=Language.ENGLISH,
+            tone=ToneStyle.FORMAL,
+            case_id=case_id,
+            approval_required=True,  # Require human review
+            custom_instructions="Immigration law petition for EB-1A extraordinary ability",
+        )
+
+        # Generate the document
+        document: GeneratedDocument = await writer.agenerate_letter(request, user_id)
+
+        result.draft_generated = True
+        result.draft_document_id = document.document_id
+        result.draft_content = (
+            document.content[:500] + "..." if len(document.content) > 500 else document.content
+        )
+
+        logger.info(
+            "analyze_and_generate_draft.draft_complete",
+            case_id=case_id,
+            document_id=document.document_id,
+            content_length=len(document.content),
+        )
+
+    except Exception as e:
+        logger.exception(
+            "analyze_and_generate_draft.draft_error",
+            case_id=case_id,
+            error=str(e),
+        )
+        # Don't fail the whole operation, just skip draft generation
+        result.draft_generated = False
+
+    return result
+
+
+def _build_cover_letter_content(
+    analysis: CaseStrengthAnalysis,
+    beneficiary_name: str,
+    field: str,
+    satisfied_criteria: list[str],
+) -> str:
+    """Build cover letter content based on analysis results."""
+    criteria_text = ", ".join(crit.replace("_", " ").title() for crit in satisfied_criteria[:5])
+
+    content = f"""This petition is filed on behalf of {beneficiary_name}, an individual of extraordinary ability in {field}.
+
+**Summary of Qualifications:**
+
+{beneficiary_name} satisfies {analysis.satisfied_criteria_count} of the 10 criteria for EB-1A classification, exceeding the minimum requirement of 3 criteria. The satisfied criteria include: {criteria_text}.
+
+**Case Strength Assessment:**
+- Overall Score: {analysis.overall_score:.1f}/100
+- Approval Probability: {analysis.approval_probability:.0%}
+- Risk Level: {analysis.risk_level.value.upper()}
+
+**Evidence Summary:**
+
+The enclosed documentation demonstrates that {beneficiary_name} has achieved sustained national and international acclaim and recognition for achievements in {field}. This evidence includes:
+
+"""
+
+    # Add strengths if available
+    if analysis.strengths:
+        for i, strength in enumerate(analysis.strengths[:4], 1):
+            content += f"{i}. {strength}\n"
+
+    content += f"""
+**Conclusion:**
+
+Based on the comprehensive evidence presented, {beneficiary_name} clearly qualifies for classification as an alien of extraordinary ability under 8 CFR § 204.5(h). The evidence demonstrates that {beneficiary_name} has risen to the very top of {field} and is one of the small percentage who have achieved extraordinary ability.
+"""
+
+    return content
+
+
+def _generate_basic_feedback(analysis: CaseStrengthAnalysis) -> str:
+    """Generate basic feedback without LLM for fallback."""
+    lines = [
+        "📊 **EB-1A Case Assessment**",
+        "",
+        f"Your case currently scores {analysis.overall_score:.0f}/100.",
+        f"Criteria satisfied: {analysis.satisfied_criteria_count}/10",
+        "",
+    ]
+
+    if not analysis.meets_minimum_criteria:
+        lines.append("⚠️ **Action Required:** You need to satisfy at least 3 criteria.")
+        lines.append("")
+
+    if analysis.priority_recommendations:
+        lines.append("📝 **Priority Recommendations:**")
+        for rec in analysis.priority_recommendations[:3]:
+            lines.append(f"• {rec}")
+        lines.append("")
+
+    if analysis.risks:
+        lines.append("⚠️ **Risks to Address:**")
+        for risk in analysis.risks[:3]:
+            lines.append(f"• {risk}")
+
+    return "\n".join(lines)
+
+
+# =============================================================================
+# BATCH POTENTIAL ANALYSIS (Single LLM Call)
+# =============================================================================
+
+# Prompt for batch EB-1A potential assessment
+BATCH_POTENTIAL_PROMPT = """You are a top-tier, board-certified U.S. immigration attorney focused on EB-1A.
+
+Based on the client's intake questionnaire answers, provide a PRELIMINARY POTENTIAL assessment.
+This is NOT an evaluation of documents - the client has only answered questions about their background.
+
+## EB-1A Criteria (need 3 of 10):
+1. AWARDS - Nationally/internationally recognized awards
+2. MEMBERSHIP - Membership in associations requiring outstanding achievement
+3. PRESS - Published material about the person in professional/major media
+4. JUDGING - Participation as judge of others' work in the field
+5. ORIGINAL_CONTRIBUTION - Original scientific/scholarly/business contributions
+6. SCHOLARLY_ARTICLES - Authorship of scholarly articles
+7. LEADING_ROLE - Critical/leading role in distinguished organizations
+8. HIGH_SALARY - High salary or remuneration
+9. COMMERCIAL_SUCCESS - Commercial success in performing arts
+10. ARTISTIC_EXHIBITION - Display of work at artistic exhibitions
+
+## CLIENT'S INTAKE DATA BY CRITERION:
+{criteria_data}
+
+## TASK (be concise, expert, and practical):
+- Judge potential ONLY from claims. If claims are vague, state what is missing.
+- Be realistic but encouraging; give targeted, actionable steps like an expert attorney.
+- Keep JSON strictly valid; no prose outside JSON.
+
+Respond in JSON format ONLY:
+{{
+  "overall_potential_score": <0-100>,
+  "potential_criteria_count": <number of criteria with score >= 60>,
+  "criteria_assessments": {{
+    "<criterion_name>": {{
+      "potential_score": <0-100>,
+      "has_potential": <true/false>,
+      "evidence_strength": "<weak|moderate|strong>",
+      "key_claims": ["<claim1>", "<claim2>"],
+      "missing_info": ["<what's needed>"],
+      "advice": "<specific advice>"
+    }}
+  }},
+  "strongest_criteria": ["<criterion1>", "<criterion2>"],
+  "weakest_criteria": ["<criterion1>", "<criterion2>"],
+  "overall_assessment": "<1-2 sentence summary>",
+  "priority_actions": ["<action1>", "<action2>", "<action3>"],
+  "risk_level": "<low|moderate|high|critical>",
+  "recommendation": "<1-2 sentence recommendation for next steps>"
+}}
+
+Be realistic but encouraging. Focus on POTENTIAL based on claims, not definitive evaluation.
+If claims suggest strong potential, explain why. If claims are vague, ask for specifics.
+"""
+
+
+class IntakePotentialResult(BaseModel):
+    """Result of batch intake potential analysis."""
+
+    overall_potential_score: float = Field(
+        ge=0.0, le=100.0, description="Overall potential score (0-100)"
+    )
+    potential_criteria_count: int = Field(
+        ge=0, description="Number of criteria with potential >= 60"
+    )
+    criteria_assessments: dict[str, dict[str, Any]] = Field(
+        default_factory=dict, description="Assessment per criterion"
+    )
+    strongest_criteria: list[str] = Field(
+        default_factory=list, description="Criteria with strongest potential"
+    )
+    weakest_criteria: list[str] = Field(
+        default_factory=list, description="Criteria needing improvement"
+    )
+    overall_assessment: str = Field(default="", description="1-2 sentence summary")
+    priority_actions: list[str] = Field(
+        default_factory=list, description="Priority actions to take"
+    )
+    risk_level: str = Field(default="moderate", description="Risk level")
+    recommendation: str = Field(default="", description="Next steps recommendation")
+    warnings: list[str] = Field(
+        default_factory=list, description="Non-fatal warnings during analysis"
+    )
+
+    # Metadata
+    llm_call_count: int = Field(default=1, description="Number of LLM calls made")
+    analyzed_at: datetime = Field(default_factory=datetime.utcnow)
+
+
+async def analyze_intake_potential_batch(
+    case_id: str,
+    user_id: str,
+    memory_manager: MemoryManager,
+) -> IntakePotentialResult:
+    """
+    Analyze intake questionnaire for EB-1A POTENTIAL using SINGLE LLM call.
+
+    This is a batch analysis that:
+    1. Fetches all intake records for the case
+    2. Groups them by EB-1A criteria
+    3. Makes ONE LLM call with all data
+    4. Returns complete potential assessment
+
+    Unlike analyze_intake_for_eb1a() which makes many LLM calls,
+    this function is optimized for speed and cost.
+
+    Args:
+        case_id: The case ID to analyze
+        user_id: The user ID
+        memory_manager: MemoryManager with semantic store
+
+    Returns:
+        IntakePotentialResult with complete potential assessment
+    """
+    logger.info(
+        "analyze_intake_potential_batch.start",
+        case_id=case_id,
+        user_id=user_id,
+    )
+    warnings: list[str] = []
+
+    # 1. Fetch all intake records for this case
+    records = await memory_manager.semantic.afetch_by_case_id(case_id)
+
+    if not records:
+        logger.warning("analyze_intake_potential_batch.no_records", case_id=case_id)
+        return IntakePotentialResult(
+            overall_potential_score=0.0,
+            potential_criteria_count=0,
+            overall_assessment="No intake data found. Please complete the questionnaire first.",
+            priority_actions=["Complete intake questionnaire with /intake_start"],
+            risk_level="critical",
+            recommendation="Start by completing the intake questionnaire.",
+            warnings=["No intake data found. Please complete the intake questionnaire first."],
+            llm_call_count=0,
+        )
+
+    logger.info(
+        "analyze_intake_potential_batch.records_found",
+        case_id=case_id,
+        record_count=len(records),
+    )
+
+    # 2. Map tags to criteria (same as analyze_intake_for_eb1a)
+    tag_to_criterion: dict[str, str] = {
+        # CRITERION 2.1: AWARDS
+        "major_awards": "AWARDS",
+        "awards": "AWARDS",
+        "competitions": "AWARDS",
+        "grants_scholarships": "AWARDS",
+        "school_olympiads": "AWARDS",
+        "university_awards": "AWARDS",
+        # CRITERION 2.2: MEMBERSHIP
+        "associations_memberships": "MEMBERSHIP",
+        "memberships": "MEMBERSHIP",
+        "professional_associations": "MEMBERSHIP",
+        "university_organizations": "MEMBERSHIP",
+        # CRITERION 2.3: PRESS
+        "media_press": "PRESS",
+        "press_coverage": "PRESS",
+        "publications_about": "PRESS",
+        "media": "PRESS",
+        "press": "PRESS",
+        # CRITERION 2.4: JUDGING
+        "expert_roles": "JUDGING",
+        "judging": "JUDGING",
+        "peer_review": "JUDGING",
+        "mentorship_teaching": "JUDGING",
+        # CRITERION 2.5: ORIGINAL CONTRIBUTION
+        "patents": "ORIGINAL_CONTRIBUTION",
+        "projects_research": "ORIGINAL_CONTRIBUTION",
+        "innovations": "ORIGINAL_CONTRIBUTION",
+        "research": "ORIGINAL_CONTRIBUTION",
+        "university_research": "ORIGINAL_CONTRIBUTION",
+        "university_thesis": "ORIGINAL_CONTRIBUTION",
+        "open_source": "ORIGINAL_CONTRIBUTION",
+        "career_key_projects": "ORIGINAL_CONTRIBUTION",
+        # CRITERION 2.6: SCHOLARLY ARTICLES
+        "conferences_talks": "SCHOLARLY_ARTICLES",
+        "publications": "SCHOLARLY_ARTICLES",
+        "scholarly": "SCHOLARLY_ARTICLES",
+        "metrics": "SCHOLARLY_ARTICLES",
+        "talks_public_activity": "SCHOLARLY_ARTICLES",
+        # CRITERION 2.7: LEADING ROLE
+        "leadership": "LEADING_ROLE",
+        "career": "LEADING_ROLE",
+        "management": "LEADING_ROLE",
+        "career_critical_role": "LEADING_ROLE",
+        "career_positions": "LEADING_ROLE",
+        "career_team_size": "LEADING_ROLE",
+        "school_roles": "LEADING_ROLE",
+        # CRITERION 2.8: HIGH SALARY
+        "salary": "HIGH_SALARY",
+        "compensation": "HIGH_SALARY",
+        "career_high_salary": "HIGH_SALARY",
+        # CRITERION 2.9: COMMERCIAL SUCCESS
+        "commercial_products": "COMMERCIAL_SUCCESS",
+        "business_success": "COMMERCIAL_SUCCESS",
+        "career_achievements_metrics": "COMMERCIAL_SUCCESS",
+        # SPECIAL TAGS
+        "achievements": "AWARDS",
+        "eb1a_criterion": "LEADING_ROLE",
+    }
+
+    # 3. Group records by criterion
+    criteria_data: dict[str, list[str]] = {}
+    for record in records:
+        criterion_found = False
+        for tag in record.tags:
+            if tag in tag_to_criterion:
+                criterion_name = tag_to_criterion[tag]
+                if criterion_name not in criteria_data:
+                    criteria_data[criterion_name] = []
+                # Add text if not duplicate
+                if record.text not in criteria_data[criterion_name]:
+                    criteria_data[criterion_name].append(record.text)
+                criterion_found = True
+                break  # Only assign to first matching criterion
+
+        # If no criterion matched, put in general bucket
+        if not criterion_found and record.text:
+            if "GENERAL" not in criteria_data:
+                criteria_data["GENERAL"] = []
+            if record.text not in criteria_data["GENERAL"]:
+                criteria_data["GENERAL"].append(record.text)
+
+    general_count = len(criteria_data.get("GENERAL", []))
+    if general_count:
+        warnings.append(
+            f"{general_count} intake answers were not mapped to a specific EB-1A criterion (tag them for better analysis)."
+        )
+
+    covered_criteria = [c for c in criteria_data if c != "GENERAL"]
+    if len(covered_criteria) < 3:
+        warnings.append(
+            "Data covers fewer than 3 criteria; potential assessment may be incomplete."
+        )
+
+    logger.info(
+        "analyze_intake_potential_batch.criteria_grouped",
+        case_id=case_id,
+        criteria_count=len(criteria_data),
+        criteria=list(criteria_data.keys()),
+    )
+
+    # 4. Format data for LLM prompt
+    criteria_text_parts = []
+    for criterion, texts in criteria_data.items():
+        criteria_text_parts.append(f"\n### {criterion}:")
+        for i, text in enumerate(texts[:10], 1):  # Limit to 10 items per criterion
+            # Truncate long texts
+            truncated = text[:500] + "..." if len(text) > 500 else text
+            criteria_text_parts.append(f"  {i}. {truncated}")
+
+    criteria_text = "\n".join(criteria_text_parts)
+
+    # 5. Make SINGLE LLM call
+    try:
+        from ..llm_interface.openai_client import OpenAIClient
+
+        llm_client = OpenAIClient(
+            model="gpt-5.1",
+            reasoning_effort="low",  # Fast analysis
+            max_tokens=4000,  # Increased from 2000 to prevent truncation
+        )
+
+        prompt = BATCH_POTENTIAL_PROMPT.format(criteria_data=criteria_text)
+        result = await llm_client.acomplete(prompt)
+        output = result.get("output", "")
+
+        logger.info(
+            "analyze_intake_potential_batch.llm_complete",
+            case_id=case_id,
+            output_length=len(output),
+        )
+
+        # 6. Parse JSON response
+        import json
+        import re
+
+        # Extract JSON from response (handle markdown code blocks)
+        json_match = re.search(r"```(?:json)?\s*([\s\S]*?)```", output)
+        if json_match:
+            json_str = json_match.group(1).strip()
+        else:
+            # Try to find raw JSON
+            json_match = re.search(r"\{[\s\S]*\}", output)
+            json_str = json_match.group(0) if json_match else "{}"
+            if not json_match:
+                warnings.append("LLM response did not contain JSON; using defaults.")
+
+        try:
+            parsed = json.loads(json_str)
+        except json.JSONDecodeError:
+            logger.warning(
+                "analyze_intake_potential_batch.json_parse_failed",
+                case_id=case_id,
+                output=output[:200],
+            )
+            parsed = {}
+            warnings.append("Failed to parse LLM JSON response; used defaults.")
+
+        def _coerce_float(value: Any, default: float) -> float:
+            try:
+                return float(value)
+            except (TypeError, ValueError):
+                return default
+
+        def _normalize_list(value: Any) -> list[str]:
+            if isinstance(value, list):
+                return [str(v) for v in value]
+            return []
+
+        criteria_assessments_raw = parsed.get("criteria_assessments", {})
+        if not isinstance(criteria_assessments_raw, dict):
+            warnings.append("criteria_assessments missing or invalid; using empty set.")
+            criteria_assessments_raw = {}
+
+        def _compute_potential_count(assessments: dict[str, dict[str, Any]]) -> int:
+            count = 0
+            for assessment in assessments.values():
+                score = _coerce_float(assessment.get("potential_score"), 0.0)
+                has_potential = assessment.get("has_potential")
+                if has_potential is True or score >= 60:
+                    count += 1
+            return count
+
+        potential_criteria_count = parsed.get("potential_criteria_count")
+        if not isinstance(potential_criteria_count, int):
+            potential_criteria_count = _compute_potential_count(criteria_assessments_raw)
+
+        # 7. Build result
+        return IntakePotentialResult(
+            overall_potential_score=_coerce_float(parsed.get("overall_potential_score"), 50.0),
+            potential_criteria_count=potential_criteria_count,
+            criteria_assessments=criteria_assessments_raw,
+            strongest_criteria=_normalize_list(parsed.get("strongest_criteria")),
+            weakest_criteria=_normalize_list(parsed.get("weakest_criteria")),
+            overall_assessment=parsed.get("overall_assessment", "Analysis complete."),
+            priority_actions=_normalize_list(parsed.get("priority_actions")),
+            risk_level=str(parsed.get("risk_level", "moderate")),
+            recommendation=parsed.get("recommendation", "Continue with document collection."),
+            warnings=warnings,
+            llm_call_count=1,
+        )
+
+    except Exception as e:
+        warnings.append(f"LLM error: {e!s}")
+        logger.exception(
+            "analyze_intake_potential_batch.error",
+            case_id=case_id,
+            error=str(e),
+        )
+        # Fallback to heuristic assessment
+        return _fallback_potential_assessment(criteria_data, case_id, warnings=warnings)
+
+
+def _fallback_potential_assessment(
+    criteria_data: dict[str, list[str]],
+    case_id: str,
+    warnings: list[str] | None = None,
+) -> IntakePotentialResult:
+    """Fallback heuristic assessment when LLM fails."""
+    criteria_count = len([c for c in criteria_data if c != "GENERAL"])
+    avg_items = sum(len(v) for v in criteria_data.values()) / max(len(criteria_data), 1)
+
+    # Simple scoring based on coverage
+    base_score = min(100, criteria_count * 12 + avg_items * 3)
+
+    return IntakePotentialResult(
+        overall_potential_score=base_score,
+        potential_criteria_count=criteria_count,
+        criteria_assessments={
+            c: {"potential_score": 50, "has_potential": len(v) >= 2}
+            for c, v in criteria_data.items()
+            if c != "GENERAL"
+        },
+        strongest_criteria=list(criteria_data.keys())[:3],
+        weakest_criteria=[],
+        overall_assessment=f"Found data for {criteria_count} criteria. More details needed for accurate assessment.",
+        priority_actions=[
+            "Provide more specific details about achievements",
+            "Quantify impact where possible",
+            "Gather supporting documents",
+        ],
+        risk_level="moderate" if criteria_count >= 3 else "high",
+        recommendation="Complete document gathering to confirm potential.",
+        warnings=warnings or ["Used heuristic fallback because LLM analysis failed."],
+        llm_call_count=0,
+    )

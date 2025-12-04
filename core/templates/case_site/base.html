@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Case Dashboard{% endblock %} - MegaAgent Pro</title>
+    <style>
+        :root {
+            --primary-color: #0066cc;
+            --secondary-color: #f8f9fa;
+            --text-color: #333;
+            --border-color: #dee2e6;
+        }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            color: var(--text-color);
+            display: flex;
+            min-height: 100vh;
+        }
+        .sidebar {
+            width: 250px;
+            background: #343a40;
+            color: white;
+            padding: 20px;
+            flex-shrink: 0;
+        }
+        .sidebar h2 {
+            margin-top: 0;
+            font-size: 1.2rem;
+            border-bottom: 1px solid #4b545c;
+            padding-bottom: 10px;
+            margin-bottom: 20px;
+        }
+        .nav-link {
+            display: block;
+            color: rgba(255,255,255,.5);
+            text-decoration: none;
+            padding: 10px 0;
+            transition: color 0.3s;
+        }
+        .nav-link:hover, .nav-link.active {
+            color: white;
+        }
+        .main-content {
+            flex-grow: 1;
+            background: var(--secondary-color);
+            padding: 30px;
+            overflow-y: auto;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        header {
+            margin-bottom: 30px;
+            border-bottom: 1px solid var(--border-color);
+            padding-bottom: 20px;
+        }
+        h1 { margin: 0; color: var(--primary-color); }
+        .meta { color: #6c757d; font-size: 0.9rem; margin-top: 5px; }
+        
+        /* Utility classes */
+        .btn {
+            display: inline-block;
+            padding: 8px 16px;
+            background: var(--primary-color);
+            color: white;
+            text-decoration: none;
+            border-radius: 4px;
+            transition: background 0.3s;
+        }
+        .btn:hover { background: #0052a3; }
+        .status-badge {
+            display: inline-block;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 0.8rem;
+            font-weight: bold;
+        }
+        .status-active { background: #d4edda; color: #155724; }
+        .status-pending { background: #fff3cd; color: #856404; }
+    </style>
+    {% block extra_head %}{% endblock %}
+</head>
+<body>
+    <nav class="sidebar">
+        <h2>MegaAgent Pro</h2>
+        <a href="index.html" class="nav-link {% if page == 'index' %}active{% endif %}">📊 Dashboard</a>
+        <a href="forms/index.html" class="nav-link {% if page == 'forms' %}active{% endif %}">📝 USCIS Forms</a>
+        <a href="petition/index.html" class="nav-link {% if page == 'petition' %}active{% endif %}">⚖️ Petition</a>
+        <a href="exhibits/index.html" class="nav-link {% if page == 'exhibits' %}active{% endif %}">📎 Exhibits</a>
+        <a href="#" class="nav-link">⚙️ Settings</a>
+    </nav>
+
+    <main class="main-content">
+        <div class="container">
+            {% block content %}{% endblock %}
+        </div>
+    </main>
+</body>
+</html>

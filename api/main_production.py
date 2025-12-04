@@ -231,6 +231,60 @@ def create_app() -> FastAPI:
 
     app.include_router(document_monitor_routes.router, tags=["Document Monitor"])
 
+    # Metrics endpoints (Prometheus)
+    from api.routes import metrics as metrics_routes
+
+    app.include_router(metrics_routes.router, tags=["Metrics"])
+
+    # ========================================================================
+    # Prometheus FastAPI Instrumentation
+    # ========================================================================
+
+    try:
+        from prometheus_fastapi_instrumentator import Instrumentator
+
+        # Initialize instrumentator with custom metrics
+        instrumentator = Instrumentator(
+            should_group_status_codes=True,
+            should_ignore_untemplated=True,
+            should_respect_env_var=True,
+            should_instrument_requests_inprogress=True,
+            excluded_handlers=["/metrics", "/health", "/liveness", "/readiness"],
+            env_var_name="ENABLE_METRICS",
+            inprogress_name="http_requests_inprogress",
+            inprogress_labels=True,
+        )
+
+        # Add default metrics (request latency, count, size, etc.)
+        instrumentator.add(
+            instrumentator.metrics.default(
+                should_include_handler=True,
+                should_include_method=True,
+                should_include_status=True,
+                latency_lowr_buckets=(
+                    0.01,
+                    0.025,
+                    0.05,
+                    0.075,
+                    0.1,
+                    0.25,
+                    0.5,
+                    0.75,
+                    1.0,
+                    2.5,
+                    5.0,
+                ),
+            )
+        )
+
+        # Instrument the app
+        instrumentator.instrument(app)
+
+        logger.info("Prometheus FastAPI instrumentation enabled")
+
+    except ImportError:
+        logger.warning("prometheus-fastapi-instrumentator not installed, HTTP metrics disabled")
+
     # ========================================================================
     # Root endpoint
     # ========================================================================

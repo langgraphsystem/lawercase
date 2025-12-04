@@ -9,6 +9,7 @@ from telegram.ext import CommandHandler, ContextTypes
 from core.groupagents.mega_agent import CommandType, MegaAgentCommand, UserRole
 
 from .context import BotContext
+from .response_utils import send_document_response
 
 logger = structlog.get_logger(__name__)
 
@@ -28,6 +29,14 @@ def _is_authorized(bot_context: BotContext, update: Update) -> bool:
 
 
 async def generate_letter(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Generate a letter/document for the active case.
+
+    Usage: /generate_letter <title or type>
+    Examples:
+        /generate_letter cover letter
+        /generate_letter recommendation request
+        /generate_letter petition summary
+    """
     user_id = update.effective_user.id if update.effective_user else None
     logger.info("telegram.generate_letter.received", user_id=user_id)
 
@@ -39,7 +48,16 @@ async def generate_letter(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
     message = update.effective_message
     if not context.args:
         logger.warning("telegram.generate_letter.no_args", user_id=user_id)
-        await message.reply_text("Usage: /generate_letter <title>")
+        await message.reply_text(
+            "📝 *Генерация документов*\n\n"
+            "Использование: `/generate_letter <тип документа>`\n\n"
+            "*Примеры:*\n"
+            "• `/generate_letter cover letter` — Сопроводительное письмо\n"
+            "• `/generate_letter recommendation` — Запрос рекомендательного письма\n"
+            "• `/generate_letter petition summary` — Краткое изложение петиции\n"
+            "• `/generate_letter RFE response` — Ответ на RFE",
+            parse_mode="Markdown",
+        )
         return
 
     title = " ".join(context.args)
@@ -49,9 +67,22 @@ async def generate_letter(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
         active_case = await bot_context.get_active_case(update)
         if not active_case:
             await message.reply_text(
-                "ℹ️ No active case. Use /case_create or /case_get to select one."
+                "❌ Активный кейс не выбран.\n\n"
+                "Сначала выберите кейс:\n"
+                "• `/case_create <название>` — создать новый\n"
+                "• `/case_get <case_id>` — открыть существующий\n"
+                "• `/case_list` — список всех кейсов",
+                parse_mode="Markdown",
             )
             return
+
+        # Show progress message
+        progress_msg = await message.reply_text(
+            f"📝 Генерирую документ: *{title}*\n"
+            f"📁 Кейс: `{active_case[:8]}...`\n\n"
+            "⏳ Анализирую данные кейса и создаю текст...",
+            parse_mode="Markdown",
+        )
 
         payload = {
             "document_type": "letter",
@@ -78,21 +109,68 @@ async def generate_letter(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
 
         if response.success and response.result:
             document = response.result.get("document", {})
-            await message.reply_text(
-                f"📝 Letter generated:\nTitle: {document.get('title', title)}\nFormat: {document.get('format', 'markdown')}"
-            )
-            logger.info(
-                "telegram.generate_letter.sent", user_id=user_id, format=document.get("format")
-            )
+            content = document.get("content") or document.get("text") or document.get("body")
+            doc_title = document.get("title", title)
+            doc_format = document.get("format", "markdown")
+
+            # Delete progress message
+            try:
+                await progress_msg.delete()
+            except Exception:  # nosec B110 - optional cleanup
+                pass
+
+            if content:
+                # Send document with header
+                header = (
+                    f"📝 Документ сгенерирован\n"
+                    f"📋 Тип: {doc_title}\n"
+                    f"📁 Кейс: {active_case[:8]}...\n"
+                    f"━━━━━━━━━━━━━━━━━━━━━\n\n"
+                )
+                full_text = header + content
+
+                # Send as text or file based on length
+                await send_document_response(
+                    message=message,
+                    content=full_text,
+                    doc_title=doc_title,
+                    doc_type="letter",
+                )
+
+                logger.info(
+                    "telegram.generate_letter.sent",
+                    user_id=user_id,
+                    format=doc_format,
+                    content_length=len(content),
+                )
+            else:
+                # Fallback: no content returned
+                await message.reply_text(
+                    f"📝 *Документ создан*\n\n"
+                    f"Название: {doc_title}\n"
+                    f"Формат: {doc_format}\n\n"
+                    "⚠️ Контент документа недоступен. "
+                    "Попробуйте `/ask сгенерируй {title}` для получения текста.",
+                    parse_mode="Markdown",
+                )
+                logger.warning(
+                    "telegram.generate_letter.no_content",
+                    user_id=user_id,
+                    document_keys=list(document.keys()),
+                )
         else:
+            # Delete progress message
+            try:
+                await progress_msg.delete()
+            except Exception:  # nosec B110 - optional cleanup
+                pass
+
             error_msg = response.error or "generation failed"
-            # Use parse_mode=None to avoid Markdown parsing errors
-            await message.reply_text(f"❌ Error: {error_msg}", parse_mode=None)
+            await message.reply_text(f"❌ Ошибка генерации: {error_msg}", parse_mode=None)
             logger.error("telegram.generate_letter.failed", user_id=user_id, error=error_msg)
     except Exception as e:
         logger.exception("telegram.generate_letter.exception", user_id=user_id, error=str(e))
-        # Use parse_mode=None to avoid Markdown parsing errors
-        await message.reply_text(f"❌ Exception: {e!s}", parse_mode=None)
+        await message.reply_text(f"❌ Ошибка: {e!s}", parse_mode=None)
 
 
 def get_handlers(bot_context: BotContext):

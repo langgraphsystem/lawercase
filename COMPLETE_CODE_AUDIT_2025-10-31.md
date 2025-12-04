@@ -136,7 +136,7 @@ from openai import AsyncOpenAI
 
 client = AsyncOpenAI(api_key="...")
 response = await client.chat.completions.create(
-    model="gpt-5.1-chat-latest",
+    model="gpt-5.1",
     messages=[...],
     temperature=0.7
 )

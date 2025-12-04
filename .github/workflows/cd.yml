@@ -1,0 +1,235 @@
+name: CD - Build & Deploy
+
+on:
+  push:
+    branches: [main, master]
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Deployment environment'
+        required: true
+        default: 'staging'
+        type: choice
+        options:
+          - staging
+          - production
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}
+
+jobs:
+  # ============================================================================
+  # Build Docker Image
+  # ============================================================================
+  build:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+
+    outputs:
+      image_tag: ${{ steps.meta.outputs.tags }}
+      image_digest: ${{ steps.build.outputs.digest }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract metadata for Docker
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+          tags: |
+            type=ref,event=branch
+            type=ref,event=pr
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+            type=sha,prefix=,suffix=,format=short
+
+      - name: Build and push Docker image
+        id: build
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          build-args: |
+            BUILD_DATE=${{ github.event.head_commit.timestamp }}
+            GIT_SHA=${{ github.sha }}
+            VERSION=${{ github.ref_name }}
+
+      - name: Generate SBOM
+        uses: anchore/sbom-action@v0
+        with:
+          image: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}@${{ steps.build.outputs.digest }}
+          artifact-name: sbom-${{ github.sha }}.json
+
+  # ============================================================================
+  # Deploy to Staging
+  # ============================================================================
+  deploy-staging:
+    needs: build
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main' || github.event.inputs.environment == 'staging'
+    environment:
+      name: staging
+      url: https://staging.megaagent.app
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Deploy to Railway (Staging)
+        if: ${{ vars.DEPLOY_TARGET == 'railway' }}
+        env:
+          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
+        run: |
+          npm install -g @railway/cli
+          railway link ${{ vars.RAILWAY_PROJECT_ID }}
+          railway up --environment staging
+
+      - name: Deploy to Kubernetes (Staging)
+        if: ${{ vars.DEPLOY_TARGET == 'kubernetes' }}
+        uses: azure/k8s-deploy@v4
+        with:
+          namespace: staging
+          manifests: |
+            k8s/deployment.yaml
+            k8s/service.yaml
+          images: |
+            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.sha }}
+
+      - name: Notify deployment
+        uses: slackapi/slack-github-action@v1.24.0
+        if: ${{ vars.SLACK_WEBHOOK_URL != '' }}
+        with:
+          payload: |
+            {
+              "text": "🚀 Deployed to staging",
+              "blocks": [
+                {
+                  "type": "section",
+                  "text": {
+                    "type": "mrkdwn",
+                    "text": "✅ *MegaAgent* deployed to staging\n• Commit: `${{ github.sha }}`\n• Branch: `${{ github.ref_name }}`"
+                  }
+                }
+              ]
+            }
+        env:
+          SLACK_WEBHOOK_URL: ${{ vars.SLACK_WEBHOOK_URL }}
+
+  # ============================================================================
+  # Deploy to Production
+  # ============================================================================
+  deploy-production:
+    needs: [build, deploy-staging]
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/v') || github.event.inputs.environment == 'production'
+    environment:
+      name: production
+      url: https://megaagent.app
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Deploy to Railway (Production)
+        if: ${{ vars.DEPLOY_TARGET == 'railway' }}
+        env:
+          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
+        run: |
+          npm install -g @railway/cli
+          railway link ${{ vars.RAILWAY_PROJECT_ID }}
+          railway up --environment production
+
+      - name: Deploy to Kubernetes (Production)
+        if: ${{ vars.DEPLOY_TARGET == 'kubernetes' }}
+        uses: azure/k8s-deploy@v4
+        with:
+          namespace: production
+          manifests: |
+            k8s/deployment.yaml
+            k8s/service.yaml
+            k8s/ingress.yaml
+          images: |
+            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.sha }}
+
+      - name: Run database migrations
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+        run: |
+          pip install alembic asyncpg sqlalchemy[asyncio] pgvector
+          alembic upgrade head
+
+      - name: Notify production deployment
+        uses: slackapi/slack-github-action@v1.24.0
+        if: ${{ vars.SLACK_WEBHOOK_URL != '' }}
+        with:
+          payload: |
+            {
+              "text": "🎉 Deployed to production",
+              "blocks": [
+                {
+                  "type": "section",
+                  "text": {
+                    "type": "mrkdwn",
+                    "text": "🎉 *MegaAgent* deployed to production\n• Version: `${{ github.ref_name }}`\n• Commit: `${{ github.sha }}`"
+                  }
+                }
+              ]
+            }
+        env:
+          SLACK_WEBHOOK_URL: ${{ vars.SLACK_WEBHOOK_URL }}
+
+  # ============================================================================
+  # Smoke Tests
+  # ============================================================================
+  smoke-test:
+    needs: deploy-staging
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'
+
+    steps:
+      - name: Wait for deployment
+        run: sleep 30
+
+      - name: Health check
+        run: |
+          for i in {1..5}; do
+            response=$(curl -s -o /dev/null -w "%{http_code}" ${{ vars.STAGING_URL }}/liveness || echo "000")
+            if [ "$response" = "200" ]; then
+              echo "✓ Health check passed"
+              exit 0
+            fi
+            echo "Attempt $i: Status $response, retrying..."
+            sleep 10
+          done
+          echo "✗ Health check failed after 5 attempts"
+          exit 1
+
+      - name: Readiness check
+        run: |
+          response=$(curl -s -o /dev/null -w "%{http_code}" ${{ vars.STAGING_URL }}/readiness || echo "000")
+          if [ "$response" = "200" ]; then
+            echo "✓ Readiness check passed"
+          else
+            echo "⚠ Readiness check returned: $response (service may be degraded)"
+          fi

@@ -33,17 +33,21 @@ def register_handlers(
     )
 
     from . import (admin_handlers,  # local import to avoid circular
-                   case_handlers, file_upload_handlers, kb_handlers,
-                   letter_handlers, scheduler_handlers, sdk_handlers)
+                   career_intake_handlers, case_handlers, file_upload_handlers,
+                   intake_handlers, kb_handlers, letter_handlers,
+                   scheduler_handlers, sdk_handlers, site_handlers)
 
     handler_sets: Iterable = chain(
         admin_handlers.get_handlers(bot_context),
         case_handlers.get_handlers(bot_context),
+        intake_handlers.get_handlers(bot_context),  # Add intake handlers
+        career_intake_handlers.get_handlers(bot_context),  # Detailed career intake
         sdk_handlers.get_handlers(bot_context),
         letter_handlers.get_handlers(bot_context),
         kb_handlers.get_handlers(bot_context),
         scheduler_handlers.get_handlers(bot_context),
         file_upload_handlers.get_handlers(bot_context),
+        site_handlers.get_handlers(bot_context),  # Case site generation
     )
 
     for handler in handler_sets:

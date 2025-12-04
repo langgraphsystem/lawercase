@@ -12,15 +12,13 @@ from core.tools.tool_registry import (Tool, ToolMetadata, ToolRegistry,
                                       reset_tool_registry)
 
 __all__ = [
-    # Registry
     "Tool",
+    "ToolExecutionError",
     "ToolMetadata",
     "ToolRegistry",
     "ToolType",
+    "execute_single_tool",
+    "execute_tool_loop",
     "get_tool_registry",
     "reset_tool_registry",
-    # Executor
-    "execute_tool_loop",
-    "execute_single_tool",
-    "ToolExecutionError",
 ]

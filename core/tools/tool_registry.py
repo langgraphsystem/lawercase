@@ -27,14 +27,22 @@ class Tool(Protocol):
 
 
 class ToolType(str, Enum):
-    """Types of tools available in the system (GPT-5 March 2025)."""
+    """Types of tools available in the system (GPT-5.1 November 2025).
+
+    New in GPT-5.1:
+    - APPLY_PATCH: Reliable code editing tool
+    - SHELL: Execute shell commands
+    """
 
     FUNCTION = "function"  # Standard function calling
     CUSTOM = "custom"  # GPT-5 freeform (raw text payload)
     FILE_SEARCH = "file_search"  # Built-in file search
-    WEB_SEARCH = "web_search"  # Built-in web search (Responses API)
+    WEB_SEARCH = "web_search"  # Built-in web search (Responses API, $10/K)
     CODE_INTERPRETER = "code_interpreter"  # Built-in code execution
     IMAGE_GEN = "gpt-image-1"  # Built-in image generation
+    # GPT-5.1 New Tools (November 2025)
+    APPLY_PATCH = "apply_patch"  # Reliable code editing
+    SHELL = "shell"  # Execute shell commands
 
 
 @dataclass(slots=True)
@@ -171,8 +179,11 @@ class ToolRegistry:
                 ToolType.FILE_SEARCH,
                 ToolType.WEB_SEARCH,
                 ToolType.CODE_INTERPRETER,
+                ToolType.APPLY_PATCH,
+                ToolType.SHELL,
             }:
                 # Built-in tools (no executor needed)
+                # GPT-5.1 adds apply_patch and shell tools
                 tools.append({"type": metadata.tool_type.value})
 
             elif metadata.tool_type == ToolType.CUSTOM:

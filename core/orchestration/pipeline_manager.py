@@ -86,6 +86,16 @@ async def run(
         if isinstance(value, WorkflowState | EnhancedWorkflowState):
             return value
 
-    # If dict doesn't contain state object, try to construct from dict keys
+    # If dict doesn't contain state object but has dict values, try to construct WorkflowState
+    # This handles cases where LangGraph serializes states to dicts
+    if final_dict:
+        # Try to find a dict that looks like a WorkflowState (has thread_id)
+        for value in final_dict.values():
+            if isinstance(value, dict) and "thread_id" in value:
+                try:
+                    return WorkflowState.model_validate(value)
+                except Exception:
+                    pass
+
     # Fallback: return initial_state if no valid final state found
     return initial_state
