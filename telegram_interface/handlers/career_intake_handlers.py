@@ -670,6 +670,11 @@ async def _complete_career_intake(
     state.is_complete = True
     await _save_career_state(bot_context, state)
 
+    # Check if this was part of main intake flow
+    key = CAREER_STATE_KEY.format(user_id=state.user_id, case_id=state.case_id)
+    state_data = bot_context._career_states.get(key, {})
+    continue_main_intake = state_data.get("_continue_main_intake", False)
+
     # Generate summary
     summary_lines = [
         "🎉 *Опрос по карьере завершён!*\n",
@@ -679,15 +684,7 @@ async def _complete_career_intake(
     for i, entry in enumerate(state.career_entries, 1):
         summary_lines.append(f"{i}. *{entry.company_name}* ({entry.company_industry})")
 
-    summary_lines.extend(
-        [
-            "\n✅ Вся информация сохранена в вашем кейсе.",
-            "\n*Следующие шаги:*",
-            "• /ask - задать вопросы о кейсе",
-            "• /intake_start - продолжить общую анкету",
-            "• Загрузить дополнительные документы",
-        ]
-    )
+    summary_lines.append("\n✅ Вся информация сохранена в вашем кейсе.")
 
     await message.reply_text("\n".join(summary_lines), parse_mode=ParseMode.MARKDOWN)
 
@@ -696,7 +693,30 @@ async def _complete_career_intake(
         user_id=state.user_id,
         case_id=state.case_id,
         companies_count=len(state.career_entries),
+        continue_main_intake=continue_main_intake,
     )
+
+    # If started from main intake, continue to next block
+    if continue_main_intake:
+        try:
+            from .intake_handlers import continue_intake_after_career
+
+            await continue_intake_after_career(bot_context, update, state.user_id, state.case_id)
+        except ImportError as e:
+            logger.error("career_intake.continue_import_error", error=str(e))
+            await message.reply_text(
+                "\n*Следующие шаги:*\n" "• /intake_resume - продолжить анкету",
+                parse_mode=ParseMode.MARKDOWN,
+            )
+    else:
+        # Standalone career intake - show next steps
+        await message.reply_text(
+            "\n*Следующие шаги:*\n"
+            "• /ask - задать вопросы о кейсе\n"
+            "• /intake_start - продолжить общую анкету\n"
+            "• Загрузить дополнительные документы",
+            parse_mode=ParseMode.MARKDOWN,
+        )
 
 
 async def _generate_followup_questions(

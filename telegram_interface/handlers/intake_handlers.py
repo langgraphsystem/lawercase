@@ -15,15 +15,29 @@ from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
 from telegram.constants import ParseMode
 from telegram.ext import ContextTypes
 
-from core.intake.schema import (BLOCKS_BY_ID, INTAKE_BLOCKS, IntakeBlock,
-                                IntakeQuestion, QuestionType)
+from core.intake.schema import (
+    BLOCKS_BY_ID,
+    INTAKE_BLOCKS,
+    IntakeBlock,
+    IntakeQuestion,
+    QuestionType,
+)
 from core.intake.synthesis import synthesize_intake_fact
-from core.intake.validation import (parse_list, validate_date, validate_select,
-                                    validate_text, validate_yes_no)
+from core.intake.validation import (
+    parse_list,
+    validate_date,
+    validate_select,
+    validate_text,
+    validate_yes_no,
+)
 from core.memory.models import MemoryRecord
-from core.storage.intake_progress import (advance_step, complete_block,
-                                          get_progress, reset_progress,
-                                          set_progress)
+from core.storage.intake_progress import (
+    advance_step,
+    complete_block,
+    get_progress,
+    reset_progress,
+    set_progress,
+)
 
 from .context import BotContext
 
@@ -662,6 +676,12 @@ async def _send_question_batch(
         await message.reply_text("❌ Блок не найден.")
         return
 
+    # Special handling for career block - use detailed company-by-company intake
+    if current_block_id == "career" and current_step == 0:
+        # Start detailed career intake instead of simple questions
+        await _start_detailed_career_intake(bot_context, update, user_id, case_id)
+        return
+
     # Check if block is complete
     total_questions = len(current_block.questions)
     if current_step >= total_questions:
@@ -760,6 +780,104 @@ def _get_next_block(current_block_id: str) -> IntakeBlock | None:
                 return INTAKE_BLOCKS[i + 1]
             return None
     return None
+
+
+async def _start_detailed_career_intake(
+    bot_context: BotContext,
+    update: Update,
+    user_id: str,
+    case_id: str,
+) -> None:
+    """Start detailed career intake within the main intake flow."""
+    message = update.effective_message or update.callback_query.message
+    if not message:
+        return
+
+    try:
+        from core.intake.career_intake import CareerIntakeState
+
+        from .career_intake_handlers import _send_career_question
+
+        # Initialize career intake state with callback to continue main intake
+        state = CareerIntakeState(
+            user_id=user_id,
+            case_id=case_id,
+            current_phase="company_count",
+        )
+
+        # Mark that this is part of main intake (for callback)
+        if not hasattr(bot_context, "_career_states"):
+            bot_context._career_states = {}
+        state_dict = state.model_dump()
+        state_dict["_continue_main_intake"] = True  # Flag to continue after completion
+        key = f"career_intake:{user_id}:{case_id}"
+        bot_context._career_states[key] = state_dict
+
+        logger.info(
+            "intake.career_block_started",
+            user_id=user_id,
+            case_id=case_id,
+        )
+
+        # Send career intake intro
+        intro_text = (
+            "🏢 *Блок: Профессиональный путь*\n\n"
+            "Сейчас мы подробно пройдёмся по каждому месту вашей работы.\n\n"
+            "Для каждой компании я спрошу:\n"
+            "• Информация о компании\n"
+            "• Ваши должности и обязанности\n"
+            "• Проекты и достижения\n"
+            "• Потенциальные рекомендатели\n"
+            "• Подтверждающие документы\n\n"
+            "Начнём!"
+        )
+        await message.reply_text(intro_text, parse_mode=ParseMode.MARKDOWN)
+
+        # Send first career question
+        await _send_career_question(bot_context, update, state)
+
+    except ImportError as e:
+        logger.error("intake.career_import_error", error=str(e))
+        # Fallback to simple career questions
+        await message.reply_text(
+            "📋 *Блок: Профессиональный путь*\n" "Расскажите о вашем опыте работы.",
+            parse_mode=ParseMode.MARKDOWN,
+        )
+
+
+async def continue_intake_after_career(
+    bot_context: BotContext,
+    update: Update,
+    user_id: str,
+    case_id: str,
+) -> None:
+    """Continue main intake after career block completion."""
+    message = update.effective_message or update.callback_query.message
+    if not message:
+        return
+
+    # Get current progress
+    progress = await get_progress(user_id, case_id)
+    if not progress:
+        return
+
+    # Mark career block as complete and move to next
+    current_block = BLOCKS_BY_ID.get("career")
+    next_block = _get_next_block("career")
+
+    if next_block:
+        await complete_block(user_id, case_id, "career", next_block.id)
+        await message.reply_text(
+            f"✅ Блок *Профессиональный путь* завершён!\n\n"
+            f"Переходим к следующему блоку: *{next_block.title}*\n"
+            f"{next_block.description}",
+            parse_mode=ParseMode.MARKDOWN,
+        )
+        await _send_question_batch(bot_context, update, user_id, case_id)
+    else:
+        # Career was last block
+        await complete_block(user_id, case_id, "career", "intake_complete")
+        await _complete_intake(bot_context, update, user_id, case_id)
 
 
 async def _validate_response(question: IntakeQuestion, user_text: str) -> tuple[bool, Any]:
@@ -890,8 +1008,7 @@ async def _complete_intake(
 
     # Get case title
     try:
-        from core.groupagents.mega_agent import (CommandType, MegaAgentCommand,
-                                                 UserRole)
+        from core.groupagents.mega_agent import CommandType, MegaAgentCommand, UserRole
 
         command = MegaAgentCommand(
             user_id=user_id,
@@ -1185,8 +1302,7 @@ async def handle_text_message(update: Update, context: ContextTypes.DEFAULT_TYPE
 
 def get_handlers(bot_context: BotContext):
     """Return list of handlers to register with the Telegram application."""
-    from telegram.ext import (CallbackQueryHandler, CommandHandler,
-                              MessageHandler, filters)
+    from telegram.ext import CallbackQueryHandler, CommandHandler, MessageHandler, filters
 
     return [
         # Command handlers
