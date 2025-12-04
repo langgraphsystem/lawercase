@@ -15,15 +15,29 @@ from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
 from telegram.constants import ParseMode
 from telegram.ext import ContextTypes
 
-from core.intake.schema import (BLOCKS_BY_ID, INTAKE_BLOCKS, IntakeBlock,
-                                IntakeQuestion, QuestionType)
+from core.intake.schema import (
+    BLOCKS_BY_ID,
+    INTAKE_BLOCKS,
+    IntakeBlock,
+    IntakeQuestion,
+    QuestionType,
+)
 from core.intake.synthesis import synthesize_intake_fact
-from core.intake.validation import (parse_list, validate_date, validate_select,
-                                    validate_text, validate_yes_no)
+from core.intake.validation import (
+    parse_list,
+    validate_date,
+    validate_select,
+    validate_text,
+    validate_yes_no,
+)
 from core.memory.models import MemoryRecord
-from core.storage.intake_progress import (advance_step, complete_block,
-                                          get_progress, reset_progress,
-                                          set_progress)
+from core.storage.intake_progress import (
+    advance_step,
+    complete_block,
+    get_progress,
+    reset_progress,
+    set_progress,
+)
 
 from .context import BotContext
 
@@ -994,8 +1008,7 @@ async def _complete_intake(
 
     # Get case title
     try:
-        from core.groupagents.mega_agent import (CommandType, MegaAgentCommand,
-                                                 UserRole)
+        from core.groupagents.mega_agent import CommandType, MegaAgentCommand, UserRole
 
         command = MegaAgentCommand(
             user_id=user_id,
@@ -1185,50 +1198,114 @@ async def _save_document_to_memory(
     file_name: str,
     file_type: str,
 ) -> None:
-    """Save uploaded document to semantic memory and process if PDF."""
+    """Save uploaded document to semantic memory with OCR processing."""
     user_id = str(update.effective_user.id)
+    message = update.effective_message
 
-    # Try to process document for text extraction
+    # Initialize document text
     document_text = f"Загружен документ: {file_name}"
+    ocr_text = ""
+    ocr_method = "none"
 
-    # Extract text from PDF and other documents using MarkitdownParser
-    if file_type == "application/pdf" or file_name.lower().endswith(".pdf"):
+    # Send processing notification for images/scanned docs
+    is_image = file_type.startswith("image/") or file_name.lower().endswith(
+        (".jpg", ".jpeg", ".png", ".gif", ".webp", ".bmp")
+    )
+    is_pdf = file_type == "application/pdf" or file_name.lower().endswith(".pdf")
+
+    if is_image or is_pdf:
         try:
-            from core.rag.document_parser import MarkitdownParser
+            if message:
+                await message.reply_text("🔍 Сканирую документ (OCR)...")
+        except Exception:  # nosec B110 - intentional: notification failure is non-critical
+            pass
 
-            parser = MarkitdownParser()
-            parsed_doc = await parser.parse_bytes(file_bytes, file_name)
-            if parsed_doc.content and len(parsed_doc.content) > 50:
-                # Truncate long documents for memory storage
-                content_preview = parsed_doc.content[:3000]
-                document_text = f"Документ '{file_name}':\n{content_preview}"
-                if len(parsed_doc.content) > 3000:
-                    document_text += "\n... (документ обрезан)"
+    # Process with OCR for images and PDFs
+    if is_image or is_pdf:
+        try:
+            from core.services.ocr_service import get_ocr_service
+
+            ocr_service = get_ocr_service()
+            ocr_result = await ocr_service.process_document(file_bytes, file_name, file_type)
+
+            if ocr_result.get("extracted_text"):
+                ocr_text = ocr_result["extracted_text"]
+                ocr_method = ocr_result.get("method", "ocr")
+                confidence = ocr_result.get("confidence", "unknown")
+
+                # Build document text with OCR content
+                # Truncate for memory but keep substantial content
+                max_ocr_length = 5000
+                if len(ocr_text) > max_ocr_length:
+                    ocr_preview = ocr_text[:max_ocr_length]
+                    document_text = (
+                        f"📄 Документ '{file_name}' (OCR, {confidence}):\n\n"
+                        f"{ocr_preview}\n\n... (текст обрезан, полная длина: {len(ocr_text)} символов)"
+                    )
+                else:
+                    document_text = f"📄 Документ '{file_name}' (OCR, {confidence}):\n\n{ocr_text}"
+
                 logger.info(
-                    "intake.document_text_extracted",
+                    "intake.ocr_complete",
                     file_name=file_name,
-                    text_length=len(parsed_doc.content),
+                    text_length=len(ocr_text),
+                    method=ocr_method,
+                    confidence=confidence,
                 )
-        except Exception as e:
-            logger.warning("intake.document_extraction_failed", error=str(e), file_name=file_name)
+            else:
+                # OCR failed or returned empty
+                error_msg = ocr_result.get("error", "No text extracted")
+                logger.warning(
+                    "intake.ocr_no_text",
+                    file_name=file_name,
+                    error=error_msg,
+                )
+                document_text = f"📄 Документ '{file_name}' (текст не извлечён: {error_msg})"
 
-    # Create memory record
+        except Exception as e:
+            logger.exception("intake.ocr_failed", error=str(e), file_name=file_name)
+            # Fallback to basic extraction for PDFs
+            if is_pdf:
+                try:
+                    from core.rag.document_parser import MarkitdownParser
+
+                    parser = MarkitdownParser()
+                    parsed_doc = await parser.parse_bytes(file_bytes, file_name)
+                    if parsed_doc.content and len(parsed_doc.content) > 50:
+                        content_preview = parsed_doc.content[:3000]
+                        document_text = f"Документ '{file_name}':\n{content_preview}"
+                        if len(parsed_doc.content) > 3000:
+                            document_text += "\n... (документ обрезан)"
+                        ocr_method = "markitdown_fallback"
+                except Exception as fallback_error:
+                    logger.warning(
+                        "intake.fallback_extraction_failed",
+                        error=str(fallback_error),
+                        file_name=file_name,
+                    )
+
+    # Add OCR tag if text was extracted
+    doc_tags = (
+        [*question.tags, "uploaded_document"] if question.tags else ["intake", "uploaded_document"]
+    )
+    if ocr_text:
+        doc_tags = [*doc_tags, "ocr_processed"]
+
+    # Create memory record with OCR metadata
     memory_record = MemoryRecord(
         text=document_text,
         user_id=user_id,
         type="semantic",
         case_id=case_id,
-        tags=(
-            [*question.tags, "uploaded_document"]
-            if question.tags
-            else ["intake", "uploaded_document"]
-        ),
+        tags=doc_tags,
         metadata={
             "source": "intake_document_upload",
             "question_id": question.id,
             "file_name": file_name,
             "file_type": file_type,
             "file_size": len(file_bytes),
+            "ocr_method": ocr_method,
+            "ocr_text_length": len(ocr_text) if ocr_text else 0,
         },
     )
 
@@ -1239,6 +1316,8 @@ async def _save_document_to_memory(
             case_id=case_id,
             question_id=question.id,
             file_name=file_name,
+            ocr_method=ocr_method,
+            ocr_text_length=len(ocr_text) if ocr_text else 0,
         )
     except Exception as e:
         logger.exception(
@@ -1289,8 +1368,7 @@ async def handle_text_message(update: Update, context: ContextTypes.DEFAULT_TYPE
 
 def get_handlers(bot_context: BotContext):
     """Return list of handlers to register with the Telegram application."""
-    from telegram.ext import (CallbackQueryHandler, CommandHandler,
-                              MessageHandler, filters)
+    from telegram.ext import CallbackQueryHandler, CommandHandler, MessageHandler, filters
 
     return [
         # Command handlers
