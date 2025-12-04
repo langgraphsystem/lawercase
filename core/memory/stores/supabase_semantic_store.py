@@ -460,14 +460,14 @@ class SupabaseSemanticStore:
         )
 
         rfe_task = asyncio.create_task(
-            self._aretrieve_rfe_with_timeout(query=query, topk=topk, timeout=15.0)
+            self._aretrieve_rfe_with_timeout(query=query, topk=topk, timeout=50.0)
         )
 
-        # Wait for both with overall timeout
+        # Wait for both with overall timeout (increased for slow RFE queries)
         try:
             semantic_results, rfe_results = await asyncio.wait_for(
                 asyncio.gather(semantic_task, rfe_task, return_exceptions=True),
-                timeout=30.0,
+                timeout=55.0,
             )
         except TimeoutError:
             logger.warning(
@@ -511,7 +511,7 @@ class SupabaseSemanticStore:
         self,
         query: str,
         topk: int,
-        timeout: float = 15.0,
+        timeout: float = 50.0,
     ) -> list[MemoryRecord]:
         """Search RFE knowledge with timeout and graceful fallback."""
         import asyncio
