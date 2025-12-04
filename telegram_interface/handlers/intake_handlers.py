@@ -1185,14 +1185,49 @@ async def _save_document_to_memory(
     file_name: str,
     file_type: str,
 ) -> None:
-    """Save uploaded document to semantic memory with OCR processing."""
+    """Save uploaded document to storage and semantic memory with OCR processing."""
     user_id = str(update.effective_user.id)
     message = update.effective_message
 
-    # Initialize document text
+    # Initialize document text and storage info
     document_text = f"Загружен документ: {file_name}"
     ocr_text = ""
     ocr_method = "none"
+    storage_path = ""
+    storage_url = ""
+
+    # Step 1: Save file to document storage (Supabase/R2/local)
+    try:
+        from core.services.document_storage import get_document_storage
+
+        storage = get_document_storage()
+        storage_result = await storage.save_document(
+            file_bytes=file_bytes,
+            file_name=file_name,
+            file_type=file_type,
+            user_id=user_id,
+            case_id=case_id,
+            question_id=question.id,
+            metadata={"block": question.tags[0] if question.tags else "intake"},
+        )
+
+        if storage_result.get("success"):
+            storage_path = storage_result.get("storage_path", "")
+            storage_url = storage_result.get("storage_url", "")
+            logger.info(
+                "intake.document_stored",
+                file_name=file_name,
+                storage_path=storage_path,
+                backend=storage_result.get("backend"),
+            )
+        else:
+            logger.warning(
+                "intake.document_storage_failed",
+                file_name=file_name,
+                error=storage_result.get("error"),
+            )
+    except Exception as e:
+        logger.warning("intake.document_storage_error", error=str(e), file_name=file_name)
 
     # Send processing notification for images/scanned docs
     is_image = file_type.startswith("image/") or file_name.lower().endswith(
@@ -1278,7 +1313,7 @@ async def _save_document_to_memory(
     if ocr_text:
         doc_tags = [*doc_tags, "ocr_processed"]
 
-    # Create memory record with OCR metadata
+    # Create memory record with OCR and storage metadata
     memory_record = MemoryRecord(
         text=document_text,
         user_id=user_id,
@@ -1293,6 +1328,8 @@ async def _save_document_to_memory(
             "file_size": len(file_bytes),
             "ocr_method": ocr_method,
             "ocr_text_length": len(ocr_text) if ocr_text else 0,
+            "storage_path": storage_path,
+            "storage_url": storage_url,
         },
     )
 
