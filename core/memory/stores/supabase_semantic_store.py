@@ -605,6 +605,37 @@ class SupabaseSemanticStore:
         async with self.db.session() as session:
             await session.execute(stmt)
 
+    async def acount_rfe_knowledge(self) -> int:
+        """Count records in RFE knowledge table."""
+        from sqlalchemy import text
+
+        sql = text("SELECT COUNT(*) FROM mega_agent.rfe_knowledge")
+        async with self.db.session() as session:
+            result = await session.execute(sql)
+            return int(result.scalar() or 0)
+
+    async def acount_rfe_by_criterion(self) -> list[dict]:
+        """Get RFE record counts by criterion.
+
+        Returns:
+            List of dicts with criterion and count
+        """
+        from sqlalchemy import text
+
+        sql = text(
+            """
+            SELECT criterion, COUNT(*) as count
+            FROM mega_agent.rfe_knowledge
+            GROUP BY criterion
+            ORDER BY count DESC
+        """
+        )
+        async with self.db.session() as session:
+            result = await session.execute(sql)
+            rows = result.all()
+
+        return [{"criterion": row.criterion, "count": row.count} for row in rows]
+
     async def health_check(self) -> bool:
         """Basic health check hitting Supabase/Postgres."""
         try:

@@ -251,15 +251,22 @@ async def memory_stats(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
         # Get semantic store for direct stats
         semantic_store = memory.semantic
 
-        # Count total records
-        total_count = await semantic_store.acount()
+        # Count total records in semantic_memory
+        semantic_count = await semantic_store.acount()
+
+        # Count RFE knowledge records
+        rfe_count = await semantic_store.acount_rfe_knowledge()
+        rfe_by_criterion = await semantic_store.acount_rfe_by_criterion()
 
         # Count by different tags
         kb_count = await semantic_store.acount_by_tags(["knowledge_base"])
         case_doc_count = await semantic_store.acount_by_tags(["case_document"])
 
         # Count other categories
-        other_count = total_count - kb_count - case_doc_count
+        other_count = semantic_count - kb_count - case_doc_count
+
+        # Total across all tables
+        total_count = semantic_count + rfe_count
 
         # Get all unique sources
         all_sources = await semantic_store.aget_unique_sources()
@@ -268,30 +275,36 @@ async def memory_stats(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
         lines = [
             "📊 Полная статистика памяти:",
             "",
-            f"📁 Всего записей: {total_count}",
+            f"📁 ВСЕГО записей: {total_count}",
             "",
-            "📂 По категориям:",
+            f"📂 Семантическая память (semantic_memory): {semantic_count}",
             f"   📚 База знаний (knowledge_base): {kb_count}",
-            f"   📁 Документы по кейсам (case_document): {case_doc_count}",
-            f"   📋 Другие записи (RFE, intake и т.д.): {other_count}",
+            f"   📁 Документы по кейсам: {case_doc_count}",
+            f"   📋 Другие (intake и т.д.): {other_count}",
             "",
+            f"⚖️ RFE Knowledge база: {rfe_count}",
         ]
 
+        if rfe_by_criterion:
+            for crit in rfe_by_criterion[:8]:
+                crit_name = crit["criterion"] or "unknown"
+                lines.append(f"   • {crit_name}: {crit['count']}")
+            lines.append("")
+
         if all_sources:
-            lines.append("📄 Все источники в памяти:")
-            for src in all_sources[:15]:
+            lines.append("📄 Источники документов:")
+            for src in all_sources[:10]:
                 source_name = src["source"] or "unknown"
-                # Shorten long filenames
-                if len(source_name) > 50:
-                    source_name = source_name[:47] + "..."
-                lines.append(f"   • {source_name}: {src['count']} записей")
-            if len(all_sources) > 15:
-                lines.append(f"   ... и ещё {len(all_sources) - 15} источников")
+                if len(source_name) > 45:
+                    source_name = source_name[:42] + "..."
+                lines.append(f"   • {source_name}: {src['count']}")
+            if len(all_sources) > 10:
+                lines.append(f"   ... и ещё {len(all_sources) - 10} источников")
             lines.append("")
 
         lines.append("💡 Команды поиска:")
-        lines.append("   /kb_search <запрос> - только база знаний")
-        lines.append("   /memory_search <запрос> - ВСЯ память (включая RFE)")
+        lines.append("   /kb_search - только база знаний")
+        lines.append("   /memory_search - ВСЯ память + RFE")
 
         response = "\n".join(lines)
         await message.reply_text(response, parse_mode=None)
@@ -336,7 +349,8 @@ async def kb_stats(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         semantic_store = memory.semantic
 
         # Count total records
-        total_count = await semantic_store.acount()
+        semantic_count = await semantic_store.acount()
+        rfe_count = await semantic_store.acount_rfe_knowledge()
 
         # Count knowledge_base records specifically
         kb_count = await semantic_store.acount_by_tags(["knowledge_base"])
@@ -351,9 +365,10 @@ async def kb_stats(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         lines = [
             "📊 Статистика базы знаний:",
             "",
-            f"📁 Всего записей: {total_count}",
             f"📚 База знаний (knowledge_base): {kb_count}",
-            f"📂 Документы по кейсам (case_document): {case_doc_count}",
+            f"📂 Документы по кейсам: {case_doc_count}",
+            f"📋 Другие записи: {semantic_count - kb_count - case_doc_count}",
+            f"⚖️ RFE Knowledge: {rfe_count}",
             "",
         ]
 
@@ -361,16 +376,15 @@ async def kb_stats(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
             lines.append("📄 Документы в базе знаний:")
             for src in kb_sources[:10]:
                 source_name = src["source"] or "unknown"
-                # Shorten long filenames
                 if len(source_name) > 40:
                     source_name = source_name[:37] + "..."
                 lines.append(f"  • {source_name}: {src['count']} фрагментов")
             lines.append("")
 
         if kb_count > 0:
-            lines.append("✅ База знаний доступна и содержит документы.")
-            lines.append("")
-            lines.append("💡 Используйте /kb_search <запрос> для поиска.")
+            lines.append("✅ База знаний доступна.")
+            lines.append("💡 /kb_search - поиск в базе знаний")
+            lines.append("💡 /memory_stats - полная статистика")
         else:
             lines.append("⚠️ База знаний пуста.")
             lines.append("")
