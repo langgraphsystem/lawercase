@@ -451,7 +451,7 @@ def get_phase_questions(
         if company_name:
             question["text"] = question["text"].replace("{company_name}", company_name)
         question["text"] = question["text"].replace("{index}", str(company_index))
-        if "hint" in question and question["hint"]:
+        if question.get("hint"):
             question["hint"] = question["hint"].replace("{company_name}", company_name or "")
         result.append(question)
 

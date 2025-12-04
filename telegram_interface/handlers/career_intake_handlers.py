@@ -22,17 +22,11 @@ from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
 from telegram.constants import ParseMode
 from telegram.ext import ContextTypes
 
-from core.intake.career_intake import (
-    FOLLOWUP_QUESTION_PROMPT,
-    AchievementEntry,
-    CareerEntry,
-    CareerIntakeState,
-    CompanyType,
-    PositionEntry,
-    get_next_phase,
-    get_phase_questions,
-    map_company_type,
-)
+from core.intake.career_intake import (FOLLOWUP_QUESTION_PROMPT,
+                                       AchievementEntry, CareerEntry,
+                                       CareerIntakeState, CompanyType,
+                                       PositionEntry, get_next_phase,
+                                       get_phase_questions, map_company_type)
 from core.memory.models import MemoryRecord
 
 from .context import BotContext
