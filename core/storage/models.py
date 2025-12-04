@@ -15,8 +15,7 @@ from uuid import UUID, uuid4
 
 from pgvector.sqlalchemy import Vector
 from sqlalchemy import TIMESTAMP, CheckConstraint, Index, String, Text
-from sqlalchemy.dialects.postgresql import ARRAY, JSONB
-from sqlalchemy.dialects.postgresql import UUID as PG_UUID
+from sqlalchemy.dialects.postgresql import ARRAY, JSONB, UUID as PG_UUID
 from sqlalchemy.ext.asyncio import AsyncAttrs
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 
@@ -241,3 +240,48 @@ class DocumentDB(Base):
     # Timestamps
     uploaded_at: Mapped[datetime] = mapped_column(TIMESTAMP(timezone=True), default=datetime.utcnow)
     processed_at: Mapped[datetime | None] = mapped_column(TIMESTAMP(timezone=True), nullable=True)
+
+
+class RFEKnowledgeDB(Base):
+    """
+    RFE (Request For Evidence) knowledge base with pgvector embeddings.
+
+    Stores USCIS RFE patterns, quotes, and successful responses for EB-1A petitions.
+    Uses pgvector cosine distance for semantic similarity search.
+
+    IMPORTANT: Use SQLAlchemy ORM methods for queries instead of raw SQL
+    to avoid asyncpg parameter binding issues with pgvector.
+    """
+
+    __tablename__ = "rfe_knowledge"
+    __table_args__ = (
+        CheckConstraint("length(criterion) > 0", name="rfe_criterion_not_empty"),
+        Index("idx_rfe_criterion", "criterion"),
+        Index("idx_rfe_issue_type", "issue_type"),
+        Index("idx_rfe_created", "created_at", postgresql_using="btree"),
+        {"schema": "mega_agent"},
+    )
+
+    id: Mapped[UUID] = mapped_column(PG_UUID(as_uuid=True), primary_key=True, default=uuid4)
+
+    # RFE categorization
+    criterion: Mapped[str] = mapped_column(String(100), nullable=False)
+    issue_type: Mapped[str] = mapped_column(String(255), nullable=False)
+
+    # RFE content
+    uscis_quote: Mapped[str] = mapped_column(Text, nullable=False)
+    problem_description: Mapped[str] = mapped_column(Text, nullable=False)
+    success_response: Mapped[str] = mapped_column(Text, nullable=False)
+
+    # Embedding (pgvector) for semantic search
+    embedding: Mapped[list[float] | None] = mapped_column(Vector(1536), nullable=True)
+    embedding_model: Mapped[str] = mapped_column(String(100), default="text-embedding-3-large")
+
+    # Metadata
+    metadata_json: Mapped[dict] = mapped_column(JSONB, default=dict)
+
+    # Timestamps
+    created_at: Mapped[datetime] = mapped_column(TIMESTAMP(timezone=True), default=datetime.utcnow)
+    updated_at: Mapped[datetime] = mapped_column(
+        TIMESTAMP(timezone=True), default=datetime.utcnow, onupdate=datetime.utcnow
+    )
