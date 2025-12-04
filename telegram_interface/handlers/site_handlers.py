@@ -48,7 +48,8 @@ async def generate_site(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
 
     try:
         # Get case data
-        from core.groupagents.mega_agent import CommandType, MegaAgentCommand, UserRole
+        from core.groupagents.mega_agent import (CommandType, MegaAgentCommand,
+                                                 UserRole)
 
         command = MegaAgentCommand(
             user_id=str(user.id),
