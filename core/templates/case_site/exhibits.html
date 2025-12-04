@@ -1,0 +1,189 @@
+{% extends "base.html" %}
+
+{% block title %}Exhibits{% endblock %}
+
+{% block extra_head %}
+<style>
+    .exhibits-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+        gap: 20px;
+        margin-top: 20px;
+    }
+    .exhibit-card {
+        background: #f8f9fa;
+        border: 1px solid #dee2e6;
+        border-radius: 8px;
+        padding: 20px;
+        transition: box-shadow 0.3s;
+    }
+    .exhibit-card:hover {
+        box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    }
+    .exhibit-card h4 {
+        margin: 0 0 10px 0;
+        color: var(--primary-color);
+    }
+    .exhibit-card .meta {
+        font-size: 0.85rem;
+        color: #6c757d;
+    }
+    .exhibit-card .type-badge {
+        display: inline-block;
+        padding: 2px 8px;
+        border-radius: 4px;
+        font-size: 0.75rem;
+        background: #e9ecef;
+        margin-top: 10px;
+    }
+    .upload-zone {
+        border: 2px dashed #dee2e6;
+        border-radius: 8px;
+        padding: 40px;
+        text-align: center;
+        background: #f8f9fa;
+        margin-top: 30px;
+        transition: all 0.3s;
+    }
+    .upload-zone:hover {
+        border-color: var(--primary-color);
+        background: #e8f4fc;
+    }
+    .upload-zone input[type="file"] {
+        display: none;
+    }
+    .upload-btn {
+        display: inline-block;
+        padding: 12px 24px;
+        background: var(--primary-color);
+        color: white;
+        border-radius: 4px;
+        cursor: pointer;
+        margin-top: 15px;
+    }
+    .criteria-section {
+        margin-top: 30px;
+        padding: 20px;
+        background: #fff;
+        border: 1px solid #dee2e6;
+        border-radius: 8px;
+    }
+    .criteria-section h3 {
+        margin-top: 0;
+        color: var(--primary-color);
+    }
+    .criteria-list {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+        margin-top: 15px;
+    }
+    .criterion-tag {
+        padding: 8px 16px;
+        background: #e9ecef;
+        border-radius: 20px;
+        font-size: 0.9rem;
+        cursor: pointer;
+        transition: all 0.3s;
+    }
+    .criterion-tag:hover {
+        background: var(--primary-color);
+        color: white;
+    }
+    .criterion-tag.active {
+        background: var(--primary-color);
+        color: white;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<header>
+    <h1>Exhibits & Evidence</h1>
+    <div class="meta">Manage supporting documents for Case {{ case.case_id }}</div>
+</header>
+
+<div class="criteria-section">
+    <h3>EB-1A Criteria Coverage</h3>
+    <p>Select a criterion to view related exhibits:</p>
+    <div class="criteria-list">
+        <span class="criterion-tag active">All ({{ exhibits|length if exhibits else 0 }})</span>
+        <span class="criterion-tag">🏆 Awards</span>
+        <span class="criterion-tag">🎖️ Membership</span>
+        <span class="criterion-tag">📰 Press</span>
+        <span class="criterion-tag">⚖️ Judging</span>
+        <span class="criterion-tag">💡 Original Contribution</span>
+        <span class="criterion-tag">📚 Scholarly Articles</span>
+        <span class="criterion-tag">👔 Leadership</span>
+        <span class="criterion-tag">💰 High Salary</span>
+    </div>
+</div>
+
+<div class="exhibits-grid">
+    {% if exhibits %}
+        {% for exhibit in exhibits %}
+        <div class="exhibit-card">
+            <h4>{{ exhibit.title }}</h4>
+            <p class="meta">{{ exhibit.description }}</p>
+            <span class="type-badge">{{ exhibit.type }}</span>
+            <div style="margin-top: 15px;">
+                <a href="{{ exhibit.url }}" class="btn" style="padding: 6px 12px; font-size: 0.85rem;">View</a>
+            </div>
+        </div>
+        {% endfor %}
+    {% else %}
+        <div class="exhibit-card">
+            <h4>📄 Passport Copy</h4>
+            <p class="meta">Identity document</p>
+            <span class="type-badge">Pending</span>
+        </div>
+        <div class="exhibit-card">
+            <h4>🎓 Diploma</h4>
+            <p class="meta">Educational credentials</p>
+            <span class="type-badge">Pending</span>
+        </div>
+        <div class="exhibit-card">
+            <h4>📝 CV / Resume</h4>
+            <p class="meta">Professional background</p>
+            <span class="type-badge">Pending</span>
+        </div>
+        <div class="exhibit-card">
+            <h4>📜 Reference Letters</h4>
+            <p class="meta">Expert recommendations</p>
+            <span class="type-badge">Pending</span>
+        </div>
+    {% endif %}
+</div>
+
+<div class="upload-zone">
+    <h3>📤 Upload New Exhibit</h3>
+    <p>Drag and drop files here or click to browse</p>
+    <p class="meta">Supported: PDF, JPG, PNG (max 50MB)</p>
+    <label class="upload-btn">
+        Choose Files
+        <input type="file" id="file-upload" multiple accept=".pdf,.jpg,.jpeg,.png">
+    </label>
+</div>
+
+<script>
+// Simple upload preview (actual upload would require backend API)
+document.getElementById('file-upload').addEventListener('change', function(e) {
+    const files = e.target.files;
+    if (files.length > 0) {
+        let message = 'Selected files:\n';
+        for (let file of files) {
+            message += `- ${file.name} (${(file.size / 1024).toFixed(1)} KB)\n`;
+        }
+        alert(message + '\nUpload functionality requires Telegram bot integration.');
+    }
+});
+
+// Criterion tag selection
+document.querySelectorAll('.criterion-tag').forEach(tag => {
+    tag.addEventListener('click', function() {
+        document.querySelectorAll('.criterion-tag').forEach(t => t.classList.remove('active'));
+        this.classList.add('active');
+    });
+});
+</script>
+{% endblock %}
