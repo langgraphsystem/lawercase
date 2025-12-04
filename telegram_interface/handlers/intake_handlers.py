@@ -1166,7 +1166,16 @@ async def handle_text_message(update: Update, context: ContextTypes.DEFAULT_TYPE
     if message.text.startswith("/"):
         return
 
-    # Try to handle as intake response
+    # Try career intake first (more specific)
+    try:
+        from .career_intake_handlers import handle_career_response
+
+        if await handle_career_response(bot_context, update, message.text):
+            return  # Handled by career intake
+    except ImportError:
+        pass  # Career intake not available
+
+    # Try to handle as regular intake response
     # Note: document/photo uploads are handled by handle_document_upload handler
     await handle_intake_response(bot_context, update, message.text)
 
