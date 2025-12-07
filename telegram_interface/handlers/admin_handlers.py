@@ -7,8 +7,7 @@ import os
 
 import structlog
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
-from telegram.ext import (CallbackQueryHandler, CommandHandler, ContextTypes,
-                          MessageHandler, filters)
+from telegram.ext import CallbackQueryHandler, CommandHandler, ContextTypes, MessageHandler, filters
 
 from core.groupagents.mega_agent import CommandType, MegaAgentCommand, UserRole
 
@@ -49,6 +48,13 @@ HELP_TEXT = """📋 Доступные команды MegaAgent EB-1A:
 📄 Документы:
 /generate_letter — Сгенерировать письмо
 (Отправьте PDF файл для загрузки)
+
+🔌 MCP Инструменты:
+/mcp_status — Статус MCP серверов
+/mcp_connect — Подключиться к MCP
+/mcp_tools — Список доступных инструментов
+/mcp_query — Запрос через MCP агента
+/mcp_disconnect — Отключиться от MCP
 
 ⚙️ Система:
 /menu — Главное меню
