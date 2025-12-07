@@ -91,8 +91,9 @@ class AGUIEvent(BaseModel):
 
     def to_sse(self) -> str:
         """Convert to Server-Sent Events format."""
-        data = self.model_dump(exclude_none=True, mode="json")
-        return f"event: {self.type.value}\ndata: {json.dumps(data)}\n\n"
+        # Use model_dump_json directly for proper enum/type serialization
+        json_str = self.model_dump_json(exclude_none=True)
+        return f"event: {self.type.value}\ndata: {json_str}\n\n"
 
     def to_json(self) -> str:
         """Convert to JSON string."""
