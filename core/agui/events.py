@@ -103,9 +103,22 @@ class AGUIEvent(BaseModel):
 
         # Add optional fields only if they have values
         optional_fields = [
-            "message_id", "content", "delta", "role", "tool_call_id",
-            "tool_name", "tool_args", "tool_result", "state", "state_delta",
-            "agent_name", "next_agent", "step_name", "case_id", "error", "error_code",
+            "message_id",
+            "content",
+            "delta",
+            "role",
+            "tool_call_id",
+            "tool_name",
+            "tool_args",
+            "tool_result",
+            "state",
+            "state_delta",
+            "agent_name",
+            "next_agent",
+            "step_name",
+            "case_id",
+            "error",
+            "error_code",
         ]
         for field in optional_fields:
             val = getattr(self, field, None)
@@ -118,10 +131,7 @@ class AGUIEvent(BaseModel):
 
         # Handle metadata separately
         if self.metadata:
-            data["metadata"] = {
-                k: str(v) if callable(v) else v
-                for k, v in self.metadata.items()
-            }
+            data["metadata"] = {k: str(v) if callable(v) else v for k, v in self.metadata.items()}
 
         json_str = json.dumps(data, default=str)
         return f"event: {self.type}\ndata: {json_str}\n\n"
