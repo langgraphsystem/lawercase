@@ -233,24 +233,25 @@ class AGUIAdapter:
             yield AGUIEvent.run_error(error=str(e), agent_name=agent_name)
 
     def _get_agent_by_name(self, container: Any, agent_name: str) -> Any | None:
-        """Get agent instance by name."""
-        # Map agent names to container getter methods
-        agent_getters = {
-            "case_agent": lambda: container.case_agent(),
-            "writer_agent": lambda: container.writer_agent(),
-            "validator_agent": lambda: container.validator_agent(),
-            "feedback_agent": lambda: container.feedback_agent(),
-            "supervisor": lambda: container.supervisor_agent(),
-            "mega_agent": lambda: container.mega_agent(),
+        """Get agent instance by name from DI container."""
+        # Map frontend agent names to container keys
+        agent_keys = {
+            "case_agent": "case_agent",
+            "writer_agent": "writer_agent",
+            "validator_agent": "validator_agent",
+            "feedback_agent": "feedback_agent",
+            "supervisor": "supervisor_agent",
+            "mega_agent": "mega_agent",
         }
-        getter = agent_getters.get(agent_name)
-        if getter:
-            try:
-                return getter()
-            except Exception as e:
-                logger.error("agui.agent.get_error", agent_name=agent_name, error=str(e))
-                return None
-        return None
+        key = agent_keys.get(agent_name, agent_name)
+        try:
+            return container.get(key)
+        except KeyError:
+            logger.error("agui.agent.not_found", agent_name=agent_name, key=key)
+            return None
+        except Exception as e:
+            logger.error("agui.agent.get_error", agent_name=agent_name, error=str(e))
+            return None
 
     # Human-in-the-loop support
     def request_validation(self, case_id: str, data: dict[str, Any]) -> asyncio.Future:
