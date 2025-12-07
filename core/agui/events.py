@@ -12,7 +12,7 @@ from enum import Enum
 from typing import Any
 from uuid import uuid4
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 
 class EventType(str, Enum):
@@ -53,6 +53,8 @@ class EventType(str, Enum):
 class AGUIEvent(BaseModel):
     """Single AG-UI event for streaming to frontend."""
 
+    model_config = ConfigDict(use_enum_values=True)
+
     type: EventType = Field(..., description="Event type")
     timestamp: float = Field(default_factory=time.time, description="Unix timestamp")
     event_id: str = Field(default_factory=lambda: str(uuid4()), description="Unique event ID")
@@ -90,9 +92,10 @@ class AGUIEvent(BaseModel):
 
     def to_sse(self) -> str:
         """Convert to Server-Sent Events format."""
-        # Use model_dump_json directly for proper enum/type serialization
+        # Use model_dump_json directly for proper serialization
         json_str = self.model_dump_json(exclude_none=True)
-        return f"event: {self.type.value}\ndata: {json_str}\n\n"
+        # With use_enum_values=True, self.type is already a string
+        return f"event: {self.type}\ndata: {json_str}\n\n"
 
     def to_json(self) -> str:
         """Convert to JSON string."""
