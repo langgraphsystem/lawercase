@@ -147,6 +147,7 @@ class OpenAIClient:
             normalized_model = self.GPT_5_1_INSTANT
         self.model = normalized_model
         self._model_lower = normalized_model.lower()
+        self.name = f"openai-{normalized_model}"  # Required by IntelligentRouter
         self.temperature = temperature
         self.max_tokens = max_tokens
         self.top_p = top_p
