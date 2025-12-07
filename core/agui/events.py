@@ -92,14 +92,52 @@ class AGUIEvent(BaseModel):
 
     def to_sse(self) -> str:
         """Convert to Server-Sent Events format."""
-        # Use model_dump_json directly for proper serialization
-        json_str = self.model_dump_json(exclude_none=True)
-        # With use_enum_values=True, self.type is already a string
+        import json
+
+        # Manually build dict to avoid Pydantic serialization issues
+        data: dict[str, Any] = {
+            "type": str(self.type),
+            "timestamp": self.timestamp,
+            "event_id": self.event_id,
+        }
+
+        # Add optional fields only if they have values
+        optional_fields = [
+            "message_id", "content", "delta", "role", "tool_call_id",
+            "tool_name", "tool_args", "tool_result", "state", "state_delta",
+            "agent_name", "next_agent", "step_name", "case_id", "error", "error_code",
+        ]
+        for field in optional_fields:
+            val = getattr(self, field, None)
+            if val is not None:
+                # Ensure value is JSON-serializable
+                if callable(val):
+                    data[field] = str(val)
+                else:
+                    data[field] = val
+
+        # Handle metadata separately
+        if self.metadata:
+            data["metadata"] = {
+                k: str(v) if callable(v) else v
+                for k, v in self.metadata.items()
+            }
+
+        json_str = json.dumps(data, default=str)
         return f"event: {self.type}\ndata: {json_str}\n\n"
 
     def to_json(self) -> str:
         """Convert to JSON string."""
-        return self.model_dump_json(exclude_none=True)
+        import json
+
+        # Use the same safe serialization as to_sse
+        data = {"type": str(self.type), "timestamp": self.timestamp, "event_id": self.event_id}
+        for field in self.model_fields:
+            if field not in data:
+                val = getattr(self, field, None)
+                if val is not None:
+                    data[field] = str(val) if callable(val) else val
+        return json.dumps(data, default=str)
 
     # Factory methods for common events
     @classmethod
