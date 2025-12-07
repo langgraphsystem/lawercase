@@ -6,9 +6,9 @@ Defines configuration for connecting to Model Context Protocol servers.
 
 from __future__ import annotations
 
-from enum import Enum
 import os
 import re
+from enum import Enum
 from typing import Any
 
 from pydantic import BaseModel, Field

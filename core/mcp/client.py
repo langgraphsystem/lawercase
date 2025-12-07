@@ -11,8 +11,8 @@ from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
 from typing import TYPE_CHECKING, Any
 
-from langchain_mcp_adapters.client import MultiServerMCPClient
 import structlog
+from langchain_mcp_adapters.client import MultiServerMCPClient
 
 from core.mcp.config import MCPConfig, MCPServerConfig
 

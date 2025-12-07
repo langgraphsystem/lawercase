@@ -8,10 +8,10 @@ from __future__ import annotations
 
 from typing import Any
 
+import structlog
 from fastapi import APIRouter, HTTPException
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
-import structlog
 
 from .adapter import get_agui_adapter
 from .events import AGUIEvent

@@ -14,18 +14,14 @@ from __future__ import annotations
 
 import asyncio
 import json
-from pathlib import Path
 import sys
+from pathlib import Path
 from typing import Any
 
 from dotenv import load_dotenv
 from mcp.server import Server
 from mcp.server.stdio import stdio_server
-from mcp.types import (
-    CallToolResult,
-    TextContent,
-    Tool,
-)
+from mcp.types import CallToolResult, TextContent, Tool
 
 # Add project root to path
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))

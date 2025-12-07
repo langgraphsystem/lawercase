@@ -7,7 +7,8 @@ import os
 
 import structlog
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
-from telegram.ext import CallbackQueryHandler, CommandHandler, ContextTypes, MessageHandler, filters
+from telegram.ext import (CallbackQueryHandler, CommandHandler, ContextTypes,
+                          MessageHandler, filters)
 
 from core.groupagents.mega_agent import CommandType, MegaAgentCommand, UserRole
 
