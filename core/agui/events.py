@@ -122,12 +122,9 @@ class AGUIEvent(BaseModel):
         ]
         for field in optional_fields:
             val = getattr(self, field, None)
-            if val is not None:
-                # Ensure value is JSON-serializable
-                if callable(val):
-                    data[field] = str(val)
-                else:
-                    data[field] = val
+            # Skip None values and callable/methods (classmethods have same names)
+            if val is not None and not callable(val):
+                data[field] = val
 
         # Handle metadata separately
         if self.metadata:

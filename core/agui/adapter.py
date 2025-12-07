@@ -213,15 +213,33 @@ class AGUIAdapter:
             message_id = msg_event.message_id
             yield msg_event
 
-            # Stream response if agent supports it
-            if hasattr(agent, "astream"):
+            # Handle MegaAgent specially - it uses handle_command
+            if hasattr(agent, "handle_command"):
+                from core.groupagents.mega_agent import CommandType, MegaAgentCommand
+
+                command = MegaAgentCommand(
+                    user_id="web_user",
+                    command_type=CommandType.ASK,
+                    action="answer",
+                    payload={"query": prompt, "case_id": case_id},
+                )
+                response = await agent.handle_command(command)
+                response_text = response.content if hasattr(response, "content") else str(response)
+                yield AGUIEvent.text_message_content(content=response_text, message_id=message_id)
+            elif hasattr(agent, "astream"):
+                # Stream response if agent supports it
                 async for chunk in agent.astream(prompt):
                     yield AGUIEvent.text_message_content(content=chunk, message_id=message_id)
-            else:
-                # Fallback: single response
+            elif hasattr(agent, "ainvoke"):
+                # Fallback: single async response
                 result = await agent.ainvoke(prompt)
                 response_text = result if isinstance(result, str) else str(result)
                 yield AGUIEvent.text_message_content(content=response_text, message_id=message_id)
+            else:
+                yield AGUIEvent.text_message_content(
+                    content=f"Agent {agent_name} does not support invocation",
+                    message_id=message_id,
+                )
 
             yield AGUIEvent.text_message_end(message_id=message_id)
             yield AGUIEvent.run_finished(case_id=case_id, agent_name=agent_name)
