@@ -7,9 +7,9 @@ https://docs.ag-ui.com/
 
 from __future__ import annotations
 
+from enum import Enum
 import json
 import time
-from enum import Enum
 from typing import Any
 from uuid import uuid4
 
@@ -91,7 +91,7 @@ class AGUIEvent(BaseModel):
 
     def to_sse(self) -> str:
         """Convert to Server-Sent Events format."""
-        data = self.model_dump(exclude_none=True)
+        data = self.model_dump(exclude_none=True, mode="json")
         return f"event: {self.type.value}\ndata: {json.dumps(data)}\n\n"
 
     def to_json(self) -> str:
