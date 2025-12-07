@@ -262,9 +262,12 @@ def _initialize_container(container: Container) -> None:
     from core.llm_interface.openai_client import OpenAIClient
     from core.mcp import MCPClientManager
     from core.memory.memory_manager import MemoryManager
-    from core.memory.stores.supabase_episodic_store import SupabaseEpisodicStore
-    from core.memory.stores.supabase_semantic_store import SupabaseSemanticStore
-    from core.memory.stores.supabase_working_memory import SupabaseWorkingMemory
+    from core.memory.stores.supabase_episodic_store import \
+        SupabaseEpisodicStore
+    from core.memory.stores.supabase_semantic_store import \
+        SupabaseSemanticStore
+    from core.memory.stores.supabase_working_memory import \
+        SupabaseWorkingMemory
     from core.tools.tool_registry import get_tool_registry
 
     logger.info("di.container.initializing_defaults")

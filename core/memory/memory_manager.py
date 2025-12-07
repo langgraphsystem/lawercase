@@ -21,11 +21,8 @@ class _NoOpEmbedder:
 
 def _create_default_stores() -> tuple:
     """Create default Supabase stores for production."""
-    from .stores import (
-        SupabaseEpisodicStore,
-        SupabaseSemanticStore,
-        SupabaseWorkingMemory,
-    )
+    from .stores import (SupabaseEpisodicStore, SupabaseSemanticStore,
+                         SupabaseWorkingMemory)
 
     return (
         SupabaseSemanticStore(),

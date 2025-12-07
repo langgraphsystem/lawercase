@@ -10,11 +10,11 @@ This module provides:
 from __future__ import annotations
 
 import asyncio
-from dataclasses import dataclass
 import hashlib
 import json
 import os
 import re
+from dataclasses import dataclass
 from typing import Any
 
 from ..models import AuditEvent, MemoryRecord

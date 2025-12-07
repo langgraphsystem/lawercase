@@ -18,12 +18,11 @@ from .models import AuditEvent, MemoryRecord
 
 # SUPABASE-ONLY: Use MemoryManager with Supabase stores
 try:
-    from .memory_manager_v2 import (
-        MemoryManager as _BaseMemoryManager,
-        create_supabase_memory_manager,
-    )
+    from .memory_manager_v2 import MemoryManager as _BaseMemoryManager
+    from .memory_manager_v2 import create_supabase_memory_manager
 except ImportError:  # pragma: no cover - defensive in environments without v2
-    from .memory_manager import MemoryManager as _BaseMemoryManager  # type: ignore
+    from .memory_manager import \
+        MemoryManager as _BaseMemoryManager  # type: ignore
 
     def create_supabase_memory_manager() -> _BaseMemoryManager:
         return _BaseMemoryManager()

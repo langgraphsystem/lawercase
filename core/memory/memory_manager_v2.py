@@ -14,7 +14,8 @@ if TYPE_CHECKING:
 
 from .embedders import DeterministicEmbedder
 from .models import AuditEvent, ConsolidateStats, MemoryRecord, RetrievalQuery
-from .policies import ConsolidationConfig, ConsolidationPolicy, select_salient_facts
+from .policies import (ConsolidationConfig, ConsolidationPolicy,
+                       select_salient_facts)
 
 
 class Embedder(Protocol):
@@ -65,11 +66,8 @@ class MemoryManager:
         )
 
         # SUPABASE-FIRST: Default to Supabase stores
-        from .stores import (
-            SupabaseEpisodicStore,
-            SupabaseSemanticStore,
-            SupabaseWorkingMemory,
-        )
+        from .stores import (SupabaseEpisodicStore, SupabaseSemanticStore,
+                             SupabaseWorkingMemory)
 
         self.semantic = semantic or SupabaseSemanticStore()
         self.episodic = episodic or SupabaseEpisodicStore()
@@ -340,7 +338,8 @@ def create_production_memory_manager(
     Legacy helper for Pinecone + Postgres stack. Use Supabase by default.
     """
     from ..llm.voyage_embedder import create_voyage_embedder
-    from ..storage.postgres_stores import PostgresEpisodicStore, PostgresWorkingMemory
+    from ..storage.postgres_stores import (PostgresEpisodicStore,
+                                           PostgresWorkingMemory)
     from .stores.pinecone_semantic_store import PineconeSemanticStoreAdapter
 
     return MemoryManager(
@@ -387,11 +386,8 @@ def create_supabase_memory_manager(
         >>> memory = create_supabase_memory_manager()
         >>> # All memory operations go to Supabase/PostgreSQL
     """
-    from .stores import (
-        SupabaseEpisodicStore,
-        SupabaseSemanticStore,
-        SupabaseWorkingMemory,
-    )
+    from .stores import (SupabaseEpisodicStore, SupabaseSemanticStore,
+                         SupabaseWorkingMemory)
 
     return MemoryManager(
         semantic=SupabaseSemanticStore(namespace=namespace),
