@@ -31,6 +31,7 @@ class AnthropicClient:
 
     # Latest model identifiers (2025)
     CLAUDE_SONNET_4_5 = "claude-sonnet-4-5-20250929"
+    CLAUDE_OPUS_4_5 = "claude-opus-4-5-20251124"
     CLAUDE_OPUS_4_1 = "claude-opus-4-1-20250805"
     CLAUDE_HAIKU_3_5 = "claude-3-5-haiku-20241022"
 
@@ -84,6 +85,10 @@ class AnthropicClient:
             half_open_max_calls=3,
         )
 
+        # LLMProvider interface compliance
+        self.name = "anthropic"
+        self.cost_per_token = 0.0  # Handled by CostOptimizer externally
+
     async def acomplete(self, prompt: str, **params: Any) -> dict[str, Any]:
         """Async completion using Anthropic Messages API with circuit breaker protection.
 
@@ -104,7 +109,20 @@ class AnthropicClient:
         """
         # Apply circuit breaker decorator to internal implementation
         protected_call = self._circuit_breaker(self._acomplete_impl)
+        protected_call = self._circuit_breaker(self._acomplete_impl)
         return await protected_call(prompt, **params)
+
+    async def ainvoke(self, prompt: str, **kwargs: Any) -> dict[str, Any]:
+        """Alias for acomplete to satisfy LLMProvider interface."""
+        # Adapter to match LLMRouter expectation
+        result = await self.acomplete(prompt, **kwargs)
+        # Map 'output' to 'text' as expected by LLMRouter
+        return {
+            "text": result.get("output", ""),
+            "tokens_used": result.get("usage", {}).get("output_tokens", 0),
+            "provider": self.name,
+            "model": result.get("model"),
+        }
 
     async def _acomplete_impl(self, prompt: str, **params: Any) -> dict[str, Any]:
         """Internal implementation of async completion (circuit breaker protected).
@@ -124,8 +142,12 @@ class AnthropicClient:
         stop_sequences = params.get("stop_sequences", self.kwargs.get("stop_sequences"))
 
         # Build API request parameters
+        model = params.get("model")
+        if not model:
+            model = params.get("preferred_model", self.model)
+
         api_params: dict[str, Any] = {
-            "model": self.model,
+            "model": model,
             "max_tokens": max_tokens,
             "messages": [{"role": "user", "content": prompt}],
         }

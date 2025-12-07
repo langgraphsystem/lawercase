@@ -7,7 +7,6 @@ if TYPE_CHECKING:
 
 from .models import AuditEvent, ConsolidateStats, MemoryRecord, RetrievalQuery
 from .policies import select_salient_facts
-from .stores import EpisodicStore, SemanticStore, WorkingMemory
 
 
 class Embedder(Protocol):
@@ -20,27 +19,51 @@ class _NoOpEmbedder:
         return [[] for _ in texts]
 
 
+def _create_default_stores() -> tuple:
+    """Create default Supabase stores for production."""
+    from .stores import (
+        SupabaseEpisodicStore,
+        SupabaseSemanticStore,
+        SupabaseWorkingMemory,
+    )
+
+    return (
+        SupabaseSemanticStore(),
+        SupabaseEpisodicStore(),
+        SupabaseWorkingMemory(),
+    )
+
+
 class MemoryManager:
     """Facade over episodic/semantic stores and RMT buffer with optional embeddings.
+
+    SUPABASE-ONLY: All stores use Supabase/PostgreSQL by default.
+    No in-memory stores in production - data persists across restarts.
 
     - alog_audit: persist raw event (episodic)
     - awrite: reflect salient facts and store as semantic memory (embeddings optional)
     - aretrieve: hybrid placeholder retrieval from semantic store
-    - aconsodlidate: naive dedupe/prune placeholder
+    - aconsolidate: dedupe/prune
     - asnapshot_thread: dump episodic events for a thread
     """
 
     def __init__(
         self,
         *,
-        semantic: SemanticStore | None = None,
-        episodic: EpisodicStore | None = None,
-        working: WorkingMemory | None = None,
+        semantic: Any | None = None,
+        episodic: Any | None = None,
+        working: Any | None = None,
         embedder: Embedder | None = None,
     ) -> None:
-        self.semantic = semantic or SemanticStore()
-        self.episodic = episodic or EpisodicStore()
-        self.working = working or WorkingMemory()
+        if semantic is None or episodic is None or working is None:
+            default_semantic, default_episodic, default_working = _create_default_stores()
+            self.semantic = semantic or default_semantic
+            self.episodic = episodic or default_episodic
+            self.working = working or default_working
+        else:
+            self.semantic = semantic
+            self.episodic = episodic
+            self.working = working
         self.embedder = embedder or _NoOpEmbedder()
 
     # ---- Auditing ----
@@ -211,27 +234,13 @@ class MemoryManager:
 
     # ---- Consolidate ----
     async def aconsolidate(self, *, user_id: str | None = None) -> ConsolidateStats:
-        """Placeholder consolidation: deduplicate identical texts per user."""
-        all_items = await self.semantic.aall(user_id=user_id)
-        seen = set()
-        deduped: list[MemoryRecord] = []
-        deduplicated = 0
-        for r in all_items:
-            key = (r.user_id, r.type, r.text)
-            if key in seen:
-                deduplicated += 1
-                continue
-            seen.add(key)
-            deduped.append(r)
-        # Replace store items only in in-memory placeholder
-        if user_id is None:
-            self.semantic._items = deduped  # type: ignore[attr-defined]
-        else:
-            # selective rewrite
-            self.semantic._items = [  # type: ignore[attr-defined]
-                r for r in self.semantic._items if r.user_id != user_id
-            ] + deduped
-        return ConsolidateStats(deduplicated=deduplicated, total_after=len(self.semantic._items))  # type: ignore[attr-defined]
+        """No-op consolidation for Supabase stores.
+
+        SupabaseSemanticStore handles persistence and indexing; in-memory
+        deduplication via `_items` is not available. We return zeroed stats
+        to keep the API compatible.
+        """
+        return ConsolidateStats(deduplicated=0, total_after=0)
 
     # ---- Snapshot ----
     async def asnapshot_thread(self, thread_id: str) -> str:

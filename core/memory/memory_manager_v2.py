@@ -1,7 +1,8 @@
-"""Updated MemoryManager with production-ready Pinecone + PostgreSQL + R2 support.
+"""MemoryManager v2: Supabase-first backends for semantic/episodic/RMT.
 
-This version maintains backward compatibility with the original MemoryManager
-while adding support for production storage backends.
+This version removes in-memory defaults for production code paths and uses
+Supabase/PostgreSQL stores by default. Legacy Pinecone/Postgres factories are
+kept as explicit opt-in helpers.
 """
 
 from __future__ import annotations
@@ -13,8 +14,7 @@ if TYPE_CHECKING:
 
 from .embedders import DeterministicEmbedder
 from .models import AuditEvent, ConsolidateStats, MemoryRecord, RetrievalQuery
-from .policies import (ConsolidationConfig, ConsolidationPolicy,
-                       select_salient_facts)
+from .policies import ConsolidationConfig, ConsolidationPolicy, select_salient_facts
 
 
 class Embedder(Protocol):
@@ -26,18 +26,12 @@ class Embedder(Protocol):
 
 class MemoryManager:
     """
-    Unified memory manager with support for both in-memory and production backends.
+    Unified memory manager with Supabase defaults.
 
     Backends:
-    - Development: In-memory stores (default)
-    - Production: PostgreSQL + Pinecone + R2
-
-    Usage:
-        # Development (in-memory)
-        memory = MemoryManager()
-
-        # Production
-        memory = create_production_memory_manager()
+    - Default: SupabaseSemanticStore + SupabaseEpisodicStore + SupabaseWorkingMemory
+    - Optional: Pinecone/Postgres via explicit `create_production_memory_manager`
+    - Optional: In-memory stores only for tests via `create_dev_memory_manager`
     """
 
     def __init__(
@@ -70,26 +64,17 @@ class MemoryManager:
             )
         )
 
-        if use_production:
-            # Auto-initialize production stores
-            from ..llm.voyage_embedder import create_voyage_embedder
-            from ..storage.postgres_stores import (PostgresEpisodicStore,
-                                                   PostgresWorkingMemory)
-            from .stores.pinecone_semantic_store import \
-                PineconeSemanticStoreAdapter
+        # SUPABASE-FIRST: Default to Supabase stores
+        from .stores import (
+            SupabaseEpisodicStore,
+            SupabaseSemanticStore,
+            SupabaseWorkingMemory,
+        )
 
-            self.semantic = semantic or PineconeSemanticStoreAdapter()
-            self.episodic = episodic or PostgresEpisodicStore()
-            self.working = working or PostgresWorkingMemory()
-            self.embedder = embedder or create_voyage_embedder()
-        else:
-            # Use in-memory stores (original behavior)
-            from .stores import EpisodicStore, SemanticStore, WorkingMemory
-
-            self.semantic = semantic or SemanticStore()
-            self.episodic = episodic or EpisodicStore()
-            self.working = working or WorkingMemory()
-            self.embedder = embedder or DeterministicEmbedder()
+        self.semantic = semantic or SupabaseSemanticStore()
+        self.episodic = episodic or SupabaseEpisodicStore()
+        self.working = working or SupabaseWorkingMemory()
+        self.embedder = embedder or DeterministicEmbedder()
 
         self._is_production = use_production
 
@@ -352,21 +337,10 @@ def create_production_memory_manager(
     namespace: str | None = None,
 ) -> MemoryManager:
     """
-    Create MemoryManager with production backends (Pinecone + PostgreSQL).
-
-    Args:
-        namespace: Pinecone namespace for multi-tenancy
-
-    Returns:
-        MemoryManager configured for production
-
-    Example:
-        >>> memory = create_production_memory_manager(namespace="production")
-        >>> # Now uses Pinecone, PostgreSQL, and Voyage AI
+    Legacy helper for Pinecone + Postgres stack. Use Supabase by default.
     """
     from ..llm.voyage_embedder import create_voyage_embedder
-    from ..storage.postgres_stores import (PostgresEpisodicStore,
-                                           PostgresWorkingMemory)
+    from ..storage.postgres_stores import PostgresEpisodicStore, PostgresWorkingMemory
     from .stores.pinecone_semantic_store import PineconeSemanticStoreAdapter
 
     return MemoryManager(
@@ -380,13 +354,48 @@ def create_production_memory_manager(
 
 def create_dev_memory_manager() -> MemoryManager:
     """
-    Create MemoryManager with in-memory backends (for development/testing).
+    Create MemoryManager with in-memory backends (testing only).
+    """
+    from .stores import EpisodicStore, SemanticStore, WorkingMemory
+
+    return MemoryManager(
+        semantic=SemanticStore(),
+        episodic=EpisodicStore(),
+        working=WorkingMemory(),
+        use_production=False,
+    )
+
+
+def create_supabase_memory_manager(
+    namespace: str | None = None,
+) -> MemoryManager:
+    """
+    Create MemoryManager with Supabase-only backends (recommended for production).
+
+    Uses:
+    - SupabaseSemanticStore: pgvector for semantic memory
+    - SupabaseEpisodicStore: PostgreSQL for audit events
+    - SupabaseWorkingMemory: PostgreSQL for RMT buffers
+
+    Args:
+        namespace: Vector namespace for multi-tenancy
 
     Returns:
-        MemoryManager configured for development
+        MemoryManager configured for Supabase
 
     Example:
-        >>> memory = create_dev_memory_manager()
-        >>> # Uses in-memory stores, no external dependencies
+        >>> memory = create_supabase_memory_manager()
+        >>> # All memory operations go to Supabase/PostgreSQL
     """
-    return MemoryManager(use_production=False)
+    from .stores import (
+        SupabaseEpisodicStore,
+        SupabaseSemanticStore,
+        SupabaseWorkingMemory,
+    )
+
+    return MemoryManager(
+        semantic=SupabaseSemanticStore(namespace=namespace),
+        episodic=SupabaseEpisodicStore(),
+        working=SupabaseWorkingMemory(),
+        use_production=True,
+    )

@@ -15,19 +15,48 @@ from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
 from telegram.constants import ParseMode
 from telegram.ext import ContextTypes
 
-from core.intake.schema import (BLOCKS_BY_ID, INTAKE_BLOCKS, IntakeBlock,
-                                IntakeQuestion, QuestionType)
+from core.agui.events import AGUIEvent
+from core.intake.schema import (
+    BLOCKS_BY_ID,
+    INTAKE_BLOCKS,
+    IntakeBlock,
+    IntakeQuestion,
+    QuestionType,
+)
 from core.intake.synthesis import synthesize_intake_fact
-from core.intake.validation import (parse_list, validate_date, validate_select,
-                                    validate_text, validate_yes_no)
+from core.intake.validation import (
+    parse_list,
+    validate_date,
+    validate_select,
+    validate_text,
+    validate_yes_no,
+)
 from core.memory.models import MemoryRecord
-from core.storage.intake_progress import (advance_step, complete_block,
-                                          get_progress, reset_progress,
-                                          set_progress)
+from core.storage.intake_progress import (
+    advance_step,
+    complete_block,
+    get_progress,
+    reset_progress,
+    set_progress,
+)
 
 from .context import BotContext
 
 logger = structlog.get_logger(__name__)
+
+
+def _emit_agui_event(event: AGUIEvent) -> None:
+    """Emit AG-UI event for logging/analytics (fire-and-forget)."""
+    try:
+        logger.info(
+            "agui.event.emitted",
+            event_type=event.type.value,
+            case_id=event.case_id,
+            metadata=event.metadata,
+        )
+    except Exception:
+        pass  # nosec B110 - Non-critical logging, don't interrupt intake flow
+
 
 # Configuration
 QUESTIONS_PER_BATCH = 1  # Send 1 question at a time for better UX
@@ -259,6 +288,14 @@ async def intake_start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
         user_id=user_id,
         case_id=active_case_id,
         total_blocks=len(INTAKE_BLOCKS),
+    )
+
+    # Emit AG-UI event for intake start
+    _emit_agui_event(
+        AGUIEvent.run_started(
+            case_id=active_case_id,
+            metadata={"operation": "intake_questionnaire", "total_blocks": len(INTAKE_BLOCKS)},
+        )
     )
 
     # Send welcome message
@@ -588,6 +625,15 @@ async def handle_intake_response(bot_context: BotContext, update: Update, user_t
         response_length=len(user_text),
     )
 
+    # Emit AG-UI event for answer
+    _emit_agui_event(
+        AGUIEvent.intake_answer(
+            case_id=active_case_id,
+            question_id=current_question.id,
+            answer=user_text[:500],  # Truncate for event (privacy + size)
+        )
+    )
+
     # Advance to next question
     await advance_step(user_id, active_case_id)
 
@@ -607,7 +653,9 @@ async def handle_intake_response(bot_context: BotContext, update: Update, user_t
             await message.reply_text("✅ Принято! Следующий вопрос:")
             # Send next question immediately
             next_question = questions[batch_question_idx + 1]
-            await _send_single_question(message, next_question)
+            await _send_single_question(
+                message, next_question, case_id=active_case_id, block_id=current_block_id
+            )
         else:
             await _send_question_batch(bot_context, update, user_id, active_case_id)
 
@@ -663,8 +711,10 @@ async def _send_question_batch(
         return
 
     # Special handling for career block - use detailed company-by-company intake
-    if current_block_id == "career" and current_step == 0:
-        # Start detailed career intake instead of simple questions
+    # Career block triggers detailed intake flow (career_intake.py) instead of simple questions
+    if current_block_id == "career":
+        # Always start detailed career intake for this block
+        # The detailed intake will call continue_intake_after_career when done
         await _start_detailed_career_intake(bot_context, update, user_id, case_id)
         return
 
@@ -720,7 +770,7 @@ async def _send_question_batch(
 
     # Send questions (now always 1 question per batch)
     for question in questions:
-        await _send_single_question(message, question)
+        await _send_single_question(message, question, case_id=case_id, block_id=current_block_id)
 
     # If batch has been fully sent, show navigation buttons
     # (user needs to answer all questions first, buttons shown after last answer)
@@ -729,8 +779,21 @@ async def _send_question_batch(
 async def _send_single_question(
     message,
     question: IntakeQuestion,
+    case_id: str | None = None,
+    block_id: str | None = None,
 ) -> None:
     """Send a single question with formatting."""
+    # Emit AG-UI event for question
+    if case_id:
+        _emit_agui_event(
+            AGUIEvent.intake_question(
+                case_id=case_id,
+                block_id=block_id or "unknown",
+                question_id=question.id,
+                question_text=question.text_template,
+            )
+        )
+
     # Simplified: just show the question text without numbering
     question_text = f"{question.text_template}"
 
@@ -824,11 +887,14 @@ async def _start_detailed_career_intake(
 
     except ImportError as e:
         logger.error("intake.career_import_error", error=str(e))
-        # Fallback to simple career questions
+        # Fallback: skip career block and move to next
         await message.reply_text(
-            "📋 *Блок: Профессиональный путь*\n" "Расскажите о вашем опыте работы.",
+            "⚠️ Детальный опрос по карьере недоступен.\n"
+            "Пропускаем блок и переходим к следующему.",
             parse_mode=ParseMode.MARKDOWN,
         )
+        # Mark career as complete and continue
+        await continue_intake_after_career(bot_context, update, user_id, case_id)
 
 
 async def continue_intake_after_career(
@@ -994,8 +1060,7 @@ async def _complete_intake(
 
     # Get case title
     try:
-        from core.groupagents.mega_agent import (CommandType, MegaAgentCommand,
-                                                 UserRole)
+        from core.groupagents.mega_agent import CommandType, MegaAgentCommand, UserRole
 
         command = MegaAgentCommand(
             user_id=user_id,
@@ -1034,6 +1099,14 @@ async def _complete_intake(
         user_id=user_id,
         case_id=case_id,
         total_blocks=len(INTAKE_BLOCKS),
+    )
+
+    # Emit AG-UI event for completion
+    _emit_agui_event(
+        AGUIEvent.run_finished(
+            case_id=case_id,
+            metadata={"operation": "intake_questionnaire", "total_blocks": len(INTAKE_BLOCKS)},
+        )
     )
 
     # Send completion message
@@ -1392,8 +1465,7 @@ async def handle_text_message(update: Update, context: ContextTypes.DEFAULT_TYPE
 
 def get_handlers(bot_context: BotContext):
     """Return list of handlers to register with the Telegram application."""
-    from telegram.ext import (CallbackQueryHandler, CommandHandler,
-                              MessageHandler, filters)
+    from telegram.ext import CallbackQueryHandler, CommandHandler, MessageHandler, filters
 
     return [
         # Command handlers

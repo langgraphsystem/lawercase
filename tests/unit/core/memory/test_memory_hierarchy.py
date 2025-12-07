@@ -3,12 +3,24 @@ from __future__ import annotations
 import pytest
 
 from core.memory.memory_hierarchy import MemoryHierarchy
+from core.memory.memory_manager import MemoryManager
 from core.memory.models import AuditEvent
+from core.memory.stores import EpisodicStore, SemanticStore, WorkingMemory
+
+
+def _create_test_hierarchy() -> MemoryHierarchy:
+    """Create MemoryHierarchy with in-memory stores for unit testing."""
+    memory_manager = MemoryManager(
+        semantic=SemanticStore(),
+        episodic=EpisodicStore(),
+        working=WorkingMemory(),
+    )
+    return MemoryHierarchy(memory_manager=memory_manager)
 
 
 @pytest.mark.asyncio
 async def test_record_and_retrieve_context():
-    hierarchy = MemoryHierarchy()
+    hierarchy = _create_test_hierarchy()
 
     event = AuditEvent(
         event_id="evt-1",
@@ -34,7 +46,7 @@ async def test_record_and_retrieve_context():
 
 @pytest.mark.asyncio
 async def test_timeline_and_snapshot():
-    hierarchy = MemoryHierarchy()
+    hierarchy = _create_test_hierarchy()
 
     for i in range(3):
         await hierarchy.record_event(

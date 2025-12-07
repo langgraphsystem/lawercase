@@ -8,6 +8,7 @@ from pydantic import BaseModel, ConfigDict, Field
 from ..exceptions import ConfigurationError, ValidationError, WorkflowError
 from ..memory.models import AuditEvent, MemoryRecord
 from ..memory.rmt.buffer import compose_prompt
+from ..services.case_site_generator import site_generator
 from .error_handler import check_for_error, handle_error
 
 if TYPE_CHECKING:
@@ -261,6 +262,31 @@ def build_case_workflow(memory: MemoryManager, *, case_agent: CaseAgent | None =
 
         return state
 
+    async def node_generate_site(state: WorkflowState) -> WorkflowState:
+        """Generate static case website if a new case was created."""
+        if state.case_result and state.case_result.get("operation") == "create":
+            try:
+                case_data = state.case_result.get("case", {})
+                case_id = case_data.get("case_id")
+                # We need user data. In a real app, we might need to fetch it or pass it.
+                # For now, we'll use placeholders or what's in the payload
+                user_data = {
+                    "full_name": "Client",  # Placeholder if not available
+                    "email": f"user_{state.user_id}@example.com",
+                }
+
+                if case_id:
+                    site_path = site_generator.generate_site(
+                        case_id=case_id, case_data=case_data, user_data=user_data
+                    )
+                    state.agent_results["site_generated"] = True
+                    state.agent_results["site_path"] = site_path
+            except Exception as e:
+                # Don't fail the workflow if site gen fails, just log it (or add to error state)
+                state.agent_results["site_generation_error"] = str(e)
+
+        return state
+
     async def node_audit(state: WorkflowState) -> WorkflowState:
         if state.event is not None:
             await memory.alog_audit(state.event)
@@ -345,13 +371,15 @@ def build_case_workflow(memory: MemoryManager, *, case_agent: CaseAgent | None =
         return state
 
     graph.add_node("case_agent", node_case_agent)
+    graph.add_node("generate_site", node_generate_site)
     graph.add_node("audit", node_audit)
     graph.add_node("reflect", node_reflect)
     graph.add_node("retrieve", node_retrieve)
     graph.add_node("update_rmt", node_update_rmt)
 
     graph.set_entry_point("case_agent")
-    graph.add_edge("case_agent", "audit")
+    graph.add_edge("case_agent", "generate_site")
+    graph.add_edge("generate_site", "audit")
     graph.add_edge("audit", "reflect")
     graph.add_edge("reflect", "retrieve")
     graph.add_edge("retrieve", "update_rmt")
@@ -498,9 +526,7 @@ def build_eb1a_complete_workflow(memory: MemoryManager):
     _ensure_langgraph()
 
     from ..groupagents.eb1a_evidence_analyzer import EB1AEvidenceAnalyzer
-    from ..groupagents.validator_agent import (ValidationLevel,
-                                               ValidationRequest,
-                                               ValidatorAgent)
+    from ..groupagents.validator_agent import ValidationLevel, ValidationRequest, ValidatorAgent
     from ..workflows.eb1a.eb1a_coordinator import EB1ACriterion
 
     analyzer = EB1AEvidenceAnalyzer(memory_manager=memory)

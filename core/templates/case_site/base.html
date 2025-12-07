@@ -10,6 +10,8 @@
             --secondary-color: #f8f9fa;
             --text-color: #333;
             --border-color: #dee2e6;
+            --sidebar-bg: #1a252f;
+            --sidebar-hover: #2c3e50;
         }
         body {
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
@@ -20,29 +22,110 @@
             min-height: 100vh;
         }
         .sidebar {
-            width: 250px;
-            background: #343a40;
+            width: 280px;
+            background: var(--sidebar-bg);
             color: white;
-            padding: 20px;
+            padding: 0;
             flex-shrink: 0;
+            overflow-y: auto;
         }
-        .sidebar h2 {
-            margin-top: 0;
-            font-size: 1.2rem;
-            border-bottom: 1px solid #4b545c;
-            padding-bottom: 10px;
-            margin-bottom: 20px;
+        .sidebar-header {
+            padding: 20px;
+            background: rgba(0,0,0,0.2);
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+        }
+        .sidebar-header h2 {
+            margin: 0;
+            font-size: 1.3rem;
+            color: #fff;
+        }
+        .sidebar-header .case-id {
+            font-size: 0.8rem;
+            color: rgba(255,255,255,0.6);
+            margin-top: 5px;
+        }
+
+        /* Navigation sections */
+        .nav-section {
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+        }
+        .nav-section-title {
+            padding: 15px 20px 10px;
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: rgba(255,255,255,0.4);
         }
         .nav-link {
             display: block;
-            color: rgba(255,255,255,.5);
+            color: rgba(255,255,255,.7);
             text-decoration: none;
-            padding: 10px 0;
-            transition: color 0.3s;
+            padding: 12px 20px;
+            transition: all 0.2s;
+            font-size: 0.95rem;
         }
-        .nav-link:hover, .nav-link.active {
+        .nav-link:hover {
+            background: var(--sidebar-hover);
             color: white;
         }
+        .nav-link.active {
+            background: var(--primary-color);
+            color: white;
+        }
+        .nav-link .icon {
+            margin-right: 10px;
+            width: 20px;
+            display: inline-block;
+            text-align: center;
+        }
+
+        /* Sub-navigation for criteria */
+        .nav-sub {
+            background: rgba(0,0,0,0.15);
+        }
+        .nav-sub .nav-link {
+            padding: 10px 20px 10px 45px;
+            font-size: 0.85rem;
+            color: rgba(255,255,255,.5);
+        }
+        .nav-sub .nav-link:hover {
+            color: white;
+            background: rgba(255,255,255,0.05);
+        }
+        .nav-sub .nav-link.active {
+            background: rgba(0,102,204,0.3);
+            color: white;
+        }
+        .nav-sub .criterion-num {
+            display: inline-block;
+            width: 22px;
+            height: 22px;
+            line-height: 22px;
+            text-align: center;
+            background: rgba(255,255,255,0.1);
+            border-radius: 50%;
+            font-size: 0.7rem;
+            margin-right: 8px;
+        }
+
+        /* Expandable section */
+        .nav-expandable {
+            cursor: pointer;
+        }
+        .nav-expandable::after {
+            content: "▼";
+            float: right;
+            font-size: 0.7rem;
+            transition: transform 0.2s;
+        }
+        .nav-expandable.collapsed::after {
+            transform: rotate(-90deg);
+        }
+        .nav-sub.collapsed {
+            display: none;
+        }
+
+        /* Main content */
         .main-content {
             flex-grow: 1;
             background: var(--secondary-color);
@@ -64,7 +147,7 @@
         }
         h1 { margin: 0; color: var(--primary-color); }
         .meta { color: #6c757d; font-size: 0.9rem; margin-top: 5px; }
-        
+
         /* Utility classes */
         .btn {
             display: inline-block;
@@ -74,8 +157,15 @@
             text-decoration: none;
             border-radius: 4px;
             transition: background 0.3s;
+            border: none;
+            cursor: pointer;
         }
         .btn:hover { background: #0052a3; }
+        .btn-secondary { background: #6c757d; }
+        .btn-secondary:hover { background: #545b62; }
+        .btn-success { background: #28a745; }
+        .btn-success:hover { background: #218838; }
+
         .status-badge {
             display: inline-block;
             padding: 4px 8px;
@@ -85,17 +175,117 @@
         }
         .status-active { background: #d4edda; color: #155724; }
         .status-pending { background: #fff3cd; color: #856404; }
+        .status-draft { background: #e2e3e5; color: #383d41; }
+        .status-complete { background: #cce5ff; color: #004085; }
+
+        /* Progress indicator */
+        .progress-ring {
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+        }
+        .progress-ring .count {
+            font-size: 0.75rem;
+            color: rgba(255,255,255,0.5);
+        }
     </style>
     {% block extra_head %}{% endblock %}
 </head>
 <body>
     <nav class="sidebar">
-        <h2>MegaAgent Pro</h2>
-        <a href="index.html" class="nav-link {% if page == 'index' %}active{% endif %}">📊 Dashboard</a>
-        <a href="forms/index.html" class="nav-link {% if page == 'forms' %}active{% endif %}">📝 USCIS Forms</a>
-        <a href="petition/index.html" class="nav-link {% if page == 'petition' %}active{% endif %}">⚖️ Petition</a>
-        <a href="exhibits/index.html" class="nav-link {% if page == 'exhibits' %}active{% endif %}">📎 Exhibits</a>
-        <a href="#" class="nav-link">⚙️ Settings</a>
+        <div class="sidebar-header">
+            <h2>MegaAgent Pro</h2>
+            <div class="case-id">Case: {{ case.case_id[:8] if case.case_id else 'New' }}...</div>
+        </div>
+
+        <!-- Dashboard -->
+        <div class="nav-section">
+            <a href="{{ base_path }}index.html" class="nav-link {% if page == 'index' %}active{% endif %}">
+                <span class="icon">📊</span> Dashboard
+            </a>
+        </div>
+
+        <!-- USCIS Forms -->
+        <div class="nav-section">
+            <div class="nav-section-title">USCIS Forms</div>
+            <a href="{{ base_path }}forms/index.html" class="nav-link {% if page == 'forms' %}active{% endif %}">
+                <span class="icon">📝</span> All Forms
+            </a>
+            <div class="nav-sub">
+                <a href="{{ base_path }}forms/index.html#i140" class="nav-link">I-140 Petition</a>
+                <a href="{{ base_path }}forms/index.html#g28" class="nav-link">G-28 Attorney</a>
+                <a href="{{ base_path }}forms/index.html#i907" class="nav-link">I-907 Premium</a>
+            </div>
+        </div>
+
+        <!-- Petition Letter - EB-1A Structure -->
+        <div class="nav-section">
+            <div class="nav-section-title">Petition Letter</div>
+            <a href="{{ base_path }}petition/index.html" class="nav-link nav-expandable {% if page == 'petition' %}active{% endif %}" onclick="toggleNav(event, 'petition-sub')">
+                <span class="icon">⚖️</span> EB-1A Petition
+            </a>
+            <div id="petition-sub" class="nav-sub">
+                <a href="{{ base_path }}petition/index.html#executive-summary" class="nav-link">Executive Summary</a>
+                <a href="{{ base_path }}petition/index.html#criterion-1" class="nav-link">
+                    <span class="criterion-num">1</span> Awards
+                </a>
+                <a href="{{ base_path }}petition/index.html#criterion-2" class="nav-link">
+                    <span class="criterion-num">2</span> Membership
+                </a>
+                <a href="{{ base_path }}petition/index.html#criterion-3" class="nav-link">
+                    <span class="criterion-num">3</span> Published Material
+                </a>
+                <a href="{{ base_path }}petition/index.html#criterion-4" class="nav-link">
+                    <span class="criterion-num">4</span> Judging
+                </a>
+                <a href="{{ base_path }}petition/index.html#criterion-5" class="nav-link">
+                    <span class="criterion-num">5</span> Original Contribution
+                </a>
+                <a href="{{ base_path }}petition/index.html#criterion-6" class="nav-link">
+                    <span class="criterion-num">6</span> Scholarly Articles
+                </a>
+                <a href="{{ base_path }}petition/index.html#criterion-7" class="nav-link">
+                    <span class="criterion-num">7</span> Exhibitions
+                </a>
+                <a href="{{ base_path }}petition/index.html#criterion-8" class="nav-link">
+                    <span class="criterion-num">8</span> Leading Role
+                </a>
+                <a href="{{ base_path }}petition/index.html#criterion-9" class="nav-link">
+                    <span class="criterion-num">9</span> High Salary
+                </a>
+                <a href="{{ base_path }}petition/index.html#criterion-10" class="nav-link">
+                    <span class="criterion-num">10</span> Commercial Success
+                </a>
+                <a href="{{ base_path }}petition/index.html#conclusion" class="nav-link">Conclusion</a>
+            </div>
+        </div>
+
+        <!-- Exhibits -->
+        <div class="nav-section">
+            <div class="nav-section-title">Evidence</div>
+            <a href="{{ base_path }}exhibits/index.html" class="nav-link nav-expandable {% if page == 'exhibits' %}active{% endif %}" onclick="toggleNav(event, 'exhibits-sub')">
+                <span class="icon">📎</span> Exhibits
+            </a>
+            <div id="exhibits-sub" class="nav-sub">
+                <a href="{{ base_path }}exhibits/index.html#tab-a" class="nav-link">Tab A - Identity</a>
+                <a href="{{ base_path }}exhibits/index.html#tab-b" class="nav-link">Tab B - Awards</a>
+                <a href="{{ base_path }}exhibits/index.html#tab-c" class="nav-link">Tab C - Membership</a>
+                <a href="{{ base_path }}exhibits/index.html#tab-d" class="nav-link">Tab D - Press</a>
+                <a href="{{ base_path }}exhibits/index.html#tab-e" class="nav-link">Tab E - Judging</a>
+                <a href="{{ base_path }}exhibits/index.html#tab-f" class="nav-link">Tab F - Contribution</a>
+                <a href="{{ base_path }}exhibits/index.html#tab-g" class="nav-link">Tab G - Articles</a>
+                <a href="{{ base_path }}exhibits/index.html#tab-h" class="nav-link">Tab H - Role</a>
+                <a href="{{ base_path }}exhibits/index.html#tab-i" class="nav-link">Tab I - Salary</a>
+                <a href="{{ base_path }}exhibits/index.html#tab-j" class="nav-link">Tab J - Other</a>
+            </div>
+        </div>
+
+        <!-- Settings -->
+        <div class="nav-section">
+            <a href="#" class="nav-link">
+                <span class="icon">⚙️</span> Settings
+            </a>
+        </div>
     </nav>
 
     <main class="main-content">
@@ -103,5 +293,19 @@
             {% block content %}{% endblock %}
         </div>
     </main>
+
+    <script>
+    function toggleNav(event, subId) {
+        event.preventDefault();
+        const sub = document.getElementById(subId);
+        const link = event.currentTarget;
+        if (sub) {
+            sub.classList.toggle('collapsed');
+            link.classList.toggle('collapsed');
+        }
+        // Navigate to the page
+        window.location.href = link.getAttribute('href').split('#')[0];
+    }
+    </script>
 </body>
 </html>

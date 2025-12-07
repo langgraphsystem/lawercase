@@ -253,32 +253,72 @@ def _initialize_container(container: Container) -> None:
     Registers:
         - memory_manager: MemoryManager singleton
         - tool_registry: ToolRegistry singleton
+        - mcp_manager: MCPClientManager singleton
         - mega_agent: MegaAgent factory (creates new instance on each get)
     """
     from core.groupagents.mega_agent import MegaAgent
+    from core.llm_interface.anthropic_client import AnthropicClient
+    from core.llm_interface.intelligent_router import IntelligentRouter
+    from core.llm_interface.openai_client import OpenAIClient
+    from core.mcp import MCPClientManager
     from core.memory.memory_manager import MemoryManager
-    from core.memory.stores.supabase_semantic_store import \
-        SupabaseSemanticStore
+    from core.memory.stores.supabase_episodic_store import SupabaseEpisodicStore
+    from core.memory.stores.supabase_semantic_store import SupabaseSemanticStore
+    from core.memory.stores.supabase_working_memory import SupabaseWorkingMemory
     from core.tools.tool_registry import get_tool_registry
 
     logger.info("di.container.initializing_defaults")
 
-    # CRITICAL FIX: Use SupabaseSemanticStore for database persistence
-    # This ensures intake answers are saved to PostgreSQL, not in-memory
-    container.register_singleton("memory_manager", MemoryManager(semantic=SupabaseSemanticStore()))
+    # SUPABASE-ONLY: All memory stores use Supabase/PostgreSQL
+    # No in-memory stores in production - data persists across restarts
+    memory = MemoryManager(
+        semantic=SupabaseSemanticStore(),
+        episodic=SupabaseEpisodicStore(),
+        working=SupabaseWorkingMemory(),
+    )
+    container.register_singleton("memory_manager", memory)
     container.register_singleton("tool_registry", get_tool_registry())
+
+    # MCP (Model Context Protocol) client manager
+    # Provides dynamic tool loading from external MCP servers
+    container.register_singleton("mcp_manager", MCPClientManager())
+
+    # Initialize LLM Router with providers
+    # In production, API keys should be in env vars
+    anthropic_client = AnthropicClient()
+    openai_client = OpenAIClient()
+
+    llm_router = IntelligentRouter(
+        providers=[anthropic_client, openai_client], initial_budget=100.0
+    )
+    container.register_singleton("llm_router", llm_router)
 
     # Factories - create on demand
     def create_mega_agent() -> MegaAgent:
         """Create MegaAgent with injected dependencies."""
-        memory = container.get("memory_manager")
+        llm_router = container.get("llm_router")
         logger.debug("di.container.creating_mega_agent")
         return MegaAgent(
             memory_manager=memory,
+            llm_router=llm_router,
             use_chain_of_thought=True,  # Enable CoT by default
         )
 
     container.register_factory("mega_agent", create_mega_agent)
+
+    # Async factory for loading MCP tools
+    async def load_mcp_tools():
+        """Load tools from MCP servers asynchronously."""
+        mcp_manager = container.get("mcp_manager")
+        if not mcp_manager.is_connected:
+            try:
+                await mcp_manager.connect()
+            except Exception as e:
+                logger.warning("di.container.mcp_connect_failed", error=str(e))
+                return []
+        return mcp_manager.tools
+
+    container.register_factory("mcp_tools", load_mcp_tools, is_async=True)
 
     logger.info(
         "di.container.initialized_defaults",

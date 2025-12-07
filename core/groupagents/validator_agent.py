@@ -12,10 +12,10 @@ ValidatorAgent - Валидация и проверка качества док�
 
 from __future__ import annotations
 
-import uuid
 from datetime import datetime
 from enum import Enum
 from typing import Any
+import uuid
 
 from pydantic import BaseModel, Field
 
@@ -611,7 +611,7 @@ class ValidatorAgent:
                 prompt=prompt,
                 temperature=0.0,
                 task_complexity="ultra",  # Requesting Claude Opus 4.5 tier
-                metadata={"preferred_model": "claude-3-opus", "agent": "ValidatorAgent"},
+                metadata={"preferred_model": "claude-opus-4-5-20251124", "agent": "ValidatorAgent"},
             )
 
             response = await self.llm_router.acomplete(request)

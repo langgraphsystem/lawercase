@@ -15,7 +15,7 @@ class LLMProvider:
         self.name = name
         self.cost_per_token = cost_per_token
 
-    async def ainvoke(self, prompt: str) -> dict[str, Any]:
+    async def ainvoke(self, prompt: str, **kwargs: Any) -> dict[str, Any]:
         """Simulates an async call to the LLM provider."""
         # In a real scenario, this would make a network request.
         # For testing, we can simulate success or failure.
@@ -52,7 +52,7 @@ class LLMRouter:
             raise BudgetExhaustedError("Not enough budget for this request.")
         self.budget -= cost
 
-    async def ainvoke(self, prompt: str) -> dict[str, Any]:
+    async def ainvoke(self, prompt: str, **kwargs: Any) -> dict[str, Any]:
         """
         Invokes LLM providers with fallback and retry logic.
         """
@@ -60,7 +60,7 @@ class LLMRouter:
         for provider in self.providers:
             for attempt in range(self.max_retries):
                 try:
-                    result = await provider.ainvoke(prompt)
+                    result = await provider.ainvoke(prompt, **kwargs)
                     tokens_used = result.get("tokens_used", 0)
 
                     self._spend_budget(tokens_used, provider.cost_per_token)
