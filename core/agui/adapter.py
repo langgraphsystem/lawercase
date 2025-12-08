@@ -236,7 +236,9 @@ class AGUIAdapter:
                         retrieved = response.result.get("retrieved", [])
                         if retrieved:
                             response_text = "Найдено в базе знаний:\n" + "\n".join(
-                                f"- {r.get('text', '')[:200]}" for r in retrieved[:5] if r.get("text")
+                                f"- {r.get('text', '')[:200]}"
+                                for r in retrieved[:5]
+                                if r.get("text")
                             )
                         else:
                             response_text = "Информация не найдена."
