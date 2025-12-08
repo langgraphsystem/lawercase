@@ -225,7 +225,26 @@ class AGUIAdapter:
                     payload={"query": prompt, "case_id": case_id},
                 )
                 response = await agent.handle_command(command)
-                response_text = response.content if hasattr(response, "content") else str(response)
+
+                # Extract text content from MegaAgentResponse
+                response_text = ""
+                if response.success and response.result:
+                    # Prefer llm_response (LLM-generated answer)
+                    response_text = response.result.get("llm_response", "")
+                    if not response_text:
+                        # Fallback: summarize retrieved context
+                        retrieved = response.result.get("retrieved", [])
+                        if retrieved:
+                            response_text = "Найдено в базе знаний:\n" + "\n".join(
+                                f"- {r.get('text', '')[:200]}" for r in retrieved[:5] if r.get("text")
+                            )
+                        else:
+                            response_text = "Информация не найдена."
+                elif response.error:
+                    response_text = f"Ошибка: {response.error}"
+                else:
+                    response_text = "Ответ получен."
+
                 yield AGUIEvent.text_message_content(content=response_text, message_id=message_id)
             elif hasattr(agent, "astream"):
                 # Stream response if agent supports it
