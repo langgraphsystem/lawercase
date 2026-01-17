@@ -14,16 +14,21 @@ from datetime import datetime
 from typing import Any
 from uuid import UUID
 
-from fastapi import APIRouter, HTTPException, Query, status
-from pydantic import BaseModel, Field
+from fastapi import APIRouter, Depends, HTTPException, Query, status
+from pydantic import BaseModel, Field, computed_field
 
+from api.deps import get_current_user
 from core.logging_utils import get_logger
-from core.services.case_service import (CaseListFilter, CaseStatus, CaseType,
-                                        get_case_service)
+from core.services.case_service import CaseListFilter, CaseStatus, CaseType, get_case_service
 
 logger = get_logger(__name__)
 
 router = APIRouter()
+
+
+def _get_user_id_from_claims(user: dict[str, Any]) -> str:
+    """Extract user_id from JWT claims."""
+    return user.get("sub") or user.get("user_id") or "anonymous"
 
 
 # ============================================================================
@@ -72,6 +77,18 @@ class CaseResponse(BaseModel):
     created_at: datetime
     updated_at: datetime
     deleted_at: datetime | None = None
+
+    @computed_field
+    @property
+    def id(self) -> str:
+        """Alias for case_id (frontend compatibility)."""
+        return self.case_id
+
+    @computed_field
+    @property
+    def client_name(self) -> str:
+        """Extract client name from data or use title (frontend compatibility)."""
+        return self.data.get("applicant_name") or self.data.get("client_name") or self.title
 
 
 class CaseListResponse(BaseModel):
@@ -133,25 +150,27 @@ def _case_to_response(case: Any) -> CaseResponse:
 @router.post("", response_model=CaseResponse, status_code=status.HTTP_201_CREATED)
 async def create_case(
     request: CreateCaseRequest,
-    user_id: str = Query(..., description="User ID"),
+    user: dict[str, Any] = Depends(get_current_user),
 ) -> CaseResponse:
     """Create a new immigration case.
 
     Args:
         request: Case creation request
-        user_id: Owner user ID
+        user: JWT claims (injected via dependency)
 
     Returns:
         Created case
 
     Example:
-        POST /api/v1/cases?user_id=user123
+        POST /cases
+        Authorization: Bearer <token>
         {
             "title": "John Doe EB-1A Application",
             "case_type": "eb1a",
             "data": {"applicant_name": "John Doe"}
         }
     """
+    user_id = _get_user_id_from_claims(user)
     service = get_case_service()
 
     case = await service.create_case(
@@ -186,19 +205,20 @@ async def get_available_statuses() -> dict[str, Any]:
 @router.get("/{case_id}", response_model=CaseResponse)
 async def get_case(
     case_id: UUID,
-    user_id: str = Query(..., description="User ID"),
+    user: dict[str, Any] = Depends(get_current_user),
     include_deleted: bool = Query(default=False),
 ) -> CaseResponse:
     """Get case by ID.
 
     Args:
         case_id: Case UUID
-        user_id: User ID for ownership check
+        user: JWT claims (injected via dependency)
         include_deleted: Include soft-deleted cases
 
     Returns:
         Case details
     """
+    user_id = _get_user_id_from_claims(user)
     service = get_case_service()
 
     case = await service.get_case(
@@ -220,18 +240,19 @@ async def get_case(
 async def update_case(
     case_id: UUID,
     request: UpdateCaseRequest,
-    user_id: str = Query(..., description="User ID"),
+    user: dict[str, Any] = Depends(get_current_user),
 ) -> CaseResponse:
     """Update case.
 
     Args:
         case_id: Case UUID
         request: Update request
-        user_id: User ID
+        user: JWT claims (injected via dependency)
 
     Returns:
         Updated case
     """
+    user_id = _get_user_id_from_claims(user)
     service = get_case_service()
 
     case = await service.update_case(
@@ -256,16 +277,17 @@ async def update_case(
 @router.delete("/{case_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_case(
     case_id: UUID,
-    user_id: str = Query(..., description="User ID"),
+    user: dict[str, Any] = Depends(get_current_user),
     hard_delete: bool = Query(default=False, description="Permanently delete"),
 ) -> None:
     """Delete case.
 
     Args:
         case_id: Case UUID
-        user_id: User ID
+        user: JWT claims (injected via dependency)
         hard_delete: If True, permanently delete
     """
+    user_id = _get_user_id_from_claims(user)
     service = get_case_service()
 
     deleted = await service.delete_case(
@@ -284,17 +306,18 @@ async def delete_case(
 @router.post("/{case_id}/restore", response_model=CaseResponse)
 async def restore_case(
     case_id: UUID,
-    user_id: str = Query(..., description="User ID"),
+    user: dict[str, Any] = Depends(get_current_user),
 ) -> CaseResponse:
     """Restore soft-deleted case.
 
     Args:
         case_id: Case UUID
-        user_id: User ID
+        user: JWT claims (injected via dependency)
 
     Returns:
         Restored case
     """
+    user_id = _get_user_id_from_claims(user)
     service = get_case_service()
 
     case = await service.restore_case(case_id=case_id, user_id=user_id)
@@ -312,18 +335,19 @@ async def restore_case(
 async def update_case_status(
     case_id: UUID,
     request: UpdateStatusRequest,
-    user_id: str = Query(..., description="User ID"),
+    user: dict[str, Any] = Depends(get_current_user),
 ) -> CaseResponse:
     """Update case status.
 
     Args:
         case_id: Case UUID
         request: Status update request
-        user_id: User ID
+        user: JWT claims (injected via dependency)
 
     Returns:
         Updated case
     """
+    user_id = _get_user_id_from_claims(user)
     service = get_case_service()
 
     case = await service.update_status(
@@ -344,7 +368,7 @@ async def update_case_status(
 
 @router.get("", response_model=CaseListResponse)
 async def list_cases(
-    user_id: str = Query(..., description="User ID"),
+    user: dict[str, Any] = Depends(get_current_user),
     status_filter: str | None = Query(default=None, alias="status"),
     case_type: str | None = Query(default=None),
     search: str | None = Query(default=None),
@@ -355,7 +379,7 @@ async def list_cases(
     """List cases with filtering.
 
     Args:
-        user_id: User ID
+        user: JWT claims (injected via dependency)
         status_filter: Filter by status
         case_type: Filter by case type
         search: Search in title/description
@@ -366,6 +390,7 @@ async def list_cases(
     Returns:
         List of cases
     """
+    user_id = _get_user_id_from_claims(user)
     service = get_case_service()
 
     filter_criteria = CaseListFilter(
