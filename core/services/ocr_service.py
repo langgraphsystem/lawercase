@@ -15,7 +15,7 @@ import structlog
 logger = structlog.get_logger(__name__)
 
 # Gemini 3 model for OCR (fast, vision-capable)
-GEMINI_OCR_MODEL = "gemini-3-flash"
+GEMINI_OCR_MODEL = "gemini-3-flash-preview"
 
 
 class OCRService:
