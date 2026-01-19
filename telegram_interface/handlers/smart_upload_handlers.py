@@ -76,8 +76,7 @@ async def upload_command(
         "📤 *Режим загрузки документов*\n\n"
         "Отправьте фото или документ.\n"
         "AI автоматически определит тип документа и привяжет его к соответствующему разделу.\n\n"
-        "📎 Поддерживаемые форматы: фото, изображения, документы\n"
-        "📝 Для PDF используйте команду /addfile\n\n"
+        "📎 Поддерживаемые форматы: фото, изображения, PDF, документы\n\n"
         "Для отмены: /cancel\\_upload",
         parse_mode=ParseMode.MARKDOWN,
     )
@@ -155,30 +154,19 @@ async def handle_smart_upload(
     # Check if upload mode is active (via /upload command)
     upload_mode_active = context.user_data.get(UPLOAD_MODE_KEY, False)
 
+    logger.info(
+        "smart_upload.check_mode",
+        user_id=user_id,
+        upload_mode_active=upload_mode_active,
+    )
+
+    # Only process if upload mode is explicitly enabled
+    # Otherwise let intake or other handlers process
+    if not upload_mode_active:
+        return False  # Let next handler (intake) process
+
     # Get active case
     active_case_id = await bot_ctx.get_active_case(update)
-
-    # Check if intake is active - if so, let intake handler process it
-    # UNLESS upload mode is explicitly enabled
-    if not upload_mode_active and active_case_id:
-        from core.storage.intake_progress import get_progress
-
-        progress = await get_progress(user_id, active_case_id)
-        if progress:
-            # Intake is active - check if current question expects document
-            from core.intake.schema import BLOCKS_BY_ID, QuestionType
-
-            current_block = BLOCKS_BY_ID.get(progress.current_block)
-            if current_block:
-                questions = current_block.questions
-                if progress.current_step < len(questions):
-                    current_question = questions[progress.current_step]
-                    if current_question.type == QuestionType.DOCUMENT:
-                        # Let intake handler process this
-                        return
-                    # If NOT document type and upload mode is NOT active,
-                    # let intake handler reject this
-                    return
 
     # Get file info
     file = None
@@ -189,9 +177,6 @@ async def handle_smart_upload(
         file = message.document
         file_name = message.document.file_name or "document"
         file_type = message.document.mime_type or "application/octet-stream"
-        # Skip PDFs - they have their own handler
-        if file_name.lower().endswith(".pdf"):
-            return
     elif message.photo:
         # Get largest photo
         file = message.photo[-1]
@@ -646,9 +631,9 @@ def get_handlers(bot_context: BotContext) -> list:
         CommandHandler("upload", upload_command),
         # /cancel_upload command - exit upload mode
         CommandHandler("cancel_upload", cancel_upload_command),
-        # Handle photos and non-PDF documents
+        # Handle photos and all documents (including PDF)
         MessageHandler(
-            (filters.PHOTO | filters.Document.ALL) & ~filters.Document.PDF,
+            filters.PHOTO | filters.Document.ALL,
             handle_smart_upload,
         ),
         # Handle document classification callbacks

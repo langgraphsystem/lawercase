@@ -41,6 +41,7 @@ def register_handlers(
     handler_sets: Iterable = chain(
         admin_handlers.get_handlers(bot_context),
         case_handlers.get_handlers(bot_context),
+        smart_upload_handlers.get_handlers(bot_context),  # AI upload - BEFORE intake to handle /upload mode
         intake_handlers.get_handlers(bot_context),  # Add intake handlers
         career_intake_handlers.get_handlers(bot_context),  # Detailed career intake
         sdk_handlers.get_handlers(bot_context),
@@ -48,7 +49,6 @@ def register_handlers(
         kb_handlers.get_handlers(bot_context),
         scheduler_handlers.get_handlers(bot_context),
         file_upload_handlers.get_handlers(bot_context),
-        smart_upload_handlers.get_handlers(bot_context),  # AI-powered document classification
         site_handlers.get_handlers(bot_context),  # Case site generation
         mcp_handlers.get_handlers(bot_context),  # MCP tools integration
     )
