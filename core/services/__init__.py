@@ -32,17 +32,18 @@ from .document_consistency_checker import (
 from .evidence_classifier import (
     CaseEvidenceAssessment,
     ClassificationResult,
+    CriterionEvidence,
     DocumentType,
     EB1ACriterion,
     EvidenceClassifier,
-    EvidenceStrength,
+    RFERiskLevel,
 )
 from .rfe_analyzer import (
     RFEAnalyzer,
+    RFECategory,
     RFEIssueType,
     RFEPattern,
     RFERiskAssessment,
-    RiskLevel,
     SuccessPattern,
 )
 
@@ -66,15 +67,16 @@ __all__ = [
     # Evidence Classifier
     "CaseEvidenceAssessment",
     "ClassificationResult",
+    "CriterionEvidence",
     "DocumentType",
     "EB1ACriterion",
     "EvidenceClassifier",
-    "EvidenceStrength",
+    "RFERiskLevel",
     # RFE Analyzer
     "RFEAnalyzer",
+    "RFECategory",
     "RFEIssueType",
     "RFEPattern",
     "RFERiskAssessment",
-    "RiskLevel",
     "SuccessPattern",
 ]

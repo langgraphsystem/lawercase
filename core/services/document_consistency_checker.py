@@ -17,12 +17,16 @@ from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
 import re
-from typing import Any
+from typing import TYPE_CHECKING, Any
 from uuid import uuid4
 
 from pydantic import BaseModel, Field
 
-from ..llm_interface.client import LLMClient
+if TYPE_CHECKING:
+    from ..llm_interface.gemini_client import GeminiClient as LLMClient
+else:
+    # At runtime, LLMClient is just Any to avoid import errors
+    LLMClient = Any
 
 
 class ConsistencyIssueType(str, Enum):
