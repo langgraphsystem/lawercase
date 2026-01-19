@@ -9,15 +9,8 @@ from __future__ import annotations
 
 from typing import Any
 
-from ..base import (
-    CriterionBase,
-    CriterionType,
-    Evidence,
-    EvaluationResult,
-    EvidenceStrength,
-    PetitionSection,
-    ValidationResult,
-)
+from ..base import (CriterionBase, CriterionType, EvaluationResult, Evidence,
+                    EvidenceStrength, PetitionSection, ValidationResult)
 
 
 class LeadingRoleCriterion(CriterionBase):
@@ -335,7 +328,10 @@ For each role provide:
         if "distinguished" not in petition_text.lower():
             issues.append("Missing reference to distinguished reputation")
 
-        if "achievement" not in petition_text.lower() and "contribution" not in petition_text.lower():
+        if (
+            "achievement" not in petition_text.lower()
+            and "contribution" not in petition_text.lower()
+        ):
             suggestions.append("Consider adding specific achievements or contributions")
 
         total_checks = 4

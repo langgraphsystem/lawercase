@@ -9,15 +9,8 @@ from __future__ import annotations
 
 from typing import Any
 
-from ..base import (
-    CriterionBase,
-    CriterionType,
-    Evidence,
-    EvaluationResult,
-    EvidenceStrength,
-    PetitionSection,
-    ValidationResult,
-)
+from ..base import (CriterionBase, CriterionType, EvaluationResult, Evidence,
+                    EvidenceStrength, PetitionSection, ValidationResult)
 
 
 class OriginalContributionsCriterion(CriterionBase):
@@ -297,7 +290,10 @@ For each original contribution provide:
         if "original" not in petition_text.lower():
             issues.append("Missing reference to 'original' nature of contribution")
 
-        if "significance" not in petition_text.lower() and "significant" not in petition_text.lower():
+        if (
+            "significance" not in petition_text.lower()
+            and "significant" not in petition_text.lower()
+        ):
             issues.append("Missing reference to 'significance' to the field")
 
         if "implemented" not in petition_text.lower() and "cited" not in petition_text.lower():

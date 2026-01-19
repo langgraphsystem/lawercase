@@ -12,13 +12,8 @@ from typing import Any
 
 import structlog
 
-from .criteria_skill import (
-    CriterionEvaluation,
-    CriterionType,
-    Evidence,
-    EvidenceEvaluation,
-    EvidenceStrength,
-)
+from .criteria_skill import (CriterionEvaluation, CriterionType, Evidence,
+                             EvidenceEvaluation, EvidenceStrength)
 
 logger = structlog.get_logger(__name__)
 
@@ -72,19 +67,21 @@ class AwardsEvaluator(BaseCriterionEvaluator):
             ev_score = self._score_award(evidence)
             total_score += ev_score
 
-            evaluations.append(EvidenceEvaluation(
-                evidence_id=evidence.id,
-                criterion=self.criterion_type,
-                strength=self._calculate_strength(ev_score),
-                score=ev_score,
-                analysis=self._analyze_award(evidence),
-                strengths=self._identify_strengths(evidence),
-                weaknesses=self._identify_weaknesses(evidence),
-                recommendations=self._get_recommendations(evidence),
-                uscis_alignment=self._check_uscis_alignment(evidence),
-                kazarian_step1=ev_score >= 50,
-                kazarian_step2=ev_score >= 70,
-            ))
+            evaluations.append(
+                EvidenceEvaluation(
+                    evidence_id=evidence.id,
+                    criterion=self.criterion_type,
+                    strength=self._calculate_strength(ev_score),
+                    score=ev_score,
+                    analysis=self._analyze_award(evidence),
+                    strengths=self._identify_strengths(evidence),
+                    weaknesses=self._identify_weaknesses(evidence),
+                    recommendations=self._get_recommendations(evidence),
+                    uscis_alignment=self._check_uscis_alignment(evidence),
+                    kazarian_step1=ev_score >= 50,
+                    kazarian_step2=ev_score >= 70,
+                )
+            )
 
         avg_score = total_score / len(evidence_list) if evidence_list else 0.0
         criterion_met = avg_score >= 50 and len(evidence_list) >= 1
@@ -182,7 +179,11 @@ class AwardsEvaluator(BaseCriterionEvaluator):
         if len(evaluations) < 2:
             recommendations.append("Consider documenting additional awards to strengthen case")
 
-        weak_count = sum(1 for e in evaluations if e.strength in [EvidenceStrength.WEAK, EvidenceStrength.INSUFFICIENT])
+        weak_count = sum(
+            1
+            for e in evaluations
+            if e.strength in [EvidenceStrength.WEAK, EvidenceStrength.INSUFFICIENT]
+        )
         if weak_count > 0:
             recommendations.append(f"{weak_count} award(s) need additional documentation")
 
@@ -226,19 +227,21 @@ class MembershipEvaluator(BaseCriterionEvaluator):
             ev_score = self._score_membership(evidence)
             total_score += ev_score
 
-            evaluations.append(EvidenceEvaluation(
-                evidence_id=evidence.id,
-                criterion=self.criterion_type,
-                strength=self._calculate_strength(ev_score),
-                score=ev_score,
-                analysis=self._analyze_membership(evidence),
-                strengths=self._identify_strengths(evidence),
-                weaknesses=self._identify_weaknesses(evidence),
-                recommendations=self._get_recommendations(evidence),
-                uscis_alignment=self._check_uscis_alignment(evidence),
-                kazarian_step1=ev_score >= 50,
-                kazarian_step2=ev_score >= 70,
-            ))
+            evaluations.append(
+                EvidenceEvaluation(
+                    evidence_id=evidence.id,
+                    criterion=self.criterion_type,
+                    strength=self._calculate_strength(ev_score),
+                    score=ev_score,
+                    analysis=self._analyze_membership(evidence),
+                    strengths=self._identify_strengths(evidence),
+                    weaknesses=self._identify_weaknesses(evidence),
+                    recommendations=self._get_recommendations(evidence),
+                    uscis_alignment=self._check_uscis_alignment(evidence),
+                    kazarian_step1=ev_score >= 50,
+                    kazarian_step2=ev_score >= 70,
+                )
+            )
 
         avg_score = total_score / len(evidence_list) if evidence_list else 0.0
         criterion_met = avg_score >= 50 and len(evidence_list) >= 1
@@ -282,7 +285,9 @@ class MembershipEvaluator(BaseCriterionEvaluator):
         return min(100.0, score)
 
     def _analyze_membership(self, evidence: Evidence) -> str:
-        return f"Membership in '{evidence.title}' analyzed for outstanding achievement requirements."
+        return (
+            f"Membership in '{evidence.title}' analyzed for outstanding achievement requirements."
+        )
 
     def _identify_strengths(self, evidence: Evidence) -> list[str]:
         strengths = []
@@ -309,7 +314,9 @@ class MembershipEvaluator(BaseCriterionEvaluator):
         ]
 
     def _check_uscis_alignment(self, evidence: Evidence) -> str:
-        return "Must show membership requires outstanding achievements judged by recognized experts."
+        return (
+            "Must show membership requires outstanding achievements judged by recognized experts."
+        )
 
     def _overall_recommendations(self, evaluations: list[EvidenceEvaluation]) -> list[str]:
         return ["Obtain bylaws or membership criteria for each organization"]
@@ -340,19 +347,21 @@ class PublishedMaterialEvaluator(BaseCriterionEvaluator):
             ev_score = self._score_publication(evidence)
             total_score += ev_score
 
-            evaluations.append(EvidenceEvaluation(
-                evidence_id=evidence.id,
-                criterion=self.criterion_type,
-                strength=self._calculate_strength(ev_score),
-                score=ev_score,
-                analysis=f"Published material '{evidence.title}' analyzed for media recognition.",
-                strengths=self._identify_strengths(evidence),
-                weaknesses=self._identify_weaknesses(evidence),
-                recommendations=self._get_recommendations(evidence),
-                uscis_alignment="Material must be ABOUT the petitioner in major publications.",
-                kazarian_step1=ev_score >= 50,
-                kazarian_step2=ev_score >= 70,
-            ))
+            evaluations.append(
+                EvidenceEvaluation(
+                    evidence_id=evidence.id,
+                    criterion=self.criterion_type,
+                    strength=self._calculate_strength(ev_score),
+                    score=ev_score,
+                    analysis=f"Published material '{evidence.title}' analyzed for media recognition.",
+                    strengths=self._identify_strengths(evidence),
+                    weaknesses=self._identify_weaknesses(evidence),
+                    recommendations=self._get_recommendations(evidence),
+                    uscis_alignment="Material must be ABOUT the petitioner in major publications.",
+                    kazarian_step1=ev_score >= 50,
+                    kazarian_step2=ev_score >= 70,
+                )
+            )
 
         avg_score = total_score / len(evidence_list) if evidence_list else 0.0
         criterion_met = avg_score >= 50 and len(evidence_list) >= 1
@@ -409,7 +418,9 @@ class PublishedMaterialEvaluator(BaseCriterionEvaluator):
         if not evidence.metadata.get("circulation"):
             weaknesses.append("Circulation data not provided")
         if evidence.metadata.get("authored_by_petitioner"):
-            weaknesses.append("Material authored BY petitioner (should use Scholarly Articles criterion)")
+            weaknesses.append(
+                "Material authored BY petitioner (should use Scholarly Articles criterion)"
+            )
         return weaknesses
 
     def _get_recommendations(self, evidence: Evidence) -> list[str]:
@@ -445,19 +456,21 @@ class JudgingEvaluator(BaseCriterionEvaluator):
             ev_score = self._score_judging(evidence)
             total_score += ev_score
 
-            evaluations.append(EvidenceEvaluation(
-                evidence_id=evidence.id,
-                criterion=self.criterion_type,
-                strength=self._calculate_strength(ev_score),
-                score=ev_score,
-                analysis=f"Judging activity '{evidence.title}' analyzed.",
-                strengths=self._identify_strengths(evidence),
-                weaknesses=self._identify_weaknesses(evidence),
-                recommendations=self._get_recommendations(evidence),
-                uscis_alignment="Must be asked to judge work of others.",
-                kazarian_step1=ev_score >= 50,
-                kazarian_step2=ev_score >= 70,
-            ))
+            evaluations.append(
+                EvidenceEvaluation(
+                    evidence_id=evidence.id,
+                    criterion=self.criterion_type,
+                    strength=self._calculate_strength(ev_score),
+                    score=ev_score,
+                    analysis=f"Judging activity '{evidence.title}' analyzed.",
+                    strengths=self._identify_strengths(evidence),
+                    weaknesses=self._identify_weaknesses(evidence),
+                    recommendations=self._get_recommendations(evidence),
+                    uscis_alignment="Must be asked to judge work of others.",
+                    kazarian_step1=ev_score >= 50,
+                    kazarian_step2=ev_score >= 70,
+                )
+            )
 
         avg_score = total_score / len(evidence_list) if evidence_list else 0.0
         criterion_met = avg_score >= 50 and len(evidence_list) >= 1
@@ -553,19 +566,21 @@ class OriginalContributionsEvaluator(BaseCriterionEvaluator):
             ev_score = self._score_contribution(evidence)
             total_score += ev_score
 
-            evaluations.append(EvidenceEvaluation(
-                evidence_id=evidence.id,
-                criterion=self.criterion_type,
-                strength=self._calculate_strength(ev_score),
-                score=ev_score,
-                analysis=f"Contribution '{evidence.title}' analyzed for originality and significance.",
-                strengths=self._identify_strengths(evidence),
-                weaknesses=self._identify_weaknesses(evidence),
-                recommendations=self._get_recommendations(evidence),
-                uscis_alignment="Must be original AND of major significance.",
-                kazarian_step1=ev_score >= 50,
-                kazarian_step2=ev_score >= 70,
-            ))
+            evaluations.append(
+                EvidenceEvaluation(
+                    evidence_id=evidence.id,
+                    criterion=self.criterion_type,
+                    strength=self._calculate_strength(ev_score),
+                    score=ev_score,
+                    analysis=f"Contribution '{evidence.title}' analyzed for originality and significance.",
+                    strengths=self._identify_strengths(evidence),
+                    weaknesses=self._identify_weaknesses(evidence),
+                    recommendations=self._get_recommendations(evidence),
+                    uscis_alignment="Must be original AND of major significance.",
+                    kazarian_step1=ev_score >= 50,
+                    kazarian_step2=ev_score >= 70,
+                )
+            )
 
         avg_score = total_score / len(evidence_list) if evidence_list else 0.0
         criterion_met = avg_score >= 50 and len(evidence_list) >= 1
@@ -675,19 +690,21 @@ class ScholarlyArticlesEvaluator(BaseCriterionEvaluator):
             ev_score = self._score_article(evidence)
             total_score += ev_score
 
-            evaluations.append(EvidenceEvaluation(
-                evidence_id=evidence.id,
-                criterion=self.criterion_type,
-                strength=self._calculate_strength(ev_score),
-                score=ev_score,
-                analysis=f"Article '{evidence.title}' analyzed.",
-                strengths=self._identify_strengths(evidence),
-                weaknesses=self._identify_weaknesses(evidence),
-                recommendations=self._get_recommendations(evidence),
-                uscis_alignment="Articles in professional/major trade publications.",
-                kazarian_step1=ev_score >= 50,
-                kazarian_step2=ev_score >= 70,
-            ))
+            evaluations.append(
+                EvidenceEvaluation(
+                    evidence_id=evidence.id,
+                    criterion=self.criterion_type,
+                    strength=self._calculate_strength(ev_score),
+                    score=ev_score,
+                    analysis=f"Article '{evidence.title}' analyzed.",
+                    strengths=self._identify_strengths(evidence),
+                    weaknesses=self._identify_weaknesses(evidence),
+                    recommendations=self._get_recommendations(evidence),
+                    uscis_alignment="Articles in professional/major trade publications.",
+                    kazarian_step1=ev_score >= 50,
+                    kazarian_step2=ev_score >= 70,
+                )
+            )
 
         avg_score = total_score / len(evidence_list) if evidence_list else 0.0
         criterion_met = avg_score >= 50 and len(evidence_list) >= 1
@@ -790,19 +807,21 @@ class ExhibitionsEvaluator(BaseCriterionEvaluator):
             ev_score = self._score_exhibition(evidence)
             total_score += ev_score
 
-            evaluations.append(EvidenceEvaluation(
-                evidence_id=evidence.id,
-                criterion=self.criterion_type,
-                strength=self._calculate_strength(ev_score),
-                score=ev_score,
-                analysis=f"Exhibition '{evidence.title}' analyzed.",
-                strengths=self._identify_strengths(evidence),
-                weaknesses=self._identify_weaknesses(evidence),
-                recommendations=["Document venue prestige and attendance"],
-                uscis_alignment="Work displayed at artistic exhibitions or showcases.",
-                kazarian_step1=ev_score >= 50,
-                kazarian_step2=ev_score >= 70,
-            ))
+            evaluations.append(
+                EvidenceEvaluation(
+                    evidence_id=evidence.id,
+                    criterion=self.criterion_type,
+                    strength=self._calculate_strength(ev_score),
+                    score=ev_score,
+                    analysis=f"Exhibition '{evidence.title}' analyzed.",
+                    strengths=self._identify_strengths(evidence),
+                    weaknesses=self._identify_weaknesses(evidence),
+                    recommendations=["Document venue prestige and attendance"],
+                    uscis_alignment="Work displayed at artistic exhibitions or showcases.",
+                    kazarian_step1=ev_score >= 50,
+                    kazarian_step2=ev_score >= 70,
+                )
+            )
 
         avg_score = total_score / len(evidence_list) if evidence_list else 0.0
         criterion_met = avg_score >= 50 and len(evidence_list) >= 1
@@ -884,19 +903,21 @@ class LeadingRoleEvaluator(BaseCriterionEvaluator):
             ev_score = self._score_role(evidence)
             total_score += ev_score
 
-            evaluations.append(EvidenceEvaluation(
-                evidence_id=evidence.id,
-                criterion=self.criterion_type,
-                strength=self._calculate_strength(ev_score),
-                score=ev_score,
-                analysis=f"Role at '{evidence.source}' analyzed for leading/critical contribution.",
-                strengths=self._identify_strengths(evidence),
-                weaknesses=self._identify_weaknesses(evidence),
-                recommendations=self._get_recommendations(evidence),
-                uscis_alignment="Leading OR critical role in distinguished organization.",
-                kazarian_step1=ev_score >= 50,
-                kazarian_step2=ev_score >= 70,
-            ))
+            evaluations.append(
+                EvidenceEvaluation(
+                    evidence_id=evidence.id,
+                    criterion=self.criterion_type,
+                    strength=self._calculate_strength(ev_score),
+                    score=ev_score,
+                    analysis=f"Role at '{evidence.source}' analyzed for leading/critical contribution.",
+                    strengths=self._identify_strengths(evidence),
+                    weaknesses=self._identify_weaknesses(evidence),
+                    recommendations=self._get_recommendations(evidence),
+                    uscis_alignment="Leading OR critical role in distinguished organization.",
+                    kazarian_step1=ev_score >= 50,
+                    kazarian_step2=ev_score >= 70,
+                )
+            )
 
         avg_score = total_score / len(evidence_list) if evidence_list else 0.0
         criterion_met = avg_score >= 50 and len(evidence_list) >= 1
@@ -917,7 +938,16 @@ class LeadingRoleEvaluator(BaseCriterionEvaluator):
         text = f"{evidence.title} {evidence.description}".lower()
 
         # Leading role indicators
-        leading_keywords = ["director", "ceo", "vp", "chief", "head", "manager", "lead", "principal"]
+        leading_keywords = [
+            "director",
+            "ceo",
+            "vp",
+            "chief",
+            "head",
+            "manager",
+            "lead",
+            "principal",
+        ]
         if any(kw in text for kw in leading_keywords):
             score += 30
         elif evidence.metadata.get("critical_role"):
@@ -998,19 +1028,21 @@ class HighSalaryEvaluator(BaseCriterionEvaluator):
             ev_score = self._score_salary(evidence)
             total_score += ev_score
 
-            evaluations.append(EvidenceEvaluation(
-                evidence_id=evidence.id,
-                criterion=self.criterion_type,
-                strength=self._calculate_strength(ev_score),
-                score=ev_score,
-                analysis="Salary/compensation analyzed against field averages.",
-                strengths=self._identify_strengths(evidence),
-                weaknesses=self._identify_weaknesses(evidence),
-                recommendations=self._get_recommendations(evidence),
-                uscis_alignment="Must be significantly high relative to others in the field.",
-                kazarian_step1=ev_score >= 50,
-                kazarian_step2=ev_score >= 70,
-            ))
+            evaluations.append(
+                EvidenceEvaluation(
+                    evidence_id=evidence.id,
+                    criterion=self.criterion_type,
+                    strength=self._calculate_strength(ev_score),
+                    score=ev_score,
+                    analysis="Salary/compensation analyzed against field averages.",
+                    strengths=self._identify_strengths(evidence),
+                    weaknesses=self._identify_weaknesses(evidence),
+                    recommendations=self._get_recommendations(evidence),
+                    uscis_alignment="Must be significantly high relative to others in the field.",
+                    kazarian_step1=ev_score >= 50,
+                    kazarian_step2=ev_score >= 70,
+                )
+            )
 
         avg_score = total_score / len(evidence_list) if evidence_list else 0.0
         criterion_met = avg_score >= 50 and len(evidence_list) >= 1
@@ -1108,19 +1140,21 @@ class CommercialSuccessEvaluator(BaseCriterionEvaluator):
             ev_score = self._score_success(evidence)
             total_score += ev_score
 
-            evaluations.append(EvidenceEvaluation(
-                evidence_id=evidence.id,
-                criterion=self.criterion_type,
-                strength=self._calculate_strength(ev_score),
-                score=ev_score,
-                analysis="Commercial success metrics analyzed.",
-                strengths=[],
-                weaknesses=[],
-                recommendations=["Document sales figures and compare to industry averages"],
-                uscis_alignment="Commercial success in performing arts.",
-                kazarian_step1=ev_score >= 50,
-                kazarian_step2=ev_score >= 70,
-            ))
+            evaluations.append(
+                EvidenceEvaluation(
+                    evidence_id=evidence.id,
+                    criterion=self.criterion_type,
+                    strength=self._calculate_strength(ev_score),
+                    score=ev_score,
+                    analysis="Commercial success metrics analyzed.",
+                    strengths=[],
+                    weaknesses=[],
+                    recommendations=["Document sales figures and compare to industry averages"],
+                    uscis_alignment="Commercial success in performing arts.",
+                    kazarian_step1=ev_score >= 50,
+                    kazarian_step2=ev_score >= 70,
+                )
+            )
 
         avg_score = total_score / len(evidence_list) if evidence_list else 0.0
         criterion_met = avg_score >= 50 and len(evidence_list) >= 1
@@ -1181,19 +1215,21 @@ class ComparableEvidenceEvaluator(BaseCriterionEvaluator):
             ev_score = self._score_comparable(evidence)
             total_score += ev_score
 
-            evaluations.append(EvidenceEvaluation(
-                evidence_id=evidence.id,
-                criterion=self.criterion_type,
-                strength=self._calculate_strength(ev_score),
-                score=ev_score,
-                analysis=f"Comparable evidence '{evidence.title}' analyzed.",
-                strengths=[],
-                weaknesses=[],
-                recommendations=["Explain why standard criteria don't apply"],
-                uscis_alignment="Per 8 CFR 204.5(h)(4).",
-                kazarian_step1=ev_score >= 50,
-                kazarian_step2=ev_score >= 70,
-            ))
+            evaluations.append(
+                EvidenceEvaluation(
+                    evidence_id=evidence.id,
+                    criterion=self.criterion_type,
+                    strength=self._calculate_strength(ev_score),
+                    score=ev_score,
+                    analysis=f"Comparable evidence '{evidence.title}' analyzed.",
+                    strengths=[],
+                    weaknesses=[],
+                    recommendations=["Explain why standard criteria don't apply"],
+                    uscis_alignment="Per 8 CFR 204.5(h)(4).",
+                    kazarian_step1=ev_score >= 50,
+                    kazarian_step2=ev_score >= 70,
+                )
+            )
 
         avg_score = total_score / len(evidence_list) if evidence_list else 0.0
         criterion_met = avg_score >= 50 and len(evidence_list) >= 1

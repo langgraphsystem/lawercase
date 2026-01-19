@@ -9,15 +9,8 @@ from __future__ import annotations
 
 from typing import Any
 
-from ..base import (
-    CriterionBase,
-    CriterionType,
-    Evidence,
-    EvaluationResult,
-    EvidenceStrength,
-    PetitionSection,
-    ValidationResult,
-)
+from ..base import (CriterionBase, CriterionType, EvaluationResult, Evidence,
+                    EvidenceStrength, PetitionSection, ValidationResult)
 
 
 class ScholarlyArticlesCriterion(CriterionBase):
@@ -296,7 +289,10 @@ For each scholarly article provide:
         if self.CFR_REFERENCE not in petition_text:
             missing_elements.append("CFR reference citation")
 
-        if "scholarly" not in petition_text.lower() and "peer-reviewed" not in petition_text.lower():
+        if (
+            "scholarly" not in petition_text.lower()
+            and "peer-reviewed" not in petition_text.lower()
+        ):
             issues.append("Missing reference to scholarly or peer-reviewed nature")
 
         if "professional" not in petition_text.lower() and "major" not in petition_text.lower():

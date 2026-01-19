@@ -6,6 +6,8 @@ plus comparable evidence and supporting documentation sections,
 each with full USCIS prompts and evaluation/writing/validation methods.
 """
 
+from __future__ import annotations
+
 from .awards import AwardsCriterion
 from .commercial_success import CommercialSuccessCriterion
 from .comparable_evidence import ComparableEvidenceCriterion
@@ -80,8 +82,7 @@ def get_criterion_class(criterion_type: str):
     if criterion_class is None:
         valid_types = ", ".join(CRITERION_CLASSES.keys())
         raise ValueError(
-            f"Unknown criterion type: {criterion_type}. "
-            f"Valid types are: {valid_types}"
+            f"Unknown criterion type: {criterion_type}. " f"Valid types are: {valid_types}"
         )
     return criterion_class
 
@@ -119,8 +120,7 @@ def get_supporting_doc_class(doc_type: str):
     if doc_class is None:
         valid_types = ", ".join(SUPPORTING_DOC_CLASSES.keys())
         raise ValueError(
-            f"Unknown supporting doc type: {doc_type}. "
-            f"Valid types are: {valid_types}"
+            f"Unknown supporting doc type: {doc_type}. " f"Valid types are: {valid_types}"
         )
     return doc_class
 

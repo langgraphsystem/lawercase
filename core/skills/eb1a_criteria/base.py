@@ -159,7 +159,6 @@ class CriterionBase(ABC):
         Returns:
             EvaluationResult with analysis
         """
-        pass
 
     @abstractmethod
     async def write_section(
@@ -179,7 +178,6 @@ class CriterionBase(ABC):
         Returns:
             PetitionSection with generated text
         """
-        pass
 
     @abstractmethod
     async def validate(
@@ -199,7 +197,6 @@ class CriterionBase(ABC):
         Returns:
             ValidationResult with issues and suggestions
         """
-        pass
 
     def get_prompt(
         self,
@@ -233,9 +230,7 @@ class CriterionBase(ABC):
         context_str = ""
         if case_context:
             context_str = "\n".join(
-                f"- {k}: {v}"
-                for k, v in case_context.items()
-                if k not in ["evidence", "documents"]
+                f"- {k}: {v}" for k, v in case_context.items() if k not in ["evidence", "documents"]
             )
 
         return self.PROMPT.format(
@@ -247,21 +242,20 @@ class CriterionBase(ABC):
         """Calculate evidence strength from score."""
         if score >= 0.9:
             return EvidenceStrength.EXCEPTIONAL
-        elif score >= 0.75:
+        if score >= 0.75:
             return EvidenceStrength.STRONG
-        elif score >= 0.5:
+        if score >= 0.5:
             return EvidenceStrength.MODERATE
-        elif score >= 0.25:
+        if score >= 0.25:
             return EvidenceStrength.WEAK
-        else:
-            return EvidenceStrength.INSUFFICIENT
+        return EvidenceStrength.INSUFFICIENT
 
 
 __all__ = [
     "CriterionBase",
     "CriterionType",
-    "Evidence",
     "EvaluationResult",
+    "Evidence",
     "EvidenceStrength",
     "PetitionSection",
     "ValidationResult",

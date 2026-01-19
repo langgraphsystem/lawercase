@@ -9,7 +9,6 @@ from __future__ import annotations
 
 from typing import Any
 
-from ...memory.models import MemoryRecord
 from ...storage.supabase_vector_store import SupabaseVectorStore
 from .criteria_skill import CriterionType
 
@@ -80,17 +79,19 @@ async def get_relevant_examples(
         examples = []
         for result in results:
             metadata = result.get("metadata", {})
-            examples.append({
-                "id": result.get("record_id"),
-                "score": result.get("score", 0.0),
-                "title": metadata.get("title", "Unknown"),
-                "criterion": metadata.get("criterion"),
-                "field": metadata.get("field"),
-                "summary": metadata.get("summary", ""),
-                "text": metadata.get("text", ""),
-                "key_elements": metadata.get("key_elements", []),
-                "required_documents": metadata.get("required_documents", []),
-            })
+            examples.append(
+                {
+                    "id": result.get("record_id"),
+                    "score": result.get("score", 0.0),
+                    "title": metadata.get("title", "Unknown"),
+                    "criterion": metadata.get("criterion"),
+                    "field": metadata.get("field"),
+                    "summary": metadata.get("summary", ""),
+                    "text": metadata.get("text", ""),
+                    "key_elements": metadata.get("key_elements", []),
+                    "required_documents": metadata.get("required_documents", []),
+                }
+            )
 
         return examples
 
@@ -234,9 +235,9 @@ async def enrich_prompt_with_examples(
 
 
 __all__ = [
-    "get_relevant_examples",
-    "get_examples_for_criterion",
-    "format_examples_for_prompt",
-    "enrich_prompt_with_examples",
     "EB1A_EXAMPLES_NAMESPACE",
+    "enrich_prompt_with_examples",
+    "format_examples_for_prompt",
+    "get_examples_for_criterion",
+    "get_relevant_examples",
 ]

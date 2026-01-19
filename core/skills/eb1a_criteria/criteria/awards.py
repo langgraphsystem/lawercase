@@ -9,15 +9,8 @@ from __future__ import annotations
 
 from typing import Any
 
-from ..base import (
-    CriterionBase,
-    CriterionType,
-    Evidence,
-    EvaluationResult,
-    EvidenceStrength,
-    PetitionSection,
-    ValidationResult,
-)
+from ..base import (CriterionBase, CriterionType, EvaluationResult, Evidence,
+                    EvidenceStrength, PetitionSection, ValidationResult)
 
 
 class AwardsCriterion(CriterionBase):
@@ -256,7 +249,6 @@ For each award provide:
             )
             # Parse response and create EvaluationResult
             # For now, return a structured result
-            pass
 
         # Default evaluation logic without LLM
         evidence_summary = [f"{ev.title}: {ev.description}" for ev in evidence]
@@ -361,7 +353,10 @@ For each award provide:
         if self.CFR_REFERENCE not in petition_text:
             missing_elements.append("CFR reference citation")
 
-        if "nationally" not in petition_text.lower() and "internationally" not in petition_text.lower():
+        if (
+            "nationally" not in petition_text.lower()
+            and "internationally" not in petition_text.lower()
+        ):
             issues.append("Missing reference to national/international recognition level")
 
         if "selection" not in petition_text.lower() and "criteria" not in petition_text.lower():

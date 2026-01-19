@@ -9,15 +9,8 @@ from __future__ import annotations
 
 from typing import Any
 
-from ..base import (
-    CriterionBase,
-    CriterionType,
-    Evidence,
-    EvaluationResult,
-    EvidenceStrength,
-    PetitionSection,
-    ValidationResult,
-)
+from ..base import (CriterionBase, CriterionType, EvaluationResult, Evidence,
+                    EvidenceStrength, PetitionSection, ValidationResult)
 
 
 class CommercialSuccessCriterion(CriterionBase):

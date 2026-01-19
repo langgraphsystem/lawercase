@@ -9,15 +9,8 @@ from __future__ import annotations
 
 from typing import Any
 
-from ..base import (
-    CriterionBase,
-    CriterionType,
-    Evidence,
-    EvaluationResult,
-    EvidenceStrength,
-    PetitionSection,
-    ValidationResult,
-)
+from ..base import (CriterionBase, CriterionType, EvaluationResult, Evidence,
+                    EvidenceStrength, PetitionSection, ValidationResult)
 
 
 class NationalBenefitDocumentation(CriterionBase):
@@ -358,7 +351,10 @@ For national benefit documentation provide:
         if "united states" not in petition_text.lower() and "u.s." not in petition_text.lower():
             issues.append("Missing reference to United States")
 
-        if "substantial" not in petition_text.lower() and "prospective" not in petition_text.lower():
+        if (
+            "substantial" not in petition_text.lower()
+            and "prospective" not in petition_text.lower()
+        ):
             suggestions.append("Consider using 'substantially benefit prospectively' language")
 
         if "economic" not in petition_text.lower() and "job" not in petition_text.lower():

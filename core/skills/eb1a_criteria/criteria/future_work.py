@@ -9,15 +9,8 @@ from __future__ import annotations
 
 from typing import Any
 
-from ..base import (
-    CriterionBase,
-    CriterionType,
-    Evidence,
-    EvaluationResult,
-    EvidenceStrength,
-    PetitionSection,
-    ValidationResult,
-)
+from ..base import (CriterionBase, CriterionType, EvaluationResult, Evidence,
+                    EvidenceStrength, PetitionSection, ValidationResult)
 
 
 class FutureWorkDocumentation(CriterionBase):
@@ -317,10 +310,16 @@ For future work documentation provide:
         if "continue" not in petition_text.lower() and "work" not in petition_text.lower():
             issues.append("Missing reference to continuation of work")
 
-        if "area of expertise" not in petition_text.lower() and "field" not in petition_text.lower():
+        if (
+            "area of expertise" not in petition_text.lower()
+            and "field" not in petition_text.lower()
+        ):
             issues.append("Missing reference to area of expertise")
 
-        if "business plan" not in petition_text.lower() and "job offer" not in petition_text.lower():
+        if (
+            "business plan" not in petition_text.lower()
+            and "job offer" not in petition_text.lower()
+        ):
             suggestions.append("Consider mentioning Job Offer or Business Plan")
 
         if "united states" not in petition_text.lower() and "u.s." not in petition_text.lower():
