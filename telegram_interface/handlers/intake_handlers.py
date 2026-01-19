@@ -1132,8 +1132,16 @@ async def handle_document_upload(update: Update, context: ContextTypes.DEFAULT_T
     # Check if smart upload mode is active - if so, let smart_upload handler process
     from .smart_upload_handlers import UPLOAD_MODE_KEY
 
-    if context.user_data.get(UPLOAD_MODE_KEY, False):
-        logger.debug(
+    upload_mode = context.user_data.get(UPLOAD_MODE_KEY, False)
+    logger.info(
+        "intake.document_upload_check",
+        user_id=user_id,
+        upload_mode_active=upload_mode,
+        user_data_keys=list(context.user_data.keys()),
+    )
+
+    if upload_mode:
+        logger.info(
             "intake.document_upload_skipped_upload_mode",
             user_id=user_id,
         )
