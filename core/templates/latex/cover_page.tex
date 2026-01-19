@@ -1,0 +1,58 @@
+\documentclass[12pt,letterpaper]{article}
+
+% Packages
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage{mathptmx}  % Times New Roman font
+\usepackage[margin=1in]{geometry}
+\usepackage{fancyhdr}
+\usepackage{hyperref}
+\usepackage{enumitem}
+
+% Variables (will be replaced by Python)
+\newcommand{\clientname}{<<CLIENT_NAME>>}
+\newcommand{\clientnametitle}{<<CLIENT_NAME_TITLE>>}
+\newcommand{\passportpage}{<<PASSPORT_PAGE>>}
+\newcommand{\petitionpage}{<<PETITION_PAGE>>}
+\newcommand{\statementpage}{<<STATEMENT_PAGE>>}
+\newcommand{\exhibitslistpage}{<<EXHIBITS_LIST_PAGE>>}
+\newcommand{\exhibitsstartpage}{<<EXHIBITS_START_PAGE>>}
+\newcommand{\exhibitscount}{<<EXHIBITS_COUNT>>}
+\newcommand{\includepremium}{<<INCLUDE_PREMIUM>>}
+
+% Header setup
+\pagestyle{fancy}
+\fancyhf{}
+\renewcommand{\headrulewidth}{0.4pt}
+\fancyhead[L]{EB-1A Permanent Residency Petition for \clientnametitle}
+\fancyfoot[C]{\thepage}
+
+\begin{document}
+
+% Title
+\begin{center}
+\Large\textbf{Table of Contents}
+\end{center}
+
+\vspace{1em}
+
+% Table of Contents items
+\begin{enumerate}[leftmargin=2em, labelsep=0.5em]
+    \item Form G-1145, e-Notification of Application/Petition Acceptance.
+
+    \item Form I-140, Immigrant Petition for Alien Worker, with \$700 filing fee.
+
+    <<PREMIUM_ITEM>>
+
+    \item Photocopy of the current passport and the expired passport with a B1/B2 visa -- Page \passportpage.
+
+    \item Petition for Permanent Residence under Extraordinary ability (EB-1A) -- Page \petitionpage.
+
+    \item Statement from \clientnametitle{} detailing plans on how he intends to continue work in the United States -- Page \statementpage.
+
+    \item List of Exhibits -- Page \exhibitslistpage.
+
+    \item Exhibits 1--\exhibitscount{} -- Page \exhibitsstartpage.
+\end{enumerate}
+
+\end{document}

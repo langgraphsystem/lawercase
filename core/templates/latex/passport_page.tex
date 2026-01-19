@@ -1,0 +1,59 @@
+\documentclass[12pt,letterpaper]{article}
+
+% Packages
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage{mathptmx}  % Times New Roman font
+\usepackage[margin=1in]{geometry}
+\usepackage{fancyhdr}
+\usepackage{hyperref}
+\usepackage{tikz}
+
+% Variables (will be replaced by Python)
+\newcommand{\clientname}{<<CLIENT_NAME>>}
+\newcommand{\clientnametitle}{<<CLIENT_NAME_TITLE>>}
+\newcommand{\passportnumber}{<<PASSPORT_NUMBER>>}
+
+% Header setup
+\pagestyle{fancy}
+\fancyhf{}
+\renewcommand{\headrulewidth}{0.4pt}
+\fancyhead[L]{EB-1A Permanent Residency Petition for \clientnametitle}
+\fancyfoot[C]{\thepage}
+
+\begin{document}
+
+% Title
+\begin{center}
+\Large\textbf{Photocopy of Passport}
+\end{center}
+
+\vspace{2em}
+
+\noindent\textbf{Current Passport:}
+
+\vspace{1em}
+
+\begin{center}
+\begin{tikzpicture}
+\draw[dashed, gray, thick] (0,0) rectangle (14,8);
+\node at (7,5) {\textcolor{gray}{[Insert photocopy of current passport biographical page]}};
+\node at (7,3.5) {Name: \clientname};
+\node at (7,2.5) {Passport Number: \passportnumber};
+\end{tikzpicture}
+\end{center}
+
+\vspace{2em}
+
+\noindent\textbf{Previous Passport with US Visa (if applicable):}
+
+\vspace{1em}
+
+\begin{center}
+\begin{tikzpicture}
+\draw[dashed, gray, thick] (0,0) rectangle (14,8);
+\node at (7,4) {\textcolor{gray}{[Insert photocopy of expired passport with B1/B2 visa if available]}};
+\end{tikzpicture}
+\end{center}
+
+\end{document}
