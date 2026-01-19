@@ -17,20 +17,13 @@ from __future__ import annotations
 import structlog
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
 from telegram.constants import ParseMode
-from telegram.ext import (
-    CallbackQueryHandler,
-    ContextTypes,
-    MessageHandler,
-    filters,
-)
+from telegram.ext import (CallbackQueryHandler, ContextTypes, MessageHandler,
+                          filters)
 
 from core.memory.models import MemoryRecord
-from core.services.document_classifier import (
-    DOCUMENT_TYPES,
-    DocumentCategory,
-    DocumentType,
-    get_document_classifier,
-)
+from core.services.document_classifier import (DOCUMENT_TYPES,
+                                               DocumentCategory, DocumentType,
+                                               get_document_classifier)
 
 from .context import BotContext
 

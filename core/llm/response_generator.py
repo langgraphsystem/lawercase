@@ -11,10 +11,10 @@ Provides unified interface for LLM response generation:
 from __future__ import annotations
 
 import asyncio
+import time
 from collections.abc import AsyncIterator
 from dataclasses import dataclass, field
 from enum import Enum
-import time
 from typing import Any
 
 import structlog

@@ -6,21 +6,11 @@ from .feedback_agent import FeedbackAgent
 from .mega_agent import MegaAgent
 from .rag_pipeline_agent import RagAnswer, RagPipelineAgent
 from .self_correcting_mixin import SelfCorrectingAgent, SelfCorrectingMixin
-from .supervisor_agent import (
-    PlannedSubTask,
-    SupervisorAgent,
-    SupervisorPlan,
-    SupervisorRunResult,
-    SupervisorTaskRequest,
-)
-from .validator_agent import (
-    MAGCCAssessment,
-    ValidationCategory,
-    ValidationLevel,
-    ValidationReport,
-    ValidationRequest,
-    ValidatorAgent,
-)
+from .supervisor_agent import (PlannedSubTask, SupervisorAgent, SupervisorPlan,
+                               SupervisorRunResult, SupervisorTaskRequest)
+from .validator_agent import (MAGCCAssessment, ValidationCategory,
+                              ValidationLevel, ValidationReport,
+                              ValidationRequest, ValidatorAgent)
 from .writer_agent import WriterAgent
 
 __all__ = [

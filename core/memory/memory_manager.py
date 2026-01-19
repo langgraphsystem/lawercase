@@ -26,11 +26,8 @@ def _create_default_stores() -> tuple:
     without database configuration, fall back to in-memory stores.
     """
     try:
-        from .stores import (
-            SupabaseEpisodicStore,
-            SupabaseSemanticStore,
-            SupabaseWorkingMemory,
-        )
+        from .stores import (SupabaseEpisodicStore, SupabaseSemanticStore,
+                             SupabaseWorkingMemory)
 
         return (
             SupabaseSemanticStore(),

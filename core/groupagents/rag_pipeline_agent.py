@@ -17,8 +17,8 @@ from __future__ import annotations
 from datetime import datetime, timedelta
 from typing import Any
 
-from pydantic import BaseModel, Field
 import structlog
+from pydantic import BaseModel, Field
 
 from ..memory.memory_manager import MemoryManager
 from ..memory.models import MemoryRecord
