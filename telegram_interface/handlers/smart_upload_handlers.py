@@ -253,29 +253,29 @@ async def handle_smart_upload(
         )
         confidence_pct = int(classification.confidence * 100)
 
-        # OCR preview
+        # OCR preview (no Markdown - plain text to avoid parsing errors)
         ocr_preview = ""
         if ocr_text:
             preview_text = ocr_text[:200].replace("\n", " ")
             if len(ocr_text) > 200:
                 preview_text += "..."
-            ocr_preview = f"\n\n📝 *Распознанный текст:*\n_{preview_text}_"
+            ocr_preview = f"\n\n📝 Распознанный текст:\n{preview_text}"
 
         # EB-1A criterion info
         criterion_info = ""
         if classification.eb1a_criterion:
-            criterion_info = f"\n🎯 *EB-1A критерий:* #{classification.eb1a_criterion}"
+            criterion_info = f"\n🎯 EB-1A критерий: #{classification.eb1a_criterion}"
 
         # Linked question info
         question_info = ""
         if doc_type.linked_question_id:
-            question_info = f"\n📋 *Раздел анкеты:* {doc_type.linked_question_id}"
+            question_info = f"\n📋 Раздел анкеты: {doc_type.linked_question_id}"
 
         confirmation_text = (
-            f"📄 *Документ:* {file_name}\n\n"
-            f"🤖 *AI определил тип документа:*\n"
-            f"**{doc_type.name_ru}** ({doc_type.name_en})\n\n"
-            f"{confidence_emoji} *Уверенность:* {confidence_pct}%"
+            f"📄 Документ: {file_name}\n\n"
+            f"🤖 AI определил тип документа:\n"
+            f"{doc_type.name_ru} ({doc_type.name_en})\n\n"
+            f"{confidence_emoji} Уверенность: {confidence_pct}%"
             f"{criterion_info}"
             f"{question_info}"
             f"{ocr_preview}\n\n"
@@ -305,7 +305,6 @@ async def handle_smart_upload(
 
         await processing_msg.edit_text(
             confirmation_text,
-            parse_mode=ParseMode.MARKDOWN,
             reply_markup=reply_markup,
         )
 
