@@ -17,13 +17,15 @@ from __future__ import annotations
 import structlog
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
 from telegram.constants import ParseMode
-from telegram.ext import (CallbackQueryHandler, ContextTypes, MessageHandler,
-                          filters)
+from telegram.ext import CallbackQueryHandler, CommandHandler, ContextTypes, MessageHandler, filters
 
 from core.memory.models import MemoryRecord
-from core.services.document_classifier import (DOCUMENT_TYPES,
-                                               DocumentCategory, DocumentType,
-                                               get_document_classifier)
+from core.services.document_classifier import (
+    DOCUMENT_TYPES,
+    DocumentCategory,
+    DocumentType,
+    get_document_classifier,
+)
 
 from .context import BotContext
 
@@ -35,6 +37,9 @@ CALLBACK_CHANGE = "doc_change"
 CALLBACK_SELECT = "doc_select"
 CALLBACK_CANCEL = "doc_cancel"
 
+# Upload mode flag key
+UPLOAD_MODE_KEY = "smart_upload_mode"
+
 
 def _bot_context(context: ContextTypes.DEFAULT_TYPE) -> BotContext:
     """Get BotContext from application bot_data."""
@@ -45,6 +50,76 @@ async def _is_authorized(bot_context: BotContext, update: Update) -> bool:
     """Check if user is authorized."""
     user_id = update.effective_user.id if update.effective_user else None
     return bot_context.is_authorized(user_id)
+
+
+async def upload_command(
+    update: Update,
+    context: ContextTypes.DEFAULT_TYPE,
+) -> None:
+    """
+    /upload - Start document upload mode.
+
+    Bypasses intake flow to allow uploading documents at any time.
+    Documents will be classified by AI and linked to appropriate sections.
+    """
+    bot_ctx = _bot_context(context)
+
+    if not await _is_authorized(bot_ctx, update):
+        return
+
+    message = update.effective_message
+    if not message:
+        return
+
+    # Set upload mode flag
+    context.user_data[UPLOAD_MODE_KEY] = True
+
+    await message.reply_text(
+        "📤 *Режим загрузки документов*\n\n"
+        "Отправьте фото или документ.\n"
+        "AI автоматически определит тип документа и привяжет его к соответствующему разделу.\n\n"
+        "📎 Поддерживаемые форматы: фото, изображения, документы\n"
+        "📝 Для PDF используйте команду /addfile\n\n"
+        "Для отмены: /cancel\\_upload",
+        parse_mode=ParseMode.MARKDOWN,
+    )
+
+    logger.info(
+        "smart_upload.mode_enabled",
+        user_id=str(update.effective_user.id),
+    )
+
+
+async def cancel_upload_command(
+    update: Update,
+    context: ContextTypes.DEFAULT_TYPE,
+) -> None:
+    """
+    /cancel_upload - Exit document upload mode.
+    """
+    bot_ctx = _bot_context(context)
+
+    if not await _is_authorized(bot_ctx, update):
+        return
+
+    message = update.effective_message
+    if not message:
+        return
+
+    # Clear upload mode flag and pending data
+    was_active = context.user_data.pop(UPLOAD_MODE_KEY, None)
+    context.user_data.pop("pending_smart_upload", None)
+
+    if was_active:
+        await message.reply_text(
+            "❌ Режим загрузки документов отменён.\n" "Вы можете продолжить заполнение анкеты.",
+        )
+        logger.info(
+            "smart_upload.mode_cancelled",
+            user_id=str(update.effective_user.id),
+        )
+    else:
+        await message.reply_text("ℹ️ Режим загрузки документов не был активен.")
 
 
 async def handle_smart_upload(
@@ -72,9 +147,15 @@ async def handle_smart_upload(
 
     user_id = str(update.effective_user.id)
 
-    # Check if intake is active - if so, let intake handler process it
+    # Check if upload mode is active (via /upload command)
+    upload_mode_active = context.user_data.get(UPLOAD_MODE_KEY, False)
+
+    # Get active case
     active_case_id = await bot_ctx.get_active_case(update)
-    if active_case_id:
+
+    # Check if intake is active - if so, let intake handler process it
+    # UNLESS upload mode is explicitly enabled
+    if not upload_mode_active and active_case_id:
         from core.storage.intake_progress import get_progress
 
         progress = await get_progress(user_id, active_case_id)
@@ -90,6 +171,9 @@ async def handle_smart_upload(
                     if current_question.type == QuestionType.DOCUMENT:
                         # Let intake handler process this
                         return
+                    # If NOT document type and upload mode is NOT active,
+                    # let intake handler reject this
+                    return
 
     # Get file info
     file = None
@@ -503,8 +587,9 @@ async def _save_document_with_type(
             eb1a_criterion=doc_type.eb1a_criterion,
         )
 
-        # Clear pending data
+        # Clear pending data and upload mode
         context.user_data.pop("pending_smart_upload", None)
+        context.user_data.pop(UPLOAD_MODE_KEY, None)
 
         # Build success message
         success_lines = [
@@ -552,6 +637,10 @@ def get_handlers(bot_context: BotContext) -> list:
         List of Telegram handlers
     """
     return [
+        # /upload command - enter upload mode (bypasses intake)
+        CommandHandler("upload", upload_command),
+        # /cancel_upload command - exit upload mode
+        CommandHandler("cancel_upload", cancel_upload_command),
         # Handle photos and non-PDF documents
         MessageHandler(
             (filters.PHOTO | filters.Document.ALL) & ~filters.Document.PDF,
