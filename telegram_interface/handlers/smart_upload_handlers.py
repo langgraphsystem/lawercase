@@ -143,11 +143,11 @@ async def handle_smart_upload(
     bot_ctx = _bot_context(context)
 
     if not await _is_authorized(bot_ctx, update):
-        return
+        return None
 
     message = update.effective_message
     if not message:
-        return
+        return None
 
     user_id = str(update.effective_user.id)
 
@@ -183,7 +183,7 @@ async def handle_smart_upload(
         file_name = f"photo_{file.file_id[:8]}.jpg"
         file_type = "image/jpeg"
     else:
-        return
+        return None
 
     logger.info(
         "smart_upload.received",

@@ -41,7 +41,9 @@ def register_handlers(
     handler_sets: Iterable = chain(
         admin_handlers.get_handlers(bot_context),
         case_handlers.get_handlers(bot_context),
-        smart_upload_handlers.get_handlers(bot_context),  # AI upload - BEFORE intake to handle /upload mode
+        smart_upload_handlers.get_handlers(
+            bot_context
+        ),  # AI upload - BEFORE intake to handle /upload mode
         intake_handlers.get_handlers(bot_context),  # Add intake handlers
         career_intake_handlers.get_handlers(bot_context),  # Detailed career intake
         sdk_handlers.get_handlers(bot_context),
