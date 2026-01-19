@@ -3,6 +3,7 @@
 Railway Configuration Verification Script
 Проверяет что все необходимые файлы для Railway деплоймента на месте.
 """
+
 from __future__ import annotations
 
 import json

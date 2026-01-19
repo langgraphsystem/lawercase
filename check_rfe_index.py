@@ -24,8 +24,7 @@ cursor = conn.cursor(cursor_factory=RealDictCursor)
 try:
     # 1. Check all indexes on rfe_knowledge
     print("1️⃣  All indexes on mega_agent.rfe_knowledge...")
-    cursor.execute(
-        """
+    cursor.execute("""
         SELECT
             indexname,
             indexdef
@@ -33,8 +32,7 @@ try:
         WHERE schemaname = 'mega_agent'
         AND tablename = 'rfe_knowledge'
         ORDER BY indexname
-    """
-    )
+    """)
     indexes = cursor.fetchall()
 
     if indexes:
@@ -59,15 +57,13 @@ try:
 
     # 2. Check pgvector extension version
     print("2️⃣  Checking pgvector extension version...")
-    cursor.execute(
-        """
+    cursor.execute("""
         SELECT
             extname,
             extversion
         FROM pg_extension
         WHERE extname = 'vector'
-    """
-    )
+    """)
     ext = cursor.fetchone()
 
     if ext:
@@ -90,8 +86,7 @@ try:
 
     # 3. Check table structure
     print("3️⃣  Checking rfe_knowledge table structure...")
-    cursor.execute(
-        """
+    cursor.execute("""
         SELECT
             column_name,
             data_type,
@@ -100,8 +95,7 @@ try:
         WHERE table_schema = 'mega_agent'
         AND table_name = 'rfe_knowledge'
         ORDER BY ordinal_position
-    """
-    )
+    """)
     columns = cursor.fetchall()
 
     print("   Columns:")

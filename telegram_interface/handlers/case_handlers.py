@@ -954,7 +954,9 @@ def _format_eb1a_analysis(analysis: Any, case_id: str) -> str:
     # Time estimate
     if analysis.estimated_days_to_ready:
         lines.append("")
-        lines.append(f"⏱️ <b>Estimated time to filing:</b> ~{analysis.estimated_days_to_ready} days")
+        lines.append(
+            f"⏱️ <b>Estimated time to filing:</b> ~{analysis.estimated_days_to_ready} days"
+        )
 
     return "\n".join(lines)
 

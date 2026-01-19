@@ -24,13 +24,11 @@ cursor = conn.cursor(cursor_factory=RealDictCursor)
 try:
     # 1. Check rfe_knowledge table
     print("1️⃣  Checking mega_agent.rfe_knowledge table...")
-    cursor.execute(
-        """
+    cursor.execute("""
         SELECT COUNT(*) as total
         FROM mega_agent.rfe_knowledge
         WHERE embedding IS NOT NULL
-    """
-    )
+    """)
     total = cursor.fetchone()["total"]
     print(f"   Total records with embeddings: {total}")
     print()
@@ -38,8 +36,7 @@ try:
     if total > 0:
         # 2. Get embedding dimension using vector_dims()
         print("2️⃣  Getting embedding dimensions...")
-        cursor.execute(
-            """
+        cursor.execute("""
             SELECT
                 vector_dims(embedding) as dimension,
                 COUNT(*) as count
@@ -47,8 +44,7 @@ try:
             WHERE embedding IS NOT NULL
             GROUP BY vector_dims(embedding)
             ORDER BY count DESC
-        """
-        )
+        """)
         dimensions = cursor.fetchall()
 
         print("   Dimensions found:")
@@ -59,29 +55,25 @@ try:
 
         # 3. Check embedding_model if exists
         print("3️⃣  Checking embedding model info...")
-        cursor.execute(
-            """
+        cursor.execute("""
             SELECT column_name
             FROM information_schema.columns
             WHERE table_schema = 'mega_agent'
             AND table_name = 'rfe_knowledge'
             AND column_name IN ('embedding_model', 'model', 'embedding_dimension')
-        """
-        )
+        """)
         model_columns = cursor.fetchall()
 
         if model_columns:
             for col in model_columns:
                 col_name = col["column_name"]
-                cursor.execute(
-                    f"""
+                cursor.execute(f"""
                     SELECT {col_name}, COUNT(*) as count
                     FROM mega_agent.rfe_knowledge
                     GROUP BY {col_name}
                     ORDER BY count DESC
                     LIMIT 5
-                """
-                )
+                """)
                 values = cursor.fetchall()
                 print(f"   Column '{col_name}':")
                 for v in values:
@@ -92,8 +84,7 @@ try:
 
         # 4. Sample first record
         print("4️⃣  Sample record (first)...")
-        cursor.execute(
-            """
+        cursor.execute("""
             SELECT
                 id,
                 vector_dims(embedding) as dimension,
@@ -102,8 +93,7 @@ try:
             FROM mega_agent.rfe_knowledge
             WHERE embedding IS NOT NULL
             LIMIT 1
-        """
-        )
+        """)
         sample = cursor.fetchone()
         if sample:
             print(f"   ID: {sample['id']}")
@@ -114,8 +104,7 @@ try:
 
         # 5. Check index on embeddings
         print("5️⃣  Checking vector indexes...")
-        cursor.execute(
-            """
+        cursor.execute("""
             SELECT
                 indexname,
                 indexdef
@@ -123,8 +112,7 @@ try:
             WHERE schemaname = 'mega_agent'
             AND tablename = 'rfe_knowledge'
             AND indexdef ILIKE '%vector%'
-        """
-        )
+        """)
         indexes = cursor.fetchall()
         if indexes:
             print(f"   Found {len(indexes)} vector index(es):")

@@ -99,7 +99,8 @@ async def generate_site(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
             )
         else:
             await message.reply_text(
-                f"✅ Сайт сгенерирован локально: {site_path}\n\n" "⚠️ Не удалось загрузить в облако."
+                f"✅ Сайт сгенерирован локально: {site_path}\n\n"
+                "⚠️ Не удалось загрузить в облако."
             )
 
         logger.info(

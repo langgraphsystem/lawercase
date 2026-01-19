@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """Check intake progress and data for specific case."""
+
 from __future__ import annotations
 
 import asyncio
@@ -149,14 +150,12 @@ async def main():
         db = get_db_manager()
         async with db.session() as session:
             # Check case_intake_progress table
-            stmt = text(
-                """
+            stmt = text("""
                 SELECT user_id, case_id, current_block, current_step,
                        completed_blocks, updated_at
                 FROM mega_agent.case_intake_progress
                 WHERE case_id = :case_id AND user_id = :user_id
-            """
-            )
+            """)
             result = await session.execute(stmt, {"case_id": CASE_ID, "user_id": USER_ID})
             row = result.fetchone()
 

@@ -36,13 +36,11 @@ async def check_case_data():
         # 1. Check case record
         print("1️⃣  CASE RECORD")
         print("-" * 80)
-        case_query = text(
-            """
+        case_query = text("""
             SELECT case_id, user_id, title, status, case_type, created_at, updated_at
             FROM mega_agent.cases
             WHERE case_id::text = :case_id
-            """
-        )
+            """)
         result = await session.execute(case_query, {"case_id": CASE_ID})
         case = result.fetchone()
 
@@ -64,14 +62,12 @@ async def check_case_data():
         # 2. Check intake progress
         print("2️⃣  INTAKE PROGRESS")
         print("-" * 80)
-        progress_query = text(
-            """
+        progress_query = text("""
             SELECT user_id, case_id, current_block, current_step,
                    completed_blocks, updated_at
             FROM mega_agent.case_intake_progress
             WHERE case_id = :case_id
-            """
-        )
+            """)
         result = await session.execute(progress_query, {"case_id": CASE_ID})
         progress = result.fetchone()
 
@@ -96,14 +92,12 @@ async def check_case_data():
         # 3. Check semantic memory (intake answers)
         print("3️⃣  SEMANTIC MEMORY (Intake Answers)")
         print("-" * 80)
-        semantic_query = text(
-            """
+        semantic_query = text("""
             SELECT record_id, user_id, text, tags, metadata_json, created_at
             FROM mega_agent.semantic_memory
             WHERE metadata_json->>'case_id' = :case_id
             ORDER BY created_at ASC
-            """
-        )
+            """)
         result = await session.execute(semantic_query, {"case_id": CASE_ID})
         memories = result.fetchall()
 
@@ -146,15 +140,13 @@ async def check_case_data():
         # 4. Check episodic memory
         print("4️⃣  EPISODIC MEMORY (Events)")
         print("-" * 80)
-        episodic_query = text(
-            """
+        episodic_query = text("""
             SELECT event_id, user_id, text, tags, created_at
             FROM mega_agent.episodic_memory
             WHERE user_id = :user_id
             ORDER BY created_at DESC
             LIMIT 10
-            """
-        )
+            """)
 
         if case:
             result = await session.execute(episodic_query, {"user_id": case[1]})

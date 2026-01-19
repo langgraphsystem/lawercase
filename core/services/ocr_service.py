@@ -6,8 +6,8 @@ Uses Google Gemini 3 Flash Vision API for OCR processing (new google.genai SDK).
 
 from __future__ import annotations
 
-from io import BytesIO
 import os
+from io import BytesIO
 from typing import Any
 
 import structlog

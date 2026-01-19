@@ -95,14 +95,12 @@ def upgrade() -> None:
     )
 
     # HNSW vector index for semantic search
-    op.execute(
-        """
+    op.execute("""
         CREATE INDEX idx_semantic_embedding_hnsw
         ON mega_agent.semantic_memory
         USING hnsw (embedding vector_cosine_ops)
         WITH (m = 16, ef_construction = 64)
-        """
-    )
+        """)
 
     # ============================================================
     # episodic_memory - Audit trail and event log
@@ -174,13 +172,11 @@ def upgrade() -> None:
 
     # RMT indexes
     op.create_index("idx_rmt_updated", "rmt_buffers", ["updated_at"], schema="mega_agent")
-    op.execute(
-        """
+    op.execute("""
         CREATE INDEX idx_rmt_expires
         ON mega_agent.rmt_buffers (expires_at)
         WHERE expires_at IS NOT NULL
-        """
-    )
+        """)
 
     # ============================================================
     # cases - Legal case records
@@ -223,13 +219,11 @@ def upgrade() -> None:
     op.create_index(
         "idx_cases_data", "cases", ["data"], schema="mega_agent", postgresql_using="gin"
     )
-    op.execute(
-        """
+    op.execute("""
         CREATE INDEX idx_cases_active
         ON mega_agent.cases (user_id, status)
         WHERE deleted_at IS NULL
-        """
-    )
+        """)
 
     # ============================================================
     # documents - Document metadata with R2 references

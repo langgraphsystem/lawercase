@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """Simple test to verify semantic memory writes to database using OpenAI embeddings."""
+
 from __future__ import annotations
 
 import asyncio
@@ -112,16 +113,14 @@ async def test_memory():
 
         db = get_db_manager()
         async with db.session() as session:
-            stmt = text(
-                """
+            stmt = text("""
                 SELECT record_id, text, user_id, metadata_json->>'case_id' as case_id
                 FROM mega_agent.semantic_memory
                 WHERE user_id = :user_id
                   AND tags @> ARRAY['test']::text[]
                 ORDER BY created_at DESC
                 LIMIT 1
-            """
-            )
+            """)
             result = await session.execute(stmt, {"user_id": test_user_id})
             row = result.fetchone()
 

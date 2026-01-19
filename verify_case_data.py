@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """Comprehensive verification of case data and intake processing."""
+
 from __future__ import annotations
 
 import asyncio
@@ -28,15 +29,13 @@ async def main():
     print("-" * 80)
     try:
         async with db.session() as session:
-            stmt = text(
-                """
+            stmt = text("""
                 SELECT user_id, case_id, current_block, current_step,
                        completed_blocks, updated_at
                 FROM mega_agent.case_intake_progress
                 WHERE user_id = :user_id
                 ORDER BY updated_at DESC
-            """
-            )
+            """)
             result = await session.execute(stmt, {"user_id": USER_ID})
             intake_records = result.fetchall()
 
@@ -70,14 +69,12 @@ async def main():
     try:
         for case_id in case_ids:
             async with db.session() as session:
-                stmt = text(
-                    """
+                stmt = text("""
                     SELECT case_id, title, status, case_type, user_id,
                            data, created_at, updated_at, deleted_at
                     FROM mega_agent.cases
                     WHERE case_id = :case_id
-                """
-                )
+                """)
                 result = await session.execute(stmt, {"case_id": case_id})
                 case_row = result.fetchone()
 
@@ -110,8 +107,7 @@ async def main():
     try:
         for case_id in case_ids:
             async with db.session() as session:
-                stmt = text(
-                    """
+                stmt = text("""
                     SELECT record_id, text, type, tags, metadata_json, created_at
                     FROM mega_agent.semantic_memory
                     WHERE user_id = :user_id
@@ -122,8 +118,7 @@ async def main():
                       )
                     ORDER BY created_at DESC
                     LIMIT 20
-                """
-                )
+                """)
                 result = await session.execute(
                     stmt,
                     {
@@ -162,16 +157,14 @@ async def main():
     try:
         for case_id in case_ids:
             async with db.session() as session:
-                stmt = text(
-                    """
+                stmt = text("""
                     SELECT event_id, source, action, payload, timestamp
                     FROM mega_agent.episodic_memory
                     WHERE user_id = :user_id
                       AND payload::text ILIKE :case_pattern
                     ORDER BY timestamp DESC
                     LIMIT 10
-                """
-                )
+                """)
                 result = await session.execute(
                     stmt, {"user_id": USER_ID, "case_pattern": f"%{case_id}%"}
                 )

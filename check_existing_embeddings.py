@@ -24,8 +24,7 @@ cursor = conn.cursor(cursor_factory=RealDictCursor)
 try:
     # 1. Check all tables with vector columns
     print("1️⃣  Finding all tables with vector embeddings...")
-    cursor.execute(
-        """
+    cursor.execute("""
         SELECT
             table_schema,
             table_name,
@@ -35,8 +34,7 @@ try:
         FROM information_schema.columns
         WHERE udt_name = 'vector'
         ORDER BY table_schema, table_name
-    """
-    )
+    """)
 
     vector_tables = cursor.fetchall()
 
@@ -62,20 +60,17 @@ try:
         print(f"   ├─ Column: {column}")
 
         # Count records
-        cursor.execute(
-            f"""
+        cursor.execute(f"""
             SELECT COUNT(*) as count
             FROM {schema}.{table}
             WHERE {column} IS NOT NULL
-        """
-        )
+        """)
         count = cursor.fetchone()["count"]
         print(f"   ├─ Records with embeddings: {count}")
 
         if count > 0:
             # Get sample embedding dimension
-            cursor.execute(
-                f"""
+            cursor.execute(f"""
                 SELECT
                     array_length({column}, 1) as dimension,
                     COUNT(*) as count
@@ -83,8 +78,7 @@ try:
                 WHERE {column} IS NOT NULL
                 GROUP BY array_length({column}, 1)
                 ORDER BY count DESC
-            """
-            )
+            """)
             dimensions = cursor.fetchall()
 
             print("   ├─ Dimensions found:")
@@ -92,15 +86,13 @@ try:
                 print(f"   │  ├─ {dim['dimension']} dimensions: {dim['count']} records")
 
             # Check if there's an embedding_model column
-            cursor.execute(
-                f"""
+            cursor.execute(f"""
                 SELECT column_name
                 FROM information_schema.columns
                 WHERE table_schema = '{schema}'
                 AND table_name = '{table}'
                 AND column_name IN ('embedding_model', 'model', 'embedding_dimension')
-            """
-            )
+            """)
             model_columns = cursor.fetchall()
 
             if model_columns:
@@ -108,15 +100,13 @@ try:
 
                 # Get model info
                 model_col = model_columns[0]["column_name"]
-                cursor.execute(
-                    f"""
+                cursor.execute(f"""
                     SELECT {model_col}, COUNT(*) as count
                     FROM {schema}.{table}
                     GROUP BY {model_col}
                     ORDER BY count DESC
                     LIMIT 5
-                """
-                )
+                """)
                 models = cursor.fetchall()
                 print("   └─ Models used:")
                 for m in models:
@@ -130,8 +120,7 @@ try:
 
     # 3. Check RFE-specific tables
     print("3️⃣  Checking RFE (Reference Feature Extraction) tables...")
-    cursor.execute(
-        """
+    cursor.execute("""
         SELECT table_name
         FROM information_schema.tables
         WHERE table_schema = 'public'
@@ -142,8 +131,7 @@ try:
             OR table_name ILIKE '%document%'
         )
         ORDER BY table_name
-    """
-    )
+    """)
 
     rfe_tables = cursor.fetchall()
     if rfe_tables:
@@ -152,14 +140,12 @@ try:
             print(f"   - {t['table_name']}")
 
             # Check if it has embeddings
-            cursor.execute(
-                f"""
+            cursor.execute(f"""
                 SELECT column_name, udt_name
                 FROM information_schema.columns
                 WHERE table_name = '{t['table_name']}'
                 AND udt_name = 'vector'
-            """
-            )
+            """)
             vec_cols = cursor.fetchall()
             if vec_cols:
                 print(f"     ✅ Has vector column: {vec_cols[0]['column_name']}")

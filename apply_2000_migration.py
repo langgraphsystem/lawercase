@@ -41,14 +41,12 @@ try:
     print("   ✅ Defaults updated")
 
     print("4. Creating HNSW index...")
-    cursor.execute(
-        """
+    cursor.execute("""
         CREATE INDEX idx_semantic_memory_embedding_hnsw
         ON mega_agent.semantic_memory
         USING hnsw (embedding vector_cosine_ops)
         WITH (m = 16, ef_construction = 64)
-    """
-    )
+    """)
     print("   ✅ HNSW index created")
     print()
 
@@ -57,30 +55,26 @@ try:
     print("VERIFICATION")
     print("=" * 80)
 
-    cursor.execute(
-        """
+    cursor.execute("""
         SELECT column_name, column_default
         FROM information_schema.columns
         WHERE table_schema = 'mega_agent'
         AND table_name = 'semantic_memory'
         AND column_name IN ('embedding_dimension', 'embedding_model')
-    """
-    )
+    """)
     cols = cursor.fetchall()
     print("Defaults:")
     for col in cols:
         print(f"   - {col[0]}: {col[1]}")
     print()
 
-    cursor.execute(
-        """
+    cursor.execute("""
         SELECT indexname
         FROM pg_indexes
         WHERE schemaname = 'mega_agent'
         AND tablename = 'semantic_memory'
         AND indexdef ILIKE '%hnsw%'
-    """
-    )
+    """)
     indexes = cursor.fetchall()
     print("HNSW indexes:")
     for idx in indexes:

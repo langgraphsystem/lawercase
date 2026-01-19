@@ -48,8 +48,7 @@ async def find_orphaned_intake_records():
 
     async with db.session() as session:
         # SQL query to find orphaned records
-        query = text(
-            """
+        query = text("""
             SELECT DISTINCT cip.user_id, cip.case_id
             FROM mega_agent.case_intake_progress cip
             WHERE NOT EXISTS (
@@ -58,8 +57,7 @@ async def find_orphaned_intake_records():
                 WHERE c.case_id::text = cip.case_id
             )
             ORDER BY cip.updated_at DESC
-            """
-        )
+            """)
 
         result = await session.execute(query)
         orphans = result.fetchall()

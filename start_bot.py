@@ -3,6 +3,7 @@
 Railway bot starter script.
 This script ensures PYTHONPATH is set correctly and imports the bot module.
 """
+
 from __future__ import annotations
 
 import sys

@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """Real-time monitoring of intake data in Supabase tables."""
+
 from __future__ import annotations
 
 import asyncio

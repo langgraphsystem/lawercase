@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """Test script to verify SupabaseSemanticStore is working correctly."""
+
 from __future__ import annotations
 
 import asyncio
@@ -66,16 +67,14 @@ async def test_memory_write():
 
         db = get_db_manager()
         async with db.session() as session:
-            stmt = text(
-                """
+            stmt = text("""
                 SELECT record_id, text, user_id, tags, metadata_json
                 FROM mega_agent.semantic_memory
                 WHERE user_id = :user_id
                   AND metadata_json->>'case_id' = :case_id
                 ORDER BY created_at DESC
                 LIMIT 1
-            """
-            )
+            """)
             result = await session.execute(stmt, {"user_id": test_user_id, "case_id": test_case_id})
             row = result.fetchone()
 

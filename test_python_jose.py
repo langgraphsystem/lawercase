@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """Test script to verify python-jose installation and JWT functionality."""
+
 from __future__ import annotations
 
 import sys

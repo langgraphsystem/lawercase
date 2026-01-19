@@ -342,7 +342,7 @@ class HumanInLoopManager:
             else:
                 context = await self._response_futures[interrupt_id]
             return context
-        except asyncio.TimeoutError:
+        except TimeoutError:
             # Handle timeout
             context = self._pending.get(interrupt_id)
             if context and context.escalate_on_timeout:

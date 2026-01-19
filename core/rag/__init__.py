@@ -15,37 +15,23 @@ Phase 3: Hybrid RAG Pipeline
 
 from __future__ import annotations
 
-from .adapters import MemoryManagerAdapter, SemanticStoreAdapter, create_memory_adapter
-from .chunking import (
-    ChunkingStrategy,
-    ContextualChunker,
-    DocumentChunk,
-    FixedSizeChunker,
-    RecursiveChunker,
-    SemanticChunker,
-    create_chunker,
-)
-from .document_parser import (
-    DocumentFormat,
-    DocumentIngestionPipeline,
-    MarkitdownParser,
-    ParsedDocument,
-    create_document_parser,
-)
-from .fusion import HybridRetriever, ReciprocalRankFusion, create_hybrid_retriever
-from .graph_rag import (
-    CommunityDetection,
-    GraphEdge,
-    GraphNode,
-    GraphQuery,
-    GraphRAG,
-    GraphSearchResult,
-    NodeType,
-    RelationType,
-    get_graph_rag,
-)
-from .pipeline import Document, DocumentStore, RAGPipeline, RAGResult, create_rag_pipeline
-from .reranker import CrossEncoderReranker, HybridRetrieverWithReranking, create_reranker
+from .adapters import (MemoryManagerAdapter, SemanticStoreAdapter,
+                       create_memory_adapter)
+from .chunking import (ChunkingStrategy, ContextualChunker, DocumentChunk,
+                       FixedSizeChunker, RecursiveChunker, SemanticChunker,
+                       create_chunker)
+from .document_parser import (DocumentFormat, DocumentIngestionPipeline,
+                              MarkitdownParser, ParsedDocument,
+                              create_document_parser)
+from .fusion import (HybridRetriever, ReciprocalRankFusion,
+                     create_hybrid_retriever)
+from .graph_rag import (CommunityDetection, GraphEdge, GraphNode, GraphQuery,
+                        GraphRAG, GraphSearchResult, NodeType, RelationType,
+                        get_graph_rag)
+from .pipeline import (Document, DocumentStore, RAGPipeline, RAGResult,
+                       create_rag_pipeline)
+from .reranker import (CrossEncoderReranker, HybridRetrieverWithReranking,
+                       create_reranker)
 from .sparse_retrieval import BM25Retriever, create_bm25_retriever
 
 __all__ = [

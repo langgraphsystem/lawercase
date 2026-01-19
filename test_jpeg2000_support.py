@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """Test script to verify JPEG2000 support in Pillow and img2pdf."""
+
 from __future__ import annotations
 
 import sys

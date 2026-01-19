@@ -41,65 +41,53 @@ try:
 
     # Step 2: Drop and recreate embedding column
     print("2️⃣  Dropping old embedding column...")
-    cursor.execute(
-        """
+    cursor.execute("""
         ALTER TABLE mega_agent.semantic_memory
         DROP COLUMN IF EXISTS embedding CASCADE
-    """
-    )
+    """)
     print("   ✅ Old column dropped.")
     print()
 
     print("3️⃣  Creating new embedding column with 3072 dimensions...")
-    cursor.execute(
-        """
+    cursor.execute("""
         ALTER TABLE mega_agent.semantic_memory
         ADD COLUMN embedding vector(3072)
-    """
-    )
+    """)
     print("   ✅ New column created.")
     print()
 
     # Step 3: Update defaults
     print("4️⃣  Updating default values...")
-    cursor.execute(
-        """
+    cursor.execute("""
         ALTER TABLE mega_agent.semantic_memory
         ALTER COLUMN embedding_dimension SET DEFAULT 3072
-    """
-    )
+    """)
     print("   ✅ embedding_dimension default updated to 3072.")
     print()
 
     # Step 4: Recreate index
     print("5️⃣  Recreating similarity search index...")
-    cursor.execute(
-        """
+    cursor.execute("""
         DROP INDEX IF EXISTS mega_agent.idx_semantic_memory_embedding
-    """
-    )
-    cursor.execute(
-        """
+    """)
+    cursor.execute("""
         CREATE INDEX idx_semantic_memory_embedding
         ON mega_agent.semantic_memory
         USING ivfflat (embedding vector_cosine_ops)
         WITH (lists = 100)
-    """
-    )
+    """)
     print("   ✅ Index recreated with 3072 dimensions.")
     print()
 
     # Step 5: Verify
     print("6️⃣  Verifying changes...")
-    cursor.execute(
-        """
+    cursor.execute("""
         SELECT column_name, data_type, column_default
         FROM information_schema.columns
         WHERE table_schema = 'mega_agent'
         AND table_name = 'semantic_memory'
         AND column_name IN ('embedding', 'embedding_dimension', 'embedding_model')
-    """
-    )
+    """)
     columns = cursor.fetchall()
     for col in columns:
         print(f"   - {col[0]}: {col[1]} (default: {col[2]})")

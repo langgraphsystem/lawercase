@@ -11,6 +11,7 @@ Tests all stages of text generation and dynamic document loading:
 6. WebSocket communication
 7. Session persistence
 """
+
 from __future__ import annotations
 
 import asyncio

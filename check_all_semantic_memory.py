@@ -35,12 +35,10 @@ try:
     # Check total count
     print("1️⃣  TOTAL RECORDS IN SEMANTIC_MEMORY")
     print("-" * 80)
-    cursor.execute(
-        """
+    cursor.execute("""
         SELECT COUNT(*) as total
         FROM mega_agent.semantic_memory
-    """
-    )
+    """)
     result = cursor.fetchone()
     print(f"Total records in table: {result['total']}")
     print()
@@ -63,14 +61,12 @@ try:
     # Check by namespace
     print("3️⃣  RECORDS BY NAMESPACE")
     print("-" * 80)
-    cursor.execute(
-        """
+    cursor.execute("""
         SELECT namespace, COUNT(*) as count
         FROM mega_agent.semantic_memory
         GROUP BY namespace
         ORDER BY count DESC
-    """
-    )
+    """)
     namespaces = cursor.fetchall()
 
     if namespaces:
@@ -84,14 +80,12 @@ try:
     # Check recent records (any user)
     print("4️⃣  MOST RECENT RECORDS (Last 10, any user)")
     print("-" * 80)
-    cursor.execute(
-        """
+    cursor.execute("""
         SELECT user_id, text, namespace, metadata_json, created_at
         FROM mega_agent.semantic_memory
         ORDER BY created_at DESC
         LIMIT 10
-    """
-    )
+    """)
     recent = cursor.fetchall()
 
     if recent:
@@ -111,15 +105,13 @@ try:
     # Check if table has correct structure
     print("5️⃣  TABLE STRUCTURE")
     print("-" * 80)
-    cursor.execute(
-        """
+    cursor.execute("""
         SELECT column_name, data_type
         FROM information_schema.columns
         WHERE table_schema = 'mega_agent'
         AND table_name = 'semantic_memory'
         ORDER BY ordinal_position
-    """
-    )
+    """)
     columns = cursor.fetchall()
 
     if columns:

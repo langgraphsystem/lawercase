@@ -13,10 +13,10 @@ Based on USCIS adjudication standards and common RFE patterns.
 
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
-import re
 from typing import TYPE_CHECKING, Any
 from uuid import uuid4
 
@@ -775,10 +775,10 @@ def get_consistency_checker(
 
 
 __all__ = [
-    "ConsistencyIssueType",
-    "IssueSeverity",
-    "ConsistencyIssue",
     "ConsistencyCheckResult",
+    "ConsistencyIssue",
+    "ConsistencyIssueType",
     "DocumentConsistencyChecker",
+    "IssueSeverity",
     "get_consistency_checker",
 ]

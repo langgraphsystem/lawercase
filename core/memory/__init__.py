@@ -6,13 +6,8 @@ Includes A-Mem (Agentic Memory) system based on 2025-2026 research.
 
 from __future__ import annotations
 
-from .agentic_memory import (
-    AgenticMemory,
-    EntityNode,
-    EntityRelation,
-    MemoryNote,
-    MemoryType,
-)
+from .agentic_memory import (AgenticMemory, EntityNode, EntityRelation,
+                             MemoryNote, MemoryType)
 from .episodic_memory import EpisodicMemory, EventQuery
 from .memory_hierarchy import MemoryContext, MemoryHierarchy
 from .memory_manager import MemoryManager

@@ -19,7 +19,8 @@ from pydantic import BaseModel, Field, computed_field
 
 from api.deps import get_current_user
 from core.logging_utils import get_logger
-from core.services.case_service import CaseListFilter, CaseStatus, CaseType, get_case_service
+from core.services.case_service import (CaseListFilter, CaseStatus, CaseType,
+                                        get_case_service)
 
 logger = get_logger(__name__)
 

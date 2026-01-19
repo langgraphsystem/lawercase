@@ -148,8 +148,7 @@ async def set_progress(
 
     async with db.session() as session:
         # Use INSERT ON CONFLICT to handle both create and update atomically
-        stmt = text(
-            """
+        stmt = text("""
         INSERT INTO mega_agent.case_intake_progress (
             user_id, case_id, current_block, current_step, completed_blocks, updated_at
         ) VALUES (
@@ -161,8 +160,7 @@ async def set_progress(
             current_step = EXCLUDED.current_step,
             completed_blocks = EXCLUDED.completed_blocks,
             updated_at = NOW()
-        """
-        )
+        """)
 
         await session.execute(
             stmt,

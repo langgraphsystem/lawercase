@@ -35,31 +35,27 @@ try:
 
     # Check RFE status
     print("RFE KNOWLEDGE STATUS:")
-    cursor.execute(
-        """
+    cursor.execute("""
         SELECT
             COUNT(*) as count,
             vector_dims(embedding) as dimension
         FROM mega_agent.rfe_knowledge
         WHERE embedding IS NOT NULL
         GROUP BY vector_dims(embedding)
-    """
-    )
+    """)
     rfe = cursor.fetchone()
     print(f"  - Records: {rfe[0]}")
     print(f"  - Dimension: {rfe[1]}")
     print()
 
     # Check if RFE has indexes
-    cursor.execute(
-        """
+    cursor.execute("""
         SELECT indexname, indexdef
         FROM pg_indexes
         WHERE schemaname = 'mega_agent'
         AND tablename = 'rfe_knowledge'
         AND (indexdef ILIKE '%ivfflat%' OR indexdef ILIKE '%hnsw%')
-    """
-    )
+    """)
     rfe_indexes = cursor.fetchall()
 
     if rfe_indexes:
@@ -77,13 +73,11 @@ try:
     print("  (Random query on rfe_knowledge without index)")
 
     # Get a sample embedding
-    cursor.execute(
-        """
+    cursor.execute("""
         SELECT embedding
         FROM mega_agent.rfe_knowledge
         LIMIT 1
-    """
-    )
+    """)
     sample_emb = cursor.fetchone()[0]
 
     # Measure search time

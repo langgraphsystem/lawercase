@@ -46,8 +46,7 @@ def create_schema_and_tables():
 
         # 3. Create cases table
         print("\n📦 Creating cases table...")
-        cur.execute(
-            """
+        cur.execute("""
             CREATE TABLE IF NOT EXISTS mega_agent.cases (
                 case_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
                 user_id VARCHAR(255) NOT NULL,
@@ -63,8 +62,7 @@ def create_schema_and_tables():
                 CONSTRAINT case_title_not_empty CHECK (length(title) > 0),
                 CONSTRAINT case_status_valid CHECK (status IN ('draft', 'open', 'in_progress', 'closed', 'archived'))
             )
-        """
-        )
+        """)
         print("✅ mega_agent.cases created")
 
         # Create indexes for cases
@@ -76,8 +74,7 @@ def create_schema_and_tables():
 
         # 4. Create semantic_memory table
         print("\n📦 Creating semantic_memory table...")
-        cur.execute(
-            """
+        cur.execute("""
             CREATE TABLE IF NOT EXISTS mega_agent.semantic_memory (
                 record_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
                 namespace VARCHAR(255) DEFAULT 'default',
@@ -95,8 +92,7 @@ def create_schema_and_tables():
                 updated_at TIMESTAMPTZ DEFAULT NOW(),
                 CONSTRAINT semantic_text_not_empty CHECK (length(text) > 0)
             )
-        """
-        )
+        """)
         print("✅ mega_agent.semantic_memory created")
 
         # Create indexes for semantic_memory
@@ -120,22 +116,19 @@ def create_schema_and_tables():
         # 5. Create HNSW index for vector search
         print("\n📦 Creating HNSW vector index...")
         try:
-            cur.execute(
-                """
+            cur.execute("""
                 CREATE INDEX IF NOT EXISTS idx_semantic_embedding_hnsw
                 ON mega_agent.semantic_memory
                 USING hnsw (embedding vector_cosine_ops)
                 WITH (m = 16, ef_construction = 64)
-            """
-            )
+            """)
             print("✅ HNSW vector index created")
         except Exception as e:
             print(f"⚠️ HNSW index creation skipped: {e}")
 
         # 6. Create episodic_memory table
         print("\n📦 Creating episodic_memory table...")
-        cur.execute(
-            """
+        cur.execute("""
             CREATE TABLE IF NOT EXISTS mega_agent.episodic_memory (
                 event_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
                 user_id VARCHAR(255) NOT NULL,
@@ -147,8 +140,7 @@ def create_schema_and_tables():
                 CONSTRAINT episodic_source_not_empty CHECK (length(source) > 0),
                 CONSTRAINT episodic_action_not_empty CHECK (length(action) > 0)
             )
-        """
-        )
+        """)
         print("✅ mega_agent.episodic_memory created")
 
         # Create indexes for episodic_memory
@@ -174,8 +166,7 @@ def create_schema_and_tables():
 
         # 7. Create documents table
         print("\n📦 Creating documents table...")
-        cur.execute(
-            """
+        cur.execute("""
             CREATE TABLE IF NOT EXISTS mega_agent.documents (
                 document_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
                 case_id UUID REFERENCES mega_agent.cases(case_id) ON DELETE CASCADE,
@@ -192,8 +183,7 @@ def create_schema_and_tables():
                 CONSTRAINT doc_filename_not_empty CHECK (length(filename) > 0),
                 CONSTRAINT doc_r2_key_not_empty CHECK (length(r2_key) > 0)
             )
-        """
-        )
+        """)
         print("✅ mega_agent.documents created")
 
         # Create indexes for documents
@@ -210,8 +200,7 @@ def create_schema_and_tables():
 
         # 8. Create intake_answers table
         print("\n📦 Creating intake_answers table...")
-        cur.execute(
-            """
+        cur.execute("""
             CREATE TABLE IF NOT EXISTS mega_agent.intake_answers (
                 answer_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
                 case_id UUID REFERENCES mega_agent.cases(case_id) ON DELETE CASCADE,
@@ -223,8 +212,7 @@ def create_schema_and_tables():
                 created_at TIMESTAMPTZ DEFAULT NOW(),
                 updated_at TIMESTAMPTZ DEFAULT NOW()
             )
-        """
-        )
+        """)
         print("✅ mega_agent.intake_answers created")
 
         # Create indexes for intake_answers
@@ -241,8 +229,7 @@ def create_schema_and_tables():
 
         # 9. Create case_intake_progress table
         print("\n📦 Creating case_intake_progress table...")
-        cur.execute(
-            """
+        cur.execute("""
             CREATE TABLE IF NOT EXISTS mega_agent.case_intake_progress (
                 user_id VARCHAR(255) NOT NULL,
                 case_id VARCHAR(255) NOT NULL,
@@ -256,8 +243,7 @@ def create_schema_and_tables():
                 CONSTRAINT intake_current_block_not_empty CHECK (length(current_block) > 0),
                 CONSTRAINT intake_current_step_non_negative CHECK (current_step >= 0)
             )
-        """
-        )
+        """)
         print("✅ mega_agent.case_intake_progress created")
 
         # Create indexes for case_intake_progress
@@ -274,13 +260,11 @@ def create_schema_and_tables():
 
         # Verify all tables exist
         print("\n🔍 Verifying created tables...")
-        cur.execute(
-            """
+        cur.execute("""
             SELECT table_name FROM information_schema.tables
             WHERE table_schema = 'mega_agent'
             ORDER BY table_name
-        """
-        )
+        """)
         tables = [row[0] for row in cur.fetchall()]
         print(f"✅ Tables in mega_agent schema: {tables}")
 

@@ -31,13 +31,11 @@ async def check_case():
         # Check case
         print(f"\n1️⃣  Checking case: {CASE_ID}")
         result = await session.execute(
-            text(
-                """
+            text("""
                 SELECT case_id, user_id, title, status, case_type, created_at
                 FROM mega_agent.cases
                 WHERE case_id::text = :case_id
-            """
-            ),
+            """),
             {"case_id": CASE_ID},
         )
         case = result.fetchone()
@@ -54,13 +52,11 @@ async def check_case():
         # Check intake progress
         print(f"\n2️⃣  Checking intake progress for case: {CASE_ID}")
         result = await session.execute(
-            text(
-                """
+            text("""
                 SELECT current_block, current_step, completed_blocks, updated_at
                 FROM mega_agent.case_intake_progress
                 WHERE case_id = :case_id
-            """
-            ),
+            """),
             {"case_id": CASE_ID},
         )
         progress = result.fetchone()
@@ -77,13 +73,11 @@ async def check_case():
         # Check semantic memory
         print(f"\n3️⃣  Checking semantic memory for case: {CASE_ID}")
         result = await session.execute(
-            text(
-                """
+            text("""
                 SELECT COUNT(*) as count
                 FROM mega_agent.semantic_memory
                 WHERE metadata_json->>'case_id' = :case_id
-            """
-            ),
+            """),
             {"case_id": CASE_ID},
         )
         count = result.scalar()
@@ -93,15 +87,13 @@ async def check_case():
         if count > 0:
             # Get sample records
             result = await session.execute(
-                text(
-                    """
+                text("""
                     SELECT text, metadata_json->>'question_id' as question_id, created_at
                     FROM mega_agent.semantic_memory
                     WHERE metadata_json->>'case_id' = :case_id
                     ORDER BY created_at ASC
                     LIMIT 5
-                """
-                ),
+                """),
                 {"case_id": CASE_ID},
             )
             records = result.fetchall()

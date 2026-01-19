@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """Real-time monitoring of intake data using direct database connection."""
+
 from __future__ import annotations
 
 import asyncio
@@ -42,14 +43,12 @@ async def main():
 
         db = get_db_manager()
         async with db.session() as session:
-            stmt = text(
-                """
+            stmt = text("""
                 SELECT case_id, title, status, case_type, created_at, updated_at
                 FROM mega_agent.cases
                 WHERE user_id = :user_id
                 ORDER BY created_at DESC
-            """
-            )
+            """)
             result = await session.execute(stmt, {"user_id": USER_ID})
             cases = result.fetchall()
 
@@ -73,14 +72,12 @@ async def main():
     print_subheader("2. INTAKE PROGRESS")
     try:
         async with db.session() as session:
-            stmt = text(
-                """
+            stmt = text("""
                 SELECT case_id, current_block, current_step, completed_blocks, updated_at
                 FROM mega_agent.case_intake_progress
                 WHERE user_id = :user_id
                 ORDER BY updated_at DESC
-            """
-            )
+            """)
             result = await session.execute(stmt, {"user_id": USER_ID})
             progress_records = result.fetchall()
 
@@ -103,16 +100,14 @@ async def main():
     print_subheader("3. SEMANTIC MEMORY (Intake Answers)")
     try:
         async with db.session() as session:
-            stmt = text(
-                """
+            stmt = text("""
                 SELECT record_id, text, type, tags, metadata_json, created_at
                 FROM mega_agent.semantic_memory
                 WHERE user_id = :user_id
                   AND tags @> ARRAY['intake']::text[]
                 ORDER BY created_at DESC
                 LIMIT 50
-            """
-            )
+            """)
             result = await session.execute(stmt, {"user_id": USER_ID})
             memory_records = result.fetchall()
 
@@ -152,15 +147,13 @@ async def main():
     print_subheader("4. EPISODIC MEMORY (Recent Events)")
     try:
         async with db.session() as session:
-            stmt = text(
-                """
+            stmt = text("""
                 SELECT event_id, source, action, payload, timestamp
                 FROM mega_agent.episodic_memory
                 WHERE user_id = :user_id
                 ORDER BY timestamp DESC
                 LIMIT 10
-            """
-            )
+            """)
             result = await session.execute(stmt, {"user_id": USER_ID})
             events = result.fetchall()
 
@@ -186,16 +179,14 @@ async def main():
     try:
         async with db.session() as session:
             # Count by table
-            stmt_counts = text(
-                """
+            stmt_counts = text("""
                 SELECT
                     (SELECT COUNT(*) FROM mega_agent.cases WHERE user_id = :user_id) as cases_count,
                     (SELECT COUNT(*) FROM mega_agent.case_intake_progress WHERE user_id = :user_id) as progress_count,
                     (SELECT COUNT(*) FROM mega_agent.semantic_memory WHERE user_id = :user_id) as semantic_count,
                     (SELECT COUNT(*) FROM mega_agent.semantic_memory WHERE user_id = :user_id AND tags @> ARRAY['intake']::text[]) as intake_answers_count,
                     (SELECT COUNT(*) FROM mega_agent.episodic_memory WHERE user_id = :user_id) as episodic_count
-            """
-            )
+            """)
             result = await session.execute(stmt_counts, {"user_id": USER_ID})
             counts = result.fetchone()
 

@@ -61,14 +61,12 @@ try:
     print("   ✅ Defaults updated")
 
     print("4. Creating HNSW index for semantic_memory...")
-    cursor.execute(
-        """
+    cursor.execute("""
         CREATE INDEX idx_semantic_memory_embedding_hnsw
         ON mega_agent.semantic_memory
         USING hnsw (embedding vector_cosine_ops)
         WITH (m = 16, ef_construction = 64)
-    """
-    )
+    """)
     print("   ✅ HNSW index created")
     print()
 
@@ -84,14 +82,12 @@ try:
 
     start = time.time()
 
-    cursor.execute(
-        """
+    cursor.execute("""
         CREATE INDEX IF NOT EXISTS idx_rfe_knowledge_embedding_hnsw
         ON mega_agent.rfe_knowledge
         USING hnsw (embedding vector_cosine_ops)
         WITH (m = 16, ef_construction = 64)
-    """
-    )
+    """)
 
     elapsed = time.time() - start
     print(f"   ✅ HNSW index created in {elapsed:.1f} seconds")
@@ -104,15 +100,13 @@ try:
     print("-" * 80)
 
     # Check columns
-    cursor.execute(
-        """
+    cursor.execute("""
         SELECT column_name, column_default
         FROM information_schema.columns
         WHERE table_schema = 'mega_agent'
         AND table_name = 'semantic_memory'
         AND column_name IN ('embedding_dimension', 'embedding_model')
-    """
-    )
+    """)
     cols = cursor.fetchall()
     print("semantic_memory defaults:")
     for col in cols:
@@ -120,16 +114,14 @@ try:
     print()
 
     # Check indexes
-    cursor.execute(
-        """
+    cursor.execute("""
         SELECT tablename, indexname
         FROM pg_indexes
         WHERE schemaname = 'mega_agent'
         AND tablename IN ('semantic_memory', 'rfe_knowledge')
         AND indexdef ILIKE '%hnsw%'
         ORDER BY tablename
-    """
-    )
+    """)
     indexes = cursor.fetchall()
     print("HNSW indexes:")
     for idx in indexes:
