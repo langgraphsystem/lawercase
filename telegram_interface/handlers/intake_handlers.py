@@ -1128,6 +1128,17 @@ async def handle_document_upload(update: Update, context: ContextTypes.DEFAULT_T
         return False
 
     user_id = str(update.effective_user.id)
+
+    # Check if smart upload mode is active - if so, let smart_upload handler process
+    from .smart_upload_handlers import UPLOAD_MODE_KEY
+
+    if context.user_data.get(UPLOAD_MODE_KEY, False):
+        logger.debug(
+            "intake.document_upload_skipped_upload_mode",
+            user_id=user_id,
+        )
+        return False
+
     active_case_id = await bot_context.get_active_case(update)
 
     if not active_case_id:
