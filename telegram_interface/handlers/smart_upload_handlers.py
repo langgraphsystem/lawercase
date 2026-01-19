@@ -78,7 +78,7 @@ async def upload_command(
         "AI автоматически определит тип документа и привяжет его к соответствующему разделу.\n\n"
         "📎 Поддерживаемые форматы: фото, изображения, PDF, документы\n\n"
         "Для отмены: /cancel\\_upload",
-        parse_mode=ParseMode.MARKDOWN,
+        parse_mode=None,
     )
 
     logger.info(
@@ -306,11 +306,15 @@ async def handle_smart_upload(
         await processing_msg.edit_text(
             confirmation_text,
             reply_markup=reply_markup,
+            parse_mode=None,
         )
 
     except Exception as e:
         logger.exception("smart_upload.processing_failed", error=str(e))
-        await processing_msg.edit_text(f"❌ Ошибка при обработке документа:\n{str(e)[:200]}")
+        await processing_msg.edit_text(
+            f"❌ Ошибка при обработке документа:\n{str(e)[:200]}",
+            parse_mode=None,
+        )
 
 
 async def handle_upload_callback(
@@ -399,7 +403,7 @@ async def _show_category_selection(query, context: ContextTypes.DEFAULT_TYPE) ->
 
     await query.edit_message_text(
         "📂 *Выберите категорию документа:*",
-        parse_mode=ParseMode.MARKDOWN,
+        parse_mode=None,
         reply_markup=InlineKeyboardMarkup(keyboard),
     )
 
@@ -440,7 +444,7 @@ async def handle_category_callback(
 
     await query.edit_message_text(
         "📄 *Выберите тип документа:*",
-        parse_mode=ParseMode.MARKDOWN,
+        parse_mode=None,
         reply_markup=InlineKeyboardMarkup(keyboard),
     )
 
@@ -582,22 +586,22 @@ async def _save_document_with_type(
 
         # Build success message
         success_lines = [
-            "✅ *Документ сохранён!*",
+            "✅ Документ сохранён!",
             "",
-            f"📄 *Тип:* {doc_type.name_ru}",
+            f"📄 Тип: {doc_type.name_ru}",
         ]
 
         if case_id:
-            success_lines.append(f"📋 *Кейс:* `{case_id[:8]}...`")
+            success_lines.append(f"📋 Кейс: {case_id[:8]}...")
 
         if doc_type.linked_question_id:
-            success_lines.append(f"🔗 *Раздел анкеты:* {doc_type.linked_question_id}")
+            success_lines.append(f"🔗 Раздел анкеты: {doc_type.linked_question_id}")
 
         if doc_type.eb1a_criterion:
-            success_lines.append(f"🎯 *EB-1A критерий:* #{doc_type.eb1a_criterion}")
+            success_lines.append(f"🎯 EB-1A критерий: #{doc_type.eb1a_criterion}")
 
         if storage_path:
-            success_lines.append(f"💾 *Сохранён в:* {storage_path[:50]}...")
+            success_lines.append(f"💾 Сохранён в: {storage_path[:50]}...")
 
         success_lines.extend(
             [
@@ -608,7 +612,7 @@ async def _save_document_with_type(
 
         await query.edit_message_text(
             "\n".join(success_lines),
-            parse_mode=ParseMode.MARKDOWN,
+            parse_mode=None,
         )
 
     except Exception as e:
