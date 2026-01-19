@@ -134,6 +134,13 @@ async def handle_smart_upload(
     4. Show classification result with confirm/change buttons
     5. Save on confirmation
     """
+    logger.info(
+        "smart_upload.handler_called",
+        user_id=str(update.effective_user.id) if update.effective_user else "unknown",
+        has_photo=bool(update.effective_message and update.effective_message.photo),
+        has_document=bool(update.effective_message and update.effective_message.document),
+    )
+
     bot_ctx = _bot_context(context)
 
     if not await _is_authorized(bot_ctx, update):
