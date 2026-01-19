@@ -16,6 +16,17 @@ class AppSettings(BaseSettings):
     postgres_dsn: str | None = Field(default=None, alias="POSTGRES_DSN")
     redis_url: str = Field(default="redis://localhost:6379/0")
 
+    # Supabase Configuration
+    supabase_url: str = Field(default="", alias="SUPABASE_URL")
+    supabase_anon_key: str = Field(default="", alias="SUPABASE_ANON_KEY")
+    supabase_service_key: str = Field(default="", alias="SUPABASE_SERVICE_ROLE_KEY")
+
+    # Document Storage
+    document_storage_backend: str = Field(default="supabase", alias="DOCUMENT_STORAGE_BACKEND")
+    document_storage_bucket: str = Field(
+        default="intake-documents", alias="DOCUMENT_STORAGE_BUCKET"
+    )
+
     doc_raptor_api_key: str = Field(default="", alias="DOC_RAPTOR_API_KEY")
     adobe_ocr_api_key: str = Field(default="", alias="ADOBE_OCR_API_KEY")
     gemini_api_key: str = Field(default="", alias="GEMINI_API_KEY")
