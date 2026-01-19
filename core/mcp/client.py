@@ -12,7 +12,6 @@ from contextlib import asynccontextmanager
 from typing import TYPE_CHECKING, Any
 
 import structlog
-from langchain_mcp_adapters.client import MultiServerMCPClient
 
 from core.mcp.config import MCPConfig, MCPServerConfig
 
@@ -20,6 +19,20 @@ if TYPE_CHECKING:
     from langchain_core.tools import BaseTool
 
 logger = structlog.get_logger(__name__)
+
+# Try to import langchain_mcp_adapters (may fail due to version incompatibility)
+try:
+    from langchain_mcp_adapters.client import MultiServerMCPClient
+
+    MCP_ADAPTERS_AVAILABLE = True
+except ImportError as e:
+    logger.warning(
+        "mcp.langchain_adapters_unavailable",
+        error=str(e),
+        hint="langchain-mcp-adapters may have version incompatibility with langchain-core",
+    )
+    MultiServerMCPClient = None  # type: ignore
+    MCP_ADAPTERS_AVAILABLE = False
 
 
 class MCPClientManager:
@@ -54,6 +67,13 @@ class MCPClientManager:
         Returns:
             List of LangChain tools from all connected servers.
         """
+        if not MCP_ADAPTERS_AVAILABLE:
+            logger.warning(
+                "mcp.client.adapters_unavailable",
+                hint="MCP tools disabled due to langchain-mcp-adapters import error",
+            )
+            return []
+
         if self._connected:
             return self._tools
 
