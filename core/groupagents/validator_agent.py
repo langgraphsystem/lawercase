@@ -12,17 +12,113 @@ ValidatorAgent - Валидация и проверка качества док�
 
 from __future__ import annotations
 
-import uuid
 from datetime import datetime
 from enum import Enum
 from typing import Any
+import uuid
 
 from pydantic import BaseModel, Field
 
 from ..llm_interface.intelligent_router import IntelligentRouter, LLMRequest
 from ..memory.memory_manager import MemoryManager
 from ..memory.models import AuditEvent
+from ..skills.eb1a_criteria.criteria import CRITERION_CLASSES
 from .models import ValidationResult
+
+# =============================================================================
+# EB-1A Criterion Validation Support
+# =============================================================================
+
+
+def get_eb1a_validation_rules() -> list[dict]:
+    """
+    Generate EB-1A criterion-specific validation rules from CRITERION_CLASSES.
+
+    Returns:
+        List of validation rule dictionaries for EB-1A criteria
+    """
+    eb1a_rules = []
+
+    for criterion_key, criterion_class in CRITERION_CLASSES.items():
+        cfr = getattr(criterion_class, "CFR_REFERENCE", "")
+        title_en = getattr(criterion_class, "TITLE_EN", criterion_key)
+
+        # Rule: Check that criterion evidence is properly documented
+        eb1a_rules.append(
+            {
+                "name": f"EB1A {title_en} - Evidence Documentation",
+                "category": "legal",
+                "rule_type": "semantic",
+                "severity": "error",
+                "message": f"For {cfr} ({title_en}): Ensure evidence clearly demonstrates "
+                f"both receipt of the claimed achievement AND its national/international recognition.",
+                "criterion_key": criterion_key,
+            }
+        )
+
+        # Rule: Check that criterion uses proper legal citations
+        eb1a_rules.append(
+            {
+                "name": f"EB1A {title_en} - Legal Citation",
+                "category": "legal",
+                "rule_type": "pattern",
+                "pattern": (
+                    cfr.replace(".", r"\.").replace("(", r"\(").replace(")", r"\)") if cfr else None
+                ),
+                "severity": "warning",
+                "message": f"Section should cite {cfr} for {title_en} criterion.",
+                "criterion_key": criterion_key,
+            }
+        )
+
+    return eb1a_rules
+
+
+def get_criterion_validation_prompt(criterion_key: str) -> str:
+    """
+    Get validation prompt for a specific EB-1A criterion.
+
+    Args:
+        criterion_key: Key from CRITERION_CLASSES (e.g., 'awards', 'membership')
+
+    Returns:
+        Validation prompt text
+    """
+    criterion_class = CRITERION_CLASSES.get(criterion_key)
+    if not criterion_class:
+        return ""
+
+    cfr = getattr(criterion_class, "CFR_REFERENCE", "")
+    title_en = getattr(criterion_class, "TITLE_EN", "")
+    prompt = getattr(criterion_class, "PROMPT", "")
+
+    # Extract key validation points from PROMPT
+    validation_points = []
+    if "Required Documentation" in prompt:
+        # Extract required documentation section
+        start = prompt.find("Required Documentation")
+        end = prompt.find("---", start)
+        if end == -1:
+            end = prompt.find("##", start + 20)
+        if end != -1:
+            doc_section = prompt[start:end]
+            validation_points.append(doc_section[:500])
+
+    return f"""
+Validate this EB-1A evidence section for {cfr}: {title_en}
+
+Key validation criteria:
+1. PART 1: Does evidence prove the petitioner received/achieved this criterion?
+2. PART 2: Does evidence prove national/international recognition level?
+
+{chr(10).join(validation_points)}
+
+Check for:
+- Specific documentation (certificates, letters, publications)
+- Third-party verification sources
+- Quantifiable metrics where applicable
+- Proper legal citations ({cfr})
+"""
 
 
 class _ValidatorBaseModel(BaseModel):
@@ -805,6 +901,18 @@ class ValidatorAgent:
             except Exception as e:
                 # Log rule initialization errors but continue
                 print(f"Warning: Failed to initialize validation rule: {e}")
+
+        # Load EB-1A specific validation rules from criteria skills
+        eb1a_rules = get_eb1a_validation_rules()
+        for rule_data in eb1a_rules:
+            try:
+                # Map string category/rule_type to enums
+                rule_data["category"] = ValidationCategory(rule_data["category"])
+                rule_data["rule_type"] = ValidationRuleType(rule_data["rule_type"])
+                rule = ValidationRule(**rule_data)
+                self._validation_rules[rule.rule_id] = rule
+            except Exception as e:
+                print(f"Warning: Failed to initialize EB-1A validation rule: {e}")
 
     def _update_stats(self, level: ValidationLevel, issue_count: int) -> None:
         """Обновление статистики валидации"""

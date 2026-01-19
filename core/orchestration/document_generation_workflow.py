@@ -172,7 +172,7 @@ async def node_generate_section(state: WorkflowState) -> WorkflowState:
 
     try:
         # Initialize WriterAgent
-        writer = WriterAgent(memory=memory_manager)
+        writer = WriterAgent(memory_manager=memory_manager)
 
         # Retrieve relevant context from memory
         context_records = await memory_manager.aretrieve(

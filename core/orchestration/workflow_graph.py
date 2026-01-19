@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 from typing import TYPE_CHECKING, Any
 from uuid import uuid4
 
@@ -526,9 +527,7 @@ def build_eb1a_complete_workflow(memory: MemoryManager):
     _ensure_langgraph()
 
     from ..groupagents.eb1a_evidence_analyzer import EB1AEvidenceAnalyzer
-    from ..groupagents.validator_agent import (ValidationLevel,
-                                               ValidationRequest,
-                                               ValidatorAgent)
+    from ..groupagents.validator_agent import ValidationLevel, ValidationRequest, ValidatorAgent
     from ..workflows.eb1a.eb1a_coordinator import EB1ACriterion
 
     analyzer = EB1AEvidenceAnalyzer(memory_manager=memory)
@@ -605,7 +604,7 @@ def build_eb1a_complete_workflow(memory: MemoryManager):
         state.workflow_step = "evidence_gathered"
         return state
 
-    # === NODE 3: Analyze Evidence ===
+    # === NODE 3: Analyze Evidence (parallel) ===
     async def node_analyze_evidence(state: WorkflowState) -> WorkflowState:
         """Analyze each evidence item using EB1AEvidenceAnalyzer."""
         import structlog
@@ -614,11 +613,21 @@ def build_eb1a_complete_workflow(memory: MemoryManager):
         logger.info("eb1a_analyze_evidence")
 
         evidence_list = state.agent_results.get("evidence_list", [])
-        analyses = []
+        analyses: list[Any] = []
 
-        for evidence in evidence_list:
-            analysis = await analyzer.analyze_evidence(evidence)
-            analyses.append(analysis)
+        async def _analyze(ev):
+            return await analyzer.analyze_evidence(ev)
+
+        tasks = [asyncio.create_task(_analyze(evidence)) for evidence in evidence_list]
+        for idx, task in enumerate(tasks):
+            try:
+                analyses.append(await task)
+            except Exception as exc:  # pragma: no cover - defensive
+                logger.exception(
+                    "eb1a_evidence_analysis_failed",
+                    evidence=str(evidence_list[idx]),
+                    error=str(exc),
+                )
 
         state.agent_results["evidence_analyses"] = analyses
         state.agent_results["avg_evidence_score"] = (
@@ -833,8 +842,8 @@ def build_eb1a_complete_workflow(memory: MemoryManager):
         logger = structlog.get_logger(__name__)
         logger.info("eb1a_human_review")
 
-        # Set interrupt flag
         state.agent_results["awaiting_human_review"] = True
+        state.agent_results["human_review_required"] = True
         state.agent_results["human_decision"] = "pending"  # Will be set by human
 
         state.workflow_step = "human_review"

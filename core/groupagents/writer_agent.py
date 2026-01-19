@@ -14,21 +14,38 @@ WriterAgent - Генерация документов и писем.
 
 from __future__ import annotations
 
-import html
-import json
-import uuid
 from datetime import datetime
 from enum import Enum
+import html
+import json
 from pathlib import Path
 from string import Template
 from typing import Any
+import uuid
 
 from pydantic import BaseModel, Field, ValidationError, field_validator
 
 from ..exceptions import AgentError, DocumentGenerationError
+from ..llm_interface.intelligent_router import IntelligentRouter, LLMRequest
 from ..memory.memory_manager import MemoryManager
 from ..memory.models import AuditEvent
 from ..prompts import enhance_prompt_with_cot
+from ..services.latex_generator import LaTeXGenerator
+from ..skills.eb1a_criteria.criteria import CRITERION_CLASSES
+
+# Mapping from section_type to CRITERION_CLASSES keys
+_SECTION_TO_CRITERION_KEY = {
+    "awards": "awards",
+    "press": "published_material",
+    "judging": "judging",
+    "membership": "membership",
+    "contributions": "original_contributions",
+    "scholarly": "scholarly_articles",
+    "exhibitions": "exhibitions",
+    "leading_role": "leading_role",
+    "high_salary": "high_salary",
+    "commercial": "commercial_success",
+}
 
 
 class _WriterBaseModel(BaseModel):
@@ -650,16 +667,22 @@ class WriterAgent:
     """
 
     def __init__(
-        self, memory_manager: MemoryManager | None = None, *, use_chain_of_thought: bool = True
+        self,
+        memory_manager: MemoryManager | None = None,
+        *,
+        llm_router: IntelligentRouter | None = None,
+        use_chain_of_thought: bool = True,
     ):
         """
         Инициализация WriterAgent.
 
         Args:
             memory_manager: Менеджер памяти для persistence
+            llm_router: LLM router for content generation (optional)
             use_chain_of_thought: Enable Chain-of-Thought prompting for better document generation (default: True)
         """
         self.memory = memory_manager or MemoryManager()
+        self._llm_router = llm_router
         self.use_cot = use_chain_of_thought
 
         # Хранилища
@@ -671,6 +694,9 @@ class WriterAgent:
         self._example_library = ExampleLibrary()
         self._section_patterns = SectionPatternLibrary()
         self._generated_sections: dict[str, GeneratedSection] = {}
+
+        # LaTeX PDF generator
+        self._latex_generator = LaTeXGenerator()
 
         # Инициализация базовых шаблонов
         self._load_default_templates()
@@ -1143,23 +1169,136 @@ Best regards,
         return content
 
     async def _generate_pdf(self, document: GeneratedDocument) -> str:
-        """Генерация PDF файла"""
-        # Заглушка для PDF генерации
-        # В реальности использовать библиотеку типа reportlab или weasyprint
+        """
+        Генерация PDF файла через LaTeX.
 
-        pdf_path = f"documents/{document.document_id}.pdf"
+        Использует LaTeXGenerator для создания высококачественных PDF документов.
+        Поддерживает разные типы документов: petition_letter, cover_page,
+        statement_of_intent, exhibits_list.
 
-        # Имитация создания PDF
-        Path("documents").mkdir(exist_ok=True)
-        with open(pdf_path, "w") as f:
-            f.write(f"PDF content for document {document.document_id}\n")
-            f.write(f"Title: {document.title}\n")
-            f.write(f"Content: {document.content}\n")
+        Args:
+            document: Сгенерированный документ с контентом
 
-        # Обновление размера файла
-        document.file_size = len(document.content.encode("utf-8"))
+        Returns:
+            str: Путь к созданному PDF файлу
+        """
+        import asyncio
 
-        return pdf_path
+        output_dir = Path("output/documents")
+        output_dir.mkdir(parents=True, exist_ok=True)
+        output_path = output_dir / f"{document.document_id}.pdf"
+
+        # Определяем данные для LaTeX шаблона
+        case_id = document.metadata.get("case_id", document.document_id)
+        user_data = {
+            "full_name": document.metadata.get("beneficiary_name", "Beneficiary"),
+            "field": document.metadata.get("field", ""),
+        }
+
+        # Выбираем метод генерации в зависимости от типа документа
+        doc_type = (
+            document.document_type.value
+            if hasattr(document.document_type, "value")
+            else str(document.document_type)
+        )
+
+        loop = asyncio.get_event_loop()
+
+        try:
+            if doc_type == "petition":
+                # Генерация petition letter через LaTeX
+                sections = {"main": document.content}
+                result = await loop.run_in_executor(
+                    None,
+                    lambda: self._latex_generator.generate_petition_letter(
+                        output_path=output_path,
+                        name=user_data["full_name"],
+                        field=user_data.get("field", "their field"),
+                        criteria_sections=sections,
+                    ),
+                )
+            else:
+                # Для других типов документов используем general document generation
+                # Создаём простой LaTeX документ
+                latex_content = self._build_latex_document(document)
+                result = await loop.run_in_executor(
+                    None,
+                    lambda: self._latex_generator._compile_latex(latex_content, output_path),
+                )
+
+            # Обновление размера файла
+            if result.exists():
+                document.file_size = result.stat().st_size
+            else:
+                document.file_size = len(document.content.encode("utf-8"))
+
+            return str(result)
+
+        except Exception as e:
+            # Fallback: создаём текстовый файл если LaTeX недоступен
+            fallback_path = output_dir / f"{document.document_id}.txt"
+            with open(fallback_path, "w", encoding="utf-8") as f:
+                f.write(f"Title: {document.title}\n")
+                f.write("=" * 50 + "\n\n")
+                f.write(document.content)
+            document.file_size = fallback_path.stat().st_size
+            return str(fallback_path)
+
+    def _build_latex_document(self, document: GeneratedDocument) -> str:
+        """
+        Построить LaTeX документ из GeneratedDocument.
+
+        Args:
+            document: Документ для конвертации
+
+        Returns:
+            str: LaTeX исходный код
+        """
+
+        # Экранируем специальные символы LaTeX
+        def escape_latex(text: str) -> str:
+            replacements = {
+                "&": r"\&",
+                "%": r"\%",
+                "$": r"\$",
+                "#": r"\#",
+                "_": r"\_",
+                "{": r"\{",
+                "}": r"\}",
+                "~": r"\textasciitilde{}",
+                "^": r"\textasciicircum{}",
+            }
+            for char, replacement in replacements.items():
+                text = text.replace(char, replacement)
+            return text
+
+        title = escape_latex(document.title)
+        content = escape_latex(document.content)
+
+        return rf"""
+\documentclass[12pt]{{article}}
+\usepackage[utf8]{{inputenc}}
+\usepackage[T1]{{fontenc}}
+\usepackage{{geometry}}
+\geometry{{margin=1in}}
+\usepackage{{fancyhdr}}
+\pagestyle{{fancy}}
+\fancyhf{{}}
+\rhead{{\thepage}}
+\lhead{{{title}}}
+
+\begin{{document}}
+
+\begin{{center}}
+\Large\textbf{{{title}}}
+\end{{center}}
+
+\vspace{{1em}}
+
+{content}
+
+\end{{document}}
+"""
 
     def _generate_title(self, request: DocumentRequest) -> str:
         """Генерация заголовка документа"""
@@ -1607,12 +1746,8 @@ Sincerely,
         Returns:
             GeneratedSection: Сгенерированная секция
         """
-        # Формируем промпт для LLM с few-shot примерами
-        prompt = self._build_generation_prompt(context)
-
-        # ПРИМЕЧАНИЕ: В реальной реализации здесь был бы вызов LLM
-        # Для демонстрации создаём контент на основе паттернов
-        content = await self._simulate_llm_generation(context, client_data)
+        # Генерация контента через LLM (или fallback на паттерны)
+        content = await self._generate_llm_content(context, client_data)
 
         # Извлекаем использованные ресурсы
         examples_used = [str(ex["quality"]) for ex in context["examples"]]
@@ -1699,14 +1834,62 @@ Sincerely,
 
         return prompt
 
-    async def _simulate_llm_generation(
+    async def _generate_llm_content(
         self, context: dict[str, Any], client_data: dict[str, Any]
     ) -> str:
         """
-        Симуляция генерации LLM (заглушка).
+        Генерация контента через LLM с fallback на паттерны.
 
-        В реальной реализации здесь был бы вызов LLM API.
-        Для демонстрации создаём контент на основе паттернов.
+        Использует IntelligentRouter для вызова LLM API.
+        При недоступности LLM возвращается к генерации на основе паттернов.
+
+        Args:
+            context: Контекст генерации с примерами и паттернами
+            client_data: Данные клиента
+
+        Returns:
+            str: Сгенерированный контент
+        """
+        # Если есть LLM router - используем его
+        if self._llm_router:
+            try:
+                # Строим промпт с few-shot примерами
+                prompt = self._build_generation_prompt(context)
+
+                response = await self._llm_router.acomplete(
+                    LLMRequest(
+                        prompt=prompt,
+                        temperature=0.3,  # Низкая температура для консистентности юридического текста
+                        task_complexity="generation",
+                        metadata={
+                            "mode": "legal_section_generation",
+                            "section_type": context.get("section_type"),
+                        },
+                    )
+                )
+
+                content = response.get("response") or response.get("text") or ""
+                if content.strip():
+                    return content
+
+            except Exception as e:
+                # Логируем ошибку и переходим к fallback
+                import logging
+
+                logging.getLogger(__name__).warning(
+                    f"LLM generation failed, falling back to patterns: {e}"
+                )
+
+        # Fallback: генерация на основе паттернов
+        return self._generate_pattern_based_content(context, client_data)
+
+    def _generate_pattern_based_content(
+        self, context: dict[str, Any], client_data: dict[str, Any]
+    ) -> str:
+        """
+        Генерация контента на основе паттернов (fallback).
+
+        Используется когда LLM недоступен.
 
         Args:
             context: Контекст генерации
@@ -1765,9 +1948,47 @@ Sincerely,
 
         return "".join(content_parts)
 
+    # Legacy alias for backward compatibility
+    async def _simulate_llm_generation(
+        self, context: dict[str, Any], client_data: dict[str, Any]
+    ) -> str:
+        """Legacy alias - use _generate_llm_content instead."""
+        return await self._generate_llm_content(context, client_data)
+
     def _get_section_instructions(self, section_type: str) -> str:
-        """Получить инструкции для типа секции."""
-        instructions = {
+        """
+        Получить инструкции для типа секции из EB1A criteria skills.
+
+        Использует полные промпты из criteria/ классов для более детальных инструкций.
+        """
+        # Try to get from CRITERION_CLASSES first
+        criterion_key = _SECTION_TO_CRITERION_KEY.get(section_type)
+        if criterion_key:
+            criterion_class = CRITERION_CLASSES.get(criterion_key)
+            if criterion_class:
+                # Extract key instructions from the criterion PROMPT
+                cfr = getattr(criterion_class, "CFR_REFERENCE", "")
+                prompt = getattr(criterion_class, "PROMPT", "")
+
+                # Extract the "Instructions for Analysis" section if available
+                if "INSTRUCTIONS FOR ANALYSIS" in prompt:
+                    start = prompt.find("INSTRUCTIONS FOR ANALYSIS")
+                    end = prompt.find("##", start + 10)
+                    if end == -1:
+                        end = prompt.find("RESPONSE FORMAT", start)
+                    if end != -1:
+                        instructions_section = prompt[start:end].strip()
+                        # Return first 500 chars of instructions
+                        return f"Cite {cfr}. {instructions_section[:500]}..."
+
+                # Fallback: return first part of PROMPT
+                lines = prompt.strip().split("\n")
+                for line in lines:
+                    if line.startswith("Evidence of") or line.startswith("Documentation of"):
+                        return f"Cite {cfr}. Focus on: {line.strip()}"
+
+        # Fallback to static instructions
+        fallback_instructions = {
             "awards": "Focus on prestige, competitive selection, and national/international recognition. "
             "Cite 8 CFR § 204.5(h)(3)(i) and emphasize excellence over participation.",
             "press": "Emphasize major publication outlets, independent third-party authorship, and focus "
@@ -1779,20 +2000,32 @@ Sincerely,
             "contributions": "Emphasize original contributions, major significance, and impact on the field. "
             "Cite 8 CFR § 204.5(h)(3)(v).",
         }
-        return instructions.get(
+        return fallback_instructions.get(
             section_type, "Generate professional, legally sound content with regulatory citations."
         )
 
     def _get_section_title(self, section_type: str) -> str:
-        """Получить заголовок для типа секции."""
-        titles = {
+        """
+        Получить заголовок для типа секции из EB1A criteria skills.
+        """
+        # Try to get from CRITERION_CLASSES first
+        criterion_key = _SECTION_TO_CRITERION_KEY.get(section_type)
+        if criterion_key:
+            criterion_class = CRITERION_CLASSES.get(criterion_key)
+            if criterion_class:
+                title_en = getattr(criterion_class, "TITLE_EN", None)
+                if title_en:
+                    return title_en
+
+        # Fallback to static titles
+        fallback_titles = {
             "awards": "Awards and Prizes for Excellence",
             "press": "Published Material About Beneficiary",
             "judging": "Participation as Judge of Others' Work",
             "membership": "Membership in Distinguished Organizations",
             "contributions": "Original Contributions of Major Significance",
         }
-        return titles.get(section_type, f"{section_type.title()} Section")
+        return fallback_titles.get(section_type, f"{section_type.title()} Section")
 
     def _calculate_section_confidence(self, content: str, context: dict[str, Any]) -> float:
         """

@@ -66,22 +66,39 @@ class AGUIAdapter:
             AGUIEvent objects for each workflow step
         """
         from ..di import get_container
+        from ..orchestration.workflow_graph import WorkflowState
 
         # Start event
-        yield AGUIEvent.run_started(case_id=case_id, metadata={"operation": operation})
+        checkpoint_id = f"{case_id}_{operation}"
+        yield AGUIEvent.run_started(
+            case_id=case_id, metadata={"operation": operation, "checkpoint_id": checkpoint_id}
+        )
 
         try:
             container = get_container()
-            workflow = container.workflow_graph()
+            workflow = container.workflow_graph(operation=operation)
 
             # Initial state
-            initial_state = {
-                "thread_id": f"{case_id}_{operation}",
-                "case_id": case_id,
-                "case_operation": operation,
-                "case_data": data or {},
-                "user_id": user_id,
+            normalized_operation = (operation or "").strip().lower()
+            # Accept frontend-friendly operation names.
+            case_operation_map = {
+                "create_case": "create",
+                "get_case": "get",
+                "update_case": "update",
+                "delete_case": "delete",
+                "search_cases": "search",
+                "start_case_workflow": "start_workflow",
             }
+            case_operation = case_operation_map.get(normalized_operation, normalized_operation)
+
+            thread_id = f"{case_id}_{normalized_operation or 'run'}"
+            initial_state = WorkflowState(
+                thread_id=thread_id,
+                case_id=case_id,
+                case_operation=case_operation,
+                case_data=data or {},
+                user_id=user_id,
+            )
 
             # Track workflow execution
             current_step = "start"
@@ -90,7 +107,11 @@ class AGUIAdapter:
             yield AGUIEvent.step_started(step_name=current_step)
 
             # Execute workflow with streaming
-            async for state_update in self._execute_with_streaming(workflow, initial_state):
+            last_update: dict[str, Any] = {}
+            async for state_update in self._execute_with_streaming(
+                workflow, initial_state, thread_id=thread_id
+            ):
+                last_update = state_update
                 # Emit state delta
                 yield AGUIEvent.state_delta(state_update)
 
@@ -143,8 +164,10 @@ class AGUIAdapter:
             yield AGUIEvent.step_finished(step_name=current_step)
 
             # Final state snapshot
-            final_output = state_update.get("final_output", {})
-            yield AGUIEvent.state_snapshot(state={"case_id": case_id, "result": final_output})
+            final_output = last_update.get("final_output", {})
+            yield AGUIEvent.state_snapshot(
+                state={"case_id": case_id, "result": final_output, "checkpoint_id": checkpoint_id}
+            )
 
             # Success
             yield AGUIEvent.run_finished(case_id=case_id)
@@ -153,8 +176,29 @@ class AGUIAdapter:
             logger.exception("agui.workflow.error", case_id=case_id, error=str(e))
             yield AGUIEvent.run_error(error=str(e), case_id=case_id)
 
+    @staticmethod
+    def _normalize_state(state: Any) -> dict[str, Any]:
+        if state is None:
+            return {}
+        if isinstance(state, dict):
+            # LangGraph often yields dicts keyed by node name -> WorkflowState
+            if "workflow_step" in state:
+                return state
+            for value in state.values():
+                if hasattr(value, "model_dump"):
+                    return value.model_dump()
+                if isinstance(value, dict) and "workflow_step" in value:
+                    return value
+            return state
+        if hasattr(state, "model_dump"):
+            return state.model_dump()
+        try:
+            return dict(state)
+        except Exception:
+            return {"value": str(state)}
+
     async def _execute_with_streaming(
-        self, workflow: Any, initial_state: dict[str, Any]
+        self, workflow: Any, initial_state: Any, *, thread_id: str | None = None
     ) -> AsyncIterator[dict[str, Any]]:
         """
         Execute workflow and yield state updates.
@@ -162,18 +206,20 @@ class AGUIAdapter:
         This wraps the LangGraph workflow execution to emit incremental updates.
         """
         try:
+            config = {
+                "configurable": {
+                    "thread_id": thread_id or getattr(initial_state, "thread_id", None)
+                }
+            }
+
             # For LangGraph workflows with streaming support
             if hasattr(workflow, "astream"):
-                async for state in workflow.astream(initial_state):
-                    if isinstance(state, dict):
-                        yield state
-                    else:
-                        # Handle LangGraph StateSnapshot
-                        yield state.model_dump() if hasattr(state, "model_dump") else dict(state)
+                async for state in workflow.astream(initial_state, config=config):
+                    yield self._normalize_state(state)
             else:
                 # Fallback: invoke and yield single result
-                result = await workflow.ainvoke(initial_state)
-                yield result if isinstance(result, dict) else result.model_dump()
+                result = await workflow.ainvoke(initial_state, config=config)
+                yield self._normalize_state(result)
 
         except Exception as e:
             logger.exception("agui.workflow.streaming_error", error=str(e))
@@ -215,8 +261,7 @@ class AGUIAdapter:
 
             # Handle MegaAgent specially - it uses handle_command
             if hasattr(agent, "handle_command"):
-                from core.groupagents.mega_agent import (CommandType,
-                                                         MegaAgentCommand)
+                from core.groupagents.mega_agent import CommandType, MegaAgentCommand
 
                 command = MegaAgentCommand(
                     user_id="web_user",

@@ -3,20 +3,124 @@
 from __future__ import annotations
 
 import asyncio
-import json
-import logging
-import uuid
 from collections.abc import Awaitable, Callable, Iterable
 from dataclasses import dataclass, field
+import json
+import logging
 from typing import Any, Literal
+import uuid
 
 from pydantic import BaseModel, Field, validator
 
 from ..llm_interface import IntelligentRouter, LLMRequest
 from ..memory.memory_manager import MemoryManager
 from ..prompts import enhance_prompt_with_cot
+from ..skills.eb1a_criteria.criteria import CRITERION_CLASSES
 
 logger = logging.getLogger(__name__)
+
+
+# =============================================================================
+# EB-1A Task Planning Support
+# =============================================================================
+
+
+def get_eb1a_workflow_template() -> dict[str, list[dict[str, Any]]]:
+    """
+    Get EB-1A workflow template with standard task sequences for each criterion.
+
+    Returns:
+        Dictionary mapping criterion_key to workflow steps
+    """
+    workflow_template = {}
+
+    for criterion_key, criterion_class in CRITERION_CLASSES.items():
+        cfr = getattr(criterion_class, "CFR_REFERENCE", "")
+        title_en = getattr(criterion_class, "TITLE_EN", criterion_key)
+
+        workflow_template[criterion_key] = [
+            {
+                "phase": "evidence_collection",
+                "description": f"Collect evidence for {cfr}: {title_en}",
+                "command_type": "intake",
+                "expected_agent": "intake_agent",
+            },
+            {
+                "phase": "evidence_analysis",
+                "description": f"Analyze evidence strength for {title_en}",
+                "command_type": "analysis",
+                "expected_agent": "evidence_analyzer",
+            },
+            {
+                "phase": "part1_documentation",
+                "description": f"Document Part 1 (receipt) for {title_en}",
+                "command_type": "write",
+                "expected_agent": "writer_agent",
+            },
+            {
+                "phase": "part2_documentation",
+                "description": f"Document Part 2 (recognition) for {title_en}",
+                "command_type": "write",
+                "expected_agent": "writer_agent",
+            },
+            {
+                "phase": "validation",
+                "description": f"Validate {title_en} section against {cfr}",
+                "command_type": "validate",
+                "expected_agent": "validator_agent",
+            },
+            {
+                "phase": "feedback",
+                "description": f"Get feedback on {title_en} documentation",
+                "command_type": "feedback",
+                "expected_agent": "feedback_agent",
+            },
+        ]
+
+    return workflow_template
+
+
+def get_eb1a_planning_context(task_description: str) -> str | None:
+    """
+    Get EB-1A specific planning context if task relates to criteria evaluation.
+
+    Args:
+        task_description: Description of the task to plan
+
+    Returns:
+        Planning context string if EB-1A related, None otherwise
+    """
+    task_lower = task_description.lower()
+
+    if "eb1a" in task_lower or "eb-1a" in task_lower or "extraordinary ability" in task_lower:
+        criteria_list = []
+        for i, (key, cls) in enumerate(CRITERION_CLASSES.items(), 1):
+            cfr = getattr(cls, "CFR_REFERENCE", "")
+            title = getattr(cls, "TITLE_EN", key)
+            criteria_list.append(f"{i}. {cfr}: {title}")
+
+        return f"""
+EB-1A Case Planning Context:
+
+The petitioner must demonstrate extraordinary ability by meeting at least 3 of 10 criteria.
+For each criterion, the two-part Kazarian analysis must be satisfied:
+- Part 1: Prove receipt/achievement of the claimed evidence
+- Part 2: Prove national/international recognition level
+
+Available Criteria:
+{chr(10).join(criteria_list)}
+
+Standard workflow for each criterion:
+1. Evidence collection → 2. Analysis → 3. Part 1 writing → 4. Part 2 writing → 5. Validation → 6. Feedback
+
+Plan tasks to systematically address each claimed criterion.
+"""
+
+    return None
+
+
+# Pre-compute workflow template
+EB1A_WORKFLOW_TEMPLATE = get_eb1a_workflow_template()
 
 PlanExecutor = Callable[["PlannedSubTask"], Awaitable[dict[str, Any]]]
 

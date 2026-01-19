@@ -2,6 +2,14 @@
 
 Этот пакет добавляет минимальный рабочий пайплайн на базе LangGraph, интегрированный с существующим `MemoryManager` (эпизодическая/семантическая память и RMT буфер).
 
+## 🚀 Быстрый старт для пользователей
+
+- **[Quick Start Guide](docs/QUICK_START_GUIDE.md)** - Выберите свой путь (Telegram/Web/API) и начните за 2 минуты
+- **[User Entry Points](docs/USER_ENTRY_POINTS.md)** - Детальная документация всех точек входа в систему
+- **[User Flow Diagrams](docs/USER_FLOW_DIAGRAM.md)** - Визуальные диаграммы пользовательских потоков
+
+**Рекомендуемый путь для новых пользователей:** Telegram Bot → `/intake_start`
+
 ## Что добавлено
 - `core/orchestration/` — LangGraph workflow graph + enhanced pipeline manager.
 - `core/rag/` — ingestion, гибридный поиск, rerенк и контекст для RagPipelineAgent.

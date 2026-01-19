@@ -14,16 +14,75 @@ from uuid import UUID
 
 from sqlalchemy import select
 
-from ..exceptions import AgentError, NotFoundError
-from ..exceptions import ValidationError as MegaValidationError
+from ..exceptions import AgentError, NotFoundError, ValidationError as MegaValidationError
 from ..logging_config import StructuredLogger
 from ..memory.memory_manager import MemoryManager
 from ..memory.models import AuditEvent, MemoryRecord
+from ..skills.eb1a_criteria.criteria import CRITERION_CLASSES
 from ..storage.connection import DatabaseManager
 from ..storage.models import CaseDB
-from .models import (CaseExhibit, CaseOperationResult, CaseQuery, CaseRecord,
-                     CaseStatus, CaseVersion, CaseWorkflowState,
-                     ValidationResult)
+from .models import (
+    CaseExhibit,
+    CaseOperationResult,
+    CaseQuery,
+    CaseRecord,
+    CaseStatus,
+    CaseVersion,
+    CaseWorkflowState,
+    ValidationResult,
+)
+
+# =============================================================================
+# EB-1A Case Support
+# =============================================================================
+
+
+def get_eb1a_case_structure() -> dict[str, Any]:
+    """
+    Get the standard structure for an EB-1A case with all criteria fields.
+
+    Returns:
+        Dictionary with EB-1A case structure template
+    """
+    criteria_status = {}
+    for criterion_key, criterion_class in CRITERION_CLASSES.items():
+        cfr = getattr(criterion_class, "CFR_REFERENCE", "")
+        title_en = getattr(criterion_class, "TITLE_EN", criterion_key)
+        criteria_status[criterion_key] = {
+            "cfr_reference": cfr,
+            "title": title_en,
+            "status": "not_started",  # not_started, in_progress, documented, needs_review, approved
+            "evidence_count": 0,
+            "strength_score": None,  # 0-100 when evaluated
+            "notes": "",
+        }
+
+    return {
+        "visa_category": "EB1A",
+        "criteria_required": 3,  # Must satisfy at least 3 criteria
+        "criteria_status": criteria_status,
+        "overall_strength": None,
+        "approval_probability": None,
+        "two_part_analysis": {
+            "part1_status": {},  # Receipt documentation
+            "part2_status": {},  # Recognition level
+        },
+    }
+
+
+def get_eb1a_criteria_summary() -> str:
+    """
+    Get a summary of all EB-1A criteria for case initialization.
+
+    Returns:
+        Formatted string with all criteria descriptions
+    """
+    lines = ["EB-1A Extraordinary Ability Criteria (must meet 3 of 10):"]
+    for i, (criterion_key, criterion_class) in enumerate(CRITERION_CLASSES.items(), 1):
+        cfr = getattr(criterion_class, "CFR_REFERENCE", "")
+        title_en = getattr(criterion_class, "TITLE_EN", criterion_key)
+        lines.append(f"{i}. {cfr}: {title_en}")
+    return "\n".join(lines)
 
 
 class CaseNotFoundError(NotFoundError):
@@ -771,8 +830,29 @@ class CaseAgent:
         if case_record.case_type == "immigration":
             category = case_record.metadata.get("category", "general_immigration")
             goal_text = f"Immigration case goal: {category} petition preparation and filing"
+            case_metadata = {
+                "case_type": case_record.case_type,
+                "category": category,
+                "visa_type": category,
+            }
+
             if category == "EB1A":
                 goal_text += " - Focusing on demonstrating extraordinary ability in the field"
+                # Add EB-1A criteria structure to case metadata
+                eb1a_structure = get_eb1a_case_structure()
+                case_metadata["eb1a_criteria"] = eb1a_structure
+                # Add criteria summary to memory
+                criteria_summary = get_eb1a_criteria_summary()
+                memory_records.append(
+                    MemoryRecord(
+                        text=criteria_summary,
+                        user_id=user_id,
+                        type="semantic",
+                        case_id=case_record.case_id,
+                        tags=["eb1a_criteria", "criteria_list"],
+                        metadata={"category": "EB1A", "criteria_count": len(CRITERION_CLASSES)},
+                    )
+                )
             elif category == "O1":
                 goal_text += " - Focusing on demonstrating extraordinary achievement in arts, sciences, or business"
             elif category == "NIW":
@@ -785,11 +865,7 @@ class CaseAgent:
                     type="semantic",
                     case_id=case_record.case_id,
                     tags=["immigration_goal", category.lower()],
-                    metadata={
-                        "case_type": case_record.case_type,
-                        "category": category,
-                        "visa_type": category,
-                    },
+                    metadata=case_metadata,
                 )
             )
 

@@ -3,8 +3,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Any
 
 from .eb1a_nodes import build_eb1a_workflow
-from .enhanced_workflows import (EnhancedWorkflowState,
-                                 create_enhanced_orchestration)
+from .enhanced_workflows import EnhancedWorkflowState, create_enhanced_orchestration
 from .workflow_graph import WorkflowState, build_memory_workflow
 
 if TYPE_CHECKING:
@@ -19,7 +18,7 @@ def setup_checkpointer(url: str | None = None):
     """
     try:
         if url:
-            # Note: LangGraph currently ships a SQLite checkpointer; Postgres via community
+            # Use SQLite saver (works with file:// or bare path); postgres via community add-ons
             from langgraph.checkpoint.sqlite import SqliteSaver  # type: ignore
 
             return SqliteSaver(url)

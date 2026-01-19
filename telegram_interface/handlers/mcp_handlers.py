@@ -10,10 +10,10 @@ from __future__ import annotations
 
 import os
 
-import structlog
 from dotenv import load_dotenv
 from langchain_core.messages import HumanMessage, SystemMessage
 from langchain_openai import ChatOpenAI
+import structlog
 from telegram import Update
 from telegram.ext import CommandHandler, ContextTypes
 
@@ -222,7 +222,7 @@ async def mcp_query(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
             from langgraph.prebuilt import create_react_agent
 
             model = ChatOpenAI(
-                model=os.getenv("OPENAI_DEFAULT_MODEL", "gpt-4o-mini"),
+                model=os.getenv("OPENAI_DEFAULT_MODEL", "gpt-5.2"),
                 api_key=os.getenv("OPENAI_API_KEY"),
             )
 

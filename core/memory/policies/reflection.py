@@ -10,11 +10,11 @@ This module provides:
 from __future__ import annotations
 
 import asyncio
+from dataclasses import dataclass
 import hashlib
 import json
 import os
 import re
-from dataclasses import dataclass
 from typing import Any
 
 from ..models import AuditEvent, MemoryRecord
@@ -226,7 +226,7 @@ async def aselect_salient_facts_llm(
             from core.llm_interface.openai_client import OpenAIClient
 
             llm_client = OpenAIClient(
-                model=os.getenv("OPENAI_DEFAULT_MODEL", "gpt-5.1"),
+                model=os.getenv("OPENAI_DEFAULT_MODEL", "gpt-5.2"),
                 temperature=0.1,  # Low temp for factual extraction
                 max_tokens=500,
             )
@@ -294,7 +294,7 @@ async def aselect_salient_facts_llm(
                     "entities": entities,
                     "event_id": event.event_id,
                     "extraction": "llm",
-                    "model": "gpt-5.1",
+                    "model": "gpt-5.2",
                 },
             )
             records.append(rec)

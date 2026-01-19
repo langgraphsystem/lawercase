@@ -20,15 +20,37 @@ class _NoOpEmbedder:
 
 
 def _create_default_stores() -> tuple:
-    """Create default Supabase stores for production."""
-    from .stores import (SupabaseEpisodicStore, SupabaseSemanticStore,
-                         SupabaseWorkingMemory)
+    """Create default stores.
 
-    return (
-        SupabaseSemanticStore(),
-        SupabaseEpisodicStore(),
-        SupabaseWorkingMemory(),
-    )
+    Production prefers Supabase/PostgreSQL. For local development/test runs
+    without database configuration, fall back to in-memory stores.
+    """
+    try:
+        from .stores import (
+            SupabaseEpisodicStore,
+            SupabaseSemanticStore,
+            SupabaseWorkingMemory,
+        )
+
+        return (
+            SupabaseSemanticStore(),
+            SupabaseEpisodicStore(),
+            SupabaseWorkingMemory(),
+        )
+    except Exception as exc:  # pragma: no cover - env-dependent
+        import structlog
+
+        from .stores import EpisodicStore, SemanticStore, WorkingMemory
+
+        structlog.get_logger(__name__).warning(
+            "memory_manager.default_stores.fallback_in_memory",
+            error=str(exc),
+        )
+        return (
+            SemanticStore(),
+            EpisodicStore(),
+            WorkingMemory(),
+        )
 
 
 class MemoryManager:

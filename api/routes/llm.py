@@ -13,8 +13,7 @@ from fastapi import APIRouter, HTTPException, status
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
 
-from core.llm import (LLMProvider, Message, ResponseGenerator,
-                      create_response_generator)
+from core.llm import LLMProvider, Message, ResponseGenerator, create_response_generator
 from core.logging_utils import get_logger
 
 logger = get_logger(__name__)
@@ -38,7 +37,7 @@ class GenerateRequest(BaseModel):
     """Request for LLM generation."""
 
     messages: list[MessageRequest] = Field(..., description="Chat messages")
-    model: str = Field(default="gpt-5.1", description="Model identifier")
+    model: str = Field(default="gpt-5.2", description="Model identifier")
     provider: str = Field(default="openai", description="LLM provider")
     temperature: float = Field(default=0.7, ge=0.0, le=2.0)
     max_tokens: int = Field(default=4096, ge=1, le=128000)
@@ -112,7 +111,7 @@ async def generate(request: GenerateRequest) -> GenerateResponse:
             "messages": [
                 {"role": "user", "content": "What is EB-1A visa?"}
             ],
-            "model": "gpt-5.1",
+            "model": "gpt-5.2",
             "temperature": 0.7
         }
     """
@@ -169,7 +168,7 @@ async def generate_stream(request: GenerateRequest) -> StreamingResponse:
             "messages": [
                 {"role": "user", "content": "Explain EB-1A requirements"}
             ],
-            "model": "gpt-5.1",
+            "model": "gpt-5.2",
             "stream": true
         }
 
@@ -232,31 +231,32 @@ async def list_models() -> dict[str, Any]:
         "providers": {
             "openai": {
                 "models": [
-                    "gpt-5.1",
-                    "gpt-5.1",
-                    "gpt-5.1-codex",
-                    "gpt-5.1-codex-mini",
+                    "gpt-5.2",
+                    "gpt-5.2",
+                    "gpt-5.2-codex",
+                    "gpt-5.2-codex-mini",
                     "gpt-5-mini",
                     "gpt-5-nano",
                 ],
-                "default": "gpt-5.1",
+                "default": "gpt-5.2",
             },
             "anthropic": {
                 "models": [
-                    "claude-3-5-sonnet-20241022",
-                    "claude-3-opus-20240229",
-                    "claude-3-sonnet-20240229",
-                    "claude-3-haiku-20240307",
+                    "claude-opus-4-5-20251124",
+                    "claude-sonnet-4-5-20250929",
+                    "claude-haiku-4-5-20251215",
+                    "claude-opus-4-1-20250805",
                 ],
-                "default": "claude-3-5-sonnet-20241022",
+                "default": "claude-opus-4-5-20251124",
             },
             "google": {
                 "models": [
-                    "gemini-1.5-pro",
-                    "gemini-1.5-flash",
-                    "gemini-pro",
+                    "gemini-3-pro-preview",
+                    "gemini-3-flash",
+                    "gemini-2.5-pro",
+                    "gemini-2.5-flash",
                 ],
-                "default": "gemini-1.5-flash",
+                "default": "gemini-3-pro-preview",
             },
         }
     }

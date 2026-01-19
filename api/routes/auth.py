@@ -2,13 +2,14 @@
 
 from __future__ import annotations
 
-import os
 from datetime import datetime, timedelta
+import os
 
-from fastapi import APIRouter, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status
 from jose import jwt
 from pydantic import BaseModel, EmailStr
 
+from api.deps import get_current_user
 from core.security.config import SecurityConfig
 
 router = APIRouter()
@@ -90,11 +91,12 @@ async def login(request: LoginRequest) -> TokenResponse:
 
 
 @router.get("/me")
-async def get_current_user_info(
-    # Will be protected by dependency in main.py
-):
-    """Get current user info from token.
-
-    This endpoint is a placeholder - actual implementation
-    uses get_current_user dependency from api/deps.py.
-    """
+async def get_current_user_info(claims: dict = Depends(get_current_user)) -> dict:
+    """Get current user info from JWT token."""
+    return {
+        "user_id": claims.get("user_id") or claims.get("sub"),
+        "email": claims.get("email"),
+        "roles": claims.get("roles") or [],
+        "issued_at": claims.get("iat"),
+        "expires_at": claims.get("exp"),
+    }

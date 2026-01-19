@@ -22,11 +22,17 @@ from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
 from telegram.constants import ParseMode
 from telegram.ext import ContextTypes
 
-from core.intake.career_intake import (FOLLOWUP_QUESTION_PROMPT,
-                                       AchievementEntry, CareerEntry,
-                                       CareerIntakeState, CompanyType,
-                                       PositionEntry, get_next_phase,
-                                       get_phase_questions, map_company_type)
+from core.intake.career_intake import (
+    FOLLOWUP_QUESTION_PROMPT,
+    AchievementEntry,
+    CareerEntry,
+    CareerIntakeState,
+    CompanyType,
+    PositionEntry,
+    get_next_phase,
+    get_phase_questions,
+    map_company_type,
+)
 from core.memory.models import MemoryRecord
 
 from .context import BotContext
@@ -749,7 +755,7 @@ async def _generate_followup_questions(
         # Call LLM
         response = await bot_context.mega_agent.router.acomplete(
             messages=[{"role": "user", "content": prompt}],
-            model="claude-3-5-haiku-latest",
+            model="claude-haiku-4-5-20251215",
             max_tokens=500,
             temperature=0.7,
         )

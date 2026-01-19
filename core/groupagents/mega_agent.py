@@ -11,41 +11,57 @@ MegaAgent - Центральный оркестратор системы mega_ag
 
 from __future__ import annotations
 
-import time
-import uuid
 from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
+import time
 from typing import Any
+import uuid
 
-import structlog
 from pydantic import BaseModel, Field, ValidationError
+import structlog
 
 from ..agents import ComplexityAnalyzer, ComplexityResult, TaskTier
 from ..exceptions import AgentError, MegaAgentError
-from ..execution.secure_sandbox import (SandboxPolicy, SandboxRunner,
-                                        SandboxViolation, ensure_tool_allowed)
+from ..execution.secure_sandbox import (
+    SandboxPolicy,
+    SandboxRunner,
+    SandboxViolation,
+    ensure_tool_allowed,
+)
 from ..llm_interface.intelligent_router import IntelligentRouter
 from ..memory.memory_manager import MemoryManager
 from ..memory.models import AuditEvent
 from ..orchestration.enhanced_workflows import EnhancedWorkflowState
-from ..orchestration.pipeline_manager import build_enhanced_pipeline
-from ..orchestration.pipeline_manager import run as run_pipeline
+from ..orchestration.pipeline_manager import build_enhanced_pipeline, run as run_pipeline
 from ..orchestration.workflow_graph import WorkflowState, build_case_workflow
 from ..prompts import CoTTemplate, enhance_prompt_with_cot, select_cot_template
 from ..retry import with_retry
-from ..security import (PromptInjectionResult, get_audit_trail,
-                        get_prompt_detector, get_rbac_manager, security_config)
+from ..security import (
+    PromptInjectionResult,
+    get_audit_trail,
+    get_prompt_detector,
+    get_rbac_manager,
+    security_config,
+)
 from ..storage.connection import get_db_manager
 from ..tools.tool_registry import get_tool_registry
 from .case_agent import CaseAgent
 from .eb1_agent import EB1Agent
-from .models import (AskPayload, BatchTrainPayload, FeedbackPayload,
-                     ImprovePayload, LegalPayload, MemoryLookupPayload,
-                     OptimizePayload, RecommendPayload, SearchPayload,
-                     ToolCommandPayload, TrainPayload)
-from .supervisor_agent import (PlannedSubTask, SupervisorAgent,
-                               SupervisorTaskRequest)
+from .models import (
+    AskPayload,
+    BatchTrainPayload,
+    FeedbackPayload,
+    ImprovePayload,
+    LegalPayload,
+    MemoryLookupPayload,
+    OptimizePayload,
+    RecommendPayload,
+    SearchPayload,
+    ToolCommandPayload,
+    TrainPayload,
+)
+from .supervisor_agent import PlannedSubTask, SupervisorAgent, SupervisorTaskRequest
 from .validator_agent import ValidationRequest, ValidatorAgent
 from .writer_agent import DocumentRequest, DocumentType, WriterAgent
 
@@ -293,7 +309,7 @@ class MegaAgent:
 
         # Инициализация агентов
         self.case_agent = CaseAgent(memory_manager=self.memory, db_manager=self.db_manager)
-        self.writer_agent = WriterAgent(memory_manager=self.memory)
+        self.writer_agent = WriterAgent(memory_manager=self.memory, llm_router=self.llm_router)
         self.eb1_agent = EB1Agent(memory_manager=self.memory)
         self.validator_agent = ValidatorAgent(
             memory_manager=self.memory, llm_router=self.llm_router
@@ -897,12 +913,24 @@ class MegaAgent:
 
     async def _handle_recommend_command(self, command: MegaAgentCommand) -> dict[str, Any]:
         payload = RecommendPayload.model_validate(command.payload)
-        # simple stub: return topk placeholders
-        recs = [
-            {"id": f"rec_{i + 1}", "text": payload.context[:80], "score": 1 - i * 0.1}
-            for i in range(payload.topk or 5)
-        ]
-        return {"operation": "recommend", "items": recs}
+        topk = int(payload.topk or 5)
+        retrieved = await self.memory.aretrieve(
+            query=payload.context,
+            user_id=command.user_id,
+            topk=topk,
+        )
+        items = []
+        for i, record in enumerate(retrieved):
+            items.append(
+                {
+                    "id": record.id or f"rec_{i + 1}",
+                    "text": (record.text or "")[:500],
+                    "score": float(record.confidence or max(0.0, 1.0 - (i * 0.05))),
+                    "metadata": record.metadata or {},
+                    "tags": record.tags or [],
+                }
+            )
+        return {"operation": "recommend", "items": items, "count": len(items)}
 
     async def _handle_feedback_command(self, command: MegaAgentCommand) -> dict[str, Any]:
         payload = FeedbackPayload.model_validate(command.payload)
@@ -1019,6 +1047,14 @@ class MegaAgent:
         )
 
         ensure_tool_allowed(policy, tool_id)
+        if "network" in metadata.tags and not policy.network_access:
+            raise SandboxViolation(
+                f"Tool '{tool_id}' requires network_access=true under policy '{policy.name}'"
+            )
+        if "filesystem" in metadata.tags and not policy.filesystem_access:
+            raise SandboxViolation(
+                f"Tool '{tool_id}' requires filesystem_access=true under policy '{policy.name}'"
+            )
         runner = SandboxRunner(policy)
 
         async def _invoke():
@@ -1142,7 +1178,8 @@ class MegaAgent:
                         top_facts.append(
                             getattr(rec, "text", "") or rec.model_dump().get("text", "")
                         )
-                    except Exception:  # nosec B112 - continue is safe for parsing optional fields
+                    except Exception:
+                        logger.debug("mega.ask.context_build_failed", exc_info=True)
                         continue
                 context_blob = "\n".join(f"- {t}" for t in top_facts if t)
             else:
@@ -1242,8 +1279,7 @@ class MegaAgent:
             elif anthropic_key:
                 # Anthropic
                 try:
-                    from core.llm_interface.anthropic_client import \
-                        AnthropicClient
+                    from core.llm_interface.anthropic_client import AnthropicClient
 
                     client = AnthropicClient(
                         model=AnthropicClient.CLAUDE_HAIKU_3_5,
@@ -1488,8 +1524,17 @@ class MegaAgent:
         # Use connection pooling for compiled graph (cache by operation type)
         cache_key = f"case_{operation}"
         if cache_key not in self._compiled_graph_pool:
+            try:
+                from langgraph.checkpoint.memory import MemorySaver
+
+                checkpointer = MemorySaver()
+            except Exception:
+                checkpointer = None
+
             graph = build_case_workflow(self.memory, case_agent=self.case_agent)
-            self._compiled_graph_pool[cache_key] = graph.compile()
+            self._compiled_graph_pool[cache_key] = (
+                graph.compile(checkpointer=checkpointer) if checkpointer else graph.compile()
+            )
 
         compiled = self._compiled_graph_pool[cache_key]
 

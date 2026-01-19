@@ -37,10 +37,10 @@ async def demo_anthropic_claude():
         print("❌ ANTHROPIC_API_KEY not set. Skipping Anthropic demo.")
         return
 
-    print("\n--- Model 1: Claude Sonnet 4.5 (Highest Intelligence) ---")
+    print("\n--- Model 1: Claude Opus 4.5 (Industry Leader) ---")
     try:
-        client_sonnet = AnthropicClient(
-            model=AnthropicClient.CLAUDE_SONNET_4_5,
+        client_opus = AnthropicClient(
+            model=AnthropicClient.CLAUDE_OPUS_4_5,
             temperature=0.7,
             max_tokens=2048,
         )
@@ -48,7 +48,7 @@ async def demo_anthropic_claude():
         prompt = """Write a professional 200-word summary explaining what EB-1A visa is
         and why it's important for extraordinary ability individuals."""
 
-        result = await client_sonnet.acomplete(prompt)
+        result = await client_opus.acomplete(prompt)
 
         print(f"✓ Model: {result['model']}")
         print(f"✓ Provider: {result['provider']}")
@@ -59,7 +59,7 @@ async def demo_anthropic_claude():
         print(f"\n📄 Generated Text:\n{result['output'][:500]}...")
 
     except Exception as e:
-        print(f"❌ Error with Sonnet 4.5: {e}")
+        print(f"❌ Error with Opus 4.5: {e}")
 
     print("\n--- Model 2: Claude Opus 4.1 (Complex Specialized Tasks) ---")
     try:
@@ -193,10 +193,10 @@ async def demo_google_gemini():
         print("❌ GEMINI_API_KEY or GOOGLE_API_KEY not set. Skipping Gemini demo.")
         return
 
-    print("\n--- Model 1: Gemini 2.5 Pro (Most Powerful, 1M context) ---")
+    print("\n--- Model 1: Gemini 3 Pro Preview (Latest Flagship) ---")
     try:
         client_pro = GeminiClient(
-            model=GeminiClient.GEMINI_2_5_PRO,
+            model=GeminiClient.GEMINI_3_PRO_PREVIEW,
             temperature=0.8,
             max_output_tokens=2048,
             top_p=0.95,
@@ -216,7 +216,7 @@ async def demo_google_gemini():
         print(f"\n📄 Generated Text:\n{result['output'][:500]}...")
 
     except Exception as e:
-        print(f"❌ Error with Gemini 2.5 Pro: {e}")
+        print(f"❌ Error with Gemini 3 Pro: {e}")
 
     print("\n--- Model 2: Gemini 2.5 Flash (Best Price-Performance) ---")
     try:
@@ -265,24 +265,28 @@ async def demo_eb1_document_generation():
 
     from core.groupagents.eb1_document_processor import EB1DocumentProcessor
     from core.groupagents.eb1_documents import RecommendationLetterData
-    from core.groupagents.eb1_models import (EB1Criterion, EB1FieldOfExpertise,
-                                             EB1PersonalInfo, EB1PetitionData,
-                                             EB1PetitionStatus)
+    from core.groupagents.eb1_models import (
+        EB1Criterion,
+        EB1FieldOfExpertise,
+        EB1PersonalInfo,
+        EB1PetitionData,
+        EB1PetitionStatus,
+    )
 
     # Choose provider based on available API keys
     llm_client = None
     if os.getenv("ANTHROPIC_API_KEY"):
-        print("✓ Using Anthropic Claude Sonnet 4.5 for document generation")
+        print("✓ Using Anthropic Claude Opus 4.5 for document generation")
         llm_client = AnthropicClient(
-            model=AnthropicClient.CLAUDE_SONNET_4_5, temperature=0.3, max_tokens=8192
+            model=AnthropicClient.CLAUDE_OPUS_4_5, temperature=0.3, max_tokens=8192
         )
     elif os.getenv("OPENAI_API_KEY"):
-        print("✓ Using OpenAI GPT-5 for document generation")
-        llm_client = OpenAIClient(model=OpenAIClient.GPT_5, temperature=0.3, max_tokens=8192)
+        print("✓ Using OpenAI GPT-5.2 for document generation")
+        llm_client = OpenAIClient(model=OpenAIClient.GPT_5_2, temperature=0.3, max_tokens=8192)
     elif os.getenv("GEMINI_API_KEY") or os.getenv("GOOGLE_API_KEY"):
-        print("✓ Using Google Gemini 2.5 Pro for document generation")
+        print("✓ Using Google Gemini 3 Pro for document generation")
         llm_client = GeminiClient(
-            model=GeminiClient.GEMINI_2_5_PRO, temperature=0.3, max_output_tokens=8192
+            model=GeminiClient.GEMINI_3_PRO_PREVIEW, temperature=0.3, max_output_tokens=8192
         )
     else:
         print("❌ No LLM API keys found. Using template-based generation as fallback.")

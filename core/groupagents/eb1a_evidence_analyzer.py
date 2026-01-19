@@ -15,16 +15,99 @@ from datetime import datetime
 from enum import Enum
 from typing import TYPE_CHECKING, Any
 
-import structlog
 from pydantic import BaseModel, Field
+import structlog
 
 from ..memory.memory_manager import MemoryManager
+from ..skills.eb1a_criteria.criteria import CRITERION_CLASSES
 from ..workflows.eb1a.eb1a_coordinator import EB1ACriterion, EB1AEvidence
 
 if TYPE_CHECKING:
     from ..memory.models import MemoryRecord
 
 logger = structlog.get_logger(__name__)
+
+
+# =============================================================================
+# Dynamic Criterion Requirements from EB1A Skills
+# =============================================================================
+
+# Mapping from EB1ACriterion values to CRITERION_CLASSES keys
+_CRITERION_KEY_MAPPING = {
+    "awards": "awards",
+    "membership": "membership",
+    "press": "published_material",
+    "judging": "judging",
+    "original_contribution": "original_contributions",
+    "scholarly_articles": "scholarly_articles",
+    "artistic_exhibitions": "exhibitions",
+    "leading_role": "leading_role",
+    "high_salary": "high_salary",
+    "commercial_success": "commercial_success",
+}
+
+
+def get_criterion_prompt(criterion: str) -> str:
+    """
+    Get the full evaluation prompt for a criterion from EB1A skills.
+
+    Args:
+        criterion: Criterion name (e.g., 'awards', 'membership')
+
+    Returns:
+        Full prompt text from the criterion class
+    """
+    key = _CRITERION_KEY_MAPPING.get(criterion, criterion)
+    criterion_class = CRITERION_CLASSES.get(key)
+    if criterion_class:
+        return getattr(criterion_class, "PROMPT", "")
+    return ""
+
+
+def get_criterion_requirements(criterion: str) -> str:
+    """
+    Get the criterion requirements summary for relevance assessment.
+
+    Extracts key requirements from the full criterion prompt.
+
+    Args:
+        criterion: Criterion name (e.g., 'awards', 'membership')
+
+    Returns:
+        Requirements summary text
+    """
+    key = _CRITERION_KEY_MAPPING.get(criterion, criterion)
+    criterion_class = CRITERION_CLASSES.get(key)
+
+    if criterion_class:
+        # Get basic info from class attributes
+        cfr = getattr(criterion_class, "CFR_REFERENCE", "")
+        title_en = getattr(criterion_class, "TITLE_EN", "")
+        title_ru = getattr(criterion_class, "TITLE_RU", "")
+
+        # Extract first paragraph from PROMPT (regulatory requirement)
+        prompt = getattr(criterion_class, "PROMPT", "")
+        lines = prompt.strip().split("\n")
+
+        # Find the regulatory description (usually after ## Regulatory Reference)
+        requirement_text = ""
+        for i, line in enumerate(lines):
+            if line.startswith("Evidence of") or line.startswith("Documentation of"):
+                requirement_text = line.strip()
+                break
+
+        return f"""
+{cfr}: {title_en} / {title_ru}
+
+{requirement_text}
+
+Key requirements from USCIS Policy Manual:
+- Part 1: Prove the petitioner meets the criterion
+- Part 2: Prove the evidence is nationally/internationally recognized
+"""
+
+    # Fallback to static requirements
+    return CRITERION_REQUIREMENTS_FALLBACK.get(criterion, "Unknown criterion")
 
 
 # =============================================================================
@@ -107,8 +190,8 @@ Respond in a warm but professional tone, giving the applicant hope while being r
 
 Provide 3-5 specific recommendations:"""
 
-# Criterion requirements for relevance assessment
-CRITERION_REQUIREMENTS = {
+# Fallback criterion requirements (used if criteria classes unavailable)
+CRITERION_REQUIREMENTS_FALLBACK = {
     "awards": "Major nationally or internationally recognized prizes or awards for excellence in the field",
     "membership": "Membership in associations requiring outstanding achievements as judged by recognized experts",
     "press": "Published material in professional or major trade publications about the alien's work",
@@ -318,11 +401,11 @@ class EB1AEvidenceAnalyzer:
                 from ..llm_interface.openai_client import OpenAIClient
 
                 self._llm_client = OpenAIClient(
-                    model="gpt-5.1",
+                    model="gpt-5.2",
                     reasoning_effort="low",  # Fast responses for evidence analysis
                     max_tokens=500,
                 )
-                self.logger.info("llm_client.initialized", model="gpt-5.1")
+                self.logger.info("llm_client.initialized", model="gpt-5.2")
             except Exception as e:
                 self.logger.warning("llm_client.init_failed", error=str(e))
                 self.use_llm = False
@@ -389,7 +472,8 @@ class EB1AEvidenceAnalyzer:
                 return self._assess_relevance_heuristic(evidence, context)
 
             criterion_key = evidence.criterion.value.split("_", 1)[-1].lower()
-            criterion_req = CRITERION_REQUIREMENTS.get(criterion_key, "N/A")
+            # Use dynamic requirements from EB1A criteria skills
+            criterion_req = get_criterion_requirements(criterion_key)
 
             prompt = LLM_RELEVANCE_PROMPT.format(
                 title=evidence.title or "N/A",
@@ -1713,12 +1797,17 @@ async def analyze_and_generate_draft(
 
     try:
         # Import WriterAgent
-        from .writer_agent import (DocumentRequest, DocumentType,
-                                   GeneratedDocument, Language, ToneStyle,
-                                   WriterAgent)
+        from .writer_agent import (
+            DocumentRequest,
+            DocumentType,
+            GeneratedDocument,
+            Language,
+            ToneStyle,
+            WriterAgent,
+        )
 
         # Initialize WriterAgent
-        writer = WriterAgent(memory_manager)
+        writer = WriterAgent(memory_manager=memory_manager)
 
         # Prepare client data for document generation
         satisfied_criteria = [
@@ -2111,7 +2200,7 @@ async def analyze_intake_potential_batch(
         from ..llm_interface.openai_client import OpenAIClient
 
         llm_client = OpenAIClient(
-            model="gpt-5.1",
+            model="gpt-5.2",
             reasoning_effort="low",  # Fast analysis
             max_tokens=4000,  # Increased from 2000 to prevent truncation
         )
