@@ -3,7 +3,8 @@
 Generates high-quality PDF documents using LaTeX (pdflatex).
 """
 
-import re
+from __future__ import annotations
+
 import shutil
 import subprocess
 import tempfile
@@ -95,9 +96,7 @@ class LaTeXGenerator:
 
             pdf_file = temp_path / "document.pdf"
             if not pdf_file.exists():
-                raise RuntimeError(
-                    f"LaTeX compilation failed:\n{result.stdout}\n{result.stderr}"
-                )
+                raise RuntimeError(f"LaTeX compilation failed:\n{result.stdout}\n{result.stderr}")
 
             output_path.parent.mkdir(parents=True, exist_ok=True)
             shutil.copy(pdf_file, output_path)

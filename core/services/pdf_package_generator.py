@@ -115,9 +115,7 @@ class PDFPackageGenerator:
             pdf_files.append(petition_pdf)
 
             # 8. Generate Statement of Intent (LaTeX)
-            statement_pdf = await self._generate_statement_page(
-                package_dir, case_data, user_data
-            )
+            statement_pdf = await self._generate_statement_page(package_dir, case_data, user_data)
             pdf_files.append(statement_pdf)
 
             # 9. Generate Exhibits List (LaTeX)
@@ -256,7 +254,7 @@ class PDFPackageGenerator:
             from core.services.uscis_forms import fill_g28_pdf
 
             # Attorney data can be provided in case_data
-            attorney_data = case_data.get("attorney_data", None)
+            attorney_data = case_data.get("attorney_data")
             fill_g28_pdf(dst, case_data, user_data, attorney_data)
             logger.info(f"Filled G-28 saved to {dst}")
         except Exception as e:
@@ -271,9 +269,7 @@ class PDFPackageGenerator:
 
         return dst
 
-    async def _generate_passport_page(
-        self, output_dir: Path, user_data: dict[str, Any]
-    ) -> Path:
+    async def _generate_passport_page(self, output_dir: Path, user_data: dict[str, Any]) -> Path:
         """Generate passport placeholder page using LaTeX."""
         name = user_data.get("full_name", "Beneficiary")
         passport_number = user_data.get("passport_number", "____________________")

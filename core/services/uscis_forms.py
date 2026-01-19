@@ -16,10 +16,10 @@ Features:
 
 from __future__ import annotations
 
+import json
 from dataclasses import dataclass, field
 from datetime import date
 from enum import Enum
-import json
 from pathlib import Path
 from typing import Any
 
@@ -137,12 +137,62 @@ I140_FIELDS = [
         required=True,
         section="Part 2. Information About Petitioner",
         options=[
-            "AL", "AK", "AZ", "AR", "CA", "CO", "CT", "DE", "FL", "GA",
-            "HI", "ID", "IL", "IN", "IA", "KS", "KY", "LA", "ME", "MD",
-            "MA", "MI", "MN", "MS", "MO", "MT", "NE", "NV", "NH", "NJ",
-            "NM", "NY", "NC", "ND", "OH", "OK", "OR", "PA", "RI", "SC",
-            "SD", "TN", "TX", "UT", "VT", "VA", "WA", "WV", "WI", "WY",
-            "DC", "PR", "VI", "GU", "AS", "MP",
+            "AL",
+            "AK",
+            "AZ",
+            "AR",
+            "CA",
+            "CO",
+            "CT",
+            "DE",
+            "FL",
+            "GA",
+            "HI",
+            "ID",
+            "IL",
+            "IN",
+            "IA",
+            "KS",
+            "KY",
+            "LA",
+            "ME",
+            "MD",
+            "MA",
+            "MI",
+            "MN",
+            "MS",
+            "MO",
+            "MT",
+            "NE",
+            "NV",
+            "NH",
+            "NJ",
+            "NM",
+            "NY",
+            "NC",
+            "ND",
+            "OH",
+            "OK",
+            "OR",
+            "PA",
+            "RI",
+            "SC",
+            "SD",
+            "TN",
+            "TX",
+            "UT",
+            "VT",
+            "VA",
+            "WA",
+            "WV",
+            "WI",
+            "WY",
+            "DC",
+            "PR",
+            "VI",
+            "GU",
+            "AS",
+            "MP",
         ],
         pdf_field_name="Pt2Line3_State",
     ),
@@ -617,15 +667,17 @@ class USCISFormsService:
             section_name = field_def.section or "General"
             if section_name not in sections:
                 sections[section_name] = []
-            sections[section_name].append({
-                "id": field_def.id,
-                "label": field_def.label,
-                "type": field_def.field_type.value,
-                "required": field_def.required,
-                "help_text": field_def.help_text,
-                "options": field_def.options,
-                "max_length": field_def.max_length,
-            })
+            sections[section_name].append(
+                {
+                    "id": field_def.id,
+                    "label": field_def.label,
+                    "type": field_def.field_type.value,
+                    "required": field_def.required,
+                    "help_text": field_def.help_text,
+                    "options": field_def.options,
+                    "max_length": field_def.max_length,
+                }
+            )
 
         return {
             "form_type": form_type.value,
@@ -711,9 +763,7 @@ class USCISFormsService:
             "completion_status": form_data["completion_status"],
         }
 
-    def load_form_data(
-        self, case_id: str, form_type: FormType
-    ) -> dict[str, Any] | None:
+    def load_form_data(self, case_id: str, form_type: FormType) -> dict[str, Any] | None:
         """Load saved form data for a case.
 
         Args:
@@ -723,17 +773,13 @@ class USCISFormsService:
         Returns:
             Form data or None if not found
         """
-        file_path = (
-            self.forms_dir / case_id / f"{form_type.value.lower().replace('-', '_')}.json"
-        )
+        file_path = self.forms_dir / case_id / f"{form_type.value.lower().replace('-', '_')}.json"
 
         if file_path.exists():
             return json.loads(file_path.read_text())
         return None
 
-    def _calculate_completion(
-        self, form_type: FormType, data: dict[str, Any]
-    ) -> dict[str, Any]:
+    def _calculate_completion(self, form_type: FormType, data: dict[str, Any]) -> dict[str, Any]:
         """Calculate form completion percentage.
 
         Args:
@@ -746,14 +792,10 @@ class USCISFormsService:
         fields = FORM_DEFINITIONS.get(form_type, [])
 
         total_required = sum(1 for f in fields if f.required)
-        filled_required = sum(
-            1 for f in fields if f.required and data.get(f.id)
-        )
+        filled_required = sum(1 for f in fields if f.required and data.get(f.id))
 
         total_optional = sum(1 for f in fields if not f.required)
-        filled_optional = sum(
-            1 for f in fields if not f.required and data.get(f.id)
-        )
+        filled_optional = sum(1 for f in fields if not f.required and data.get(f.id))
 
         return {
             "required_filled": filled_required,
@@ -761,14 +803,10 @@ class USCISFormsService:
             "optional_filled": filled_optional,
             "optional_total": total_optional,
             "percent_required": (
-                int((filled_required / total_required) * 100)
-                if total_required > 0
-                else 100
+                int((filled_required / total_required) * 100) if total_required > 0 else 100
             ),
             "percent_total": (
-                int(((filled_required + filled_optional) / len(fields)) * 100)
-                if fields
-                else 100
+                int(((filled_required + filled_optional) / len(fields)) * 100) if fields else 100
             ),
             "is_complete": filled_required == total_required,
         }
@@ -859,26 +897,34 @@ class USCISFormsService:
             form_data = self.load_form_data(case_id, form_type)
 
             if form_data:
-                statuses.append({
-                    "form_type": form_type.value,
-                    "title": self._get_form_title(form_type),
-                    "status": "in_progress" if not form_data["completion_status"]["is_complete"] else "complete",
-                    "completion": form_data["completion_status"],
-                    "last_updated": form_data.get("last_updated"),
-                    "fee": FORM_FEES.get(form_type, 0),
-                })
+                statuses.append(
+                    {
+                        "form_type": form_type.value,
+                        "title": self._get_form_title(form_type),
+                        "status": (
+                            "in_progress"
+                            if not form_data["completion_status"]["is_complete"]
+                            else "complete"
+                        ),
+                        "completion": form_data["completion_status"],
+                        "last_updated": form_data.get("last_updated"),
+                        "fee": FORM_FEES.get(form_type, 0),
+                    }
+                )
             else:
-                statuses.append({
-                    "form_type": form_type.value,
-                    "title": self._get_form_title(form_type),
-                    "status": "not_started",
-                    "completion": {
-                        "percent_required": 0,
-                        "percent_total": 0,
-                        "is_complete": False,
-                    },
-                    "fee": FORM_FEES.get(form_type, 0),
-                })
+                statuses.append(
+                    {
+                        "form_type": form_type.value,
+                        "title": self._get_form_title(form_type),
+                        "status": "not_started",
+                        "completion": {
+                            "percent_required": 0,
+                            "percent_total": 0,
+                            "is_complete": False,
+                        },
+                        "fee": FORM_FEES.get(form_type, 0),
+                    }
+                )
 
         return statuses
 
@@ -912,9 +958,9 @@ def _parse_name(full_name: str) -> dict[str, str]:
             "given": parts[0],
             "middle": " ".join(parts[1:-1]),
         }
-    elif len(parts) == 2:
+    if len(parts) == 2:
         return {"family": parts[-1], "given": parts[0], "middle": ""}
-    elif len(parts) == 1:
+    if len(parts) == 1:
         return {"family": parts[0], "given": "", "middle": ""}
     return {"family": "", "given": "", "middle": ""}
 
@@ -1080,35 +1126,19 @@ def fill_i140_pdf(
         "form1[0].#subform[1].Line2f_ZipCode[0]": address["zip"],
         "form1[0].#subform[1].Line2i_Country[0]": "United States",
         # Beneficiary personal info
-        "form1[0].#subform[1].Line5_DateOfBirth[0]": _format_date(
-            user_data.get("date_of_birth")
-        ),
-        "form1[0].#subform[1].Line6_CityTownOfBirth[0]": user_data.get(
-            "city_of_birth", ""
-        ),
+        "form1[0].#subform[1].Line5_DateOfBirth[0]": _format_date(user_data.get("date_of_birth")),
+        "form1[0].#subform[1].Line6_CityTownOfBirth[0]": user_data.get("city_of_birth", ""),
         "form1[0].#subform[1].Line8_Country[0]": user_data.get("country_of_birth", ""),
-        "form1[0].#subform[1].Line9_Country[0]": user_data.get(
-            "country_of_citizenship", ""
-        ),
-        "form1[0].#subform[1].Line14b_Passport[0]": user_data.get(
-            "passport_number", ""
-        ),
-        "form1[0].#subform[1].Line14d_CountryOfIssuance[0]": user_data.get(
-            "passport_country", ""
-        ),
-        "form1[0].#subform[1].Line14e_ExpDate[0]": _format_date(
-            user_data.get("passport_expiry")
-        ),
+        "form1[0].#subform[1].Line9_Country[0]": user_data.get("country_of_citizenship", ""),
+        "form1[0].#subform[1].Line14b_Passport[0]": user_data.get("passport_number", ""),
+        "form1[0].#subform[1].Line14d_CountryOfIssuance[0]": user_data.get("passport_country", ""),
+        "form1[0].#subform[1].Line14e_ExpDate[0]": _format_date(user_data.get("passport_expiry")),
         # Part 5: Job Info
         "form1[0].#subform[3].Line1_JobTitle[0]": case_data.get(
             "job_title", user_data.get("job_title", "")
         ),
-        "form1[0].#subform[3].Line3_JobDescription[0]": case_data.get(
-            "job_description", ""
-        ),
-        "form1[0].#subform[3].Line3a_Occupation[0]": case_data.get(
-            "field", "Software Development"
-        ),
+        "form1[0].#subform[3].Line3_JobDescription[0]": case_data.get("job_description", ""),
+        "form1[0].#subform[3].Line3a_Occupation[0]": case_data.get("field", "Software Development"),
         "form1[0].#subform[3].Line8_Wages[0]": str(user_data.get("salary", "")),
         "form1[0].#subform[3].Line8_Per[0]": "Year",
     }
@@ -1130,7 +1160,7 @@ def fill_i140_pdf(
             if field_name in field_data:
                 widget.field_value = str(field_data[field_name])
                 widget.update()
-            elif field_name in checkbox_fields and checkbox_fields[field_name]:
+            elif checkbox_fields.get(field_name):
                 widget.field_value = True
                 widget.update()
 
@@ -1176,9 +1206,7 @@ def fill_i907_pdf(
         "form1[0].#subform[0].Pt1Line3_FamilyName[0]": name["family"],
         "form1[0].#subform[0].Pt1Line3_GivenName[0]": name["given"],
         "form1[0].#subform[0].Pt1Line3_MiddleName[0]": name["middle"],
-        "form1[0].#subform[0].Part1_Line5_MailingAddress_StreetNumberName[0]": address[
-            "street"
-        ],
+        "form1[0].#subform[0].Part1_Line5_MailingAddress_StreetNumberName[0]": address["street"],
         "form1[0].#subform[0].Part1_Line5_MailingAddress_CityTown[0]": address["city"],
         "form1[0].#subform[0].Part1_Line5_MailingAddress_State[0]": address["state"],
         "form1[0].#subform[0].Part1_Line5_MailingAddress_ZipCode[0]": address["zip"],
@@ -1187,23 +1215,15 @@ def fill_i907_pdf(
         "form1[0].#subform[1].P2_Line1_FormNumberof[0]": "I-140",
         "form1[0].#subform[1].P2_Line2_ClassorEligRequested[0]": "E11 - Extraordinary Ability",
         # Petitioner/Applicant name (same person for self-petition)
-        "form1[0].#subform[1].Part2_Line4_PetitionerApplicantFamilyName[0]": name[
-            "family"
-        ],
-        "form1[0].#subform[1].Part2_Line4_PetitionerApplicantGivenName[0]": name[
-            "given"
-        ],
-        "form1[0].#subform[1].Part2_Line4_PetitionerApplicantMiddleName[0]": name[
-            "middle"
-        ],
+        "form1[0].#subform[1].Part2_Line4_PetitionerApplicantFamilyName[0]": name["family"],
+        "form1[0].#subform[1].Part2_Line4_PetitionerApplicantGivenName[0]": name["given"],
+        "form1[0].#subform[1].Part2_Line4_PetitionerApplicantMiddleName[0]": name["middle"],
         # Beneficiary name (same person for self-petition)
         "form1[0].#subform[1].Line_FamilyName[0]": name["family"],
         "form1[0].#subform[1].Line_GivenName[0]": name["given"],
         "form1[0].#subform[1].Line_MiddleName[0]": name["middle"],
         # Part 3: Contact info
-        "form1[0].#subform[2].P3_Line4_DaytimeTelePhoneNumber[0]": user_data.get(
-            "phone", ""
-        ),
+        "form1[0].#subform[2].P3_Line4_DaytimeTelePhoneNumber[0]": user_data.get("phone", ""),
         "form1[0].#subform[2].P3_Line6_Email[0]": user_data.get("email", ""),
     }
 
@@ -1222,7 +1242,7 @@ def fill_i907_pdf(
             if field_name in field_data:
                 widget.field_value = str(field_data[field_name])
                 widget.update()
-            elif field_name in checkbox_fields and checkbox_fields[field_name]:
+            elif checkbox_fields.get(field_name):
                 widget.field_value = True
                 widget.update()
 
@@ -1280,20 +1300,14 @@ def fill_g28_pdf(
         "form1[0].#subform[0].Line3d_State[0]": client_address["state"],
         "form1[0].#subform[0].Line3e_ZipCode[0]": client_address["zip"],
         "form1[0].#subform[0].Line3h_Country[0]": "United States",
-        "form1[0].#subform[0].Line4_DaytimeTelephoneNumber[0]": user_data.get(
-            "phone", ""
-        ),
+        "form1[0].#subform[0].Line4_DaytimeTelephoneNumber[0]": user_data.get("phone", ""),
         "form1[0].#subform[0].Line6_EMail[0]": user_data.get("email", ""),
         # Part 2: Attorney Info
-        "form1[0].#subform[0].Line3_NameofAttorneyOrRep[0]": attorney_data.get(
-            "full_name", ""
-        ),
+        "form1[0].#subform[0].Line3_NameofAttorneyOrRep[0]": attorney_data.get("full_name", ""),
         "form1[0].#subform[0].Pt2Line1a_LicensingAuthority[0]": attorney_data.get(
             "licensing_authority", ""
         ),
-        "form1[0].#subform[0].Pt2Line1b_BarNumber[0]": attorney_data.get(
-            "bar_number", ""
-        ),
+        "form1[0].#subform[0].Pt2Line1b_BarNumber[0]": attorney_data.get("bar_number", ""),
         "form1[0].#subform[0].Pt2Line1d_NameofFirmOrOrganization[0]": attorney_data.get(
             "firm_name", ""
         ),
@@ -1320,7 +1334,7 @@ def fill_g28_pdf(
             if field_name in field_data:
                 widget.field_value = str(field_data[field_name])
                 widget.update()
-            elif field_name in checkbox_fields and checkbox_fields[field_name]:
+            elif checkbox_fields.get(field_name):
                 widget.field_value = True
                 widget.update()
 
