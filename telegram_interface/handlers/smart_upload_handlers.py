@@ -16,13 +16,15 @@ from __future__ import annotations
 
 import structlog
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
-from telegram.ext import (CallbackQueryHandler, CommandHandler, ContextTypes,
-                          MessageHandler, filters)
+from telegram.ext import CallbackQueryHandler, CommandHandler, ContextTypes, MessageHandler, filters
 
 from core.memory.models import MemoryRecord
-from core.services.document_classifier import (DOCUMENT_TYPES,
-                                               DocumentCategory, DocumentType,
-                                               get_document_classifier)
+from core.services.document_classifier import (
+    DOCUMENT_TYPES,
+    DocumentCategory,
+    DocumentType,
+    get_document_classifier,
+)
 
 from .context import BotContext
 
@@ -108,7 +110,7 @@ async def cancel_upload_command(
 
     if was_active:
         await message.reply_text(
-            "❌ Режим загрузки документов отменён.\n" "Вы можете продолжить заполнение анкеты.",
+            "❌ Режим загрузки документов отменён.\nВы можете продолжить заполнение анкеты.",
         )
         logger.info(
             "smart_upload.mode_cancelled",
@@ -335,13 +337,19 @@ async def handle_upload_callback(
     # Get pending upload
     pending = context.user_data.get("pending_smart_upload")
     if not pending:
-        await query.edit_message_text("❌ Данные документа не найдены. Загрузите снова.")
+        await query.edit_message_text(
+            "❌ Данные документа не найдены. Загрузите снова.",
+            parse_mode=None,
+        )
         return
 
     # Handle cancel
     if data == CALLBACK_CANCEL:
         context.user_data.pop("pending_smart_upload", None)
-        await query.edit_message_text("❌ Загрузка отменена.")
+        await query.edit_message_text(
+            "❌ Загрузка отменена.",
+            parse_mode=None,
+        )
         return
 
     # Handle change type - show category selection
@@ -424,7 +432,10 @@ async def handle_category_callback(
     cat_types = [dt for dt in DOCUMENT_TYPES if dt.category.value == category_value]
 
     if not cat_types:
-        await query.edit_message_text("❌ Категория не найдена.")
+        await query.edit_message_text(
+            "❌ Категория не найдена.",
+            parse_mode=None,
+        )
         return
 
     # Show document type selection within category
@@ -458,7 +469,10 @@ async def _save_document_with_type(
     """Save document with specified type."""
     pending = context.user_data.get("pending_smart_upload")
     if not pending:
-        await query.edit_message_text("❌ Данные документа не найдены.")
+        await query.edit_message_text(
+            "❌ Данные документа не найдены.",
+            parse_mode=None,
+        )
         return
 
     # Find document type
@@ -478,7 +492,10 @@ async def _save_document_with_type(
             tags=["document", "unclassified"],
         )
 
-    await query.edit_message_text("💾 Сохраняю документ...")
+    await query.edit_message_text(
+        "💾 Сохраняю документ...",
+        parse_mode=None,
+    )
 
     try:
         file_name = pending["file_name"]
@@ -616,7 +633,10 @@ async def _save_document_with_type(
 
     except Exception as e:
         logger.exception("smart_upload.save_failed", error=str(e))
-        await query.edit_message_text(f"❌ Ошибка при сохранении:\n{str(e)[:200]}")
+        await query.edit_message_text(
+            f"❌ Ошибка при сохранении:\n{str(e)[:200]}",
+            parse_mode=None,
+        )
 
 
 def get_handlers(bot_context: BotContext) -> list:

@@ -22,32 +22,33 @@ class _NoOpEmbedder:
 def _create_default_stores() -> tuple:
     """Create default stores.
 
-    Production prefers Supabase/PostgreSQL. For local development/test runs
-    without database configuration, fall back to in-memory stores.
+    SUPABASE ONLY: All stores require Supabase/PostgreSQL.
+    No in-memory fallback - data must persist across restarts.
     """
-    try:
-        from .stores import (SupabaseEpisodicStore, SupabaseSemanticStore,
-                             SupabaseWorkingMemory)
+    import structlog
 
-        return (
+    from .stores import SupabaseEpisodicStore, SupabaseSemanticStore, SupabaseWorkingMemory
+
+    logger = structlog.get_logger(__name__)
+
+    try:
+        stores = (
             SupabaseSemanticStore(),
             SupabaseEpisodicStore(),
             SupabaseWorkingMemory(),
         )
-    except Exception as exc:  # pragma: no cover - env-dependent
-        import structlog
-
-        from .stores import EpisodicStore, SemanticStore, WorkingMemory
-
-        structlog.get_logger(__name__).warning(
-            "memory_manager.default_stores.fallback_in_memory",
+        logger.info("memory_manager.stores_initialized", backend="supabase")
+        return stores
+    except Exception as exc:
+        logger.error(
+            "memory_manager.supabase_required",
             error=str(exc),
+            hint="Set SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY in .env",
         )
-        return (
-            SemanticStore(),
-            EpisodicStore(),
-            WorkingMemory(),
-        )
+        raise RuntimeError(
+            f"Supabase stores required but failed to initialize: {exc}. "
+            "Check SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY configuration."
+        ) from exc
 
 
 class MemoryManager:

@@ -1,19 +1,20 @@
 """
 Document storage service for saving uploaded files.
 
-Supports multiple backends:
-- Supabase Storage (default)
-- Cloudflare R2
-- Local filesystem (fallback)
+Supports:
+- Supabase Storage (primary/required)
+- Cloudflare R2 (optional alternative)
+
+NOTE: Local storage fallback has been removed.
+All documents must be saved to cloud storage (Supabase or R2).
 """
 
 from __future__ import annotations
 
-import os
-import uuid
 from datetime import UTC, datetime
-from pathlib import Path
+import os
 from typing import Any
+import uuid
 
 import structlog
 
@@ -27,18 +28,17 @@ class DocumentStorage:
         self,
         backend: str = "supabase",
         bucket_name: str = "intake-documents",
-        local_path: str | None = None,
     ):
         """Initialize document storage.
 
         Args:
-            backend: Storage backend - 'supabase', 'r2', or 'local'
+            backend: Storage backend - 'supabase' or 'r2'
             bucket_name: Name of storage bucket
-            local_path: Path for local storage fallback
         """
+        if backend not in ("supabase", "r2"):
+            raise ValueError(f"Unsupported backend: {backend}. Use 'supabase' or 'r2'")
         self.backend = backend
         self.bucket_name = bucket_name
-        self.local_path = local_path or "data/documents"
         self._client = None
 
     async def _get_supabase_client(self):
@@ -113,22 +113,17 @@ class DocumentStorage:
         if metadata:
             full_metadata.update(metadata)
 
-        # Try storage backends in order
+        # Save to configured backend (no local fallback)
         result = None
 
         if self.backend == "supabase":
             result = await self._save_to_supabase(
                 file_bytes, storage_path, file_type, full_metadata
             )
-
-        if result is None and self.backend == "r2":
+        elif self.backend == "r2":
             result = await self._save_to_r2(
                 file_bytes, storage_path, file_name, file_type, full_metadata
             )
-
-        if result is None:
-            # Fallback to local storage
-            result = await self._save_to_local(file_bytes, storage_path, full_metadata)
 
         if result:
             result["file_id"] = file_id
@@ -139,11 +134,22 @@ class DocumentStorage:
                 storage_path=storage_path,
                 backend=result.get("backend", "unknown"),
             )
+            return result
 
-        return result or {
+        # No fallback - return error
+        error_msg = f"Failed to save to {self.backend}. Check configuration and credentials."
+        logger.error(
+            "document_storage.failed",
+            file_id=file_id,
+            storage_path=storage_path,
+            backend=self.backend,
+            error=error_msg,
+        )
+        return {
             "success": False,
-            "error": "All storage backends failed",
+            "error": error_msg,
             "file_id": file_id,
+            "backend": self.backend,
         }
 
     async def _save_to_supabase(
@@ -235,53 +241,12 @@ class DocumentStorage:
             )
             return None
 
-    async def _save_to_local(
-        self,
-        file_bytes: bytes,
-        storage_path: str,
-        metadata: dict[str, Any],
-    ) -> dict[str, Any] | None:
-        """Save to local filesystem (fallback)."""
-        try:
-            # Create full path
-            full_path = Path(self.local_path) / storage_path
-            full_path.parent.mkdir(parents=True, exist_ok=True)
-
-            # Write file
-            full_path.write_bytes(file_bytes)
-
-            # Write metadata alongside
-            meta_path = full_path.with_suffix(full_path.suffix + ".meta.json")
-            import json
-
-            meta_path.write_text(json.dumps(metadata, indent=2, ensure_ascii=False))
-
-            logger.info(
-                "document_storage.local_save_success",
-                path=str(full_path),
-            )
-
-            return {
-                "success": True,
-                "backend": "local",
-                "storage_path": str(full_path),
-                "storage_url": f"file://{full_path.absolute()}",
-            }
-
-        except Exception as e:
-            logger.error(
-                "document_storage.local_save_failed",
-                error=str(e),
-                storage_path=storage_path,
-            )
-            return None
-
     async def get_document(self, storage_path: str, backend: str = "supabase") -> bytes | None:
         """Retrieve document from storage.
 
         Args:
             storage_path: Path/key where document is stored
-            backend: Which backend to retrieve from
+            backend: Which backend to retrieve from ('supabase' or 'r2')
 
         Returns:
             File bytes or None if not found
@@ -299,10 +264,12 @@ class DocumentStorage:
                 r2 = create_r2_storage()
                 return await r2.download_file(storage_path)
 
-            elif backend == "local":
-                full_path = Path(self.local_path) / storage_path
-                if full_path.exists():
-                    return full_path.read_bytes()
+            else:
+                logger.warning(
+                    "document_storage.unsupported_backend",
+                    backend=backend,
+                    storage_path=storage_path,
+                )
 
         except Exception as e:
             logger.error(
@@ -319,7 +286,7 @@ class DocumentStorage:
 
         Args:
             storage_path: Path/key where document is stored
-            backend: Which backend to delete from
+            backend: Which backend to delete from ('supabase' or 'r2')
 
         Returns:
             True if deleted successfully
@@ -338,15 +305,12 @@ class DocumentStorage:
                 await r2.delete_file(storage_path)
                 return True
 
-            elif backend == "local":
-                full_path = Path(self.local_path) / storage_path
-                if full_path.exists():
-                    full_path.unlink()
-                    # Also remove metadata file
-                    meta_path = full_path.with_suffix(full_path.suffix + ".meta.json")
-                    if meta_path.exists():
-                        meta_path.unlink()
-                    return True
+            else:
+                logger.warning(
+                    "document_storage.unsupported_backend",
+                    backend=backend,
+                    storage_path=storage_path,
+                )
 
         except Exception as e:
             logger.error(
