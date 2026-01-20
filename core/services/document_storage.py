@@ -11,10 +11,10 @@ All documents must be saved to cloud storage (Supabase or R2).
 
 from __future__ import annotations
 
-from datetime import UTC, datetime
 import os
-from typing import Any
 import uuid
+from datetime import UTC, datetime
+from typing import Any
 
 import structlog
 

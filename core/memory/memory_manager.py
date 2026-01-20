@@ -27,7 +27,8 @@ def _create_default_stores() -> tuple:
     """
     import structlog
 
-    from .stores import SupabaseEpisodicStore, SupabaseSemanticStore, SupabaseWorkingMemory
+    from .stores import (SupabaseEpisodicStore, SupabaseSemanticStore,
+                         SupabaseWorkingMemory)
 
     logger = structlog.get_logger(__name__)
 
