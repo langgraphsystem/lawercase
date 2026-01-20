@@ -367,8 +367,7 @@ class SupabaseSemanticStore:
         query_embedding = await self.embedder.aembed_query(query)
         embedding_str = "[" + ",".join(str(x) for x in query_embedding) + "]"
 
-        sql = text(
-            """
+        sql = text("""
             SELECT
                 id::text,
                 criterion,
@@ -381,8 +380,7 @@ class SupabaseSemanticStore:
             WHERE embedding IS NOT NULL
             ORDER BY embedding <=> CAST(:embedding AS vector)
             LIMIT :topk
-        """
-        )
+        """)
 
         async with self.db.session() as session:
             result = await session.execute(sql, {"embedding": embedding_str, "topk": topk})
@@ -688,14 +686,12 @@ class SupabaseSemanticStore:
         """
         from sqlalchemy import text
 
-        sql = text(
-            """
+        sql = text("""
             SELECT criterion, COUNT(*) as count
             FROM mega_agent.rfe_knowledge
             GROUP BY criterion
             ORDER BY count DESC
-        """
-        )
+        """)
         async with self.db.session() as session:
             result = await session.execute(sql)
             rows = result.all()
