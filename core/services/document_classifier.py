@@ -12,6 +12,7 @@ and will be correctly categorized and linked to the appropriate section.
 
 from __future__ import annotations
 
+import asyncio
 from dataclasses import dataclass
 from enum import Enum
 from typing import Any
@@ -19,6 +20,9 @@ from typing import Any
 import structlog
 
 logger = structlog.get_logger(__name__)
+
+# Timeout for LLM classification (seconds)
+LLM_CLASSIFICATION_TIMEOUT = 60  # 1 minute
 
 
 class DocumentCategory(str, Enum):
@@ -517,7 +521,11 @@ If uncertain, respond with "other".
 """
 
         try:
-            response = await self.llm_client.achat(prompt)
+            # Add timeout for LLM classification
+            response = await asyncio.wait_for(
+                self.llm_client.achat(prompt),
+                timeout=LLM_CLASSIFICATION_TIMEOUT,
+            )
             doc_type_id = response.strip().lower().replace('"', "").replace("'", "")
 
             # Find matching document type
@@ -531,6 +539,11 @@ If uncertain, respond with "other".
                     suggested_tags=doc_type.tags,
                     eb1a_criterion=doc_type.eb1a_criterion,
                 )
+        except asyncio.TimeoutError:
+            logger.warning(
+                "document_classifier.llm_timeout",
+                timeout_seconds=LLM_CLASSIFICATION_TIMEOUT,
+            )
         except Exception as e:
             logger.warning("document_classifier.llm_failed", error=str(e))
 

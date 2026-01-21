@@ -6,8 +6,9 @@ Uses Google Gemini 3 Flash Vision API for OCR processing (new google.genai SDK).
 
 from __future__ import annotations
 
-import os
+import asyncio
 from io import BytesIO
+import os
 from typing import Any
 
 import structlog
@@ -16,6 +17,10 @@ logger = structlog.get_logger(__name__)
 
 # Gemini 3 model for OCR (fast, vision-capable)
 GEMINI_OCR_MODEL = "gemini-3-flash-preview"
+
+# Timeout settings (seconds)
+OCR_TIMEOUT_SECONDS = 120  # 2 minutes for large documents
+OCR_MAX_RETRIES = 2
 
 
 class OCRService:
@@ -118,14 +123,32 @@ Output the extracted text directly, preserving original formatting as much as po
             )
 
             # Generate response with Gemini 3 Flash using new SDK
-            response = client.models.generate_content(
-                model=GEMINI_OCR_MODEL,
-                contents=[ocr_prompt, image_part],
-                config=self._types.GenerateContentConfig(
-                    temperature=0,
-                    max_output_tokens=4096,
-                ),
-            )
+            # Wrap in asyncio.to_thread with timeout for large documents
+            try:
+                response = await asyncio.wait_for(
+                    asyncio.to_thread(
+                        client.models.generate_content,
+                        model=GEMINI_OCR_MODEL,
+                        contents=[ocr_prompt, image_part],
+                        config=self._types.GenerateContentConfig(
+                            temperature=0,
+                            max_output_tokens=4096,
+                        ),
+                    ),
+                    timeout=OCR_TIMEOUT_SECONDS,
+                )
+            except asyncio.TimeoutError:
+                logger.warning(
+                    "ocr.timeout",
+                    file_name=file_name,
+                    timeout_seconds=OCR_TIMEOUT_SECONDS,
+                )
+                return {
+                    "extracted_text": "",
+                    "confidence": "timeout",
+                    "source_file": file_name,
+                    "error": f"OCR timed out after {OCR_TIMEOUT_SECONDS} seconds",
+                }
 
             extracted_text = response.text or ""
 

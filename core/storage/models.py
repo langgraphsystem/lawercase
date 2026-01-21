@@ -15,8 +15,7 @@ from uuid import UUID, uuid4
 
 from pgvector.sqlalchemy import Vector
 from sqlalchemy import TIMESTAMP, CheckConstraint, Index, String, Text
-from sqlalchemy.dialects.postgresql import ARRAY, JSONB
-from sqlalchemy.dialects.postgresql import UUID as PG_UUID
+from sqlalchemy.dialects.postgresql import ARRAY, JSONB, UUID as PG_UUID
 from sqlalchemy.ext.asyncio import AsyncAttrs
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 
@@ -39,6 +38,7 @@ class SemanticMemoryDB(Base):
         Index("idx_semantic_user_id", "user_id"),
         Index("idx_semantic_namespace", "namespace"),
         Index("idx_semantic_type", "type"),
+        Index("idx_semantic_case_id", "case_id"),
         Index("idx_semantic_tags", "tags", postgresql_using="gin"),
         Index("idx_semantic_created", "created_at", postgresql_using="btree"),
         {"schema": "mega_agent"},
@@ -52,6 +52,7 @@ class SemanticMemoryDB(Base):
     # Ownership
     user_id: Mapped[str] = mapped_column(String(255), nullable=False)
     thread_id: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    case_id: Mapped[str | None] = mapped_column(String(255), nullable=True)  # Link to case
 
     text: Mapped[str] = mapped_column(Text, nullable=False)
     type: Mapped[str] = mapped_column(String(50), default="fact")
