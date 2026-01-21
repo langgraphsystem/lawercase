@@ -16,13 +16,15 @@ from __future__ import annotations
 
 import structlog
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
-from telegram.ext import (CallbackQueryHandler, CommandHandler, ContextTypes,
-                          MessageHandler, filters)
+from telegram.ext import CallbackQueryHandler, CommandHandler, ContextTypes, MessageHandler, filters
 
 from core.memory.models import MemoryRecord
-from core.services.document_classifier import (DOCUMENT_TYPES,
-                                               DocumentCategory, DocumentType,
-                                               get_document_classifier)
+from core.services.document_classifier import (
+    DOCUMENT_TYPES,
+    DocumentCategory,
+    DocumentType,
+    get_document_classifier,
+)
 
 from .context import BotContext
 
@@ -532,7 +534,7 @@ async def _save_document_with_type(
             logger.warning("smart_upload.storage_failed", error=str(e))
 
         # Build document text for memory
-        max_ocr_length = 5000
+        max_ocr_length = 20000  # Increased from 5000 for better document coverage
         if ocr_text and len(ocr_text) > max_ocr_length:
             ocr_preview = ocr_text[:max_ocr_length]
             document_text = (
