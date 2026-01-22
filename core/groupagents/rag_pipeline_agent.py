@@ -7,9 +7,9 @@ This agent provides:
 - Source attribution and ranking
 
 Implementation phases:
-- Phase 1: Keyword-based search (current)
-- Phase 2: Embedding-based semantic search (future)
-- Phase 3: Hybrid retrieval (future)
+- Phase 1: Keyword-based search
+- Phase 2: Embedding-based semantic search
+- Phase 3: Hybrid retrieval with reranking (current)
 """
 
 from __future__ import annotations
@@ -23,8 +23,98 @@ from pydantic import BaseModel, Field
 from ..memory.memory_manager import MemoryManager
 from ..memory.models import MemoryRecord
 from ..rag import Document, RAGPipeline, RAGResult
+from ..skills.eb1a_criteria.criteria import CRITERION_CLASSES
 
 logger = structlog.get_logger(__name__)
+
+
+# =============================================================================
+# EB-1A Criterion Context Enrichment
+# =============================================================================
+
+
+def get_eb1a_context_for_query(query: str) -> str | None:
+    """
+    Check if query relates to an EB-1A criterion and return relevant context.
+
+    Args:
+        query: User's search query
+
+    Returns:
+        Relevant EB-1A criterion context if applicable, None otherwise
+    """
+    query_lower = query.lower()
+
+    # Keywords that indicate EB-1A criteria searches
+    criterion_keywords = {
+        "awards": ["award", "prize", "recognition", "honor", "medal"],
+        "membership": ["membership", "association", "organization", "fellow", "member"],
+        "published_material": ["press", "media", "publication", "article about", "coverage"],
+        "judging": ["judge", "judging", "reviewer", "evaluate", "panel"],
+        "original_contributions": ["contribution", "original", "innovation", "invention", "patent"],
+        "scholarly_articles": ["scholarly", "academic", "paper", "journal", "publication"],
+        "exhibitions": ["exhibition", "display", "showcase", "gallery", "show"],
+        "leading_role": ["leading", "critical role", "executive", "director", "founder"],
+        "high_salary": ["salary", "compensation", "remuneration", "income", "wage"],
+        "commercial_success": ["commercial", "box office", "sales", "revenue", "success"],
+    }
+
+    for criterion_key, keywords in criterion_keywords.items():
+        if any(kw in query_lower for kw in keywords):
+            criterion_class = CRITERION_CLASSES.get(criterion_key)
+            if criterion_class:
+                cfr = getattr(criterion_class, "CFR_REFERENCE", "")
+                title_en = getattr(criterion_class, "TITLE_EN", "")
+                title_ru = getattr(criterion_class, "TITLE_RU", "")
+                prompt = getattr(criterion_class, "PROMPT", "")
+
+                # Return first 800 chars of prompt as context
+                return f"""
+EB-1A Criterion Context: {cfr} - {title_en} ({title_ru})
+
+{prompt[:800]}...
+
+[Full criterion documentation available in knowledge base]
+"""
+
+    return None
+
+
+def get_eb1a_search_tags(query: str) -> list[str]:
+    """
+    Generate relevant search tags for EB-1A related queries.
+
+    Args:
+        query: User's search query
+
+    Returns:
+        List of relevant tags to filter search results
+    """
+    query_lower = query.lower()
+    tags = []
+
+    if "eb1a" in query_lower or "eb-1a" in query_lower or "extraordinary" in query_lower:
+        tags.append("eb1a")
+
+    # Add criterion-specific tags
+    criterion_tag_map = {
+        "awards": "eb1a_awards",
+        "membership": "eb1a_membership",
+        "press": "eb1a_press",
+        "judging": "eb1a_judging",
+        "contribution": "eb1a_contributions",
+        "scholarly": "eb1a_scholarly",
+        "exhibition": "eb1a_exhibitions",
+        "leading": "eb1a_leading_role",
+        "salary": "eb1a_salary",
+        "commercial": "eb1a_commercial",
+    }
+
+    for keyword, tag in criterion_tag_map.items():
+        if keyword in query_lower:
+            tags.append(tag)
+
+    return tags
 
 
 # ========== MODELS ==========
@@ -323,7 +413,7 @@ class RagPipelineAgent:
                 continue
 
             # Extract case info
-            case_id = record.record_id
+            case_id = record.id or ""
             case_title = self._extract_title(record.text, tags)
             case_type_extracted = self._extract_case_type(tags)
             matching_criteria = self._extract_matching_criteria(query, record.text)
@@ -531,7 +621,7 @@ class RagPipelineAgent:
             relevance = self._calculate_similarity_simple(query, record.text)
 
             source = RagSource(
-                source_id=record.record_id,
+                source_id=record.id or "",
                 source_type="memory",
                 content=record.text,
                 relevance_score=relevance,

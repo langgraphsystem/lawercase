@@ -1,0 +1,833 @@
+{% extends "base.html" %}
+
+{% block title %}EB-1A Petition{% endblock %}
+
+{% block extra_head %}
+<style>
+    /* Legal Document Styling - Times New Roman like official petitions */
+    .petition-document {
+        font-family: 'Times New Roman', Times, Georgia, serif;
+        font-size: 16px;
+        line-height: 1.6;
+        color: #000000;
+        counter-reset: page-counter;
+    }
+
+    /* Running header */
+    .running-header {
+        font-size: 13px;
+        color: #555;
+        margin-bottom: 20px;
+        padding-bottom: 10px;
+        border-bottom: 1px solid #ddd;
+    }
+
+    /* Document header */
+    .document-header {
+        text-align: center;
+        margin-bottom: 40px;
+        padding-bottom: 30px;
+        border-bottom: 2px solid #333;
+    }
+    .document-header h1 {
+        font-size: 1.5rem;
+        font-weight: bold;
+        margin: 0 0 15px 0;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+    }
+    .document-header .subtitle {
+        font-size: 1.1rem;
+        margin: 10px 0;
+    }
+    .document-header .beneficiary-name {
+        font-size: 1.3rem;
+        font-weight: bold;
+        color: var(--primary-color);
+        margin: 15px 0;
+    }
+    .document-header .classification {
+        font-size: 0.95rem;
+        color: #333;
+        line-height: 1.8;
+        text-align: left;
+        max-width: 600px;
+        margin: 20px auto 0;
+    }
+
+    /* Table of Contents with dotted leaders */
+    .toc-container {
+        background: #f8f9fa;
+        border: 1px solid #dee2e6;
+        border-radius: 8px;
+        padding: 25px 30px;
+        margin-bottom: 40px;
+    }
+    .toc-container h2 {
+        font-size: 1.2rem;
+        margin: 0 0 20px 0;
+        padding-bottom: 10px;
+        border-bottom: 1px solid #dee2e6;
+        color: var(--primary-color);
+    }
+    .toc-list {
+        list-style: none;
+        padding: 0;
+        margin: 0;
+    }
+    .toc-list li {
+        margin: 8px 0;
+    }
+    .toc-item {
+        display: flex;
+        align-items: flex-end;
+    }
+    .toc-text {
+        flex: 0 0 auto;
+        padding-right: 8px;
+    }
+    .toc-dot-leader {
+        flex: 1 1 auto;
+        border-bottom: 1px dotted #999;
+        margin: 0 8px 4px;
+        min-width: 20px;
+    }
+    .toc-page-ref {
+        flex: 0 0 auto;
+        min-width: 30px;
+        text-align: right;
+        font-weight: bold;
+    }
+    .toc-section {
+        font-weight: bold;
+        text-decoration: none;
+        color: #333;
+    }
+    .toc-section:hover {
+        color: var(--primary-color);
+    }
+    .toc-subsection {
+        padding-left: 25px;
+        font-weight: normal;
+    }
+    .toc-subsubsection {
+        padding-left: 50px;
+        font-size: 0.95rem;
+    }
+
+    /* Action bar */
+    .action-bar {
+        position: sticky;
+        top: 0;
+        background: white;
+        padding: 12px 0;
+        margin-bottom: 20px;
+        border-bottom: 1px solid #dee2e6;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        z-index: 100;
+    }
+    .action-bar h1 {
+        font-size: 1.1rem;
+        margin: 0;
+        color: var(--primary-color);
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    }
+    .action-buttons {
+        display: flex;
+        gap: 10px;
+    }
+
+    /* Body text with proper indentation */
+    .body-text {
+        margin: 12px 0;
+        text-align: justify;
+        text-indent: 2em;
+    }
+    .body-text.no-indent {
+        text-indent: 0;
+    }
+
+    /* Section styling */
+    .petition-section {
+        margin-top: 50px;
+        padding-top: 25px;
+        border-top: 1px solid #dee2e6;
+        page-break-inside: avoid;
+    }
+    .petition-section:first-of-type {
+        margin-top: 25px;
+        border-top: none;
+        padding-top: 0;
+    }
+    .section-number {
+        font-size: 1.2rem;
+        font-weight: bold;
+        color: var(--primary-color);
+        margin-bottom: 8px;
+    }
+    .section-title {
+        font-size: 1.3rem;
+        font-weight: bold;
+        margin: 0 0 20px 0;
+        color: #1a1a1a;
+    }
+
+    /* Subsection styling (2.1, 2.2...) */
+    .subsection {
+        margin: 40px 0;
+        padding-left: 20px;
+        border-left: 3px solid #e9ecef;
+    }
+    .subsection-number {
+        font-size: 1.1rem;
+        font-weight: bold;
+        color: var(--primary-color);
+        margin-bottom: 6px;
+    }
+    .subsection-title {
+        font-size: 1.15rem;
+        font-weight: bold;
+        margin: 0 0 12px 0;
+    }
+    .regulatory-ref {
+        font-size: 0.85rem;
+        color: #6c757d;
+        font-style: italic;
+        margin-bottom: 15px;
+    }
+
+    /* Sub-subsection styling (2.1.1, 2.1.2...) */
+    .subsubsection {
+        margin: 30px 0 30px 15px;
+        padding: 20px;
+        background: #fafbfc;
+        border-radius: 6px;
+        border-left: 3px solid #dee2e6;
+    }
+    .subsubsection-number {
+        font-size: 1rem;
+        font-weight: bold;
+        color: #444;
+        margin-bottom: 4px;
+    }
+    .subsubsection-title {
+        font-size: 1.05rem;
+        font-weight: bold;
+        margin: 0 0 15px 0;
+    }
+
+    /* Deep subsection styling (2.1.1.1, 2.1.1.2...) */
+    .deep-subsection {
+        margin: 20px 0;
+        padding: 15px;
+        background: #fff;
+        border: 1px solid #e9ecef;
+        border-radius: 4px;
+    }
+    .deep-subsection-number {
+        font-size: 0.95rem;
+        font-weight: bold;
+        color: #555;
+        margin-bottom: 8px;
+    }
+    .deep-subsection-title {
+        font-size: 1rem;
+        font-weight: bold;
+        margin: 0 0 12px 0;
+        color: #333;
+    }
+
+    /* Quote blocks - for evidence citations */
+    .quote-block {
+        margin: 20px 24px;
+        padding: 15px 20px;
+        border-left: 3px solid #333;
+        background-color: #f7f7f7;
+        font-style: italic;
+        line-height: 1.6;
+    }
+    .quote-block .source {
+        display: block;
+        margin-top: 10px;
+        font-style: normal;
+        font-weight: bold;
+        font-size: 0.9rem;
+        color: #555;
+    }
+
+    /* Exhibit reference styling */
+    .exhibit-ref {
+        color: var(--primary-color);
+        font-weight: 500;
+        white-space: nowrap;
+    }
+
+    /* Content block */
+    .content-block {
+        margin: 15px 0;
+    }
+    .content-block p {
+        margin: 12px 0;
+        text-align: justify;
+    }
+    .content-block ul, .content-block ol {
+        margin: 15px 0 15px 2.5em;
+        padding: 0;
+    }
+    .content-block li {
+        margin: 8px 0;
+    }
+
+    /* Numbered and bullet lists */
+    .numbered-list {
+        list-style-type: decimal;
+    }
+    .sub-numbered-list {
+        list-style-type: lower-roman;
+        margin-left: 1.5em;
+    }
+    .bullet-list {
+        list-style-type: disc;
+    }
+
+    /* Placeholder content */
+    .placeholder-content {
+        background: #fff3cd;
+        border: 1px dashed #ffc107;
+        border-radius: 6px;
+        padding: 25px;
+        text-align: center;
+        color: #856404;
+    }
+    .placeholder-content p {
+        margin: 8px 0;
+    }
+
+    /* Page number footer */
+    .page-number {
+        margin-top: 30px;
+        text-align: center;
+        font-size: 12px;
+        color: #555;
+        padding-top: 15px;
+        border-top: 1px solid #eee;
+    }
+
+    /* Print styles */
+    @media print {
+        .sidebar { display: none !important; }
+        .main-content { padding: 0 !important; }
+        .container { box-shadow: none !important; max-width: 100% !important; }
+        .action-bar { display: none !important; }
+        .petition-section { page-break-inside: avoid; }
+        .subsection { page-break-inside: avoid; }
+        .subsubsection { page-break-inside: avoid; }
+        body { font-size: 11pt; }
+        .placeholder-content { display: none; }
+        .petition-document { font-size: 12pt; }
+        .page-number {
+            position: fixed;
+            bottom: 20px;
+            width: 100%;
+        }
+    }
+
+    /* Responsive */
+    @media (max-width: 768px) {
+        .toc-subsection { padding-left: 15px; }
+        .toc-subsubsection { padding-left: 30px; }
+        .subsection { padding-left: 10px; }
+        .subsubsection { margin-left: 5px; }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<!-- Action Bar -->
+<div class="action-bar">
+    <h1>EB-1A Petition Letter</h1>
+    <div class="action-buttons">
+        <button class="btn btn-secondary" onclick="window.print()">Print / Save PDF</button>
+        <a href="{{ base_path }}exhibits/index.html" class="btn">View Exhibits</a>
+    </div>
+</div>
+
+<div class="petition-document">
+    <!-- Running Header -->
+    <div class="running-header">
+        EB-1A Permanent Residency Petition for {{ case.user_data.full_name|default('Beneficiary') }}
+    </div>
+
+    <!-- Document Header -->
+    <div class="document-header">
+        <h1>EB-1A Permanent Residency Petition</h1>
+        <div class="subtitle">Petition for Permanent Residence under Extraordinary Ability</div>
+        <div class="beneficiary-name">{{ case.user_data.full_name|default('Beneficiary Name') }}</div>
+        <div class="classification">
+            <strong>Petitioner and Beneficiary:</strong> {{ case.user_data.full_name|default('Beneficiary') }}<br>
+            <strong>Classification Sought:</strong> Employment-Based Immigration, First Preference<br>
+            Extraordinary Ability in {{ case.case_data.field|default('Sciences') }} (EB-1A)<br>
+            Sec. 203(b)(1) INA [8 U.S.C. 1153]<br>
+            <strong>Type of Petition:</strong> I-140
+        </div>
+    </div>
+
+    <!-- Table of Contents with dotted leaders -->
+    <div class="toc-container">
+        <h2>Table of Contents</h2>
+        <ol class="toc-list">
+            <li class="toc-item">
+                <a href="#intro" class="toc-text toc-section">Introduction</a>
+                <span class="toc-dot-leader"></span>
+                <span class="toc-page-ref">1</span>
+            </li>
+            <li class="toc-item">
+                <a href="#section-1" class="toc-text toc-section">1. Summary of Achievements and Qualifications</a>
+                <span class="toc-dot-leader"></span>
+                <span class="toc-page-ref">3</span>
+            </li>
+            <li class="toc-item">
+                <a href="#section-2" class="toc-text toc-section">2. Initial Evidence of Extraordinary Ability</a>
+                <span class="toc-dot-leader"></span>
+                <span class="toc-page-ref">5</span>
+            </li>
+            {% if sections.awards %}
+            <li class="toc-item toc-subsection">
+                <a href="#section-2-1" class="toc-text">2.1 Awards</a>
+                <span class="toc-dot-leader"></span>
+                <span class="toc-page-ref">5</span>
+            </li>
+            {% endif %}
+            {% if sections.membership %}
+            <li class="toc-item toc-subsection">
+                <a href="#section-2-2" class="toc-text">2.2 Membership</a>
+                <span class="toc-dot-leader"></span>
+                <span class="toc-page-ref">8</span>
+            </li>
+            {% endif %}
+            {% if sections.judging %}
+            <li class="toc-item toc-subsection">
+                <a href="#section-2-3" class="toc-text">2.3 Judging</a>
+                <span class="toc-dot-leader"></span>
+                <span class="toc-page-ref">11</span>
+            </li>
+            {% endif %}
+            {% if sections.leading_role %}
+            <li class="toc-item toc-subsection">
+                <a href="#section-2-4" class="toc-text">2.4 Critical Role</a>
+                <span class="toc-dot-leader"></span>
+                <span class="toc-page-ref">14</span>
+            </li>
+            {% endif %}
+            {% if sections.contribution %}
+            <li class="toc-item toc-subsection">
+                <a href="#section-2-5" class="toc-text">2.5 Original Contributions</a>
+                <span class="toc-dot-leader"></span>
+                <span class="toc-page-ref">18</span>
+            </li>
+            {% endif %}
+            {% if sections.salary %}
+            <li class="toc-item toc-subsection">
+                <a href="#section-2-6" class="toc-text">2.6 High Salary</a>
+                <span class="toc-dot-leader"></span>
+                <span class="toc-page-ref">22</span>
+            </li>
+            {% endif %}
+            {% if sections.articles %}
+            <li class="toc-item toc-subsection">
+                <a href="#section-2-7" class="toc-text">2.7 Scholarly Articles</a>
+                <span class="toc-dot-leader"></span>
+                <span class="toc-page-ref">25</span>
+            </li>
+            {% endif %}
+            {% if sections.press %}
+            <li class="toc-item toc-subsection">
+                <a href="#section-2-8" class="toc-text">2.8 Published Material</a>
+                <span class="toc-dot-leader"></span>
+                <span class="toc-page-ref">28</span>
+            </li>
+            {% endif %}
+            <li class="toc-item">
+                <a href="#section-3" class="toc-text toc-section">3. Final Determination of Merits</a>
+                <span class="toc-dot-leader"></span>
+                <span class="toc-page-ref">30</span>
+            </li>
+            <li class="toc-item">
+                <a href="#section-4" class="toc-text toc-section">4. National Importance</a>
+                <span class="toc-dot-leader"></span>
+                <span class="toc-page-ref">35</span>
+            </li>
+            <li class="toc-item">
+                <a href="#section-5" class="toc-text toc-section">5. Conclusion</a>
+                <span class="toc-dot-leader"></span>
+                <span class="toc-page-ref">38</span>
+            </li>
+            <li class="toc-item">
+                <a href="#exhibits-list" class="toc-text toc-section">List of Exhibits</a>
+                <span class="toc-dot-leader"></span>
+                <span class="toc-page-ref">40</span>
+            </li>
+        </ol>
+    </div>
+
+    <!-- Introduction / Cover Letter -->
+    <section id="intro" class="petition-section">
+        <div class="content-block">
+            <p class="body-text no-indent">Dear Immigration Officer,</p>
+
+            <p class="body-text">This following evidence is respectfully submitted in support of the petition of
+            <strong>{{ case.user_data.full_name|default('the Beneficiary') }}</strong> for classification
+            as a qualified immigrant under the first preference employment immigration for Aliens of
+            Extraordinary Ability pursuant to section 203(b)(1)(A) of the Immigration and Nationality Act.</p>
+
+            <p class="body-text">This evidence demonstrates that {{ case.user_data.full_name|default('the Beneficiary') }}
+            has extraordinary ability in {{ case.case_data.field|default('sciences') }}, that they have
+            sustained national and international acclaim, and their achievements have been recognized
+            in the field of expertise.</p>
+
+            <p class="body-text no-indent">Specifically, the evidence shows that:</p>
+            <ol class="numbered-list">
+                <li>{{ case.user_data.full_name|default('The Beneficiary') }} satisfies multiple criteria
+                listed in 8 CFR, Section 204.5(h)(3), including:
+                    <ol class="sub-numbered-list">
+                        {% if sections.awards %}<li>Evidence of receipt of lesser nationally or internationally recognized prizes or awards for excellence <span class="exhibit-ref">[Section 2.1]</span></li>{% endif %}
+                        {% if sections.membership %}<li>Evidence of membership in associations requiring outstanding achievement <span class="exhibit-ref">[Section 2.2]</span></li>{% endif %}
+                        {% if sections.judging %}<li>Evidence of participation as a judge of the work of others <span class="exhibit-ref">[Section 2.3]</span></li>{% endif %}
+                        {% if sections.leading_role %}<li>Evidence of performance of a critical role in distinguished organizations <span class="exhibit-ref">[Section 2.4]</span></li>{% endif %}
+                        {% if sections.contribution %}<li>Evidence of original contributions of major significance <span class="exhibit-ref">[Section 2.5]</span></li>{% endif %}
+                        {% if sections.salary %}<li>Evidence of commanding a high salary <span class="exhibit-ref">[Section 2.6]</span></li>{% endif %}
+                        {% if sections.articles %}<li>Evidence of authorship of scholarly articles <span class="exhibit-ref">[Section 2.7]</span></li>{% endif %}
+                    </ol>
+                </li>
+                <li>{{ case.user_data.full_name|default('The Beneficiary') }} is one of that small percentage
+                who has risen to the very top of the field, and has sustained international acclaim <span class="exhibit-ref">[Section 3]</span>.</li>
+                <li>{{ case.user_data.full_name|default('The Beneficiary') }}'s work will substantially
+                benefit the United States <span class="exhibit-ref">[Section 4]</span>.</li>
+            </ol>
+
+            <p class="body-text">Pursuant to 8 CFR, Section 204.5(h)(1), {{ case.user_data.full_name|default('the Beneficiary') }}
+            may file an I-140 visa petition for classification under Section 203(b)(1)(A) of the Act as an
+            alien of extraordinary ability in {{ case.case_data.field|default('science') }} on their own behalf.</p>
+
+            <p class="body-text">Pursuant to 8 CFR, Section 204.5(h)(5), neither an offer for employment in the United States
+            nor a labor certification is required for this classification.</p>
+        </div>
+        <div class="page-number">Page 1</div>
+    </section>
+
+    <!-- Section 1: Summary of Achievements -->
+    <section id="section-1" class="petition-section">
+        <div class="section-number">Section 1</div>
+        <h2 class="section-title">Summary of {{ case.user_data.full_name|default("Beneficiary") }}'s Achievements and Qualifications</h2>
+
+        <div class="content-block">
+            {% if sections.summary %}
+            {{ sections.summary|safe }}
+            {% else %}
+            <div class="placeholder-content">
+                <p><strong>This section will include:</strong></p>
+                <p>Education background, professional experience, key accomplishments, and overview of how the beneficiary meets the EB-1A criteria.</p>
+                <p>See resume in <span class="exhibit-ref">[Exhibit 1]</span></p>
+            </div>
+            {% endif %}
+        </div>
+        <div class="page-number">Page 3</div>
+    </section>
+
+    <!-- Section 2: Initial Evidence -->
+    <section id="section-2" class="petition-section">
+        <div class="section-number">Section 2</div>
+        <h2 class="section-title">Initial Evidence of {{ case.user_data.full_name|default("Beneficiary") }}'s Extraordinary Ability</h2>
+
+        <!-- 2.1 Awards -->
+        {% if sections.awards or not sections %}
+        <div id="section-2-1" class="subsection">
+            <div class="subsection-number">2.1</div>
+            <h3 class="subsection-title">Evidence of Receipt of Nationally or Internationally Recognized Prizes or Awards</h3>
+            <div class="regulatory-ref">8 CFR 204.5(h)(3)(i)</div>
+
+            {% if sections.awards %}
+            <div class="content-block">{{ sections.awards|safe }}</div>
+            {% else %}
+            <!-- Example structure for awards with deep subsections -->
+            <div class="subsubsection">
+                <div class="subsubsection-number">2.1.1</div>
+                <h4 class="subsubsection-title">Award Name</h4>
+
+                <div class="deep-subsection">
+                    <div class="deep-subsection-number">2.1.1.1</div>
+                    <h5 class="deep-subsection-title">Proof of being the recipient of the award</h5>
+                    <p class="body-text">Documentation proving receipt of the award.</p>
+                    <div class="quote-block">
+                        "Quote from official documentation or letter confirming the award."
+                        <span class="source"><span class="exhibit-ref">[Exhibit X, page Y]</span></span>
+                    </div>
+                </div>
+
+                <div class="deep-subsection">
+                    <div class="deep-subsection-number">2.1.1.2</div>
+                    <h5 class="deep-subsection-title">Proof of the criteria being excellence in the field</h5>
+                    <p class="body-text">Documentation showing the award recognizes excellence.</p>
+                </div>
+
+                <div class="deep-subsection">
+                    <div class="deep-subsection-number">2.1.1.3</div>
+                    <h5 class="deep-subsection-title">Proof of no limitation to competitors</h5>
+                    <p class="body-text">Documentation showing the award is open to all qualified candidates.</p>
+                </div>
+
+                <div class="deep-subsection">
+                    <div class="deep-subsection-number">2.1.1.4</div>
+                    <h5 class="deep-subsection-title">Proof of the international recognition of the award</h5>
+                    <p class="body-text">Documentation proving international recognition.</p>
+                    <div class="quote-block">
+                        "Quote highlighting international significance..."
+                        <span class="source"><span class="exhibit-ref">[Exhibit X, page Y]</span></span>
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+        </div>
+        {% endif %}
+
+        <!-- 2.2 Membership -->
+        {% if sections.membership or not sections %}
+        <div id="section-2-2" class="subsection">
+            <div class="subsection-number">2.2</div>
+            <h3 class="subsection-title">Evidence of Membership in Associations Requiring Outstanding Achievement</h3>
+            <div class="regulatory-ref">8 CFR 204.5(h)(3)(ii)</div>
+
+            {% if sections.membership %}
+            <div class="content-block">{{ sections.membership|safe }}</div>
+            {% else %}
+            <div class="subsubsection">
+                <div class="subsubsection-number">2.2.1</div>
+                <h4 class="subsubsection-title">Association Name</h4>
+
+                <div class="deep-subsection">
+                    <div class="deep-subsection-number">2.2.1.1</div>
+                    <h5 class="deep-subsection-title">Proof of membership</h5>
+                    <p class="body-text">Membership card, certificate, or official letter. <span class="exhibit-ref">[Exhibit X, page Y]</span></p>
+                </div>
+
+                <div class="deep-subsection">
+                    <div class="deep-subsection-number">2.2.1.2</div>
+                    <h5 class="deep-subsection-title">Proof of membership grade</h5>
+                    <p class="body-text">Documentation of senior/elevated membership status.</p>
+                </div>
+
+                <div class="deep-subsection">
+                    <div class="deep-subsection-number">2.2.1.3</div>
+                    <h5 class="deep-subsection-title">Proof that judgment by experts is required</h5>
+                    <p class="body-text">Admission criteria showing expert review process.</p>
+                </div>
+
+                <div class="deep-subsection">
+                    <div class="deep-subsection-number">2.2.1.4</div>
+                    <h5 class="deep-subsection-title">Proof that outstanding achievements are required</h5>
+                    <p class="body-text">Requirements documentation.</p>
+                    <div class="quote-block">
+                        "Candidates shall have shown significant performance over a period of at least five years..."
+                        <span class="source"><span class="exhibit-ref">[Exhibit X, page Y]</span></span>
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+        </div>
+        {% endif %}
+
+        <!-- 2.3 Judging -->
+        {% if sections.judging or not sections %}
+        <div id="section-2-3" class="subsection">
+            <div class="subsection-number">2.3</div>
+            <h3 class="subsection-title">Evidence of Participation as a Judge of the Work of Others</h3>
+            <div class="regulatory-ref">8 CFR 204.5(h)(3)(iv)</div>
+
+            {% if sections.judging %}
+            <div class="content-block">{{ sections.judging|safe }}</div>
+            {% else %}
+            <div class="placeholder-content">
+                <p>Document participation as judge or reviewer.</p>
+                <p>Include: invitations, thank you letters, proof of same/allied field.</p>
+            </div>
+            {% endif %}
+        </div>
+        {% endif %}
+
+        <!-- 2.4 Critical Role -->
+        {% if sections.leading_role or not sections %}
+        <div id="section-2-4" class="subsection">
+            <div class="subsection-number">2.4</div>
+            <h3 class="subsection-title">Evidence of Performance of a Critical Role in Distinguished Organizations</h3>
+            <div class="regulatory-ref">8 CFR 204.5(h)(3)(viii)</div>
+
+            {% if sections.leading_role %}
+            <div class="content-block">{{ sections.leading_role|safe }}</div>
+            {% else %}
+            <div class="placeholder-content">
+                <p>Document critical roles in distinguished organizations.</p>
+                <p>Include: proof of role, organization's reputation, impact of contributions.</p>
+            </div>
+            {% endif %}
+        </div>
+        {% endif %}
+
+        <!-- 2.5 Original Contributions -->
+        {% if sections.contribution or not sections %}
+        <div id="section-2-5" class="subsection">
+            <div class="subsection-number">2.5</div>
+            <h3 class="subsection-title">Evidence of Original Contributions of Major Significance</h3>
+            <div class="regulatory-ref">8 CFR 204.5(h)(3)(v)</div>
+
+            {% if sections.contribution %}
+            <div class="content-block">{{ sections.contribution|safe }}</div>
+            {% else %}
+            <div class="placeholder-content">
+                <p>Document original contributions of major significance.</p>
+                <p>Include: description, proof of authorship, proof of major significance, expert letters.</p>
+            </div>
+            {% endif %}
+        </div>
+        {% endif %}
+
+        <!-- 2.6 High Salary -->
+        {% if sections.salary or not sections %}
+        <div id="section-2-6" class="subsection">
+            <div class="subsection-number">2.6</div>
+            <h3 class="subsection-title">Evidence of Commanding a High Salary</h3>
+            <div class="regulatory-ref">8 CFR 204.5(h)(3)(ix)</div>
+
+            {% if sections.salary %}
+            <div class="content-block">{{ sections.salary|safe }}</div>
+            {% else %}
+            <div class="placeholder-content">
+                <p>Document high salary relative to others in the field.</p>
+                <p>Include: salary documentation, comparative data, multiplier calculation.</p>
+            </div>
+            {% endif %}
+        </div>
+        {% endif %}
+
+        <!-- 2.7 Scholarly Articles -->
+        {% if sections.articles %}
+        <div id="section-2-7" class="subsection">
+            <div class="subsection-number">2.7</div>
+            <h3 class="subsection-title">Evidence of Authorship of Scholarly Articles</h3>
+            <div class="regulatory-ref">8 CFR 204.5(h)(3)(vi)</div>
+            <div class="content-block">{{ sections.articles|safe }}</div>
+        </div>
+        {% endif %}
+
+        <!-- 2.8 Published Material -->
+        {% if sections.press %}
+        <div id="section-2-8" class="subsection">
+            <div class="subsection-number">2.8</div>
+            <h3 class="subsection-title">Published Material About the Beneficiary</h3>
+            <div class="regulatory-ref">8 CFR 204.5(h)(3)(iii)</div>
+            <div class="content-block">{{ sections.press|safe }}</div>
+        </div>
+        {% endif %}
+
+        <div class="page-number">Page 20</div>
+    </section>
+
+    <!-- Section 3: Final Determination -->
+    <section id="section-3" class="petition-section">
+        <div class="section-number">Section 3</div>
+        <h2 class="section-title">The Final Determination of Merits of {{ case.user_data.full_name|default("Beneficiary") }}'s Extraordinary Ability</h2>
+
+        <div class="content-block">
+            {% if sections.final_determination %}
+            {{ sections.final_determination|safe }}
+            {% else %}
+            <p class="body-text">The evidence presented in Section 2 demonstrates that {{ case.user_data.full_name|default('the Beneficiary') }}
+            meets multiple criteria under 8 CFR 204.5(h)(3). This section provides the final merits determination showing that
+            {{ case.user_data.full_name|default('the Beneficiary') }} has risen to the very top of the field.</p>
+
+            <div class="placeholder-content">
+                <p>This section summarizes the career trajectory demonstrating rise to the top of the field.</p>
+                <p>Ties together all criteria showing sustained national/international acclaim.</p>
+            </div>
+            {% endif %}
+        </div>
+        <div class="page-number">Page 30</div>
+    </section>
+
+    <!-- Section 4: National Importance -->
+    <section id="section-4" class="petition-section">
+        <div class="section-number">Section 4</div>
+        <h2 class="section-title">{{ case.user_data.full_name|default("Beneficiary") }}'s Proposed Employment Has Both Substantial Merit and National Importance</h2>
+
+        <div class="content-block">
+            {% if sections.national_importance %}
+            {{ sections.national_importance|safe }}
+            {% else %}
+            <div class="placeholder-content">
+                <p>This section demonstrates how the beneficiary's work benefits the United States.</p>
+                <p>Include: industry importance, economic impact, alignment with national priorities.</p>
+            </div>
+            {% endif %}
+        </div>
+        <div class="page-number">Page 35</div>
+    </section>
+
+    <!-- Section 5: Conclusion -->
+    <section id="section-5" class="petition-section">
+        <div class="section-number">Section 5</div>
+        <h2 class="section-title">Conclusion</h2>
+
+        <div class="content-block">
+            {% if sections.conclusion %}
+            {{ sections.conclusion|safe }}
+            {% else %}
+            <p class="body-text">{{ case.user_data.full_name|default('The Beneficiary') }} is an expert in
+            {{ case.case_data.field|default('the field') }} recognized by leading organizations
+            and peers, which is confirmed by prestigious awards, memberships, supporting letters,
+            high salary, and other evidence documented in this petition.</p>
+
+            <p class="body-text">They intend to continue their work in {{ case.case_data.field|default('the field') }}
+            in the United States. Their permanent residency will be beneficial for the
+            {{ case.case_data.field|default('technology') }} sector in the United States.</p>
+
+            <p class="body-text">{{ case.user_data.full_name|default('The Beneficiary') }} fully satisfies all
+            requirements of INA 203(b)(1)(A) and 8 CFR Section 204.5(h). Please kindly approve
+            this petition for permanent residency under the category of an alien of extraordinary ability.</p>
+            {% endif %}
+        </div>
+        <div class="page-number">Page 38</div>
+    </section>
+
+    <!-- List of Exhibits -->
+    <section id="exhibits-list" class="petition-section">
+        <div class="section-number">Appendix</div>
+        <h2 class="section-title">List of Exhibits</h2>
+
+        <div class="content-block">
+            <ol class="numbered-list">
+                <li>Resume of {{ case.user_data.full_name|default('the Beneficiary') }}</li>
+                <li>Educational Credentials</li>
+                <li>Employment Verification Letters</li>
+                <li>Awards and Certificates</li>
+                <li>Letters from Google/Professional Organizations</li>
+                <li>Membership Documentation</li>
+                <li>Judging/Review Invitations</li>
+                <li>Published Articles and Citations</li>
+                <li>Press Coverage</li>
+                <li>Salary Documentation</li>
+                <li>Expert Recommendation Letters</li>
+                <!-- Add more exhibits as needed -->
+            </ol>
+        </div>
+        <div class="page-number">Page 40</div>
+    </section>
+</div>
+
+<!-- Actions -->
+<div style="margin-top: 40px; padding-top: 20px; border-top: 1px solid #dee2e6; display: flex; gap: 15px; flex-wrap: wrap;">
+    <button class="btn" onclick="window.print()">Print / Save as PDF</button>
+    <a href="{{ base_path }}exhibits/index.html" class="btn btn-secondary">Manage Exhibits</a>
+    <a href="{{ base_path }}forms/index.html" class="btn btn-secondary">Fill USCIS Forms</a>
+</div>
+{% endblock %}

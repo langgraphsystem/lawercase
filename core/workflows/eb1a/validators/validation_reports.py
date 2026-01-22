@@ -276,8 +276,7 @@ class ValidationReportGenerator:
         html_parts: list[str] = []
 
         # HTML header and CSS
-        html_parts.append(
-            """<!DOCTYPE html>
+        html_parts.append("""<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
@@ -442,24 +441,20 @@ class ValidationReportGenerator:
     </style>
 </head>
 <body>
-"""
-        )
+""")
 
         # Header
         status_text = "VALID" if result.is_valid else "INVALID"
-        html_parts.append(
-            f"""
+        html_parts.append(f"""
     <div class="header">
         <h1>EB-1A Petition Validation Report</h1>
         <p>Generated: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}</p>
     </div>
-"""
-        )
+""")
 
         # Summary cards
         score_class = "valid" if result.is_valid else "invalid"
-        html_parts.append(
-            f"""
+        html_parts.append(f"""
     <div class="summary-cards">
         <div class="card">
             <h3>Validation Status</h3>
@@ -495,8 +490,7 @@ class ValidationReportGenerator:
             </div>
         </div>
     </div>
-"""
-        )
+""")
 
         # Critical issues
         if result.critical_issues:
@@ -540,12 +534,10 @@ class ValidationReportGenerator:
         html_parts.append("</div>")
 
         # HTML footer
-        html_parts.append(
-            """
+        html_parts.append("""
 </body>
 </html>
-"""
-        )
+""")
 
         return "".join(html_parts)
 

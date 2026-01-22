@@ -15,9 +15,9 @@ without forcing downstream callers to work with the low-level dictionary API.
 from collections.abc import Iterable, Sequence
 from dataclasses import dataclass
 from datetime import datetime, timedelta
+from typing import Any
 
 from .models import AuditEvent
-from .stores.episodic_store import EpisodicStore
 
 
 @dataclass(slots=True)
@@ -33,15 +33,20 @@ class EventQuery:
 
 
 class EpisodicMemory:
-    """Wrapper that offers rich access patterns over `EpisodicStore`.
+    """Wrapper that offers rich access patterns over episodic store.
 
+    SUPABASE-ONLY: Uses SupabaseEpisodicStore by default.
     The wrapper stays fully async to match the underlying store API but adds
     ergonomics such as bulk logging, filtered queries, and summarisation
     helpers required by the Phase 2 memory hierarchy deliverable.
     """
 
-    def __init__(self, store: EpisodicStore | None = None) -> None:
-        self.store = store or EpisodicStore()
+    def __init__(self, store: Any | None = None) -> None:
+        if store is None:
+            from .stores.supabase_episodic_store import SupabaseEpisodicStore
+
+            store = SupabaseEpisodicStore()
+        self.store = store
 
     async def record(self, event: AuditEvent) -> None:
         """Append a single event to the episodic store."""

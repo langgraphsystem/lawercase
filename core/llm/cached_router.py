@@ -103,15 +103,16 @@ class CachedLLMRouter(LLMRouter):
         """
         # Try cache first (only for deterministic queries)
         if self.use_cache and not bypass_cache and temperature < 0.1 and self.providers:
-            # Use first provider's name as model identifier
-            model = self.providers[0].name
+            # Prepare kwargs for cache lookup
+            cache_kwargs = kwargs.copy()
+            if "model" not in cache_kwargs:
+                cache_kwargs["model"] = self.providers[0].name
 
             cached_result = await self.cache.get(
                 prompt=prompt,
-                model=model,
                 temperature=temperature,
                 use_semantic=self.use_semantic_cache,
-                **kwargs,
+                **cache_kwargs,
             )
 
             if cached_result is not None:
@@ -138,7 +139,7 @@ class CachedLLMRouter(LLMRouter):
         self._cache_misses += 1
 
         try:
-            result = await super().ainvoke(prompt)
+            result = await super().ainvoke(prompt, **kwargs)
 
             # Cache the result (only for deterministic queries)
             if self.use_cache and temperature < 0.1 and self.providers:
@@ -152,12 +153,17 @@ class CachedLLMRouter(LLMRouter):
                     "cached": False,
                 }
 
+                # Prepare kwargs for cache set
+                cache_set_kwargs = kwargs.copy()
+                if "model" in cache_set_kwargs:
+                    del cache_set_kwargs["model"]
+
                 await self.cache.set(
                     prompt=prompt,
                     response=cached_response,
                     model=model,
                     temperature=temperature,
-                    **kwargs,
+                    **cache_set_kwargs,
                 )
 
             result["cached"] = False

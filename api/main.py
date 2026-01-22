@@ -16,6 +16,8 @@ from telegram.error import RetryAfter, TelegramError
 from api.middleware import (RateLimitMiddleware, RequestMetricsMiddleware,
                             get_rate_limit_settings)
 from api.routes import agent as agent_routes
+from api.routes import auth as auth_routes
+from api.routes import case_management as case_management_routes
 from api.routes import cases as cases_routes
 from api.routes import document_monitor as document_monitor_routes
 from api.routes import health as health_routes
@@ -24,6 +26,7 @@ from api.routes import metrics as metrics_routes
 from api.routes import workflows as workflows_routes
 from api.startup import register_builtin_tools
 from config.settings import AppSettings, get_settings
+from core.agui.middleware import include_agui_router
 from core.di import get_container
 from core.observability import (TracingConfig, init_logging_from_env,
                                 init_tracing)
@@ -238,12 +241,17 @@ def create_app() -> FastAPI:
 
     # Routes
     app.include_router(health_routes.router)
+    app.include_router(auth_routes.router, prefix="/auth", tags=["auth"])
     app.include_router(agent_routes.router)
     app.include_router(memory_routes.router)
     app.include_router(cases_routes.router)
+    app.include_router(case_management_routes.router, prefix="/cases", tags=["cases"])
     app.include_router(metrics_routes.router)
     app.include_router(workflows_routes.router)
     app.include_router(document_monitor_routes.router)
+
+    # AG-UI Protocol endpoints for real-time streaming
+    include_agui_router(app)
 
     register_builtin_tools()
 
@@ -336,6 +344,11 @@ def create_app() -> FastAPI:
         await telegram_app.process_update(update)
 
         return {"status": "ok"}
+
+    # Mount generated case sites
+    sites_dir = Path(__file__).parent.parent / "sites"
+    sites_dir.mkdir(exist_ok=True)  # Ensure directory exists
+    app.mount("/sites", StaticFiles(directory=str(sites_dir), html=True), name="sites")
 
     # Mount static files LAST to avoid intercepting API routes
     # StaticFiles on "/" will catch all unmatched routes

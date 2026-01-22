@@ -148,8 +148,10 @@ the top percentile of earners in {field}, clearly meets this criterion.
 
         comp_text = ""
         if highest_comp:
-            comp_text = f" {possessive} highest documented compensation of ${highest_comp:,} places \
+            comp_text = (
+                f" {possessive} highest documented compensation of ${highest_comp:,} places \
 {beneficiary.split()[-1]} well above typical compensation levels in {field}."
+            )
 
         return f"""
 **Analysis of Compensation Significance**

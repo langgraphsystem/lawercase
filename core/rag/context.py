@@ -4,8 +4,20 @@ from __future__ import annotations
 
 from collections.abc import Iterable
 from dataclasses import dataclass
+from typing import TYPE_CHECKING
 
 from .utils import deduplicate_ordered, tokenize
+
+if TYPE_CHECKING:
+    from .hybrid import ScoredChunk
+
+# Try to use accurate token counting from context module
+try:
+    from core.context import count_tokens
+
+    _ACCURATE_TOKENS = True
+except ImportError:
+    _ACCURATE_TOKENS = False
 
 
 @dataclass(slots=True)
@@ -19,15 +31,31 @@ class ContextFragment:
 
 
 class ContextBuilder:
-    """Aggregate retrieved chunks into a bounded textual context."""
+    """Aggregate retrieved chunks into a bounded textual context.
 
-    def __init__(self, *, separator: str = "\n\n", approximate_token_size: int = 4) -> None:
+    Uses accurate token counting from context module when available,
+    falls back to approximate estimation otherwise.
+    """
+
+    def __init__(
+        self,
+        *,
+        separator: str = "\n\n",
+        approximate_token_size: int = 4,
+        use_accurate_tokens: bool = True,
+    ) -> None:
         self.separator = separator
         self.approximate_token_size = approximate_token_size
+        self.use_accurate_tokens = use_accurate_tokens and _ACCURATE_TOKENS
 
-    @staticmethod
-    def _estimate_tokens(text: str, *, approximate_token_size: int) -> int:
-        return max(1, len(tokenize(text)) // max(1, approximate_token_size))
+    def _estimate_tokens(self, text: str) -> int:
+        """Estimate token count for text.
+
+        Uses tiktoken-based counting when available for accuracy.
+        """
+        if self.use_accurate_tokens:
+            return count_tokens(text)
+        return max(1, len(tokenize(text)) // max(1, self.approximate_token_size))
 
     def build(
         self,
@@ -42,9 +70,7 @@ class ContextBuilder:
         budget = max_tokens
 
         for scored in chunks:
-            fragment_tokens = self._estimate_tokens(
-                scored.chunk.text, approximate_token_size=self.approximate_token_size
-            )
+            fragment_tokens = self._estimate_tokens(scored.chunk.text)
             if fragment_tokens > budget:
                 break
             budget -= fragment_tokens

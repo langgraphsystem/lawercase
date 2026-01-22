@@ -6,6 +6,9 @@ self-correcting agents.
 
 from __future__ import annotations
 
+import csv
+import io
+import json
 import time
 from collections import deque
 from dataclasses import dataclass, field
@@ -403,8 +406,44 @@ class QualityTracker:
                 "summary": self.get_summary(),
             }
 
-        # TODO: Implement CSV and JSON exports
-        raise NotImplementedError(f"Export format '{output_format}' not implemented")
+        if output_format == "json":
+            payload = self.export_metrics("dict")
+            return json.dumps(payload, ensure_ascii=False, indent=2, sort_keys=True, default=str)
+
+        if output_format == "csv":
+            output = io.StringIO()
+            writer = csv.DictWriter(
+                output,
+                fieldnames=[
+                    "operation_id",
+                    "agent_name",
+                    "timestamp",
+                    "confidence_score",
+                    "retry_count",
+                    "duration_seconds",
+                    "success",
+                    "error_type",
+                    "metadata",
+                ],
+            )
+            writer.writeheader()
+            for op in self.operations:
+                writer.writerow(
+                    {
+                        "operation_id": op.operation_id,
+                        "agent_name": op.agent_name,
+                        "timestamp": op.timestamp.isoformat(),
+                        "confidence_score": op.confidence_score,
+                        "retry_count": op.retry_count,
+                        "duration_seconds": op.duration_seconds,
+                        "success": op.success,
+                        "error_type": op.error_type,
+                        "metadata": json.dumps(op.metadata or {}, ensure_ascii=False, default=str),
+                    }
+                )
+            return output.getvalue()
+
+        raise ValueError(f"Unsupported export format: {output_format}")
 
 
 # Global singleton

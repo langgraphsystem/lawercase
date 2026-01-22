@@ -16,89 +16,101 @@ from core.resilience import CircuitBreaker
 
 
 class OpenAIClient:
-    """OpenAI client with support for GPT-5.1 and latest models (November 2025).
+    """OpenAI client with support for GPT-5.2 and latest models (January 2026).
 
-    GPT-5.1 Models (Released November 12, 2025):
-    - gpt-5.1-chat-latest: GPT-5.1 Instant with adaptive reasoning (NEW DEFAULT)
+    GPT-5.2 Models (Released December 2025 - LATEST):
+    - gpt-5.2: Latest flagship model, smarter than GPT-5.1
       Context: 272K input, 128K output (400K total)
-      Pricing: $1.25/1M input, $10/1M output, $0.125/1M cached
-    - gpt-5.1: GPT-5.1 Thinking (advanced reasoning)
+    - gpt-5.2-mini: Faster and more affordable alternative
+
+    GPT-5.1 Models (November 2025):
+    - gpt-5.1: GPT-5.1 Instant with adaptive reasoning
       Context: 272K input, 128K output (400K total)
-    - gpt-5.1-codex: Extended programming workloads
-    - gpt-5.1-codex-mini: Lightweight coding model
+    - gpt-5.1-thinking: GPT-5.1 Thinking (advanced reasoning)
+
+    GPT-5 Models (August 2025):
     - gpt-5-mini: Balanced performance and cost
-      Pricing: $0.25/1M input, $2/1M output
-    - gpt-5-nano: Most cost-efficient
-      Pricing: $0.05/1M input, $0.40/1M output
 
-    Legacy GPT-5 Models (August 2025):
-    - gpt-5-2025-08-07: Original GPT-5 stable version
-    - gpt-5-chat-latest: Auto-updates to latest (currently gpt-5.1-chat-latest)
+    GPT-4.1 Models (Specialized for coding, 1M context):
+    - gpt-4.1: Best for coding and instruction following
+    - gpt-4.1-mini: Faster coding model
+    - gpt-4.1-nano: Lightweight coding model
 
-    GPT-5.1 Features:
-    - Adaptive Reasoning: Dynamically adjusts thinking time based on task complexity
-    - reasoning_effort: "none", "minimal", "low", "medium" (default), "high"
-      Use "none" for latency-sensitive tasks (no reasoning overhead)
-    - Extended Prompt Caching: 24h retention with prompt_cache_retention='24h'
-    - New Developer Tools: apply_patch (code editing), shell (shell commands)
-    - Function calling with tools parameter (March 2025 API)
-    - 90% cache discount for repeated input tokens
-
-    Reasoning Models:
+    Reasoning Models (o-series):
+    - o4-mini: Best benchmarked on AIME 2024/2025, math/coding/visual
     - o3-mini: Exceptional STEM capabilities
-    - o4-mini: Next-generation reasoning
+    - o3: Full reasoning model
 
-    API Parameters (GPT-5.1 Models):
+    API Parameters:
     - temperature (float, 0.0-2.0): Randomness (default 1.0)
     - max_tokens (int): Maximum tokens in completion
-    - verbosity (str): "low", "medium", "high" - answer length
     - reasoning_effort (str): "none", "minimal", "low", "medium", "high"
-    - prompt_cache_retention (str): "24h" for extended caching
-    - tools (list): Function calling tools (March 2025)
+    - tools (list): Function calling tools
     - tool_choice (str|dict): "auto", "required", or specific tool
-    - top_p (float, 0.0-1.0): Nucleus sampling
-    - frequency_penalty (float, -2.0-2.0): Reduce repetition
-    - presence_penalty (float, -2.0-2.0): Encourage diversity
+
+    Sources:
+    - https://platform.openai.com/docs/models/
+    - https://openai.com/index/gpt-4-1/
     """
 
-    # GPT-5.1 model identifiers (November 2025 - PRIMARY)
-    GPT_5_1_INSTANT = "gpt-5.1-chat-latest"  # NEW DEFAULT
-    GPT_5_1_THINKING = "gpt-5.1"
-    GPT_5_1_CODEX = "gpt-5.1-codex"
-    GPT_5_1_CODEX_MINI = "gpt-5.1-codex-mini"
+    # GPT-5.2 model identifiers (December 2025 - LATEST)
+    GPT_5_2 = "gpt-5.2"  # NEW DEFAULT - Latest flagship
+    GPT_5_2_MINI = "gpt-5.2-mini"
 
-    # GPT-5 model identifiers (August 2025 - Legacy)
-    GPT_5 = "gpt-5-2025-08-07"
+    # GPT-5.1 model identifiers (November 2025)
+    GPT_5_1 = "gpt-5.1"
+    GPT_5_1_THINKING = "gpt-5.1-thinking"
+
+    # GPT-5 model identifiers (August 2025)
     GPT_5_MINI = "gpt-5-mini"
-    GPT_5_NANO = "gpt-5-nano"
-    GPT_5_CHAT_LATEST = "gpt-5-chat-latest"  # Redirects to gpt-5.1-chat-latest
 
-    # Reasoning models
-    O3_MINI = "o3-mini"
+    # GPT-4.1 models (specialized for coding, 1M context)
+    GPT_4_1 = "gpt-4.1"
+    GPT_4_1_MINI = "gpt-4.1-mini"
+    GPT_4_1_NANO = "gpt-4.1-nano"
+
+    # Reasoning models (o-series)
     O4_MINI = "o4-mini"
+    O3_MINI = "o3-mini"
+    O3 = "o3"
 
-    # GPT-5.1 models that support adaptive reasoning
-    GPT5_1_MODELS = {
-        GPT_5_1_INSTANT,
-        GPT_5_1_THINKING,
-        GPT_5_1_CODEX,
-        GPT_5_1_CODEX_MINI,
-        "gpt-5.1",
-        "gpt-5.1-chat-latest",
+    # GPT-5.2 and GPT-5.1 models that support adaptive reasoning
+    GPT5_2_MODELS = {
+        GPT_5_2,
+        GPT_5_2_MINI,
+        "gpt-5.2",
+        "gpt-5.2-mini",
     }
 
-    # All GPT-5 family models that support verbosity parameter
-    GPT5_MODELS = GPT5_1_MODELS | {
-        GPT_5,
-        GPT_5_MINI,
-        GPT_5_NANO,
-        GPT_5_CHAT_LATEST,
-        "gpt-5",
-        "gpt-5-2025-08-07",
+    GPT5_1_MODELS = {
+        GPT_5_1,
+        GPT_5_1_THINKING,
+        "gpt-5.1",
+        "gpt-5.1-thinking",
+    }
+
+    # All GPT-5 family models
+    GPT5_MODELS = (
+        GPT5_2_MODELS
+        | GPT5_1_MODELS
+        | {
+            GPT_5_MINI,
+            "gpt-5-mini",
+        }
+    )
+
+    # GPT-4.1 models (coding-specialized)
+    GPT4_1_MODELS = {
+        GPT_4_1,
+        GPT_4_1_MINI,
+        GPT_4_1_NANO,
+        "gpt-4.1",
+        "gpt-4.1-mini",
+        "gpt-4.1-nano",
     }
 
     # Reasoning models that don't support temperature/top_p
-    REASONING_MODELS = {O3_MINI, O4_MINI}
+    REASONING_MODELS = {O4_MINI, O3_MINI, O3, "o4-mini", "o3-mini", "o3"}
 
     def __init__(
         self,
@@ -116,10 +128,10 @@ class OpenAIClient:
         tool_choice: str | dict[str, Any] = "auto",
         **kwargs: Any,
     ) -> None:
-        """Initialize OpenAI client with GPT-5.1 support (November 2025).
+        """Initialize OpenAI client with GPT-5.2 support (January 2026).
 
         Args:
-            model: Model identifier (default: gpt-5.1-chat-latest)
+            model: Model identifier (default: gpt-5.2)
             api_key: OpenAI API key (or set OPENAI_API_KEY env var)
             temperature: Randomness (0.0-2.0, default 1.0) [not for reasoning models]
             max_tokens: Max tokens in completion (default 4096)
@@ -139,12 +151,13 @@ class OpenAIClient:
                 "openai package not installed. Install with: pip install openai>=1.58.0"
             )
 
-        # Default to GPT-5.1 Instant (November 2025)
+        # Default to GPT-5.2 (December 2025 - Latest)
         normalized_model = (model or "").strip()
         if not normalized_model:
-            normalized_model = self.GPT_5_1_INSTANT
+            normalized_model = (os.getenv("OPENAI_MODEL") or "").strip() or self.GPT_5_2
         self.model = normalized_model
         self._model_lower = normalized_model.lower()
+        self.name = f"openai-{normalized_model}"  # Required by IntelligentRouter
         self.temperature = temperature
         self.max_tokens = max_tokens
         self.top_p = top_p
@@ -200,17 +213,27 @@ class OpenAIClient:
 
     def _is_reasoning_model(self) -> bool:
         """Check if current model is a reasoning model (o-series)."""
-        return self._model_lower in self.REASONING_MODELS
+        return self._model_lower in self.REASONING_MODELS or self._model_lower.startswith("o")
+
+    def _is_gpt5_2_model(self) -> bool:
+        """Check if current model is a GPT-5.2 model (December 2025 - Latest)."""
+        lower = getattr(self, "_model_lower", self.model.lower())
+        return lower in self.GPT5_2_MODELS or "gpt-5.2" in lower
 
     def _is_gpt5_1_model(self) -> bool:
         """Check if current model is a GPT-5.1 model (November 2025)."""
         lower = getattr(self, "_model_lower", self.model.lower())
-        return lower in self.GPT5_1_MODELS or "gpt-5.1" in lower or "gpt5.1" in lower
+        return lower in self.GPT5_1_MODELS or "gpt-5.1" in lower
 
     def _is_gpt5_model(self) -> bool:
         """Check if current model is a GPT-5 family model."""
         lower = getattr(self, "_model_lower", self.model.lower())
         return lower in self.GPT5_MODELS or lower.startswith("gpt-5")
+
+    def _is_gpt4_1_model(self) -> bool:
+        """Check if current model is a GPT-4.1 model (coding-specialized)."""
+        lower = getattr(self, "_model_lower", self.model.lower())
+        return lower in self.GPT4_1_MODELS or "gpt-4.1" in lower
 
     @classmethod
     def _collect_text_fragments(cls, node: Any) -> list[str]:
@@ -393,8 +416,9 @@ class OpenAIClient:
             if verbosity in {"low", "medium", "high"}:
                 api_params["verbosity"] = verbosity
 
-            # Add reasoning effort for GPT-5
-            if reasoning_effort in {"minimal", "low", "medium", "high"}:
+            # Add reasoning effort for GPT-5/GPT-5.1
+            # GPT-5.1 adds "none" for latency-sensitive tasks (no reasoning overhead)
+            if reasoning_effort in {"none", "minimal", "low", "medium", "high"}:
                 api_params["reasoning_effort"] = reasoning_effort
             # GPT-5 chat-completions expects `max_completion_tokens`
             api_params["max_completion_tokens"] = max_tokens
@@ -644,6 +668,122 @@ class OpenAIClient:
             return {
                 "model": self.model,
                 "prompt": prompt,
+                "output": f"Error: {e!s}",
+                "provider": "openai",
+                "error": str(e),
+            }
+
+    async def acomplete_multimodal(
+        self,
+        text: str,
+        images: list[str] | None = None,
+        **params: Any,
+    ) -> dict[str, Any]:
+        """Async multimodal completion with text and images (GPT-5.1 feature).
+
+        GPT-5.1 supports multimodal input: text, images, and files.
+
+        Args:
+            text: Text prompt
+            images: List of image URLs or base64-encoded images
+            **params: Additional parameters
+
+        Returns:
+            dict with completion result
+
+        Example:
+            >>> result = await client.acomplete_multimodal(
+            ...     text="What's in this image?",
+            ...     images=["https://example.com/image.jpg"]
+            ... )
+        """
+        # Build multimodal content
+        content: list[dict[str, Any]] = [{"type": "text", "text": text}]
+
+        if images:
+            for img in images:
+                if img.startswith("data:"):
+                    # Base64 encoded image
+                    content.append(
+                        {
+                            "type": "image_url",
+                            "image_url": {"url": img},
+                        }
+                    )
+                elif img.startswith("http"):
+                    # URL image
+                    content.append(
+                        {
+                            "type": "image_url",
+                            "image_url": {"url": img},
+                        }
+                    )
+                else:
+                    # Assume base64 without data prefix
+                    content.append(
+                        {
+                            "type": "image_url",
+                            "image_url": {"url": f"data:image/jpeg;base64,{img}"},
+                        }
+                    )
+
+        # Build API request
+        api_params: dict[str, Any] = {
+            "model": self.model,
+            "messages": [{"role": "user", "content": content}],
+        }
+
+        # Add GPT-5.1 specific parameters
+        if self._is_gpt5_1_model():
+            reasoning_effort = params.get("reasoning_effort", self.reasoning_effort)
+            if reasoning_effort in {"none", "minimal", "low", "medium", "high"}:
+                api_params["reasoning_effort"] = reasoning_effort
+
+            max_tokens = params.get("max_tokens", self.max_tokens)
+            api_params["max_completion_tokens"] = max_tokens
+
+            prompt_cache_retention = params.get(
+                "prompt_cache_retention", self.prompt_cache_retention
+            )
+            if prompt_cache_retention:
+                api_params["prompt_cache_retention"] = prompt_cache_retention
+
+        try:
+            self.logger.info(
+                "llm.openai.multimodal.request",
+                model=self.model,
+                text_length=len(text),
+                num_images=len(images) if images else 0,
+            )
+
+            response = await self.client.chat.completions.create(**api_params)
+
+            output_text = ""
+            if response.choices and len(response.choices) > 0:
+                output_text = self._extract_output_text(response.choices[0].message)
+
+            return {
+                "model": self.model,
+                "prompt": text,
+                "output": output_text,
+                "provider": "openai",
+                "usage": {
+                    "prompt_tokens": response.usage.prompt_tokens if response.usage else 0,
+                    "completion_tokens": (
+                        response.usage.completion_tokens if response.usage else 0
+                    ),
+                    "total_tokens": response.usage.total_tokens if response.usage else 0,
+                },
+                "finish_reason": (
+                    response.choices[0].finish_reason if response.choices else "unknown"
+                ),
+            }
+
+        except Exception as e:
+            self.logger.exception("llm.openai.multimodal.error", model=self.model, error=str(e))
+            return {
+                "model": self.model,
+                "prompt": text,
                 "output": f"Error: {e!s}",
                 "provider": "openai",
                 "error": str(e),

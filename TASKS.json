@@ -1,0 +1,167 @@
+{
+  "epics": [
+    {
+      "id": "EPIC-1",
+      "title": "Инвентаризация и дизайн единого backend памяти (Supabase/Postgres)",
+      "status": "completed",
+      "tasks": [
+        {
+          "id": "TASK-1.1",
+          "title": "Поиск всех in-memory хранилищ памяти",
+          "status": "completed",
+          "result": {
+            "in_memory_stores": [
+              "core/memory/stores/working_memory.py (only for tests)",
+              "core/memory/stores/semantic_store.py (only for tests)",
+              "core/memory/stores/episodic_store.py (only for tests)"
+            ],
+            "supabase_stores": [
+              "core/memory/stores/supabase_semantic_store.py",
+              "core/memory/stores/supabase_episodic_store.py",
+              "core/memory/stores/supabase_working_memory.py"
+            ],
+            "supabase_tables": {
+              "schema": "mega_agent",
+              "semantic_memory": "339 records, HNSW index",
+              "episodic_memory": "3 records",
+              "rfe_knowledge": "5626 records, HNSW index",
+              "rmt_buffers": "RMT working memory"
+            }
+          }
+        },
+        {
+          "id": "TASK-1.2",
+          "title": "Определение единого конфигурационного параметра",
+          "status": "completed"
+        }
+      ]
+    },
+    {
+      "id": "EPIC-2",
+      "title": "RMT (Working Memory) на Supabase",
+      "status": "completed",
+      "tasks": [
+        {
+          "id": "TASK-2.1",
+          "title": "Создание таблицы mega_agent.rmt_buffers",
+          "status": "completed",
+          "schema": {
+            "table": "mega_agent.rmt_buffers",
+            "columns": {
+              "thread_id": "VARCHAR(255) PRIMARY KEY",
+              "user_id": "VARCHAR(255)",
+              "slots": "JSONB NOT NULL DEFAULT '{}'",
+              "created_at": "TIMESTAMPTZ DEFAULT NOW()",
+              "updated_at": "TIMESTAMPTZ DEFAULT NOW()"
+            }
+          }
+        },
+        {
+          "id": "TASK-2.2",
+          "title": "Реализация SupabaseWorkingMemory",
+          "status": "completed",
+          "file": "core/memory/stores/supabase_working_memory.py"
+        },
+        {
+          "id": "TASK-2.3",
+          "title": "Интеграция в MemoryManager",
+          "status": "completed"
+        }
+      ]
+    },
+    {
+      "id": "EPIC-3",
+      "title": "Episodic Memory на Supabase",
+      "status": "completed",
+      "tasks": [
+        {
+          "id": "TASK-3.1",
+          "title": "Схема mega_agent.episodic_memory",
+          "status": "completed",
+          "schema": {
+            "table": "mega_agent.episodic_memory",
+            "columns": {
+              "event_id": "UUID PRIMARY KEY",
+              "thread_id": "VARCHAR",
+              "user_id": "VARCHAR",
+              "case_id": "VARCHAR",
+              "source": "VARCHAR",
+              "action": "VARCHAR",
+              "payload": "JSONB",
+              "tags": "TEXT[]",
+              "timestamp": "TIMESTAMPTZ",
+              "parent_event_id": "UUID"
+            }
+          }
+        },
+        {
+          "id": "TASK-3.2",
+          "title": "Реализация SupabaseEpisodicStore",
+          "status": "completed",
+          "file": "core/memory/stores/supabase_episodic_store.py"
+        },
+        {
+          "id": "TASK-3.3",
+          "title": "Интеграция в MemoryManager",
+          "status": "completed"
+        }
+      ]
+    },
+    {
+      "id": "EPIC-4",
+      "title": "Semantic/ARMT память на Supabase (pgvector)",
+      "status": "completed",
+      "tasks": [
+        {
+          "id": "TASK-4.1",
+          "title": "pgvector включен",
+          "status": "completed",
+          "result": "pgvector 0.8.0"
+        },
+        {
+          "id": "TASK-4.2",
+          "title": "Схема mega_agent.semantic_memory",
+          "status": "completed",
+          "schema": {
+            "table": "mega_agent.semantic_memory",
+            "index": "idx_semantic_memory_embedding_hnsw USING hnsw (embedding vector_cosine_ops)"
+          }
+        },
+        {
+          "id": "TASK-4.3",
+          "title": "SupabaseSemanticStore реализован",
+          "status": "completed",
+          "file": "core/memory/stores/supabase_semantic_store.py"
+        }
+      ]
+    },
+    {
+      "id": "EPIC-5",
+      "title": "Тестирование",
+      "status": "completed",
+      "tasks": [
+        {
+          "id": "TASK-5.1",
+          "title": "Unit-тесты",
+          "status": "completed",
+          "result": "21 tests passed"
+        },
+        {
+          "id": "TASK-5.2",
+          "title": "Интеграционные тесты Supabase-only",
+          "status": "completed"
+        }
+      ]
+    }
+  ],
+  "summary": {
+    "total_epics": 5,
+    "completed": 5,
+    "architecture": "Supabase-only (no in-memory in production)",
+    "stores": {
+      "SupabaseSemanticStore": "pgvector embeddings + HNSW index",
+      "SupabaseEpisodicStore": "audit events timeline",
+      "SupabaseWorkingMemory": "RMT 4-slot buffers"
+    }
+  }
+}

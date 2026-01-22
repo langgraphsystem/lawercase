@@ -300,7 +300,7 @@ class LogAggregator:
         Example:
             >>> logger = aggregator.get_logger(__name__)
             >>> aggregator.log_llm_request(
-            ...     logger, "claude-3-opus", 150, 300, 1200.5,
+            ...     logger, "claude-opus-4-5", 150, 300, 1200.5,
             ...     temperature=0.7, cached=False
             ... )
         """

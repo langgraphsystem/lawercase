@@ -1,0 +1,55 @@
+\documentclass[12pt,letterpaper]{article}
+
+% Packages
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage{mathptmx}  % Times New Roman font
+\usepackage[margin=1in]{geometry}
+\usepackage{fancyhdr}
+\usepackage{hyperref}
+\usepackage{longtable}
+\usepackage{array}
+\usepackage{booktabs}
+
+% Variables (will be replaced by Python)
+\newcommand{\clientname}{<<CLIENT_NAME>>}
+\newcommand{\clientnametitle}{<<CLIENT_NAME_TITLE>>}
+
+% Header setup
+\pagestyle{fancy}
+\fancyhf{}
+\renewcommand{\headrulewidth}{0.4pt}
+\fancyhead[L]{EB-1A Permanent Residency Petition for \clientnametitle}
+\fancyfoot[C]{\thepage}
+
+\begin{document}
+
+% Title
+\begin{center}
+\Large\textbf{List of Exhibits}
+\end{center}
+
+\vspace{1em}
+
+\begin{longtable}{|p{2.5cm}|p{10cm}|p{2cm}|}
+\hline
+\textbf{Exhibit \#} & \textbf{Description} & \textbf{Page} \\
+\hline
+\endfirsthead
+
+\hline
+\textbf{Exhibit \#} & \textbf{Description} & \textbf{Page} \\
+\hline
+\endhead
+
+\hline
+\endfoot
+
+\hline
+\endlastfoot
+
+<<EXHIBITS_ROWS>>
+
+\end{longtable}
+
+\end{document}

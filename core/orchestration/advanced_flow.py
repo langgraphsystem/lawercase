@@ -12,5 +12,10 @@ if TYPE_CHECKING:  # pragma: no cover
 
 
 def build_advanced_flow(memory: MemoryManager) -> Any:
-    """Return a compiled advanced flow (placeholder)."""
-    return None
+    """Return a compiled advanced flow.
+
+    For now this delegates to the advanced case workflow in ``workflow_graph``.
+    """
+    from .workflow_graph import build_advanced_case_workflow
+
+    return build_advanced_case_workflow(memory).compile()

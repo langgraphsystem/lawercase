@@ -18,6 +18,8 @@ from .audit_trail import (AuditEvent, AuditEventType, AuditTrail,
                           get_audit_trail)
 from .config import (CORSConfig, SecurityConfig, SecurityHeaders,
                      security_config)
+from .encryption import (PII_FIELDS, EncryptedValue, EncryptionService,
+                         KeyManager, get_encryption_service)
 from .pii_detector import (PIIDetectionResult, PIIDetector, PIIType,
                            get_pii_detector)
 from .prompt_injection_detector import (InjectionType, PromptInjectionDetector,
@@ -36,11 +38,15 @@ def configure_security(config: SecurityConfig) -> None:
 
 
 __all__ = [
+    "PII_FIELDS",
     "AuditEvent",
     "AuditEventType",
     "AuditTrail",
     "CORSConfig",
+    "EncryptedValue",
+    "EncryptionService",
     "InjectionType",
+    "KeyManager",
     "PIIDetectionResult",
     "PIIDetector",
     "PIIType",
@@ -55,6 +61,7 @@ __all__ = [
     "configure_prompt_detector",
     "configure_security",
     "get_audit_trail",
+    "get_encryption_service",
     "get_pii_detector",
     "get_prompt_detector",
     "get_rbac_manager",

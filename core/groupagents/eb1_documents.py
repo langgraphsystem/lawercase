@@ -157,7 +157,7 @@ class GeneratedDocument(BaseModel):
     # Метаданные генерации
     template_used: str | None = Field(default=None, description="Использованный шаблон")
     generation_prompt: str | None = Field(default=None, description="Промпт для генерации")
-    llm_model: str = Field(default="claude-3-5-sonnet", description="Использованная LLM")
+    llm_model: str = Field(default="claude-opus-4-5", description="Использованная LLM")
 
     # Версионирование
     version: int = Field(default=1, description="Версия документа")
