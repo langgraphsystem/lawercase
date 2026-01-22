@@ -9,6 +9,7 @@ Provides centralized dependency management to ensure:
 
 from __future__ import annotations
 
+import os
 from collections.abc import Awaitable, Callable
 from typing import Any, TypeVar
 
@@ -206,6 +207,64 @@ class Container:
             deps[key] = "async_factory"
         return deps
 
+    def workflow_graph(self, *, operation: str | None = None) -> Any:
+        """Return a compiled LangGraph workflow appropriate for ``operation``.
+
+        This is primarily used by AG-UI streaming endpoints.
+        """
+        from core.orchestration.pipeline_manager import setup_checkpointer
+        from core.orchestration.workflow_graph import (
+            build_advanced_case_workflow, build_case_workflow,
+            build_eb1a_complete_workflow)
+
+        # Persistent checkpointer (SQLite/DB) for resumable workflows
+        def _get_checkpointer():
+            url = os.getenv("WORKFLOW_CHECKPOINTER_URL") or "sqlite:///data/checkpoints.sqlite"
+            return setup_checkpointer(url)
+
+        checkpointer: Any | None = self.get_or_create_singleton(
+            "workflow_checkpointer", _get_checkpointer
+        )
+
+        memory = self.get("memory_manager")
+        op = (operation or "").strip().lower()
+
+        def _compile(graph_builder: Callable[[], Any]) -> Any:
+            graph = graph_builder()
+            if hasattr(graph, "compile"):
+                if checkpointer is not None:
+                    return graph.compile(checkpointer=checkpointer)
+                return graph.compile()
+            return graph
+
+        if op.startswith(("eb1", "eb-1", "eb1a")):
+            key = "workflow_graph:eb1a_complete"
+
+            def factory() -> Any:
+                return _compile(lambda: build_eb1a_complete_workflow(memory))
+
+        elif op in {"advanced", "case_advanced", "advanced_case_workflow"}:
+            key = "workflow_graph:case_advanced"
+
+            def factory() -> Any:
+                case_agent = self.get_or_create_singleton(
+                    "workflow_graph:case_agent",
+                    lambda: self.get("case_agent"),
+                )
+                return _compile(lambda: build_advanced_case_workflow(memory, case_agent=case_agent))
+
+        else:
+            key = "workflow_graph:case"
+
+            def factory() -> Any:
+                case_agent = self.get_or_create_singleton(
+                    "workflow_graph:case_agent",
+                    lambda: self.get("case_agent"),
+                )
+                return _compile(lambda: build_case_workflow(memory, case_agent=case_agent))
+
+        return self.get_or_create_singleton(key, factory)
+
 
 # Global container instance
 _container: Container | None = None
@@ -253,29 +312,139 @@ def _initialize_container(container: Container) -> None:
     Registers:
         - memory_manager: MemoryManager singleton
         - tool_registry: ToolRegistry singleton
+        - mcp_manager: MCPClientManager singleton
         - mega_agent: MegaAgent factory (creates new instance on each get)
     """
     from core.groupagents.mega_agent import MegaAgent
+    from core.llm_interface.intelligent_router import IntelligentRouter
+    from core.mcp import MCPClientManager
     from core.memory.memory_manager import MemoryManager
     from core.tools.tool_registry import get_tool_registry
 
     logger.info("di.container.initializing_defaults")
 
-    # Singletons - shared across all components
-    container.register_singleton("memory_manager", MemoryManager())
+    # Prefer Supabase/PostgreSQL, but allow MemoryManager to fall back to in-memory
+    # stores for local development/test runs when DB config isn't present.
+    memory = MemoryManager()
+    container.register_singleton("memory_manager", memory)
     container.register_singleton("tool_registry", get_tool_registry())
+
+    # MCP (Model Context Protocol) client manager
+    # Provides dynamic tool loading from external MCP servers
+    container.register_singleton("mcp_manager", MCPClientManager())
+
+    # Initialize LLM Router with providers
+    # In production, API keys should be in env vars
+    providers = []
+
+    if os.getenv("ANTHROPIC_API_KEY"):
+        try:
+            from core.llm_interface.anthropic_client import AnthropicClient
+
+            providers.append(AnthropicClient())
+        except Exception as exc:  # pragma: no cover - env-dependent
+            logger.warning(
+                "di.container.llm_provider_init_failed", provider="anthropic", error=str(exc)
+            )
+
+    if os.getenv("OPENAI_API_KEY"):
+        try:
+            from core.llm_interface.openai_client import OpenAIClient
+
+            providers.append(OpenAIClient())
+        except Exception as exc:  # pragma: no cover - env-dependent
+            logger.warning(
+                "di.container.llm_provider_init_failed", provider="openai", error=str(exc)
+            )
+
+    if os.getenv("GEMINI_API_KEY") or os.getenv("GOOGLE_API_KEY"):
+        try:
+            from core.llm_interface.gemini_client import GeminiClient
+
+            providers.append(GeminiClient())
+        except Exception as exc:  # pragma: no cover - env-dependent
+            logger.warning(
+                "di.container.llm_provider_init_failed", provider="gemini", error=str(exc)
+            )
+
+    llm_router: IntelligentRouter | None
+    if providers:
+        llm_router = IntelligentRouter(providers=providers, initial_budget=100.0)
+    else:
+        llm_router = None
+        logger.warning("di.container.llm_router_disabled", reason="no_llm_api_keys_configured")
+
+    container.register_singleton("llm_router", llm_router)
 
     # Factories - create on demand
     def create_mega_agent() -> MegaAgent:
         """Create MegaAgent with injected dependencies."""
-        memory = container.get("memory_manager")
+        llm_router = container.get("llm_router")
         logger.debug("di.container.creating_mega_agent")
         return MegaAgent(
             memory_manager=memory,
+            llm_router=llm_router,
             use_chain_of_thought=True,  # Enable CoT by default
         )
 
     container.register_factory("mega_agent", create_mega_agent)
+
+    # Agent factories for AG-UI direct invocation
+    def create_case_agent():
+        from core.groupagents.case_agent import CaseAgent
+
+        db_manager = None
+        if os.getenv("POSTGRES_DSN"):
+            try:
+                from core.storage.connection import get_db_manager
+
+                db_manager = get_db_manager()
+            except Exception as exc:  # pragma: no cover - env-dependent
+                logger.warning("di.container.db_manager_init_failed", error=str(exc))
+                db_manager = None
+        return CaseAgent(
+            memory_manager=memory, db_manager=db_manager, use_database=db_manager is not None
+        )
+
+    def create_writer_agent():
+        from core.groupagents.writer_agent import WriterAgent
+
+        return WriterAgent(memory_manager=memory, llm_router=llm_router)
+
+    def create_validator_agent():
+        from core.groupagents.validator_agent import ValidatorAgent
+
+        return ValidatorAgent(memory_manager=memory, llm_router=llm_router)
+
+    def create_supervisor_agent():
+        from core.groupagents.supervisor_agent import SupervisorAgent
+
+        return SupervisorAgent(memory_manager=memory)
+
+    def create_feedback_agent():
+        from core.groupagents.feedback_agent import FeedbackAgent
+
+        return FeedbackAgent(memory_manager=memory)
+
+    container.register_factory("case_agent", create_case_agent)
+    container.register_factory("writer_agent", create_writer_agent)
+    container.register_factory("validator_agent", create_validator_agent)
+    container.register_factory("supervisor_agent", create_supervisor_agent)
+    container.register_factory("feedback_agent", create_feedback_agent)
+
+    # Async factory for loading MCP tools
+    async def load_mcp_tools():
+        """Load tools from MCP servers asynchronously."""
+        mcp_manager = container.get("mcp_manager")
+        if not mcp_manager.is_connected:
+            try:
+                await mcp_manager.connect()
+            except Exception as e:
+                logger.warning("di.container.mcp_connect_failed", error=str(e))
+                return []
+        return mcp_manager.tools
+
+    container.register_factory("mcp_tools", load_mcp_tools, is_async=True)
 
     logger.info(
         "di.container.initialized_defaults",

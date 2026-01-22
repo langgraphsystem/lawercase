@@ -6,6 +6,7 @@ EB1Agent - Интерактивный агент для EB-1A петиций
 - Оценку соответствия 10 критериям USCIS
 - Генерацию документов (I-140, Cover Letter, Evidence Lists)
 - Интеграцию с MemoryManager
+- Интеграцию с EB1ACriteriaSkill для детального анализа критериев
 """
 
 from __future__ import annotations
@@ -16,11 +17,32 @@ from typing import Any
 
 from ..memory.memory_manager import MemoryManager
 from ..memory.models import AuditEvent, MemoryRecord
+from ..skills.eb1a_criteria import (CriteriaAnalysisResult, CriterionType,
+                                    EB1ACriteriaSkill)
 from .eb1_models import (EB1_QUESTIONNAIRE_TEMPLATES, EB1Answer,
                          EB1ConversationState, EB1Criterion,
                          EB1CriterionEvidence, EB1FieldOfExpertise,
                          EB1PersonalInfo, EB1PetitionData, EB1PetitionStatus,
                          EB1Question, EB1QuestionnaireStep)
+
+# Mapping between EB1Criterion (agent) and CriterionType (skill)
+CRITERION_MAPPING: dict[EB1Criterion, CriterionType] = {
+    EB1Criterion.AWARDS: CriterionType.AWARDS,
+    EB1Criterion.MEMBERSHIP: CriterionType.MEMBERSHIP,
+    EB1Criterion.PRESS: CriterionType.PUBLISHED_MATERIAL,
+    EB1Criterion.JUDGING: CriterionType.JUDGING,
+    EB1Criterion.CONTRIBUTION: CriterionType.ORIGINAL_CONTRIBUTIONS,
+    EB1Criterion.SCHOLARLY: CriterionType.SCHOLARLY_ARTICLES,
+    EB1Criterion.EXHIBITION: CriterionType.EXHIBITIONS,
+    EB1Criterion.LEADERSHIP: CriterionType.LEADING_ROLE,
+    EB1Criterion.SALARY: CriterionType.HIGH_SALARY,
+    EB1Criterion.COMMERCIAL: CriterionType.COMMERCIAL_SUCCESS,
+}
+
+# Reverse mapping for lookup
+CRITERION_REVERSE_MAPPING: dict[CriterionType, EB1Criterion] = {
+    v: k for k, v in CRITERION_MAPPING.items()
+}
 
 
 class EB1Agent:
@@ -35,14 +57,26 @@ class EB1Agent:
     5. Генерирует документы если критерии выполнены
     """
 
-    def __init__(self, memory_manager: MemoryManager | None = None):
+    def __init__(
+        self,
+        memory_manager: MemoryManager | None = None,
+        llm_router: Any | None = None,
+    ):
         """
         Инициализация EB1Agent.
 
         Args:
             memory_manager: Менеджер памяти
+            llm_router: LLM роутер для вызова моделей (опционально)
         """
         self.memory = memory_manager or MemoryManager()
+        self.llm_router = llm_router
+
+        # Инициализация EB1ACriteriaSkill для детального анализа критериев
+        self.criteria_skill = EB1ACriteriaSkill(
+            memory_manager=self.memory,
+            llm_router=llm_router,
+        )
 
         # Хранилище петиций
         self._petitions: dict[str, EB1PetitionData] = {}
@@ -52,6 +86,9 @@ class EB1Agent:
 
         # Вопросники по этапам
         self._questionnaires = EB1_QUESTIONNAIRE_TEMPLATES
+
+        # Кэш результатов анализа критериев
+        self._criteria_analysis_cache: dict[str, CriteriaAnalysisResult] = {}
 
     # ========== ОСНОВНЫЕ ОПЕРАЦИИ ==========
 
@@ -423,7 +460,22 @@ class EB1Agent:
     async def _generate_criteria_summary(
         self, petition: EB1PetitionData, conversation: EB1ConversationState
     ) -> str:
-        """Генерация итоговой сводки по критериям"""
+        """Генерация итоговой сводки по критериям с использованием EB1ACriteriaSkill."""
+
+        # Преобразование данных петиции в формат для skill
+        case_data = self._convert_petition_to_case_data(petition)
+
+        # Анализ критериев с использованием skill
+        try:
+            analysis_result = await self.criteria_skill.analyze_case(
+                case_id=petition.petition_id,
+                case_data=case_data,
+            )
+            # Кэширование результата для последующего использования
+            self._criteria_analysis_cache[petition.petition_id] = analysis_result
+        except Exception:
+            # Fallback to basic analysis if skill fails
+            analysis_result = None
 
         # Подсчет критериев
         met_criteria = []
@@ -438,16 +490,24 @@ class EB1Agent:
 
         petition.criteria_met_count = len(met_criteria)
 
-        # Оценка eligibility (нужно минимум 3 критерия)
-        if len(met_criteria) >= 3:
+        # Используем данные из skill analysis если доступны
+        if analysis_result:
+            petition.eligibility_score = analysis_result.overall_score / 100.0
+            petition.recommendation = analysis_result.overall_recommendation
+        # Fallback оценка
+        elif len(met_criteria) >= 3:
             petition.eligibility_score = min(1.0, len(met_criteria) / 10.0 + 0.3)
             petition.recommendation = "✅ РЕКОМЕНДУЕТСЯ подавать петицию EB-1A"
-            petition.status = EB1PetitionStatus.READY_FOR_FILING
         else:
             petition.eligibility_score = len(met_criteria) / 10.0
             petition.recommendation = (
                 "⚠️ Недостаточно критериев. Рекомендуется собрать больше доказательств."
             )
+
+        # Обновление статуса
+        if len(met_criteria) >= 3:
+            petition.status = EB1PetitionStatus.READY_FOR_FILING
+        else:
             petition.status = EB1PetitionStatus.CRITERIA_REVIEW
 
         # Формирование сообщения
@@ -456,18 +516,40 @@ class EB1Agent:
 
         summary += f"✅ Соответствует критериям: {len(met_criteria)}/10\n"
         summary += f"📈 Оценка: {petition.eligibility_score:.0%}\n"
+
+        # Добавляем вероятность одобрения из skill если доступна
+        if analysis_result:
+            summary += (
+                f"🎯 Вероятность одобрения: {analysis_result.estimated_approval_probability:.0%}\n"
+            )
+
         summary += f"💡 {petition.recommendation}\n\n"
 
+        # Детальный анализ выполненных критериев
         summary += "✅ Выполненные критерии:\n"
         for i, criterion in enumerate(met_criteria, 1):
             evidence = petition.criteria_evidence[criterion.value]
+            criterion_type = CRITERION_MAPPING.get(criterion)
+
+            # Получаем детальную информацию из skill analysis
+            strength_label = ""
+            if analysis_result and criterion_type in analysis_result.criteria_evaluations:
+                eval_data = analysis_result.criteria_evaluations[criterion_type]
+                strength_label = f" [{eval_data.overall_strength.value.upper()}]"
+
             summary += f"  {i}. {self._get_criterion_name(criterion)} "
-            summary += f"(сила: {evidence.strength_score:.0%})\n"
+            summary += f"(сила: {evidence.strength_score:.0%}){strength_label}\n"
 
         if not_met_criteria:
             summary += "\n❌ Не выполненные критерии:\n"
             for criterion in not_met_criteria:
                 summary += f"  - {self._get_criterion_name(criterion)}\n"
+
+        # Добавляем рекомендации из skill если доступны
+        if analysis_result and analysis_result.next_steps:
+            summary += "\n📋 Рекомендуемые следующие шаги:\n"
+            for i, step in enumerate(analysis_result.next_steps[:3], 1):
+                summary += f"  {i}. {step}\n"
 
         summary += "\n" + ("=" * 50) + "\n"
 
@@ -486,6 +568,57 @@ class EB1Agent:
 
         conversation.last_bot_message = summary
         return summary
+
+    def _convert_petition_to_case_data(self, petition: EB1PetitionData) -> dict[str, Any]:
+        """Преобразование данных петиции в формат для EB1ACriteriaSkill."""
+        case_data: dict[str, Any] = {}
+
+        # Персональная информация
+        if petition.personal_info:
+            case_data["personal_info"] = {
+                "full_name": petition.personal_info.full_name,
+                "email": petition.personal_info.email,
+                "country": petition.personal_info.current_country,
+                "visa_status": petition.personal_info.current_visa_status,
+            }
+
+        # Область экспертизы
+        if petition.field_of_expertise:
+            case_data["field"] = petition.field_of_expertise.field
+            case_data["years_experience"] = petition.field_of_expertise.years_of_experience
+            case_data["position"] = petition.field_of_expertise.current_position
+            case_data["education"] = petition.field_of_expertise.education_level
+
+        # Преобразование критериев
+        criterion_data_mapping = {
+            EB1Criterion.AWARDS: "awards",
+            EB1Criterion.MEMBERSHIP: "memberships",
+            EB1Criterion.PRESS: "media_coverage",
+            EB1Criterion.JUDGING: "judging",
+            EB1Criterion.CONTRIBUTION: "contributions",
+            EB1Criterion.SCHOLARLY: "publications",
+            EB1Criterion.EXHIBITION: "exhibitions",
+            EB1Criterion.LEADERSHIP: "roles",
+            EB1Criterion.SALARY: "salary",
+            EB1Criterion.COMMERCIAL: "commercial",
+        }
+
+        for criterion, data_key in criterion_data_mapping.items():
+            evidence = petition.criteria_evidence.get(criterion.value)
+            if evidence and evidence.met:
+                evidence_items = []
+                for item in evidence.evidence_items:
+                    evidence_items.append(
+                        {
+                            "title": item.get("description", ""),
+                            "description": item.get("description", ""),
+                            "type": item.get("type", "document"),
+                            "source": "",
+                        }
+                    )
+                case_data[data_key] = evidence_items
+
+        return case_data
 
     async def _finalize_petition(
         self, petition: EB1PetitionData, conversation: EB1ConversationState
@@ -596,6 +729,97 @@ class EB1Agent:
         return names.get(criterion, criterion.value)
 
     # ========== ПУБЛИЧНЫЕ МЕТОДЫ ДЛЯ УПРАВЛЕНИЯ ==========
+
+    async def get_detailed_criterion_analysis(
+        self, petition_id: str, criterion: EB1Criterion
+    ) -> dict[str, Any]:
+        """
+        Получение детального анализа конкретного критерия с использованием EB1ACriteriaSkill.
+
+        Args:
+            petition_id: ID петиции
+            criterion: Критерий для анализа
+
+        Returns:
+            dict с детальным анализом критерия
+        """
+        petition = self._petitions.get(petition_id)
+        if not petition:
+            return {"error": "Petition not found"}
+
+        criterion_type = CRITERION_MAPPING.get(criterion)
+        if not criterion_type:
+            return {"error": "Unknown criterion"}
+
+        # Проверяем кэш
+        if petition_id in self._criteria_analysis_cache:
+            analysis = self._criteria_analysis_cache[petition_id]
+            if criterion_type in analysis.criteria_evaluations:
+                eval_data = analysis.criteria_evaluations[criterion_type]
+                return {
+                    "criterion": criterion.value,
+                    "criterion_type": criterion_type.value,
+                    "met": eval_data.criterion_met,
+                    "strength": eval_data.overall_strength.value,
+                    "score": eval_data.overall_score,
+                    "summary": eval_data.summary,
+                    "narrative": eval_data.narrative,
+                    "recommendations": eval_data.recommendations,
+                    "required_documents": eval_data.required_documents,
+                }
+
+        # Если нет в кэше, выполняем анализ
+        case_data = self._convert_petition_to_case_data(petition)
+
+        try:
+            evaluation = await self.criteria_skill.evaluate_criterion(
+                case_id=petition_id,
+                criterion=criterion_type,
+                case_data=case_data,
+            )
+            return {
+                "criterion": criterion.value,
+                "criterion_type": criterion_type.value,
+                "met": evaluation.criterion_met,
+                "strength": evaluation.overall_strength.value,
+                "score": evaluation.overall_score,
+                "summary": evaluation.summary,
+                "narrative": evaluation.narrative,
+                "recommendations": evaluation.recommendations,
+                "required_documents": evaluation.required_documents,
+            }
+        except Exception as e:
+            return {"error": str(e)}
+
+    async def get_criterion_info(self, criterion: EB1Criterion) -> dict[str, Any]:
+        """
+        Получение информации о критерии из EB1ACriteriaSkill.
+
+        Args:
+            criterion: Критерий для получения информации
+
+        Returns:
+            dict с информацией о критерии
+        """
+        criterion_type = CRITERION_MAPPING.get(criterion)
+        if not criterion_type:
+            return {"error": "Unknown criterion"}
+
+        return self.criteria_skill.get_criterion_info(criterion_type)
+
+    async def get_all_criteria_info(self) -> dict[str, dict[str, Any]]:
+        """
+        Получение информации о всех критериях.
+
+        Returns:
+            dict с информацией о всех критериях
+        """
+        result = {}
+        for criterion in EB1Criterion:
+            criterion_type = CRITERION_MAPPING.get(criterion)
+            if criterion_type:
+                result[criterion.value] = self.criteria_skill.get_criterion_info(criterion_type)
+        return result
 
     async def get_petition_status(self, petition_id: str) -> dict[str, Any]:
         """Получение статуса петиции"""

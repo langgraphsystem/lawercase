@@ -19,9 +19,106 @@ from typing import Any
 
 from pydantic import BaseModel, Field
 
+from ..llm_interface.intelligent_router import IntelligentRouter, LLMRequest
 from ..memory.memory_manager import MemoryManager
 from ..memory.models import AuditEvent
+from ..skills.eb1a_criteria.criteria import CRITERION_CLASSES
 from .models import ValidationResult
+
+# =============================================================================
+# EB-1A Criterion Validation Support
+# =============================================================================
+
+
+def get_eb1a_validation_rules() -> list[dict]:
+    """
+    Generate EB-1A criterion-specific validation rules from CRITERION_CLASSES.
+
+    Returns:
+        List of validation rule dictionaries for EB-1A criteria
+    """
+    eb1a_rules = []
+
+    for criterion_key, criterion_class in CRITERION_CLASSES.items():
+        cfr = getattr(criterion_class, "CFR_REFERENCE", "")
+        title_en = getattr(criterion_class, "TITLE_EN", criterion_key)
+
+        # Rule: Check that criterion evidence is properly documented
+        eb1a_rules.append(
+            {
+                "name": f"EB1A {title_en} - Evidence Documentation",
+                "category": "legal",
+                "rule_type": "semantic",
+                "severity": "error",
+                "message": f"For {cfr} ({title_en}): Ensure evidence clearly demonstrates "
+                f"both receipt of the claimed achievement AND its national/international recognition.",
+                "criterion_key": criterion_key,
+            }
+        )
+
+        # Rule: Check that criterion uses proper legal citations
+        eb1a_rules.append(
+            {
+                "name": f"EB1A {title_en} - Legal Citation",
+                "category": "legal",
+                "rule_type": "pattern",
+                "pattern": (
+                    cfr.replace(".", r"\.").replace("(", r"\(").replace(")", r"\)") if cfr else None
+                ),
+                "severity": "warning",
+                "message": f"Section should cite {cfr} for {title_en} criterion.",
+                "criterion_key": criterion_key,
+            }
+        )
+
+    return eb1a_rules
+
+
+def get_criterion_validation_prompt(criterion_key: str) -> str:
+    """
+    Get validation prompt for a specific EB-1A criterion.
+
+    Args:
+        criterion_key: Key from CRITERION_CLASSES (e.g., 'awards', 'membership')
+
+    Returns:
+        Validation prompt text
+    """
+    criterion_class = CRITERION_CLASSES.get(criterion_key)
+    if not criterion_class:
+        return ""
+
+    cfr = getattr(criterion_class, "CFR_REFERENCE", "")
+    title_en = getattr(criterion_class, "TITLE_EN", "")
+    prompt = getattr(criterion_class, "PROMPT", "")
+
+    # Extract key validation points from PROMPT
+    validation_points = []
+    if "Required Documentation" in prompt:
+        # Extract required documentation section
+        start = prompt.find("Required Documentation")
+        end = prompt.find("---", start)
+        if end == -1:
+            end = prompt.find("##", start + 20)
+        if end != -1:
+            doc_section = prompt[start:end]
+            validation_points.append(doc_section[:500])
+
+    return f"""
+Validate this EB-1A evidence section for {cfr}: {title_en}
+
+Key validation criteria:
+1. PART 1: Does evidence prove the petitioner received/achieved this criterion?
+2. PART 2: Does evidence prove national/international recognition level?
+
+{chr(10).join(validation_points)}
+
+Check for:
+- Specific documentation (certificates, letters, publications)
+- Third-party verification sources
+- Quantifiable metrics where applicable
+- Proper legal citations ({cfr})
+"""
 
 
 class _ValidatorBaseModel(BaseModel):
@@ -62,6 +159,7 @@ class ValidationRuleType(str, Enum):
     FORMAT = "format"
     STRUCTURE = "structure"
     LOGIC = "logic"
+    SEMANTIC = "semantic"
 
 
 class ValidationRule(_ValidatorBaseModel):
@@ -159,14 +257,20 @@ class ValidatorAgent:
     - Интеграция с workflow
     """
 
-    def __init__(self, memory_manager: MemoryManager | None = None):
+    def __init__(
+        self,
+        memory_manager: MemoryManager | None = None,
+        llm_router: IntelligentRouter | None = None,
+    ):
         """
         Инициализация ValidatorAgent.
 
         Args:
             memory_manager: Менеджер памяти для persistence
+            llm_router: Роутер для доступа к LLM (Claude Opus 4.5)
         """
         self.memory = memory_manager or MemoryManager()
+        self.llm_router = llm_router
 
         # Хранилища
         self._validation_rules: dict[str, ValidationRule] = {}
@@ -429,6 +533,8 @@ class ValidatorAgent:
                 issues.extend(self._check_structure(content, rule))
             elif rule.rule_type == ValidationRuleType.LOGIC:
                 issues.extend(self._check_logic(content, rule))
+            elif rule.rule_type == ValidationRuleType.SEMANTIC:
+                issues.extend(await self._check_semantic(content, rule))
 
         except Exception as e:
             # Логирование ошибки правила но продолжение валидации
@@ -573,6 +679,64 @@ class ValidatorAgent:
 
         return issues
 
+    async def _check_semantic(self, content: str, rule: ValidationRule) -> list[ValidationIssue]:
+        """Семантическая проверка с помощью LLM (Claude Opus 4.5)"""
+        if not self.llm_router:
+            # Fallback if no LLM available
+            return []
+
+        issues = []
+        import json
+
+        prompt = (
+            f"You are an expert legal document validator (using Claude Opus 4.5 logic). "
+            f"Analyze the following text against this specific rule:\n\n"
+            f"RULE: {rule.name}\n"
+            f"DESCRIPTION: {rule.message}\n"
+            f"CATEGORY: {rule.category.value}\n\n"
+            f"TEXT TO ANALYZE:\n{content[:4000]}...\n\n"  # Truncate if too long, though Opus handles 200k
+            f"Return a JSON object with these fields:\n"
+            f"- is_valid (bool): true if the rule is satisfied\n"
+            f"- issue (string): description of the violation if any, else null\n"
+            f"- suggestion (string): how to fix it, else null\n"
+            f"- severity (string): 'error' or 'warning'\n"
+        )
+
+        try:
+            request = LLMRequest(
+                prompt=prompt,
+                temperature=0.0,
+                task_complexity="ultra",  # Requesting Claude Opus 4.5 tier
+                metadata={"preferred_model": "claude-opus-4-5-20251124", "agent": "ValidatorAgent"},
+            )
+
+            response = await self.llm_router.acomplete(request)
+            response_text = response.get("response", "")
+
+            # Simple JSON extraction
+            start = response_text.find("{")
+            end = response_text.rfind("}")
+            if start != -1 and end != -1:
+                json_str = response_text[start : end + 1]
+                data = json.loads(json_str)
+
+                if not data.get("is_valid", True):
+                    issues.append(
+                        ValidationIssue(
+                            rule_id=rule.rule_id,
+                            category=rule.category,
+                            severity=data.get("severity", rule.severity),
+                            message=data.get("issue") or rule.message,
+                            suggestion=data.get("suggestion"),
+                            auto_fixable=False,
+                        )
+                    )
+        except Exception as e:
+            # Log but don't crash validation
+            print(f"Semantic validation failed: {e}")
+
+        return issues
+
     async def _perform_magcc_assessment(self, request: ValidationRequest) -> MAGCCAssessment:
         """Выполнение MAGCC quality assessment"""
 
@@ -713,6 +877,21 @@ class ValidatorAgent:
                 "severity": "warning",
                 "message": "Document should have coherent structure",
             },
+            # Семантические правила (LLM)
+            {
+                "name": "Legal Consistency Check",
+                "category": ValidationCategory.LEGAL,
+                "rule_type": ValidationRuleType.SEMANTIC,
+                "severity": "error",
+                "message": "Ensure there are no logical contradictions or factual inconsistencies in the legal arguments.",
+            },
+            {
+                "name": "Professional Tone",
+                "category": ValidationCategory.LINGUISTIC,
+                "rule_type": ValidationRuleType.SEMANTIC,
+                "severity": "warning",
+                "message": "Ensure the tone is professional, objective, and suitable for a USCIS petition.",
+            },
         ]
 
         for rule_data in default_rules:
@@ -722,6 +901,18 @@ class ValidatorAgent:
             except Exception as e:
                 # Log rule initialization errors but continue
                 print(f"Warning: Failed to initialize validation rule: {e}")
+
+        # Load EB-1A specific validation rules from criteria skills
+        eb1a_rules = get_eb1a_validation_rules()
+        for rule_data in eb1a_rules:
+            try:
+                # Map string category/rule_type to enums
+                rule_data["category"] = ValidationCategory(rule_data["category"])
+                rule_data["rule_type"] = ValidationRuleType(rule_data["rule_type"])
+                rule = ValidationRule(**rule_data)
+                self._validation_rules[rule.rule_id] = rule
+            except Exception as e:
+                print(f"Warning: Failed to initialize EB-1A validation rule: {e}")
 
     def _update_stats(self, level: ValidationLevel, issue_count: int) -> None:
         """Обновление статистики валидации"""

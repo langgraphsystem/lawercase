@@ -1,0 +1,62 @@
+\documentclass[12pt,letterpaper]{article}
+
+% Packages
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage{mathptmx}  % Times New Roman font
+\usepackage[margin=1in]{geometry}
+\usepackage{fancyhdr}
+\usepackage{hyperref}
+\usepackage{enumitem}
+\usepackage{setspace}
+\usepackage{parskip}
+
+% Variables (will be replaced by Python)
+\newcommand{\clientname}{<<CLIENT_NAME>>}
+\newcommand{\clientnametitle}{<<CLIENT_NAME_TITLE>>}
+\newcommand{\clientfield}{<<CLIENT_FIELD>>}
+
+% Header setup
+\pagestyle{fancy}
+\fancyhf{}
+\renewcommand{\headrulewidth}{0.4pt}
+\fancyhead[L]{EB-1A Permanent Residency Petition for \clientnametitle}
+\fancyfoot[C]{\thepage}
+
+% Paragraph settings
+\setlength{\parindent}{2em}
+\setlength{\parskip}{0.5em}
+
+\begin{document}
+
+% Title
+\begin{center}
+\Large\textbf{Statement of Intent to Continue Work in the United States}
+\end{center}
+
+\vspace{2em}
+
+I, \clientname{}, hereby declare my intent to continue working in my field of \clientfield{} in the United States of America upon approval of my EB-1A petition for permanent residency.
+
+I plan to utilize my expertise and continue making significant contributions to the field of \clientfield{}. My work will benefit the United States through:
+
+\begin{itemize}[leftmargin=2em]
+    \item Advancing technological innovation and research
+    \item Creating economic value and job opportunities
+    \item Sharing knowledge and mentoring the next generation of professionals
+    \item Contributing to the competitiveness of the US in the global market
+\end{itemize}
+
+I am committed to maintaining the highest standards of professional excellence and contributing positively to the American economy and society.
+
+<<ADDITIONAL_STATEMENT>>
+
+I declare under penalty of perjury that the foregoing is true and correct.
+
+\vspace{4em}
+
+\noindent\rule{6cm}{0.4pt}\\
+\clientname\\
+Date: \rule{4cm}{0.4pt}
+
+\end{document}

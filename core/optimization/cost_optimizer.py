@@ -38,29 +38,29 @@ class ModelCost:
 
 # Default model costs (примерные цены)
 DEFAULT_MODEL_COSTS = {
-    "claude-3-opus": ModelCost(
-        model_name="claude-3-opus",
+    "claude-opus-4-5-20251124": ModelCost(
+        model_name="claude-opus-4-5-20251124",  # Claude Opus 4.5
         tier=ModelTier.ULTRA,
         cost_per_1k_input_tokens=0.015,
         cost_per_1k_output_tokens=0.075,
-        avg_latency_ms=2000,
-        quality_score=0.95,
+        avg_latency_ms=2500,
+        quality_score=0.99,
     ),
-    "claude-3-sonnet": ModelCost(
-        model_name="claude-3-sonnet",
+    "claude-sonnet-4-5-20250929": ModelCost(
+        model_name="claude-sonnet-4-5-20250929",
         tier=ModelTier.HIGH,
         cost_per_1k_input_tokens=0.003,
         cost_per_1k_output_tokens=0.015,
         avg_latency_ms=1500,
-        quality_score=0.90,
+        quality_score=0.95,
     ),
-    "claude-3-haiku": ModelCost(
-        model_name="claude-3-haiku",
+    "claude-haiku-4-5-20251215": ModelCost(
+        model_name="claude-haiku-4-5-20251215",
         tier=ModelTier.MEDIUM,
-        cost_per_1k_input_tokens=0.00025,
-        cost_per_1k_output_tokens=0.00125,
+        cost_per_1k_input_tokens=0.001,
+        cost_per_1k_output_tokens=0.005,
         avg_latency_ms=800,
-        quality_score=0.85,
+        quality_score=0.90,
     ),
     # OpenAI GPT-5 family (2025 pricing; approximate)
     "gpt-5": ModelCost(
@@ -119,7 +119,7 @@ class CostTracker:
     Example:
         >>> tracker = CostTracker(daily_budget_usd=100.0)
         >>> tracker.record_operation(
-        ...     model="claude-3-sonnet",
+        ...     model="claude-sonnet-4-5",
         ...     input_tokens=1000,
         ...     output_tokens=500,
         ...     latency_ms=1200
@@ -199,7 +199,7 @@ class CostTracker:
 
         Example:
             >>> cost = tracker.record_operation(
-            ...     model="claude-3-sonnet",
+            ...     model="claude-sonnet-4-5",
             ...     input_tokens=1000,
             ...     output_tokens=500,
             ...     latency_ms=1200

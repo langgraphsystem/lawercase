@@ -19,7 +19,7 @@
 #### Новые модели (November 2025):
 ```python
 # PRIMARY - GPT-5.1 models
-GPT_5_1_INSTANT = "gpt-5.1-chat-latest"  # NEW DEFAULT with adaptive reasoning
+GPT_5_1_INSTANT = "gpt-5.1"  # NEW DEFAULT with adaptive reasoning
 GPT_5_1_THINKING = "gpt-5.1"             # Advanced reasoning
 GPT_5_1_CODEX = "gpt-5.1-codex"          # Extended programming workloads
 GPT_5_1_CODEX_MINI = "gpt-5.1-codex-mini"  # Lightweight coding
@@ -36,7 +36,7 @@ GPT_5_NANO = "gpt-5-nano"
   - Input: $1.25/1M tokens
   - Output: $10/1M tokens
   - Cached: $0.125/1M tokens (90% discount!)
-- **Default Model**: `gpt-5.1-chat-latest` (changed from `gpt-5-2025-08-07`)
+- **Default Model**: `gpt-5.1` (changed from `gpt-5-2025-08-07`)
 
 #### Ключевые возможности GPT-5.1:
 
@@ -48,7 +48,7 @@ GPT_5_NANO = "gpt-5-nano"
 **2. reasoning_effort: "none"** ⚡
 ```python
 client = OpenAIClient(
-    model="gpt-5.1-chat-latest",
+    model="gpt-5.1",
     reasoning_effort="none"  # Latency-sensitive mode - no thinking overhead
 )
 ```
@@ -59,7 +59,7 @@ client = OpenAIClient(
 **3. Extended Prompt Caching** 💾
 ```python
 client = OpenAIClient(
-    model="gpt-5.1-chat-latest",
+    model="gpt-5.1",
     prompt_cache_retention="24h"  # 24-hour cache retention
 )
 ```
@@ -80,7 +80,7 @@ client = OpenAIClient(
 ```python
 def __init__(
     self,
-    model: str | None = None,  # Default: gpt-5.1-chat-latest
+    model: str | None = None,  # Default: gpt-5.1
     ...
     prompt_cache_retention: str | None = None,  # NEW: "24h"
     tools: list[dict[str, Any]] | None = None,  # NEW: Function calling
@@ -102,7 +102,7 @@ async def acomplete(
     """
     Returns:
         {
-            "model": "gpt-5.1-chat-latest",
+            "model": "gpt-5.1",
             "prompt": "...",
             "output": "...",
             "provider": "openai",
@@ -215,7 +215,7 @@ def get_tools_for_openai(
 from core.llm_interface import OpenAIClient
 
 # Default - GPT-5.1 Instant with adaptive reasoning
-client = OpenAIClient()  # model="gpt-5.1-chat-latest"
+client = OpenAIClient()  # model="gpt-5.1"
 
 result = await client.acomplete("Explain quantum computing")
 # Model automatically adapts thinking time based on complexity
@@ -226,7 +226,7 @@ result = await client.acomplete("Explain quantum computing")
 ```python
 # Ultra-fast mode without reasoning overhead
 client = OpenAIClient(
-    model="gpt-5.1-chat-latest",
+    model="gpt-5.1",
     reasoning_effort="none"  # NEW: No thinking, just direct answers
 )
 
@@ -238,7 +238,7 @@ result = await client.acomplete("Hello!")
 
 ```python
 client = OpenAIClient(
-    model="gpt-5.1-chat-latest",
+    model="gpt-5.1",
     prompt_cache_retention="24h"  # Cache for 24 hours
 )
 
@@ -255,7 +255,7 @@ result2 = await client.acomplete("Long system prompt... " * 1000)
 from core.llm_interface import OpenAIClient
 from core.tools import get_tool_registry
 
-client = OpenAIClient(model="gpt-5.1-chat-latest")
+client = OpenAIClient(model="gpt-5.1")
 registry = get_tool_registry()
 
 # Register tool
@@ -318,7 +318,7 @@ result = await client.acomplete(
 ### Обновленные методы OpenAI Client:
 
 1. **`__init__()`**:
-   - Default model изменен: `gpt-5-2025-08-07` → `gpt-5.1-chat-latest`
+   - Default model изменен: `gpt-5-2025-08-07` → `gpt-5.1`
    - Новые параметры: `prompt_cache_retention`, `tools`, `tool_choice`
    - Логирование tools_enabled status
 
@@ -400,7 +400,7 @@ OPENAI_API_KEY=sk-...
 OPENAI_TIMEOUT=60.0  # seconds
 
 # GPT-5.1 specific
-OPENAI_MODEL=gpt-5.1-chat-latest  # Override default
+OPENAI_MODEL=gpt-5.1  # Override default
 ```
 
 ### Code Configuration:
@@ -410,7 +410,7 @@ from core.llm_interface import OpenAIClient
 
 # Production settings
 client = OpenAIClient(
-    model="gpt-5.1-chat-latest",      # GPT-5.1 Instant
+    model="gpt-5.1",      # GPT-5.1 Instant
     reasoning_effort="medium",         # Balanced thinking
     prompt_cache_retention="24h",      # 24h cache
     temperature=0.7,
@@ -419,7 +419,7 @@ client = OpenAIClient(
 
 # Low-latency settings
 fast_client = OpenAIClient(
-    model="gpt-5.1-chat-latest",
+    model="gpt-5.1",
     reasoning_effort="none",           # No thinking overhead
     max_tokens=1024,
 )
@@ -486,7 +486,7 @@ python -m pytest tests/unit/llm_interface/test_openai_gpt51.py -v
 **Modified**:
 - [core/llm_interface/openai_client.py](core/llm_interface/openai_client.py):
   - Added GPT-5.1 models (lines 65-89)
-  - Updated default model to gpt-5.1-chat-latest (line 146)
+  - Updated default model to gpt-5.1 (line 146)
   - Added tools, tool_choice, prompt_cache_retention parameters
   - Added _is_gpt5_1_model() method
   - Added tools support in acomplete() (lines 421-442)

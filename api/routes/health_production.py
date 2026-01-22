@@ -73,27 +73,44 @@ SERVICE_START_TIME = time.time()
 async def check_database_health() -> DependencyHealth:
     """Check database connectivity and health.
 
+    Uses DatabaseManager.health_check() to verify PostgreSQL connection.
+
     Returns:
         Database health status
     """
     start_time = time.perf_counter()
 
     try:
-        # TODO: Implement actual database check
-        # For now, simulate check
-        await asyncio.sleep(0.01)  # Simulate DB query
+        from core.storage.connection import get_db_manager
 
-        # In production:
-        # async with get_db_connection() as conn:
-        #     await conn.execute("SELECT 1")
+        db = get_db_manager()
+        is_healthy = await db.health_check()
 
         response_time = (time.perf_counter() - start_time) * 1000
 
+        if is_healthy:
+            return DependencyHealth(
+                name="database",
+                status=HealthStatus.HEALTHY,
+                response_time_ms=response_time,
+                message="Database connection successful",
+            )
         return DependencyHealth(
             name="database",
-            status=HealthStatus.HEALTHY,
+            status=HealthStatus.UNHEALTHY,
             response_time_ms=response_time,
-            message="Database connection successful",
+            message="Database health check returned False",
+        )
+
+    except ImportError as e:
+        response_time = (time.perf_counter() - start_time) * 1000
+        logger.warning("Database module not available", error=str(e))
+
+        return DependencyHealth(
+            name="database",
+            status=HealthStatus.DEGRADED,
+            response_time_ms=response_time,
+            message="Database module not configured",
         )
 
     except Exception as e:
@@ -111,27 +128,54 @@ async def check_database_health() -> DependencyHealth:
 async def check_redis_health() -> DependencyHealth:
     """Check Redis connectivity and health.
 
+    Uses RedisClient.ping() to verify Redis connection.
+
     Returns:
         Redis health status
     """
     start_time = time.perf_counter()
 
     try:
-        # TODO: Implement actual Redis check
-        # For now, simulate check
-        await asyncio.sleep(0.005)  # Simulate Redis ping
+        from core.caching.redis_client import get_redis_client
 
-        # In production:
-        # redis_client = await get_redis_client()
-        # await redis_client.ping()
+        redis_client = get_redis_client()
+        is_healthy = await redis_client.ping()
 
         response_time = (time.perf_counter() - start_time) * 1000
 
+        # Check if using FakeRedis (degraded mode)
+        is_fake = getattr(redis_client, "_fake_mode", False)
+
+        if is_healthy and not is_fake:
+            return DependencyHealth(
+                name="redis",
+                status=HealthStatus.HEALTHY,
+                response_time_ms=response_time,
+                message="Redis connection successful",
+            )
+        if is_healthy and is_fake:
+            return DependencyHealth(
+                name="redis",
+                status=HealthStatus.DEGRADED,
+                response_time_ms=response_time,
+                message="Using in-memory FakeRedis (real Redis unavailable)",
+            )
         return DependencyHealth(
             name="redis",
-            status=HealthStatus.HEALTHY,
+            status=HealthStatus.UNHEALTHY,
             response_time_ms=response_time,
-            message="Redis connection successful",
+            message="Redis ping returned False",
+        )
+
+    except ImportError as e:
+        response_time = (time.perf_counter() - start_time) * 1000
+        logger.warning("Redis module not available", error=str(e))
+
+        return DependencyHealth(
+            name="redis",
+            status=HealthStatus.DEGRADED,
+            response_time_ms=response_time,
+            message="Redis module not configured",
         )
 
     except Exception as e:
@@ -199,14 +243,18 @@ async def check_llm_health(settings: AppSettings) -> DependencyHealth:
 async def check_memory_health() -> DependencyHealth:
     """Check memory manager health.
 
+    Verifies MemoryManager can be instantiated and is operational.
+
     Returns:
         Memory health status
     """
     start_time = time.perf_counter()
 
     try:
-        # TODO: Implement actual memory check
-        await asyncio.sleep(0.001)
+        from core.memory.memory_manager import MemoryManager
+
+        # Try to instantiate memory manager (validates configuration)
+        memory = MemoryManager()
 
         response_time = (time.perf_counter() - start_time) * 1000
 
@@ -215,6 +263,18 @@ async def check_memory_health() -> DependencyHealth:
             status=HealthStatus.HEALTHY,
             response_time_ms=response_time,
             message="Memory manager operational",
+            details={"type": type(memory).__name__},
+        )
+
+    except ImportError as e:
+        response_time = (time.perf_counter() - start_time) * 1000
+        logger.warning("Memory module not available", error=str(e))
+
+        return DependencyHealth(
+            name="memory_manager",
+            status=HealthStatus.DEGRADED,
+            response_time_ms=response_time,
+            message="Memory module not configured",
         )
 
     except Exception as e:

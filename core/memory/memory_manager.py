@@ -7,7 +7,6 @@ if TYPE_CHECKING:
 
 from .models import AuditEvent, ConsolidateStats, MemoryRecord, RetrievalQuery
 from .policies import select_salient_facts
-from .stores import EpisodicStore, SemanticStore, WorkingMemory
 
 
 class Embedder(Protocol):
@@ -20,27 +19,69 @@ class _NoOpEmbedder:
         return [[] for _ in texts]
 
 
+def _create_default_stores() -> tuple:
+    """Create default stores.
+
+    SUPABASE ONLY: All stores require Supabase/PostgreSQL.
+    No in-memory fallback - data must persist across restarts.
+    """
+    import structlog
+
+    from .stores import (SupabaseEpisodicStore, SupabaseSemanticStore,
+                         SupabaseWorkingMemory)
+
+    logger = structlog.get_logger(__name__)
+
+    try:
+        stores = (
+            SupabaseSemanticStore(),
+            SupabaseEpisodicStore(),
+            SupabaseWorkingMemory(),
+        )
+        logger.info("memory_manager.stores_initialized", backend="supabase")
+        return stores
+    except Exception as exc:
+        logger.error(
+            "memory_manager.supabase_required",
+            error=str(exc),
+            hint="Set SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY in .env",
+        )
+        raise RuntimeError(
+            f"Supabase stores required but failed to initialize: {exc}. "
+            "Check SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY configuration."
+        ) from exc
+
+
 class MemoryManager:
     """Facade over episodic/semantic stores and RMT buffer with optional embeddings.
+
+    SUPABASE-ONLY: All stores use Supabase/PostgreSQL by default.
+    No in-memory stores in production - data persists across restarts.
 
     - alog_audit: persist raw event (episodic)
     - awrite: reflect salient facts and store as semantic memory (embeddings optional)
     - aretrieve: hybrid placeholder retrieval from semantic store
-    - aconsodlidate: naive dedupe/prune placeholder
+    - aconsolidate: dedupe/prune
     - asnapshot_thread: dump episodic events for a thread
     """
 
     def __init__(
         self,
         *,
-        semantic: SemanticStore | None = None,
-        episodic: EpisodicStore | None = None,
-        working: WorkingMemory | None = None,
+        semantic: Any | None = None,
+        episodic: Any | None = None,
+        working: Any | None = None,
         embedder: Embedder | None = None,
     ) -> None:
-        self.semantic = semantic or SemanticStore()
-        self.episodic = episodic or EpisodicStore()
-        self.working = working or WorkingMemory()
+        if semantic is None or episodic is None or working is None:
+            default_semantic, default_episodic, default_working = _create_default_stores()
+            self.semantic = semantic or default_semantic
+            self.episodic = episodic or default_episodic
+            self.working = working or default_working
+        else:
+            self.semantic = semantic
+            self.episodic = episodic
+            self.working = working
         self.embedder = embedder or _NoOpEmbedder()
 
     # ---- Auditing ----
@@ -91,29 +132,133 @@ class MemoryManager:
             query=query, user_id=user_id, topk=topk or 8, filters=filters
         )
 
+    async def aretrieve_knowledge_base(
+        self,
+        query: str,
+        topk: int = 8,
+    ) -> list[MemoryRecord]:
+        """Retrieve from knowledge base only (approved petitions, reference cases).
+
+        Use this method when agents need reference materials but NOT
+        case-specific client documents.
+
+        Args:
+            query: Search query text
+            topk: Maximum number of results
+
+        Returns:
+            List of MemoryRecord from knowledge base only
+        """
+        if hasattr(self.semantic, "aretrieve_knowledge_base"):
+            return await self.semantic.aretrieve_knowledge_base(query=query, topk=topk)
+        # Fallback for stores without this method
+        return await self.semantic.aretrieve(
+            query=query,
+            topk=topk,
+            filters={"tags": ["knowledge_base"]},
+        )
+
+    async def aretrieve_case_documents(
+        self,
+        query: str,
+        case_id: str,
+        user_id: str | None = None,
+        topk: int = 8,
+    ) -> list[MemoryRecord]:
+        """Retrieve case-specific documents with semantic ranking.
+
+        Use this method when agents need client-specific evidence
+        but NOT general knowledge base materials.
+
+        Args:
+            query: Search query text
+            case_id: Case ID to filter by
+            user_id: Optional user ID filter
+            topk: Maximum number of results
+
+        Returns:
+            List of MemoryRecord for the specific case
+        """
+        if hasattr(self.semantic, "aretrieve_case_documents"):
+            return await self.semantic.aretrieve_case_documents(
+                query=query, case_id=case_id, user_id=user_id, topk=topk
+            )
+        # Fallback for stores without this method
+        return await self.semantic.aretrieve(
+            query=query,
+            user_id=user_id,
+            topk=topk,
+            filters={"case_id": case_id},
+        )
+
+    async def aretrieve_hybrid(
+        self,
+        query: str,
+        case_id: str | None = None,
+        user_id: str | None = None,
+        topk: int = 8,
+        knowledge_weight: float = 0.3,
+    ) -> list[MemoryRecord]:
+        """Retrieve from both knowledge base and case documents.
+
+        Use this method when agents need BOTH reference materials
+        AND case-specific evidence (e.g., for EB-1A analysis).
+
+        Args:
+            query: Search query text
+            case_id: Optional case ID for case-specific documents
+            user_id: Optional user ID filter
+            topk: Maximum number of results
+            knowledge_weight: Weight for knowledge base results (0-1)
+                0.0 = only case documents
+                1.0 = only knowledge base
+                0.3 = 30% knowledge, 70% case (default)
+
+        Returns:
+            List of MemoryRecord from both sources, merged by relevance
+        """
+        if hasattr(self.semantic, "aretrieve_hybrid"):
+            return await self.semantic.aretrieve_hybrid(
+                query=query,
+                case_id=case_id,
+                user_id=user_id,
+                topk=topk,
+                knowledge_weight=knowledge_weight,
+            )
+        # Fallback: just use regular retrieve
+        return await self.semantic.aretrieve(query=query, user_id=user_id, topk=topk)
+
+    async def aretrieve_all_sources(
+        self,
+        query: str,
+        topk: int = 10,
+    ) -> list[MemoryRecord]:
+        """Retrieve from ALL memory sources without user filtering.
+
+        Searches both semantic_memory and rfe_knowledge tables.
+        Use this for global knowledge lookup when user context is not needed.
+
+        Args:
+            query: Search query text
+            topk: Maximum number of results
+
+        Returns:
+            List of MemoryRecord from all sources, sorted by relevance
+        """
+        if hasattr(self.semantic, "aretrieve_all_sources"):
+            return await self.semantic.aretrieve_all_sources(query=query, topk=topk)
+        # Fallback for stores without this method
+        return await self.semantic.aretrieve(query=query, user_id=None, topk=topk)
+
     # ---- Consolidate ----
     async def aconsolidate(self, *, user_id: str | None = None) -> ConsolidateStats:
-        """Placeholder consolidation: deduplicate identical texts per user."""
-        all_items = await self.semantic.aall(user_id=user_id)
-        seen = set()
-        deduped: list[MemoryRecord] = []
-        deduplicated = 0
-        for r in all_items:
-            key = (r.user_id, r.type, r.text)
-            if key in seen:
-                deduplicated += 1
-                continue
-            seen.add(key)
-            deduped.append(r)
-        # Replace store items only in in-memory placeholder
-        if user_id is None:
-            self.semantic._items = deduped  # type: ignore[attr-defined]
-        else:
-            # selective rewrite
-            self.semantic._items = [  # type: ignore[attr-defined]
-                r for r in self.semantic._items if r.user_id != user_id
-            ] + deduped
-        return ConsolidateStats(deduplicated=deduplicated, total_after=len(self.semantic._items))  # type: ignore[attr-defined]
+        """No-op consolidation for Supabase stores.
+
+        SupabaseSemanticStore handles persistence and indexing; in-memory
+        deduplication via `_items` is not available. We return zeroed stats
+        to keep the API compatible.
+        """
+        return ConsolidateStats(deduplicated=0, total_after=0)
 
     # ---- Snapshot ----
     async def asnapshot_thread(self, thread_id: str) -> str:

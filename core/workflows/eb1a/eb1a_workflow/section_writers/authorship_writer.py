@@ -54,8 +54,10 @@ class AuthorshipWriter(BaseSectionWriter):
         # Build opening with citation metrics
         citation_text = ""
         if request.citations_count:
-            citation_text = f" These publications have been cited {request.citations_count:,} times by \
+            citation_text = (
+                f" These publications have been cited {request.citations_count:,} times by \
 researchers worldwide"
+            )
             if request.h_index:
                 citation_text += f", with an h-index of {request.h_index}"
             citation_text += ", demonstrating significant impact and influence."

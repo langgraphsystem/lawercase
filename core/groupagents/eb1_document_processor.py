@@ -473,9 +473,9 @@ Generate the complete recommendation letter now:
 
         Использует переданный llm_client для генерации документа.
         Поддерживает:
-        - Anthropic Claude (claude-sonnet-4-5-20250929, claude-opus-4-1-20250805)
-        - OpenAI GPT (gpt-5, gpt-5-mini, gpt-5-nano, o3-mini, o4-mini)
-        - Google Gemini (gemini-2.5-pro, gemini-2.5-flash)
+        - Anthropic Claude (claude-opus-4-5-20251124, claude-sonnet-4-5-20250929, claude-haiku-4-5)
+        - OpenAI GPT (gpt-5.2, gpt-5.1, gpt-4.1, o4-mini, o3-mini)
+        - Google Gemini (gemini-3-pro-preview, gemini-3-flash, gemini-2.5-flash)
 
         Args:
             prompt: Промпт для генерации

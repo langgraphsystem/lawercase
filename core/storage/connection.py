@@ -50,14 +50,29 @@ class DatabaseManager:
             postgresql+asyncpg://...
         """
         if self._engine is None:
+            # Add SSL and connection parameters for Supabase compatibility
+            connect_args = {
+                # NOTE: JIT parameter removed for pgbouncer compatibility (port 6543)
+                # pgbouncer doesn't support server_settings like "jit": "off"
+                "ssl": "prefer",  # Use SSL if available
+                "timeout": 60,  # Connection timeout (increased for vector queries)
+                "command_timeout": 60,  # Query execution timeout (pgvector searches can be slow)
+                # PgBouncer in transaction/statement mode breaks prepared statements.
+                # Disable asyncpg statement cache to avoid "prepared statement already exists".
+                "statement_cache_size": 0,
+            }
+
             self._engine = create_async_engine(
                 str(self.config.postgres_dsn),
                 echo=self.config.echo_sql,  # Log SQL queries if enabled
                 pool_size=self.config.pool_size,
                 max_overflow=self.config.max_overflow,
                 pool_timeout=self.config.pool_timeout,
-                pool_recycle=self.config.pool_recycle,
-                pool_pre_ping=True,  # Verify connections before using
+                # Recycle connections every 5 minutes to avoid stale connections
+                # Supabase/pgbouncer may close idle connections earlier
+                pool_recycle=300,
+                pool_pre_ping=False,  # Disabled for pgbouncer compatibility
+                connect_args=connect_args,
             )
         return self._engine
 

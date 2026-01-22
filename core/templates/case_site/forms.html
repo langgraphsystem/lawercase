@@ -1,0 +1,412 @@
+{% extends "base.html" %}
+
+{% block title %}USCIS Forms{% endblock %}
+
+{% block extra_head %}
+<style>
+    /* Forms overview cards */
+    .forms-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+        gap: 20px;
+        margin-bottom: 30px;
+    }
+    .form-card {
+        background: white;
+        border: 1px solid #dee2e6;
+        border-radius: 12px;
+        overflow: hidden;
+        transition: all 0.3s;
+        cursor: pointer;
+    }
+    .form-card:hover {
+        box-shadow: 0 8px 25px rgba(0,0,0,0.1);
+        transform: translateY(-2px);
+    }
+    .form-card.active {
+        border-color: var(--primary-color);
+        box-shadow: 0 0 0 2px var(--primary-color);
+    }
+    .form-card-header {
+        background: linear-gradient(135deg, var(--primary-color), #004999);
+        color: white;
+        padding: 15px 20px;
+        position: relative;
+    }
+    .form-card-header h3 {
+        margin: 0 0 3px 0;
+        font-size: 1.2rem;
+    }
+    .form-card-header .form-number {
+        font-size: 0.85rem;
+        opacity: 0.9;
+    }
+    .form-card-header .fee-badge {
+        position: absolute;
+        top: 12px;
+        right: 12px;
+        background: rgba(255,255,255,0.2);
+        padding: 4px 10px;
+        border-radius: 15px;
+        font-size: 0.8rem;
+    }
+    .form-card-body {
+        padding: 15px 20px;
+    }
+    .form-card-body p {
+        color: #6c757d;
+        font-size: 0.85rem;
+        margin: 0;
+        line-height: 1.4;
+    }
+
+    /* Instructions panel */
+    .instructions-panel {
+        background: #e7f3ff;
+        border: 1px solid #b8daff;
+        border-radius: 8px;
+        padding: 15px 20px;
+        margin-bottom: 20px;
+    }
+    .instructions-panel h4 {
+        color: #004085;
+        margin: 0 0 10px 0;
+        font-size: 1rem;
+    }
+    .instructions-panel ul {
+        margin: 0;
+        padding-left: 20px;
+        color: #004085;
+        font-size: 0.9rem;
+    }
+    .instructions-panel li {
+        margin: 4px 0;
+    }
+
+    /* Total fees summary */
+    .fees-summary {
+        background: #fff3cd;
+        border: 1px solid #ffc107;
+        border-radius: 8px;
+        padding: 12px 20px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 25px;
+    }
+    .fees-summary .label {
+        font-weight: 500;
+        color: #856404;
+    }
+    .fees-summary .total {
+        font-size: 1.3rem;
+        font-weight: bold;
+        color: #856404;
+    }
+
+    /* PDF Viewer Container */
+    .pdf-viewer-container {
+        background: white;
+        border: 1px solid #dee2e6;
+        border-radius: 12px;
+        overflow: hidden;
+        margin-top: 25px;
+    }
+    .pdf-viewer-header {
+        background: #f8f9fa;
+        padding: 15px 20px;
+        border-bottom: 1px solid #dee2e6;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        flex-wrap: wrap;
+        gap: 10px;
+    }
+    .pdf-viewer-header h2 {
+        margin: 0;
+        font-size: 1.1rem;
+        color: var(--primary-color);
+    }
+    .pdf-viewer-actions {
+        display: flex;
+        gap: 10px;
+        flex-wrap: wrap;
+    }
+    .pdf-viewer-actions .btn {
+        font-size: 0.85rem;
+        padding: 8px 15px;
+    }
+
+    /* PDF Embed */
+    .pdf-embed-wrapper {
+        width: 100%;
+        height: 800px;
+        background: #525659;
+        position: relative;
+    }
+    .pdf-embed-wrapper object,
+    .pdf-embed-wrapper embed,
+    .pdf-embed-wrapper iframe {
+        width: 100%;
+        height: 100%;
+        border: none;
+    }
+
+    /* Fallback message */
+    .pdf-fallback {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        height: 100%;
+        padding: 40px;
+        text-align: center;
+        color: white;
+    }
+    .pdf-fallback .icon {
+        font-size: 4rem;
+        margin-bottom: 20px;
+    }
+    .pdf-fallback p {
+        margin: 10px 0;
+        font-size: 1rem;
+    }
+    .pdf-fallback .btn {
+        margin-top: 15px;
+    }
+
+    /* Form tabs */
+    .form-tabs {
+        display: flex;
+        gap: 5px;
+        padding: 10px 15px;
+        background: #e9ecef;
+        overflow-x: auto;
+    }
+    .form-tab {
+        padding: 10px 18px;
+        border: none;
+        background: white;
+        border-radius: 6px;
+        cursor: pointer;
+        font-size: 0.9rem;
+        font-weight: 500;
+        color: #495057;
+        transition: all 0.2s;
+        white-space: nowrap;
+    }
+    .form-tab:hover {
+        background: #f8f9fa;
+    }
+    .form-tab.active {
+        background: var(--primary-color);
+        color: white;
+    }
+
+    /* Tips section */
+    .tips-section {
+        background: #d4edda;
+        border: 1px solid #c3e6cb;
+        border-radius: 8px;
+        padding: 15px 20px;
+        margin-top: 20px;
+    }
+    .tips-section h4 {
+        color: #155724;
+        margin: 0 0 10px 0;
+        font-size: 0.95rem;
+    }
+    .tips-section ul {
+        margin: 0;
+        padding-left: 20px;
+        color: #155724;
+        font-size: 0.85rem;
+    }
+
+    /* Responsive */
+    @media (max-width: 768px) {
+        .pdf-embed-wrapper {
+            height: 500px;
+        }
+        .forms-grid {
+            grid-template-columns: 1fr;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<header>
+    <h1>USCIS Forms</h1>
+    <div class="meta">Fill required immigration forms for Case {{ case.case_id }}</div>
+</header>
+
+<!-- Instructions -->
+<div class="instructions-panel">
+    <h4>EB-1A Filing Requirements</h4>
+    <ul>
+        <li><strong>G-1145</strong> - e-Notification of Application/Petition Acceptance (optional, free)</li>
+        <li><strong>I-140</strong> - Required for all EB-1A petitions ($715 filing fee)</li>
+        <li><strong>G-28</strong> - Required if represented by an attorney (no fee)</li>
+        <li><strong>I-907</strong> - Optional for 15-day premium processing ($2,805 additional fee)</li>
+    </ul>
+</div>
+
+<!-- Total Fees -->
+<div class="fees-summary">
+    <span class="label">Estimated Total Filing Fees:</span>
+    <span class="total">${{ total_fees|default('3,520') }}</span>
+</div>
+
+<!-- Forms Grid -->
+<div class="forms-grid">
+    <!-- G-1145 Card -->
+    <div class="form-card" id="card-g1145" onclick="selectForm('g1145')">
+        <div class="form-card-header" style="background: linear-gradient(135deg, #17a2b8, #138496);">
+            <h3>G-1145</h3>
+            <div class="form-number">e-Notification</div>
+            <span class="fee-badge">FREE</span>
+        </div>
+        <div class="form-card-body">
+            <p>Request email/text notification when USCIS accepts your application.</p>
+        </div>
+    </div>
+
+    <!-- I-140 Card -->
+    <div class="form-card active" id="card-i140" onclick="selectForm('i140')">
+        <div class="form-card-header">
+            <h3>I-140</h3>
+            <div class="form-number">Immigrant Petition</div>
+            <span class="fee-badge">$715</span>
+        </div>
+        <div class="form-card-body">
+            <p>Primary petition form for EB-1A extraordinary ability classification.</p>
+        </div>
+    </div>
+
+    <!-- G-28 Card -->
+    <div class="form-card" id="card-g28" onclick="selectForm('g28')">
+        <div class="form-card-header" style="background: linear-gradient(135deg, #6c757d, #495057);">
+            <h3>G-28</h3>
+            <div class="form-number">Attorney Appearance</div>
+            <span class="fee-badge">FREE</span>
+        </div>
+        <div class="form-card-body">
+            <p>Required if represented by an attorney or accredited representative.</p>
+        </div>
+    </div>
+
+    <!-- I-907 Card -->
+    <div class="form-card" id="card-i907" onclick="selectForm('i907')">
+        <div class="form-card-header" style="background: linear-gradient(135deg, #28a745, #1e7e34);">
+            <h3>I-907</h3>
+            <div class="form-number">Premium Processing</div>
+            <span class="fee-badge">$2,805</span>
+        </div>
+        <div class="form-card-body">
+            <p>Optional - Get 15 calendar day processing guarantee.</p>
+        </div>
+    </div>
+</div>
+
+<!-- PDF Viewer -->
+<div class="pdf-viewer-container">
+    <div class="form-tabs">
+        <button class="form-tab" data-form="g1145" onclick="selectForm('g1145')">G-1145</button>
+        <button class="form-tab active" data-form="i140" onclick="selectForm('i140')">I-140</button>
+        <button class="form-tab" data-form="g28" onclick="selectForm('g28')">G-28</button>
+        <button class="form-tab" data-form="i907" onclick="selectForm('i907')">I-907</button>
+    </div>
+
+    <div class="pdf-viewer-header">
+        <h2 id="pdf-title">I-140 - Immigrant Petition for Alien Workers</h2>
+        <div class="pdf-viewer-actions">
+            <a id="btn-download" href="{{ base_path }}assets/forms/i-140.pdf" download class="btn btn-secondary">Download PDF</a>
+            <a id="btn-instructions" href="https://www.uscis.gov/sites/default/files/document/forms/i-140instr.pdf" target="_blank" class="btn btn-secondary">Instructions</a>
+            <a id="btn-open-new" href="{{ base_path }}assets/forms/i-140.pdf" target="_blank" class="btn">Open in New Tab</a>
+        </div>
+    </div>
+
+    <div class="pdf-embed-wrapper">
+        <object id="pdf-object" data="{{ base_path }}assets/forms/i-140.pdf" type="application/pdf">
+            <div class="pdf-fallback">
+                <div class="icon">📄</div>
+                <p>Your browser doesn't support embedded PDF viewing.</p>
+                <p>Please download the form to fill it out.</p>
+                <a id="fallback-download" href="{{ base_path }}assets/forms/i-140.pdf" download class="btn">Download PDF Form</a>
+            </div>
+        </object>
+    </div>
+</div>
+
+<!-- Tips -->
+<div class="tips-section">
+    <h4>Tips for Filling PDF Forms</h4>
+    <ul>
+        <li><strong>Fill directly in browser:</strong> Most modern browsers (Chrome, Edge, Firefox) allow you to fill PDF forms directly. Just click on fields and type.</li>
+        <li><strong>Save your progress:</strong> Use "Download" or Ctrl+S to save the filled PDF to your computer.</li>
+        <li><strong>Print when ready:</strong> After filling, print the form and sign where required before mailing to USCIS.</li>
+        <li><strong>Open in Adobe Reader:</strong> For best experience with complex forms, download Adobe Acrobat Reader (free).</li>
+        <li><strong>Keep copies:</strong> Always save a copy of all filled forms for your records.</li>
+    </ul>
+</div>
+
+<script>
+const formData = {
+    'g1145': {
+        title: 'G-1145 - e-Notification of Application/Petition Acceptance',
+        pdf: '{{ base_path }}assets/forms/g-1145.pdf',
+        instructions: 'https://www.uscis.gov/sites/default/files/document/forms/g-1145instr.pdf'
+    },
+    'i140': {
+        title: 'I-140 - Immigrant Petition for Alien Workers',
+        pdf: '{{ base_path }}assets/forms/i-140.pdf',
+        instructions: 'https://www.uscis.gov/sites/default/files/document/forms/i-140instr.pdf'
+    },
+    'g28': {
+        title: 'G-28 - Notice of Entry of Appearance as Attorney',
+        pdf: '{{ base_path }}assets/forms/g-28.pdf',
+        instructions: 'https://www.uscis.gov/sites/default/files/document/forms/g-28instr.pdf'
+    },
+    'i907': {
+        title: 'I-907 - Request for Premium Processing Service',
+        pdf: '{{ base_path }}assets/forms/i-907.pdf',
+        instructions: 'https://www.uscis.gov/sites/default/files/document/forms/i-907instr.pdf'
+    }
+};
+
+let currentForm = 'i140';
+
+function selectForm(formId) {
+    currentForm = formId;
+    const form = formData[formId];
+
+    // Update cards
+    document.querySelectorAll('.form-card').forEach(card => {
+        card.classList.remove('active');
+    });
+    document.getElementById('card-' + formId).classList.add('active');
+
+    // Update tabs
+    document.querySelectorAll('.form-tab').forEach(tab => {
+        tab.classList.toggle('active', tab.dataset.form === formId);
+    });
+
+    // Update PDF viewer
+    document.getElementById('pdf-title').textContent = form.title;
+    document.getElementById('btn-download').href = form.pdf;
+    document.getElementById('btn-instructions').href = form.instructions;
+    document.getElementById('btn-open-new').href = form.pdf;
+    document.getElementById('fallback-download').href = form.pdf;
+
+    // Update PDF object
+    const pdfObject = document.getElementById('pdf-object');
+    pdfObject.data = form.pdf;
+}
+
+// Initialize
+document.addEventListener('DOMContentLoaded', function() {
+    selectForm('i140');
+});
+</script>
+{% endblock %}

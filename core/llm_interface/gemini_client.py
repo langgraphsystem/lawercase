@@ -10,34 +10,54 @@ except ImportError:
 
 
 class GeminiClient:
-    """Google Gemini client with support for latest models (2025).
+    """Google Gemini client with support for latest models (January 2026).
 
-    Supported Models:
-    - gemini-2.5-pro: Most powerful model with 1M context, complex reasoning
-    - gemini-2.5-flash: Best price-performance, 1M context, fast
-    - gemini-2.5-flash-lite: Cost-efficient, high throughput
-    - gemini-2.0-flash: Next-gen features, native tool use, 1M context
+    Gemini 3 Series (Latest - December 2025):
+    - gemini-3-pro-preview: State-of-the-art reasoning, agentic, coding
+    - gemini-3-flash: Latest Flash model, replaces 2.5 Flash
+
+    Gemini 2.5 Series (June 2025 - Stable):
+    - gemini-2.5-pro: Most powerful, 1M context, complex reasoning
+    - gemini-2.5-flash: Best price-performance, 1M context, thinking capabilities
+    - gemini-2.5-flash-lite: Speed and cost optimized
 
     API Parameters:
     - temperature (float, 0.0-2.0): Randomness (default 1.0)
     - max_output_tokens (int): Maximum tokens to generate
     - top_p (float, 0.0-1.0): Nucleus sampling
     - top_k (int): Top-K sampling (default 40)
-    - stop_sequences (list[str]): Sequences that stop generation
 
-    Multimodal Support:
-    - Text, images, video, audio, PDF inputs (varies by model)
+    Sources:
+    - https://ai.google.dev/gemini-api/docs/models
+    - https://blog.google/products/gemini/gemini-3-flash/
     """
 
-    # Latest model identifiers (2025)
+    # Gemini 3 models (December 2025 - Latest)
+    GEMINI_3_PRO_PREVIEW = "gemini-3-pro-preview"  # Latest flagship
+    GEMINI_3_FLASH = "gemini-3-flash"
+
+    # Gemini 2.5 models (June 2025 - Stable)
     GEMINI_2_5_PRO = "gemini-2.5-pro"
     GEMINI_2_5_FLASH = "gemini-2.5-flash"
     GEMINI_2_5_FLASH_LITE = "gemini-2.5-flash-lite"
-    GEMINI_2_0_FLASH = "gemini-2.0-flash"
+
+    # Model sets
+    GEMINI_3_MODELS = {
+        GEMINI_3_PRO_PREVIEW,
+        GEMINI_3_FLASH,
+    }
+
+    GEMINI_2_5_MODELS = {
+        GEMINI_2_5_PRO,
+        GEMINI_2_5_FLASH,
+        GEMINI_2_5_FLASH_LITE,
+    }
+
+    ALL_MODELS = GEMINI_3_MODELS | GEMINI_2_5_MODELS
 
     def __init__(
         self,
-        model: str = GEMINI_2_5_PRO,
+        model: str | None = None,
         api_key: str | None = None,
         temperature: float = 1.0,
         max_output_tokens: int = 8192,
@@ -45,23 +65,33 @@ class GeminiClient:
         top_k: int = 40,
         **kwargs: Any,
     ) -> None:
-        """Initialize Gemini client.
+        """Initialize Google Gemini client (January 2026).
 
         Args:
-            model: Model identifier (default: gemini-2.5-pro)
+            model: Model identifier (default: gemini-3-pro-preview - latest flagship)
             api_key: Google API key (or set GOOGLE_API_KEY/GEMINI_API_KEY env var)
             temperature: Randomness (0.0-2.0, default 1.0)
             max_output_tokens: Max tokens to generate (default 8192)
             top_p: Nucleus sampling (0.0-1.0, default 0.95)
             top_k: Top-K sampling (default 40)
             **kwargs: Additional parameters
+
+        Recommended models:
+            - GEMINI_3_PRO_PREVIEW: Latest, best reasoning/coding
+            - GEMINI_2_5_FLASH: Best price-performance, production stable
+            - GEMINI_2_5_FLASH_LITE: Fastest, most cost-efficient
         """
         if genai is None:
             raise ImportError(
                 "google-generativeai package not installed. Install with: pip install google-generativeai>=0.8.0"
             )
 
-        self.model = model
+        self.model = (
+            model
+            or os.getenv("GEMINI_MODEL")
+            or os.getenv("GOOGLE_MODEL")
+            or self.GEMINI_3_PRO_PREVIEW
+        ).strip()
         self.temperature = temperature
         self.max_output_tokens = max_output_tokens
         self.top_p = top_p

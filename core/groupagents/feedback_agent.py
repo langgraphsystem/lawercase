@@ -21,6 +21,69 @@ from pydantic import BaseModel, Field
 
 from ..memory.memory_manager import MemoryManager
 from ..memory.models import AuditEvent
+from ..skills.eb1a_criteria.criteria import CRITERION_CLASSES
+
+# =============================================================================
+# EB-1A Criterion Feedback Support
+# =============================================================================
+
+
+def get_eb1a_feedback_templates() -> dict[str, dict[str, str]]:
+    """
+    Generate EB-1A criterion-specific feedback templates.
+
+    Returns:
+        Dictionary mapping criterion_key to feedback templates
+    """
+    templates = {}
+
+    for criterion_key, criterion_class in CRITERION_CLASSES.items():
+        cfr = getattr(criterion_class, "CFR_REFERENCE", "")
+        title_en = getattr(criterion_class, "TITLE_EN", criterion_key)
+        title_ru = getattr(criterion_class, "TITLE_RU", "")
+
+        templates[criterion_key] = {
+            "review_checklist": f"""
+## Review Checklist for {cfr}: {title_en}
+
+### Part 1: Receipt Documentation
+- [ ] Evidence proves petitioner received/achieved this criterion
+- [ ] Documentation is from authoritative sources
+- [ ] Dates and details are clear and verifiable
+
+### Part 2: Recognition Level
+- [ ] Evidence shows national/international recognition
+- [ ] Third-party verification is included
+- [ ] Comparative data demonstrates significance
+
+### Legal Compliance
+- [ ] Proper citation of {cfr}
+- [ ] Consistent with USCIS Policy Manual
+- [ ] Addresses two-part Kazarian analysis
+""",
+            "common_issues": f"""
+Common issues for {title_en} ({title_ru}):
+1. Missing third-party verification of claimed achievements
+2. Lack of evidence for recognition level (national vs local)
+3. Insufficient documentation of selection criteria or competition
+4. Missing {cfr} regulatory citation
+5. Failure to address both parts of the Kazarian analysis
+""",
+            "improvement_template": f"""
+To strengthen {title_en} evidence:
+1. Obtain official documentation (certificates, letters)
+2. Add third-party verification (media coverage, expert letters)
+3. Include quantifiable metrics (statistics, rankings)
+4. Cite {cfr} explicitly in the petition narrative
+5. Address both receipt AND recognition in the analysis
+""",
+        }
+
+    return templates
+
+
+# Pre-load templates for performance
+EB1A_FEEDBACK_TEMPLATES = get_eb1a_feedback_templates()
 
 
 class _FeedbackBaseModel(BaseModel):

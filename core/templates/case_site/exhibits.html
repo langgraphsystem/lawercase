@@ -1,0 +1,724 @@
+{% extends "base.html" %}
+
+{% block title %}Exhibits{% endblock %}
+
+{% block extra_head %}
+<style>
+    /* Tab navigation */
+    .exhibit-tabs {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 5px;
+        margin-bottom: 25px;
+        padding: 15px;
+        background: #f8f9fa;
+        border-radius: 8px;
+    }
+    .exhibit-tab {
+        padding: 10px 18px;
+        border: 1px solid #dee2e6;
+        border-radius: 6px;
+        background: white;
+        cursor: pointer;
+        transition: all 0.2s;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        text-decoration: none;
+        color: var(--text-color);
+    }
+    .exhibit-tab:hover {
+        border-color: var(--primary-color);
+        background: #e8f4fc;
+    }
+    .exhibit-tab.active {
+        background: var(--primary-color);
+        color: white;
+        border-color: var(--primary-color);
+    }
+    .exhibit-tab .tab-letter {
+        font-weight: bold;
+        font-size: 0.9rem;
+    }
+    .exhibit-tab .tab-count {
+        background: rgba(0,0,0,0.1);
+        padding: 2px 8px;
+        border-radius: 10px;
+        font-size: 0.75rem;
+    }
+    .exhibit-tab.active .tab-count {
+        background: rgba(255,255,255,0.2);
+    }
+
+    /* Tab content sections */
+    .tab-section {
+        margin-bottom: 40px;
+        padding: 25px;
+        background: white;
+        border: 1px solid #dee2e6;
+        border-radius: 8px;
+    }
+    .tab-section-header {
+        display: flex;
+        align-items: center;
+        gap: 15px;
+        margin-bottom: 20px;
+        padding-bottom: 15px;
+        border-bottom: 2px solid #e9ecef;
+    }
+    .tab-section-header .letter {
+        width: 50px;
+        height: 50px;
+        background: var(--primary-color);
+        color: white;
+        border-radius: 8px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.5rem;
+        font-weight: bold;
+    }
+    .tab-section-header h2 {
+        margin: 0;
+        color: var(--primary-color);
+    }
+    .tab-section-header .description {
+        color: #6c757d;
+        font-size: 0.9rem;
+        margin-top: 3px;
+    }
+
+    /* Exhibits grid */
+    .exhibits-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+        gap: 20px;
+    }
+    .exhibit-card {
+        background: #f8f9fa;
+        border: 1px solid #dee2e6;
+        border-radius: 8px;
+        padding: 20px;
+        transition: all 0.3s;
+        position: relative;
+    }
+    .exhibit-card:hover {
+        box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        border-color: var(--primary-color);
+    }
+    .exhibit-card .exhibit-ref {
+        position: absolute;
+        top: 10px;
+        right: 10px;
+        background: var(--primary-color);
+        color: white;
+        padding: 4px 10px;
+        border-radius: 4px;
+        font-size: 0.75rem;
+        font-weight: bold;
+    }
+    .exhibit-card h4 {
+        margin: 0 0 10px 0;
+        color: var(--primary-color);
+        padding-right: 60px;
+    }
+    .exhibit-card .meta {
+        font-size: 0.85rem;
+        color: #6c757d;
+        margin-bottom: 10px;
+    }
+    .exhibit-card .type-badge {
+        display: inline-block;
+        padding: 3px 10px;
+        border-radius: 4px;
+        font-size: 0.75rem;
+        background: #e9ecef;
+    }
+    .exhibit-card .type-badge.uploaded {
+        background: #d4edda;
+        color: #155724;
+    }
+    .exhibit-card .type-badge.pending {
+        background: #fff3cd;
+        color: #856404;
+    }
+    .exhibit-card .actions {
+        margin-top: 15px;
+        display: flex;
+        gap: 10px;
+    }
+
+    /* Empty state */
+    .empty-state {
+        text-align: center;
+        padding: 40px;
+        color: #6c757d;
+    }
+    .empty-state .icon {
+        font-size: 3rem;
+        margin-bottom: 15px;
+    }
+
+    /* Upload zone */
+    .upload-zone {
+        border: 2px dashed #dee2e6;
+        border-radius: 8px;
+        padding: 30px;
+        text-align: center;
+        background: #f8f9fa;
+        margin-top: 20px;
+        transition: all 0.3s;
+        cursor: pointer;
+    }
+    .upload-zone:hover {
+        border-color: var(--primary-color);
+        background: #e8f4fc;
+    }
+    .upload-zone.dragover {
+        border-color: var(--primary-color);
+        background: #cce5ff;
+    }
+    .upload-zone input[type="file"] {
+        display: none;
+    }
+    .upload-zone .upload-icon {
+        font-size: 2rem;
+        margin-bottom: 10px;
+    }
+    .upload-btn {
+        display: inline-block;
+        padding: 10px 20px;
+        background: var(--primary-color);
+        color: white;
+        border-radius: 4px;
+        cursor: pointer;
+        margin-top: 10px;
+    }
+
+    /* Summary stats */
+    .exhibit-stats {
+        display: flex;
+        gap: 20px;
+        margin-bottom: 25px;
+        flex-wrap: wrap;
+    }
+    .stat-card {
+        background: white;
+        border: 1px solid #dee2e6;
+        border-radius: 8px;
+        padding: 20px;
+        flex: 1;
+        min-width: 150px;
+    }
+    .stat-card .value {
+        font-size: 2rem;
+        font-weight: bold;
+        color: var(--primary-color);
+    }
+    .stat-card .label {
+        color: #6c757d;
+        font-size: 0.9rem;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<header>
+    <h1>Exhibits & Evidence</h1>
+    <div class="meta">Organize supporting documents for Case {{ case.case_id }} by USCIS criteria tabs</div>
+</header>
+
+<!-- Summary Stats -->
+<div class="exhibit-stats">
+    <div class="stat-card">
+        <div class="value">{{ total_exhibits|default(0) }}</div>
+        <div class="label">Total Exhibits</div>
+    </div>
+    <div class="stat-card">
+        <div class="value">{{ uploaded_count|default(0) }}</div>
+        <div class="label">Uploaded</div>
+    </div>
+    <div class="stat-card">
+        <div class="value">{{ pending_count|default(10) }}</div>
+        <div class="label">Pending</div>
+    </div>
+</div>
+
+<!-- Tab Navigation -->
+<div class="exhibit-tabs">
+    <a href="#tab-a" class="exhibit-tab active">
+        <span class="tab-letter">A</span>
+        <span>Identity</span>
+        <span class="tab-count">{{ exhibits.identity|length if exhibits and exhibits.identity else 0 }}</span>
+    </a>
+    <a href="#tab-b" class="exhibit-tab">
+        <span class="tab-letter">B</span>
+        <span>Awards</span>
+        <span class="tab-count">{{ exhibits.awards|length if exhibits and exhibits.awards else 0 }}</span>
+    </a>
+    <a href="#tab-c" class="exhibit-tab">
+        <span class="tab-letter">C</span>
+        <span>Membership</span>
+        <span class="tab-count">{{ exhibits.membership|length if exhibits and exhibits.membership else 0 }}</span>
+    </a>
+    <a href="#tab-d" class="exhibit-tab">
+        <span class="tab-letter">D</span>
+        <span>Press</span>
+        <span class="tab-count">{{ exhibits.press|length if exhibits and exhibits.press else 0 }}</span>
+    </a>
+    <a href="#tab-e" class="exhibit-tab">
+        <span class="tab-letter">E</span>
+        <span>Judging</span>
+        <span class="tab-count">{{ exhibits.judging|length if exhibits and exhibits.judging else 0 }}</span>
+    </a>
+    <a href="#tab-f" class="exhibit-tab">
+        <span class="tab-letter">F</span>
+        <span>Contribution</span>
+        <span class="tab-count">{{ exhibits.contribution|length if exhibits and exhibits.contribution else 0 }}</span>
+    </a>
+    <a href="#tab-g" class="exhibit-tab">
+        <span class="tab-letter">G</span>
+        <span>Articles</span>
+        <span class="tab-count">{{ exhibits.articles|length if exhibits and exhibits.articles else 0 }}</span>
+    </a>
+    <a href="#tab-h" class="exhibit-tab">
+        <span class="tab-letter">H</span>
+        <span>Role</span>
+        <span class="tab-count">{{ exhibits.role|length if exhibits and exhibits.role else 0 }}</span>
+    </a>
+    <a href="#tab-i" class="exhibit-tab">
+        <span class="tab-letter">I</span>
+        <span>Salary</span>
+        <span class="tab-count">{{ exhibits.salary|length if exhibits and exhibits.salary else 0 }}</span>
+    </a>
+    <a href="#tab-j" class="exhibit-tab">
+        <span class="tab-letter">J</span>
+        <span>Other</span>
+        <span class="tab-count">{{ exhibits.other|length if exhibits and exhibits.other else 0 }}</span>
+    </a>
+</div>
+
+<!-- Tab A: Identity Documents -->
+<section id="tab-a" class="tab-section">
+    <div class="tab-section-header">
+        <div class="letter">A</div>
+        <div>
+            <h2>Identity & Background Documents</h2>
+            <div class="description">Passport, visa, educational credentials, CV/Resume</div>
+        </div>
+    </div>
+
+    <div class="exhibits-grid">
+        {% if exhibits and exhibits.identity %}
+            {% for exhibit in exhibits.identity %}
+            <div class="exhibit-card">
+                <span class="exhibit-ref">A-{{ loop.index }}</span>
+                <h4>{{ exhibit.title }}</h4>
+                <p class="meta">{{ exhibit.description }}</p>
+                <span class="type-badge uploaded">Uploaded</span>
+                <div class="actions">
+                    <a href="{{ exhibit.url }}" class="btn" style="padding: 6px 12px; font-size: 0.85rem;">View</a>
+                </div>
+            </div>
+            {% endfor %}
+        {% else %}
+            <div class="exhibit-card">
+                <span class="exhibit-ref">A-1</span>
+                <h4>Passport Copy</h4>
+                <p class="meta">Valid passport bio page</p>
+                <span class="type-badge pending">Pending</span>
+            </div>
+            <div class="exhibit-card">
+                <span class="exhibit-ref">A-2</span>
+                <h4>CV / Resume</h4>
+                <p class="meta">Professional background summary</p>
+                <span class="type-badge pending">Pending</span>
+            </div>
+            <div class="exhibit-card">
+                <span class="exhibit-ref">A-3</span>
+                <h4>Educational Credentials</h4>
+                <p class="meta">Diplomas, transcripts, evaluations</p>
+                <span class="type-badge pending">Pending</span>
+            </div>
+        {% endif %}
+    </div>
+
+    <div class="upload-zone" onclick="document.getElementById('upload-a').click()">
+        <div class="upload-icon">📤</div>
+        <p>Drop files here or click to upload identity documents</p>
+        <p class="meta">PDF, JPG, PNG (max 50MB)</p>
+        <input type="file" id="upload-a" multiple accept=".pdf,.jpg,.jpeg,.png" data-tab="identity">
+    </div>
+</section>
+
+<!-- Tab B: Awards -->
+<section id="tab-b" class="tab-section">
+    <div class="tab-section-header">
+        <div class="letter">B</div>
+        <div>
+            <h2>Awards & Prizes</h2>
+            <div class="description">8 CFR 204.5(h)(3)(i) - Nationally/internationally recognized awards</div>
+        </div>
+    </div>
+
+    <div class="exhibits-grid">
+        {% if exhibits and exhibits.awards %}
+            {% for exhibit in exhibits.awards %}
+            <div class="exhibit-card">
+                <span class="exhibit-ref">B-{{ loop.index }}</span>
+                <h4>{{ exhibit.title }}</h4>
+                <p class="meta">{{ exhibit.description }}</p>
+                <span class="type-badge uploaded">Uploaded</span>
+            </div>
+            {% endfor %}
+        {% else %}
+            <div class="empty-state">
+                <div class="icon">🏆</div>
+                <p>No award exhibits uploaded yet</p>
+                <p class="meta">Upload certificates, letters, and evidence of award significance</p>
+            </div>
+        {% endif %}
+    </div>
+
+    <div class="upload-zone" onclick="document.getElementById('upload-b').click()">
+        <div class="upload-icon">📤</div>
+        <p>Upload award certificates and supporting evidence</p>
+        <input type="file" id="upload-b" multiple accept=".pdf,.jpg,.jpeg,.png" data-tab="awards">
+    </div>
+</section>
+
+<!-- Tab C: Membership -->
+<section id="tab-c" class="tab-section">
+    <div class="tab-section-header">
+        <div class="letter">C</div>
+        <div>
+            <h2>Professional Memberships</h2>
+            <div class="description">8 CFR 204.5(h)(3)(ii) - Associations requiring outstanding achievements</div>
+        </div>
+    </div>
+
+    <div class="exhibits-grid">
+        {% if exhibits and exhibits.membership %}
+            {% for exhibit in exhibits.membership %}
+            <div class="exhibit-card">
+                <span class="exhibit-ref">C-{{ loop.index }}</span>
+                <h4>{{ exhibit.title }}</h4>
+                <p class="meta">{{ exhibit.description }}</p>
+                <span class="type-badge uploaded">Uploaded</span>
+            </div>
+            {% endfor %}
+        {% else %}
+            <div class="empty-state">
+                <div class="icon">🎖️</div>
+                <p>No membership exhibits uploaded yet</p>
+                <p class="meta">Upload membership certificates and admission criteria</p>
+            </div>
+        {% endif %}
+    </div>
+
+    <div class="upload-zone" onclick="document.getElementById('upload-c').click()">
+        <div class="upload-icon">📤</div>
+        <p>Upload membership certificates and organization criteria</p>
+        <input type="file" id="upload-c" multiple accept=".pdf,.jpg,.jpeg,.png" data-tab="membership">
+    </div>
+</section>
+
+<!-- Tab D: Press/Published Material -->
+<section id="tab-d" class="tab-section">
+    <div class="tab-section-header">
+        <div class="letter">D</div>
+        <div>
+            <h2>Published Material / Press</h2>
+            <div class="description">8 CFR 204.5(h)(3)(iii) - Media coverage about the beneficiary</div>
+        </div>
+    </div>
+
+    <div class="exhibits-grid">
+        {% if exhibits and exhibits.press %}
+            {% for exhibit in exhibits.press %}
+            <div class="exhibit-card">
+                <span class="exhibit-ref">D-{{ loop.index }}</span>
+                <h4>{{ exhibit.title }}</h4>
+                <p class="meta">{{ exhibit.description }}</p>
+                <span class="type-badge uploaded">Uploaded</span>
+            </div>
+            {% endfor %}
+        {% else %}
+            <div class="empty-state">
+                <div class="icon">📰</div>
+                <p>No press exhibits uploaded yet</p>
+                <p class="meta">Upload articles, interviews, and media coverage</p>
+            </div>
+        {% endif %}
+    </div>
+
+    <div class="upload-zone" onclick="document.getElementById('upload-d').click()">
+        <div class="upload-icon">📤</div>
+        <p>Upload press articles and media coverage</p>
+        <input type="file" id="upload-d" multiple accept=".pdf,.jpg,.jpeg,.png" data-tab="press">
+    </div>
+</section>
+
+<!-- Tab E: Judging -->
+<section id="tab-e" class="tab-section">
+    <div class="tab-section-header">
+        <div class="letter">E</div>
+        <div>
+            <h2>Judging Activities</h2>
+            <div class="description">8 CFR 204.5(h)(3)(iv) - Participation as a judge of others' work</div>
+        </div>
+    </div>
+
+    <div class="exhibits-grid">
+        {% if exhibits and exhibits.judging %}
+            {% for exhibit in exhibits.judging %}
+            <div class="exhibit-card">
+                <span class="exhibit-ref">E-{{ loop.index }}</span>
+                <h4>{{ exhibit.title }}</h4>
+                <p class="meta">{{ exhibit.description }}</p>
+                <span class="type-badge uploaded">Uploaded</span>
+            </div>
+            {% endfor %}
+        {% else %}
+            <div class="empty-state">
+                <div class="icon">⚖️</div>
+                <p>No judging exhibits uploaded yet</p>
+                <p class="meta">Upload peer review invitations, jury participation records</p>
+            </div>
+        {% endif %}
+    </div>
+
+    <div class="upload-zone" onclick="document.getElementById('upload-e').click()">
+        <div class="upload-icon">📤</div>
+        <p>Upload judging/review documentation</p>
+        <input type="file" id="upload-e" multiple accept=".pdf,.jpg,.jpeg,.png" data-tab="judging">
+    </div>
+</section>
+
+<!-- Tab F: Original Contribution -->
+<section id="tab-f" class="tab-section">
+    <div class="tab-section-header">
+        <div class="letter">F</div>
+        <div>
+            <h2>Original Contributions</h2>
+            <div class="description">8 CFR 204.5(h)(3)(v) - Contributions of major significance</div>
+        </div>
+    </div>
+
+    <div class="exhibits-grid">
+        {% if exhibits and exhibits.contribution %}
+            {% for exhibit in exhibits.contribution %}
+            <div class="exhibit-card">
+                <span class="exhibit-ref">F-{{ loop.index }}</span>
+                <h4>{{ exhibit.title }}</h4>
+                <p class="meta">{{ exhibit.description }}</p>
+                <span class="type-badge uploaded">Uploaded</span>
+            </div>
+            {% endfor %}
+        {% else %}
+            <div class="empty-state">
+                <div class="icon">💡</div>
+                <p>No contribution exhibits uploaded yet</p>
+                <p class="meta">Upload patents, innovations, expert letters</p>
+            </div>
+        {% endif %}
+    </div>
+
+    <div class="upload-zone" onclick="document.getElementById('upload-f').click()">
+        <div class="upload-icon">📤</div>
+        <p>Upload contribution documentation and expert letters</p>
+        <input type="file" id="upload-f" multiple accept=".pdf,.jpg,.jpeg,.png" data-tab="contribution">
+    </div>
+</section>
+
+<!-- Tab G: Scholarly Articles -->
+<section id="tab-g" class="tab-section">
+    <div class="tab-section-header">
+        <div class="letter">G</div>
+        <div>
+            <h2>Scholarly Articles</h2>
+            <div class="description">8 CFR 204.5(h)(3)(vi) - Authorship in professional publications</div>
+        </div>
+    </div>
+
+    <div class="exhibits-grid">
+        {% if exhibits and exhibits.articles %}
+            {% for exhibit in exhibits.articles %}
+            <div class="exhibit-card">
+                <span class="exhibit-ref">G-{{ loop.index }}</span>
+                <h4>{{ exhibit.title }}</h4>
+                <p class="meta">{{ exhibit.description }}</p>
+                <span class="type-badge uploaded">Uploaded</span>
+            </div>
+            {% endfor %}
+        {% else %}
+            <div class="empty-state">
+                <div class="icon">📚</div>
+                <p>No article exhibits uploaded yet</p>
+                <p class="meta">Upload publications, citation records, journal info</p>
+            </div>
+        {% endif %}
+    </div>
+
+    <div class="upload-zone" onclick="document.getElementById('upload-g').click()">
+        <div class="upload-icon">📤</div>
+        <p>Upload scholarly articles and citation evidence</p>
+        <input type="file" id="upload-g" multiple accept=".pdf,.jpg,.jpeg,.png" data-tab="articles">
+    </div>
+</section>
+
+<!-- Tab H: Leading/Critical Role -->
+<section id="tab-h" class="tab-section">
+    <div class="tab-section-header">
+        <div class="letter">H</div>
+        <div>
+            <h2>Leading or Critical Role</h2>
+            <div class="description">8 CFR 204.5(h)(3)(viii) - Leadership in distinguished organizations</div>
+        </div>
+    </div>
+
+    <div class="exhibits-grid">
+        {% if exhibits and exhibits.role %}
+            {% for exhibit in exhibits.role %}
+            <div class="exhibit-card">
+                <span class="exhibit-ref">H-{{ loop.index }}</span>
+                <h4>{{ exhibit.title }}</h4>
+                <p class="meta">{{ exhibit.description }}</p>
+                <span class="type-badge uploaded">Uploaded</span>
+            </div>
+            {% endfor %}
+        {% else %}
+            <div class="empty-state">
+                <div class="icon">👔</div>
+                <p>No role exhibits uploaded yet</p>
+                <p class="meta">Upload org charts, position descriptions, company info</p>
+            </div>
+        {% endif %}
+    </div>
+
+    <div class="upload-zone" onclick="document.getElementById('upload-h').click()">
+        <div class="upload-icon">📤</div>
+        <p>Upload leadership role documentation</p>
+        <input type="file" id="upload-h" multiple accept=".pdf,.jpg,.jpeg,.png" data-tab="role">
+    </div>
+</section>
+
+<!-- Tab I: High Salary -->
+<section id="tab-i" class="tab-section">
+    <div class="tab-section-header">
+        <div class="letter">I</div>
+        <div>
+            <h2>High Salary / Remuneration</h2>
+            <div class="description">8 CFR 204.5(h)(3)(ix) - High compensation relative to field</div>
+        </div>
+    </div>
+
+    <div class="exhibits-grid">
+        {% if exhibits and exhibits.salary %}
+            {% for exhibit in exhibits.salary %}
+            <div class="exhibit-card">
+                <span class="exhibit-ref">I-{{ loop.index }}</span>
+                <h4>{{ exhibit.title }}</h4>
+                <p class="meta">{{ exhibit.description }}</p>
+                <span class="type-badge uploaded">Uploaded</span>
+            </div>
+            {% endfor %}
+        {% else %}
+            <div class="empty-state">
+                <div class="icon">💰</div>
+                <p>No salary exhibits uploaded yet</p>
+                <p class="meta">Upload pay stubs, tax records, salary comparisons</p>
+            </div>
+        {% endif %}
+    </div>
+
+    <div class="upload-zone" onclick="document.getElementById('upload-i').click()">
+        <div class="upload-icon">📤</div>
+        <p>Upload salary documentation and comparisons</p>
+        <input type="file" id="upload-i" multiple accept=".pdf,.jpg,.jpeg,.png" data-tab="salary">
+    </div>
+</section>
+
+<!-- Tab J: Other/Commercial Success -->
+<section id="tab-j" class="tab-section">
+    <div class="tab-section-header">
+        <div class="letter">J</div>
+        <div>
+            <h2>Other Evidence</h2>
+            <div class="description">Commercial success, exhibitions, and additional supporting documents</div>
+        </div>
+    </div>
+
+    <div class="exhibits-grid">
+        {% if exhibits and exhibits.other %}
+            {% for exhibit in exhibits.other %}
+            <div class="exhibit-card">
+                <span class="exhibit-ref">J-{{ loop.index }}</span>
+                <h4>{{ exhibit.title }}</h4>
+                <p class="meta">{{ exhibit.description }}</p>
+                <span class="type-badge uploaded">Uploaded</span>
+            </div>
+            {% endfor %}
+        {% else %}
+            <div class="empty-state">
+                <div class="icon">📁</div>
+                <p>No other exhibits uploaded yet</p>
+                <p class="meta">Upload additional supporting documents</p>
+            </div>
+        {% endif %}
+    </div>
+
+    <div class="upload-zone" onclick="document.getElementById('upload-j').click()">
+        <div class="upload-icon">📤</div>
+        <p>Upload additional evidence</p>
+        <input type="file" id="upload-j" multiple accept=".pdf,.jpg,.jpeg,.png" data-tab="other">
+    </div>
+</section>
+
+<script>
+// Tab navigation
+document.querySelectorAll('.exhibit-tab').forEach(tab => {
+    tab.addEventListener('click', function(e) {
+        e.preventDefault();
+        document.querySelectorAll('.exhibit-tab').forEach(t => t.classList.remove('active'));
+        this.classList.add('active');
+
+        const targetId = this.getAttribute('href');
+        document.querySelector(targetId).scrollIntoView({ behavior: 'smooth' });
+    });
+});
+
+// File upload handling
+document.querySelectorAll('.upload-zone input[type="file"]').forEach(input => {
+    input.addEventListener('change', function(e) {
+        const files = e.target.files;
+        const tab = this.dataset.tab;
+        if (files.length > 0) {
+            let message = `Selected ${files.length} file(s) for ${tab}:\n`;
+            for (let file of files) {
+                message += `- ${file.name} (${(file.size / 1024).toFixed(1)} KB)\n`;
+            }
+            alert(message + '\nUpload via Telegram bot: /upload_exhibit');
+        }
+    });
+});
+
+// Drag and drop
+document.querySelectorAll('.upload-zone').forEach(zone => {
+    zone.addEventListener('dragover', (e) => {
+        e.preventDefault();
+        zone.classList.add('dragover');
+    });
+    zone.addEventListener('dragleave', () => {
+        zone.classList.remove('dragover');
+    });
+    zone.addEventListener('drop', (e) => {
+        e.preventDefault();
+        zone.classList.remove('dragover');
+        const input = zone.querySelector('input[type="file"]');
+        input.files = e.dataTransfer.files;
+        input.dispatchEvent(new Event('change'));
+    });
+});
+</script>
+{% endblock %}
