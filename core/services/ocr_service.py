@@ -7,8 +7,8 @@ Uses Google Gemini 3 Flash Vision API for OCR processing (new google.genai SDK).
 from __future__ import annotations
 
 import asyncio
-from io import BytesIO
 import os
+from io import BytesIO
 from typing import Any
 
 import structlog
@@ -137,7 +137,7 @@ Output the extracted text directly, preserving original formatting as much as po
                     ),
                     timeout=OCR_TIMEOUT_SECONDS,
                 )
-            except asyncio.TimeoutError:
+            except TimeoutError:
                 logger.warning(
                     "ocr.timeout",
                     file_name=file_name,

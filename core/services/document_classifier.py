@@ -539,7 +539,7 @@ If uncertain, respond with "other".
                     suggested_tags=doc_type.tags,
                     eb1a_criterion=doc_type.eb1a_criterion,
                 )
-        except asyncio.TimeoutError:
+        except TimeoutError:
             logger.warning(
                 "document_classifier.llm_timeout",
                 timeout_seconds=LLM_CLASSIFICATION_TIMEOUT,
