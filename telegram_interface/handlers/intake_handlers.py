@@ -215,8 +215,7 @@ async def intake_start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
         except Exception as e:
             logger.error("intake.start.create_case_failed", error=str(e), user_id=user_id)
             await message.reply_text(
-                "❌ Не удалось создать кейс для анкетирования. Попробуйте снова.\n\n"
-                f"Ошибка: {e!s}"
+                f"❌ Не удалось создать кейс для анкетирования. Попробуйте снова.\n\nОшибка: {e!s}"
             )
             return
     else:
@@ -350,7 +349,7 @@ async def intake_status(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
 
     if not active_case_id:
         await message.reply_text(
-            "❌ Активный кейс не найден.\n" "Используйте /case_get <case_id> для выбора кейса."
+            "❌ Активный кейс не найден.\nИспользуйте /case_get <case_id> для выбора кейса."
         )
         return
 
@@ -358,7 +357,7 @@ async def intake_status(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
     progress = await get_progress(user_id, active_case_id)
     if not progress:
         await message.reply_text(
-            "❌ Анкета не начата.\n" "Используйте /intake_start для начала анкетирования."
+            "❌ Анкета не начата.\nИспользуйте /intake_start для начала анкетирования."
         )
         return
 
@@ -458,14 +457,14 @@ async def intake_resume(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
 
     if not active_case_id:
         await message.reply_text(
-            "❌ Активный кейс не найден.\n" "Используйте /case_get <case_id> для выбора кейса."
+            "❌ Активный кейс не найден.\nИспользуйте /case_get <case_id> для выбора кейса."
         )
         return
 
     # Get intake progress
     progress = await get_progress(user_id, active_case_id)
     if not progress:
-        await message.reply_text("❌ Анкета не найдена.\n" "Начните новую с помощью /intake_start")
+        await message.reply_text("❌ Анкета не найдена.\nНачните новую с помощью /intake_start")
         return
 
     await message.reply_text("▶️ Возобновляем анкетирование...")
@@ -818,7 +817,7 @@ async def _show_answer_confirmation(
         ],
     ]
 
-    confirmation_text = f"📝 *Ваш ответ:*\n\n" f"💬 {display_answer}\n\n" f"Всё верно?"
+    confirmation_text = f"📝 *Ваш ответ:*\n\n💬 {display_answer}\n\nВсё верно?"
 
     await message.reply_text(
         confirmation_text,
@@ -1069,8 +1068,7 @@ async def _start_detailed_career_intake(
         logger.error("intake.career_import_error", error=str(e))
         # Fallback: skip career block and move to next
         await message.reply_text(
-            "⚠️ Детальный опрос по карьере недоступен.\n"
-            "Пропускаем блок и переходим к следующему.",
+            "⚠️ Детальный опрос по карьере недоступен.\nПропускаем блок и переходим к следующему.",
             parse_mode=ParseMode.MARKDOWN,
         )
         # Mark career as complete and continue
@@ -1322,6 +1320,13 @@ async def handle_document_upload(update: Update, context: ContextTypes.DEFAULT_T
 
     user_id = str(update.effective_user.id)
 
+    logger.info(
+        "intake.document_upload_started",
+        user_id=user_id,
+        has_document=bool(message.document),
+        has_photo=bool(message.photo),
+    )
+
     # Check if smart upload mode is active - if so, let smart_upload handler process
     from .smart_upload_handlers import UPLOAD_MODE_KEY
 
@@ -1343,11 +1348,21 @@ async def handle_document_upload(update: Update, context: ContextTypes.DEFAULT_T
     active_case_id = await bot_context.get_active_case(update)
 
     if not active_case_id:
-        return False
+        logger.warning("intake.document_upload_no_case", user_id=user_id)
+        await message.reply_text(
+            "❌ Активный кейс не найден.\nИспользуйте /intake_start чтобы начать анкетирование."
+        )
+        return True
 
     # Check if intake is active
     progress = await get_progress(user_id, active_case_id)
     if not progress:
+        logger.warning(
+            "intake.document_upload_no_progress",
+            user_id=user_id,
+            case_id=active_case_id,
+        )
+        # Let other handlers process (e.g., file_upload_handlers for general PDF uploads)
         return False
 
     # Get current question
@@ -1356,19 +1371,46 @@ async def handle_document_upload(update: Update, context: ContextTypes.DEFAULT_T
 
     current_block = BLOCKS_BY_ID.get(current_block_id)
     if not current_block:
-        return False
+        logger.error(
+            "intake.document_upload_invalid_block",
+            user_id=user_id,
+            block_id=current_block_id,
+        )
+        await message.reply_text("❌ Ошибка: блок анкеты не найден.")
+        return True
 
     questions = _get_questions_for_step(current_block, current_step)
     if not questions:
-        return False
+        logger.warning(
+            "intake.document_upload_no_questions",
+            user_id=user_id,
+            block_id=current_block_id,
+            step=current_step,
+        )
+        await message.reply_text("❌ Ошибка: вопрос не найден.")
+        return True
 
     batch_start = (current_step // QUESTIONS_PER_BATCH) * QUESTIONS_PER_BATCH
     batch_question_idx = current_step - batch_start
 
     if batch_question_idx >= len(questions):
-        return False
+        logger.warning(
+            "intake.document_upload_idx_out_of_range",
+            user_id=user_id,
+            idx=batch_question_idx,
+            questions_count=len(questions),
+        )
+        await message.reply_text("❌ Ошибка: индекс вопроса вне диапазона.")
+        return True
 
     current_question = questions[batch_question_idx]
+
+    logger.info(
+        "intake.document_upload_question_found",
+        user_id=user_id,
+        question_id=current_question.id,
+        question_type=str(current_question.type),
+    )
 
     # Only accept documents for DOCUMENT type questions
     if current_question.type != QuestionType.DOCUMENT:
@@ -1427,7 +1469,7 @@ async def handle_document_upload(update: Update, context: ContextTypes.DEFAULT_T
         await advance_step(user_id, active_case_id)
 
         await message.reply_text(
-            f"✅ Документ '{file_name}' получен и сохранён!\n" "Переходим к следующему вопросу..."
+            f"✅ Документ '{file_name}' получен и сохранён!\nПереходим к следующему вопросу..."
         )
 
         # Send next question
@@ -1442,8 +1484,7 @@ async def handle_document_upload(update: Update, context: ContextTypes.DEFAULT_T
             question_id=current_question.id,
         )
         await message.reply_text(
-            f"❌ Ошибка при загрузке документа: {e!s}\n"
-            "Попробуйте снова или напишите 'пропустить'."
+            f"❌ Ошибка при загрузке документа: {e!s}\nПопробуйте снова или напишите 'пропустить'."
         )
         return True
 
