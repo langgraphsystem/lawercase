@@ -17,6 +17,7 @@ from __future__ import annotations
 import structlog
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
 from telegram.ext import CallbackQueryHandler, CommandHandler, ContextTypes, MessageHandler, filters
+from telegram.ext.filters import MessageFilter
 
 from core.memory.models import MemoryRecord
 from core.services.document_classifier import (
@@ -38,6 +39,42 @@ CALLBACK_CANCEL = "doc_cancel"
 
 # Upload mode flag key
 UPLOAD_MODE_KEY = "smart_upload_mode"
+
+
+class UploadModeFilter(MessageFilter):
+    """Filter that only matches when upload mode is active."""
+
+    def filter(self, message) -> bool:
+        """Check if upload mode is active in user_data."""
+        # This filter is used with context - we'll check in handler instead
+        # For now, always return True and let handler decide
+        return True
+
+
+class UploadModeActiveFilter(MessageFilter):
+    """Custom filter that checks if upload_mode is active via callback_data context."""
+
+    def __init__(self) -> None:
+        super().__init__()
+        self._upload_mode_users: set[int] = set()
+
+    def add_user(self, user_id: int) -> None:
+        """Mark user as having upload mode active."""
+        self._upload_mode_users.add(user_id)
+
+    def remove_user(self, user_id: int) -> None:
+        """Mark user as having upload mode inactive."""
+        self._upload_mode_users.discard(user_id)
+
+    def filter(self, message) -> bool:
+        """Check if user has upload mode active."""
+        if message.from_user:
+            return message.from_user.id in self._upload_mode_users
+        return False
+
+
+# Global filter instance
+upload_mode_filter = UploadModeActiveFilter()
 
 
 def _bot_context(context: ContextTypes.DEFAULT_TYPE) -> BotContext:
@@ -72,6 +109,8 @@ async def upload_command(
 
     # Set upload mode flag
     context.user_data[UPLOAD_MODE_KEY] = True
+    # Add user to filter so document handler matches
+    upload_mode_filter.add_user(update.effective_user.id)
 
     await message.reply_text(
         "📤 *Режим загрузки документов*\n\n"
@@ -107,6 +146,8 @@ async def cancel_upload_command(
     # Clear upload mode flag and pending data
     was_active = context.user_data.pop(UPLOAD_MODE_KEY, None)
     context.user_data.pop("pending_smart_upload", None)
+    # Remove user from filter
+    upload_mode_filter.remove_user(update.effective_user.id)
 
     if was_active:
         await message.reply_text(
@@ -724,9 +765,9 @@ def get_handlers(bot_context: BotContext) -> list:
         CommandHandler("upload", upload_command),
         # /cancel_upload command - exit upload mode
         CommandHandler("cancel_upload", cancel_upload_command),
-        # Handle photos and all documents (including PDF)
+        # Handle photos and all documents (including PDF) - ONLY when upload mode is active
         MessageHandler(
-            filters.PHOTO | filters.Document.ALL,
+            upload_mode_filter & (filters.PHOTO | filters.Document.ALL),
             handle_smart_upload,
         ),
         # Handle document classification callbacks
