@@ -16,6 +16,7 @@ from telegram.constants import ParseMode
 from telegram.ext import ContextTypes
 
 from core.agui.events import AGUIEvent
+from core.intake.answer_validator import validate_answer_with_ai
 from core.intake.schema import (
     BLOCKS_BY_ID,
     INTAKE_BLOCKS,
@@ -31,6 +32,13 @@ from core.intake.validation import (
     validate_text,
     validate_yes_no,
 )
+
+# Callback constants for answer confirmation
+CALLBACK_CONFIRM_ANSWER = "intake_confirm_answer"
+CALLBACK_EDIT_ANSWER = "intake_edit_answer"
+
+# Key for storing pending answer in user_data
+PENDING_ANSWER_KEY = "pending_intake_answer"
 from core.memory.models import MemoryRecord
 from core.storage.intake_progress import (
     advance_step,
@@ -545,10 +553,86 @@ async def handle_intake_callback(update: Update, context: ContextTypes.DEFAULT_T
         # Move to next block or continue within block
         await _send_question_batch(bot_context, update, user_id, active_case_id)
 
+    elif data == CALLBACK_CONFIRM_ANSWER:
+        # User confirmed their answer - save and proceed
+        pending = context.user_data.get(PENDING_ANSWER_KEY)
+        if not pending:
+            await query.message.reply_text("❌ Данные ответа не найдены. Попробуйте снова.")
+            return
 
-async def handle_intake_response(bot_context: BotContext, update: Update, user_text: str) -> bool:
+        # Get the question object
+        block = BLOCKS_BY_ID.get(pending["block_id"])
+        if not block:
+            await query.message.reply_text("❌ Блок не найден.")
+            context.user_data.pop(PENDING_ANSWER_KEY, None)
+            return
+
+        questions = block.questions
+        if pending["question_idx"] >= len(questions):
+            await query.message.reply_text("❌ Вопрос не найден.")
+            context.user_data.pop(PENDING_ANSWER_KEY, None)
+            return
+
+        question = questions[pending["question_idx"]]
+
+        # Save to semantic memory
+        await _save_response_to_memory(
+            bot_context,
+            update,
+            active_case_id,
+            question,
+            pending["raw_answer"],
+            pending["normalized_value"],
+        )
+
+        logger.info(
+            "intake.response_confirmed",
+            user_id=user_id,
+            case_id=active_case_id,
+            question_id=question.id,
+        )
+
+        # Advance to next question
+        await advance_step(user_id, active_case_id)
+
+        # Clear pending
+        context.user_data.pop(PENDING_ANSWER_KEY, None)
+
+        # Send next question
+        await query.message.reply_text("✅ Ответ сохранён!")
+        await _send_question_batch(bot_context, update, user_id, active_case_id)
+
+    elif data == CALLBACK_EDIT_ANSWER:
+        # User wants to edit their answer
+        pending = context.user_data.get(PENDING_ANSWER_KEY)
+        if not pending:
+            await query.message.reply_text("❌ Данные ответа не найдены.")
+            return
+
+        # Show the question again with previous answer
+        await query.message.reply_text(
+            f"✏️ Введите новый ответ:\n\n"
+            f"📝 *Вопрос:* {pending['question_text']}\n\n"
+            f"_(Предыдущий ответ: {pending['raw_answer'][:100]}{'...' if len(pending['raw_answer']) > 100 else ''})_",
+            parse_mode=ParseMode.MARKDOWN,
+        )
+        # Keep pending - waiting for new answer
+
+
+async def handle_intake_response(
+    bot_context: BotContext,
+    update: Update,
+    user_text: str,
+    context: ContextTypes.DEFAULT_TYPE | None = None,
+) -> bool:
     """
     Handle a text response during active intake questionnaire.
+
+    Flow:
+    1. Basic validation (format)
+    2. AI validation (meaningfulness)
+    3. Show confirmation dialog
+    4. On confirm: save to memory and advance
 
     Returns:
         True if message was handled as intake response, False otherwise
@@ -583,10 +667,6 @@ async def handle_intake_response(bot_context: BotContext, update: Update, user_t
         # No questions in this batch, possibly all conditional questions were skipped
         return False
 
-    # Expecting response for the first unanswered question in the batch
-    # We need to track which questions in the batch have been answered
-    # For simplicity, we'll expect answers in order
-
     # Get the index within the batch for this step
     batch_start = (current_step // QUESTIONS_PER_BATCH) * QUESTIONS_PER_BATCH
     batch_question_idx = current_step - batch_start
@@ -597,7 +677,7 @@ async def handle_intake_response(bot_context: BotContext, update: Update, user_t
 
     current_question = questions[batch_question_idx]
 
-    # Validate response based on question type
+    # Step 1: Basic validation (format)
     is_valid, validation_result = await _validate_response(current_question, user_text)
 
     if not is_valid:
@@ -609,13 +689,17 @@ async def handle_intake_response(bot_context: BotContext, update: Update, user_t
         await message.reply_text(f"{error_msg}\n\nПожалуйста, попробуйте снова.")
         return True
 
-    # Normalize and store response
+    # Normalize the answer
     normalized_value = validation_result
 
-    # Save to semantic memory with fact synthesis
-    await _save_response_to_memory(
-        bot_context, update, active_case_id, current_question, user_text, normalized_value
-    )
+    # Step 2: AI validation (meaningfulness check)
+    ai_valid, ai_error = await validate_answer_with_ai(current_question, user_text)
+
+    if not ai_valid:
+        await message.reply_text(
+            f"⚠️ {ai_error}\n\n" "Пожалуйста, уточните ваш ответ.",
+        )
+        return True
 
     logger.info(
         "intake.response_received",
@@ -630,36 +714,68 @@ async def handle_intake_response(bot_context: BotContext, update: Update, user_t
         AGUIEvent.intake_answer(
             case_id=active_case_id,
             question_id=current_question.id,
-            answer=user_text[:500],  # Truncate for event (privacy + size)
+            answer=user_text[:500],  # Truncate for event
         )
     )
 
-    # Advance to next question
-    await advance_step(user_id, active_case_id)
+    # Step 3: Store pending answer and show confirmation
+    if context is not None:
+        context.user_data[PENDING_ANSWER_KEY] = {
+            "question_id": current_question.id,
+            "question_text": current_question.text_template,
+            "question_idx": current_step,
+            "block_id": current_block_id,
+            "raw_answer": user_text,
+            "normalized_value": normalized_value,
+            "case_id": active_case_id,
+        }
 
-    # Check if batch is complete or block is complete
-    new_step = current_step + 1
-    next_batch_start = (new_step // QUESTIONS_PER_BATCH) * QUESTIONS_PER_BATCH
-
-    if next_batch_start > batch_start:
-        # Batch complete, show navigation buttons
-        await message.reply_text("✅ Партия вопросов завершена!")
-        await _send_question_batch(bot_context, update, user_id, active_case_id)
-    else:
-        # More questions in current batch
-        remaining = len(questions) - (batch_question_idx + 1)
-        if remaining > 0:
-            # Note: with QUESTIONS_PER_BATCH=1, this branch never executes
-            await message.reply_text("✅ Принято! Следующий вопрос:")
-            # Send next question immediately
-            next_question = questions[batch_question_idx + 1]
-            await _send_single_question(
-                message, next_question, case_id=active_case_id, block_id=current_block_id
-            )
-        else:
-            await _send_question_batch(bot_context, update, user_id, active_case_id)
+    # Show confirmation dialog
+    await _show_answer_confirmation(message, current_question, user_text, normalized_value)
 
     return True
+
+
+async def _show_answer_confirmation(
+    message,
+    question: IntakeQuestion,
+    raw_answer: str,
+    normalized_value: Any,
+) -> None:
+    """Show confirmation dialog with answer summary and action buttons."""
+    # Format the answer for display
+    if question.type == QuestionType.YES_NO:
+        display_answer = "Да" if normalized_value else "Нет"
+    elif question.type == QuestionType.LIST:
+        if isinstance(normalized_value, list):
+            display_answer = ", ".join(normalized_value[:5])
+            if len(normalized_value) > 5:
+                display_answer += f" и ещё {len(normalized_value) - 5}..."
+        else:
+            display_answer = str(normalized_value)
+    else:
+        display_answer = str(raw_answer)[:200]
+        if len(raw_answer) > 200:
+            display_answer += "..."
+
+    # Build confirmation keyboard
+    keyboard = [
+        [
+            InlineKeyboardButton("✅ Подтвердить", callback_data=CALLBACK_CONFIRM_ANSWER),
+            InlineKeyboardButton("✏️ Изменить", callback_data=CALLBACK_EDIT_ANSWER),
+        ],
+        [
+            InlineKeyboardButton("⬅️ Назад", callback_data="intake_back"),
+        ],
+    ]
+
+    confirmation_text = f"📝 *Ваш ответ:*\n\n" f"💬 {display_answer}\n\n" f"Всё верно?"
+
+    await message.reply_text(
+        confirmation_text,
+        reply_markup=InlineKeyboardMarkup(keyboard),
+        parse_mode=ParseMode.MARKDOWN,
+    )
 
 
 # --- Helper Functions ---
@@ -1476,7 +1592,7 @@ async def handle_text_message(update: Update, context: ContextTypes.DEFAULT_TYPE
 
     # Try to handle as regular intake response
     # Note: document/photo uploads are handled by handle_document_upload handler
-    await handle_intake_response(bot_context, update, message.text)
+    await handle_intake_response(bot_context, update, message.text, context)
 
 
 # --- Export handlers for registration ---
