@@ -686,7 +686,16 @@ async def handle_intake_response(
             if isinstance(validation_result, str)
             else "❌ Некорректный формат ответа."
         )
-        await message.reply_text(f"{error_msg}\n\nПожалуйста, попробуйте снова.")
+        # Show error with back button
+        back_keyboard = InlineKeyboardMarkup(
+            [
+                [InlineKeyboardButton("⬅️ Назад", callback_data="intake_back")],
+            ]
+        )
+        await message.reply_text(
+            f"{error_msg}\n\nПожалуйста, попробуйте снова.",
+            reply_markup=back_keyboard,
+        )
         return True
 
     # Normalize the answer
@@ -696,8 +705,15 @@ async def handle_intake_response(
     ai_valid, ai_error = await validate_answer_with_ai(current_question, user_text)
 
     if not ai_valid:
+        # Show error with back button
+        back_keyboard = InlineKeyboardMarkup(
+            [
+                [InlineKeyboardButton("⬅️ Назад", callback_data="intake_back")],
+            ]
+        )
         await message.reply_text(
-            f"⚠️ {ai_error}\n\n" "Пожалуйста, уточните ваш ответ.",
+            f"⚠️ {ai_error}\n\nПожалуйста, уточните ваш ответ.",
+            reply_markup=back_keyboard,
         )
         return True
 
