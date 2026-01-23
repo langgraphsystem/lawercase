@@ -123,7 +123,7 @@ async def extract_fields_with_gemini(
 
     try:
         # Import Gemini client
-        from google import genai
+        import google.generativeai as genai
 
         from config.settings import get_settings
 
@@ -134,18 +134,20 @@ async def extract_fields_with_gemini(
             logger.warning("field_extractor.no_api_key")
             return {}
 
+        # Configure Gemini
+        genai.configure(api_key=api_key)
+
         # Build prompt
         prompt = build_extraction_prompt(ocr_text, schema, doc_type_name)
 
         # Call Gemini
-        client = genai.Client(api_key=api_key)
-        response = client.models.generate_content(
-            model="gemini-2.0-flash",
-            contents=prompt,
-            config={
-                "temperature": 0,
-                "max_output_tokens": 2048,
-            },
+        model = genai.GenerativeModel("gemini-2.0-flash")
+        response = model.generate_content(
+            prompt,
+            generation_config=genai.GenerationConfig(
+                temperature=0,
+                max_output_tokens=2048,
+            ),
         )
 
         if not response or not response.text:
