@@ -508,6 +508,7 @@ async def _save_document_with_type(
         # Save to document storage
         storage_path = ""
         storage_url = ""
+        storage_error = None  # Track storage errors to show to user
 
         try:
             from core.services.document_storage import get_document_storage
@@ -530,8 +531,13 @@ async def _save_document_with_type(
             if storage_result.get("success"):
                 storage_path = storage_result.get("storage_path", "")
                 storage_url = storage_result.get("storage_url", "")
+            else:
+                # Storage returned failure
+                storage_error = storage_result.get("error", "Неизвестная ошибка хранилища")
+                logger.error("smart_upload.storage_failed", error=storage_error)
         except Exception as e:
-            logger.warning("smart_upload.storage_failed", error=str(e))
+            storage_error = str(e)
+            logger.error("smart_upload.storage_exception", error=storage_error)
 
         # Build document text for memory
         max_ocr_length = 20000  # Increased from 5000 for better document coverage
@@ -559,6 +565,29 @@ async def _save_document_with_type(
         if doc_type.eb1a_criterion:
             tags.append(f"eb1a_criterion_{doc_type.eb1a_criterion}")
 
+        # Extract structured fields from document
+        extracted_fields = {}
+        if ocr_text:
+            try:
+                from core.services.field_extractor import extract_fields
+
+                extracted_fields = await extract_fields(
+                    ocr_text=ocr_text,
+                    doc_type_id=doc_type.id,
+                    doc_type_name=doc_type.name_ru,
+                )
+                if extracted_fields:
+                    tags.append("fields_extracted")
+                    logger.info(
+                        "smart_upload.fields_extracted",
+                        doc_type=doc_type.id,
+                        fields_count=len(
+                            [k for k, v in extracted_fields.items() if v and not k.startswith("_")]
+                        ),
+                    )
+            except Exception as e:
+                logger.warning("smart_upload.field_extraction_failed", error=str(e))
+
         # Create memory record
         memory_record = MemoryRecord(
             text=document_text,
@@ -580,6 +609,7 @@ async def _save_document_with_type(
                 "ocr_text_length": len(ocr_text) if ocr_text else 0,
                 "storage_path": storage_path,
                 "storage_url": storage_url,
+                "extracted_fields": extracted_fields if extracted_fields else None,
             },
         )
 
@@ -618,6 +648,47 @@ async def _save_document_with_type(
 
         if storage_path:
             success_lines.append(f"💾 Сохранён в: {storage_path[:50]}...")
+
+        # Show extracted fields (key ones only)
+        if extracted_fields:
+            key_fields = []
+            # Identity fields
+            if extracted_fields.get("full_name"):
+                key_fields.append(f"👤 {extracted_fields['full_name']}")
+            if extracted_fields.get("date_of_birth"):
+                key_fields.append(f"📅 {extracted_fields['date_of_birth']}")
+            # Award/Membership fields
+            if extracted_fields.get("award_name"):
+                key_fields.append(f"🏆 {extracted_fields['award_name']}")
+            if extracted_fields.get("organization_name"):
+                key_fields.append(f"🏢 {extracted_fields['organization_name']}")
+            # Publication fields
+            if extracted_fields.get("title"):
+                key_fields.append(f"📝 {extracted_fields['title'][:50]}...")
+            if extracted_fields.get("h_index"):
+                key_fields.append(f"📊 h-index: {extracted_fields['h_index']}")
+            # Salary fields
+            if extracted_fields.get("salary_amount") and extracted_fields.get("salary_currency"):
+                key_fields.append(
+                    f"💰 {extracted_fields['salary_amount']} {extracted_fields['salary_currency']}"
+                )
+
+            if key_fields:
+                success_lines.append("")
+                success_lines.append("📋 Извлечённые данные:")
+                success_lines.extend(key_fields[:5])  # Show max 5 fields
+
+        # Show storage error warning to user
+        if storage_error:
+            success_lines.extend(
+                [
+                    "",
+                    "⚠️ ВНИМАНИЕ: Файл НЕ загружен в облако!",
+                    f"Ошибка: {storage_error[:100]}",
+                    "Текст сохранён в память, но оригинал файла может быть утерян.",
+                    "Попробуйте загрузить файл снова позже.",
+                ]
+            )
 
         success_lines.extend(
             [
