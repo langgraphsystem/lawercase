@@ -401,13 +401,13 @@ async def handle_upload_callback(
     # Handle category selection
     if data.startswith(f"{CALLBACK_SELECT}:"):
         doc_type_id = data.split(":", 1)[1]
-        await _save_document_with_type(query, context, bot_ctx, user_id, doc_type_id)
+        await _save_document_with_type(query, context, bot_ctx, user_id, doc_type_id, update)
         return
 
     # Handle confirm
     if data.startswith(f"{CALLBACK_CONFIRM}:"):
         doc_type_id = data.split(":", 1)[1]
-        await _save_document_with_type(query, context, bot_ctx, user_id, doc_type_id)
+        await _save_document_with_type(query, context, bot_ctx, user_id, doc_type_id, update)
         return
 
 
@@ -506,6 +506,7 @@ async def _save_document_with_type(
     bot_ctx: BotContext,
     user_id: str,
     doc_type_id: str,
+    update: Update | None = None,
 ) -> None:
     """Save document with specified type."""
     pending = context.user_data.get("pending_smart_upload")
@@ -775,7 +776,7 @@ async def _save_document_with_type(
                     )
                     await _send_question_batch(
                         bot_ctx,
-                        query,  # Use query as update
+                        update if update else query,
                         intake_user_id,
                         intake_case_id,
                         context,
