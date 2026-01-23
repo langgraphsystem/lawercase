@@ -950,7 +950,21 @@ async def _send_single_question(
             "\n\n📤 Отправьте файл (PDF или фото) или напишите 'пропустить' чтобы пропустить."
         )
 
-    await message.reply_text(question_text, parse_mode=ParseMode.MARKDOWN)
+    # Always show back button with the question
+    navigation_keyboard = InlineKeyboardMarkup(
+        [
+            [
+                InlineKeyboardButton("⬅️ Назад", callback_data="intake_back"),
+                InlineKeyboardButton("⏸ Пауза", callback_data="intake_pause"),
+            ],
+        ]
+    )
+
+    await message.reply_text(
+        question_text,
+        parse_mode=ParseMode.MARKDOWN,
+        reply_markup=navigation_keyboard,
+    )
 
 
 def _get_next_block(current_block_id: str) -> IntakeBlock | None:
