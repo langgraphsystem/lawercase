@@ -549,6 +549,39 @@ async def handle_intake_callback(update: Update, context: ContextTypes.DEFAULT_T
             else:
                 await query.message.reply_text("❌ Вы уже в начале анкеты.")
 
+    elif data == "intake_skip":
+        # Skip current question and move to next
+        progress = await get_progress(user_id, active_case_id)
+        if not progress:
+            await query.message.reply_text("❌ Анкета не найдена.")
+            return
+
+        current_block = BLOCKS_BY_ID.get(progress.current_block)
+        if not current_block:
+            await query.message.reply_text("❌ Блок не найден.")
+            return
+
+        # Check if there are more questions in the block
+        total_questions = len(current_block.questions)
+        if progress.current_step + 1 < total_questions:
+            # Skip to next question within block
+            await advance_step(user_id, active_case_id)
+            await query.message.reply_text("➡️ Пропускаем вопрос...")
+            await _send_question_batch(bot_context, update, user_id, active_case_id)
+        else:
+            # Last question in block - cannot skip, need to answer or go to next block
+            await query.message.reply_text(
+                "⚠️ Это последний вопрос в блоке.\n"
+                "Пожалуйста, ответьте на него чтобы перейти к следующему блоку."
+            )
+
+        logger.info(
+            "intake.question_skipped",
+            user_id=user_id,
+            case_id=active_case_id,
+            step=progress.current_step,
+        )
+
     elif data in ("intake_next_block", "intake_continue"):
         # Move to next block or continue within block
         await _send_question_batch(bot_context, update, user_id, active_case_id)
@@ -950,11 +983,12 @@ async def _send_single_question(
             "\n\n📤 Отправьте файл (PDF или фото) или напишите 'пропустить' чтобы пропустить."
         )
 
-    # Always show back button with the question
+    # Always show navigation buttons with the question
     navigation_keyboard = InlineKeyboardMarkup(
         [
             [
                 InlineKeyboardButton("⬅️ Назад", callback_data="intake_back"),
+                InlineKeyboardButton("➡️ Пропустить", callback_data="intake_skip"),
                 InlineKeyboardButton("⏸ Пауза", callback_data="intake_pause"),
             ],
         ]
