@@ -11,10 +11,10 @@ All documents must be saved to cloud storage (Supabase or R2).
 
 from __future__ import annotations
 
-import os
-import uuid
 from datetime import UTC, datetime
+import os
 from typing import Any
+import uuid
 
 import structlog
 
@@ -100,8 +100,8 @@ class DocumentStorage:
         file_id = str(uuid.uuid4())
         timestamp = datetime.now(UTC).strftime("%Y%m%d_%H%M%S")
 
-        # Sanitize filename
-        safe_name = "".join(c for c in file_name if c.isalnum() or c in "._-")
+        # Sanitize filename - ASCII only to avoid Supabase Storage 400 errors
+        safe_name = "".join(c for c in file_name if c.isascii() and (c.isalnum() or c in "._-"))
         if not safe_name:
             safe_name = "document"
 
