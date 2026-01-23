@@ -50,12 +50,25 @@ class DocumentStorage:
                 from config.settings import get_settings
 
                 settings = get_settings()
-                self._client = create_client(
-                    settings.supabase_url,
-                    settings.supabase_service_key or settings.supabase_anon_key,
-                )
+                supabase_url = settings.supabase_url
+                supabase_key = settings.supabase_service_key or settings.supabase_anon_key
+
+                if not supabase_url or not supabase_key:
+                    logger.error(
+                        "document_storage.supabase_missing_credentials",
+                        has_url=bool(supabase_url),
+                        has_key=bool(supabase_key),
+                    )
+                    return None
+
+                self._client = create_client(supabase_url, supabase_key)
+                logger.info("document_storage.supabase_client_created")
             except Exception as e:
-                logger.warning("document_storage.supabase_init_failed", error=str(e))
+                logger.exception(
+                    "document_storage.supabase_init_failed",
+                    error=str(e),
+                    error_type=type(e).__name__,
+                )
                 self._client = None
         return self._client
 
@@ -192,10 +205,12 @@ class DocumentStorage:
             }
 
         except Exception as e:
-            logger.warning(
+            logger.exception(
                 "document_storage.supabase_upload_failed",
                 error=str(e),
+                error_type=type(e).__name__,
                 storage_path=storage_path,
+                bucket=self.bucket_name,
             )
             return None
 
