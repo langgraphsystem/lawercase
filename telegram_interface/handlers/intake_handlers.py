@@ -327,7 +327,7 @@ async def intake_start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
     await message.reply_text(welcome_text, parse_mode=ParseMode.MARKDOWN)
 
     # Send first batch of questions
-    await _send_question_batch(bot_context, update, user_id, active_case_id)
+    await _send_question_batch(bot_context, update, user_id, active_case_id, context)
 
 
 @ensure_case_exists
@@ -468,7 +468,7 @@ async def intake_resume(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
         return
 
     await message.reply_text("▶️ Возобновляем анкетирование...")
-    await _send_question_batch(bot_context, update, user_id, active_case_id)
+    await _send_question_batch(bot_context, update, user_id, active_case_id, context)
 
 
 @ensure_case_exists
@@ -524,7 +524,7 @@ async def handle_intake_callback(update: Update, context: ContextTypes.DEFAULT_T
                 completed_blocks=progress.completed_blocks,
             )
             await query.message.reply_text("⬅️ Возвращаемся к предыдущему вопросу...")
-            await _send_question_batch(bot_context, update, user_id, active_case_id)
+            await _send_question_batch(bot_context, update, user_id, active_case_id, context)
         else:
             # At beginning of block, go to previous block
             completed_blocks = progress.completed_blocks
@@ -542,7 +542,9 @@ async def handle_intake_callback(update: Update, context: ContextTypes.DEFAULT_T
                         completed_blocks=new_completed,
                     )
                     await query.message.reply_text(f"⬅️ Возвращаемся к блоку: {prev_block.title}")
-                    await _send_question_batch(bot_context, update, user_id, active_case_id)
+                    await _send_question_batch(
+                        bot_context, update, user_id, active_case_id, context
+                    )
                 else:
                     await query.message.reply_text("❌ Предыдущий блок не найден.")
             else:
@@ -566,7 +568,7 @@ async def handle_intake_callback(update: Update, context: ContextTypes.DEFAULT_T
             # Skip to next question within block
             await advance_step(user_id, active_case_id)
             await query.message.reply_text("➡️ Пропускаем вопрос...")
-            await _send_question_batch(bot_context, update, user_id, active_case_id)
+            await _send_question_batch(bot_context, update, user_id, active_case_id, context)
         else:
             # Last question in block - cannot skip, need to answer or go to next block
             await query.message.reply_text(
@@ -583,7 +585,7 @@ async def handle_intake_callback(update: Update, context: ContextTypes.DEFAULT_T
 
     elif data in ("intake_next_block", "intake_continue"):
         # Move to next block or continue within block
-        await _send_question_batch(bot_context, update, user_id, active_case_id)
+        await _send_question_batch(bot_context, update, user_id, active_case_id, context)
 
     elif data == CALLBACK_CONFIRM_ANSWER:
         # User confirmed their answer - save and proceed
@@ -632,7 +634,7 @@ async def handle_intake_callback(update: Update, context: ContextTypes.DEFAULT_T
 
         # Send next question
         await query.message.reply_text("✅ Ответ сохранён!")
-        await _send_question_batch(bot_context, update, user_id, active_case_id)
+        await _send_question_batch(bot_context, update, user_id, active_case_id, context)
 
     elif data == CALLBACK_EDIT_ANSWER:
         # User wants to edit their answer
@@ -853,6 +855,7 @@ async def _send_question_batch(
     update: Update,
     user_id: str,
     case_id: str,
+    context: ContextTypes.DEFAULT_TYPE | None = None,
 ) -> None:
     """Send the current batch of questions to the user."""
     message = update.effective_message or update.callback_query.message
@@ -902,7 +905,7 @@ async def _send_question_batch(
                 f"{next_block.description}",
                 parse_mode=ParseMode.MARKDOWN,
             )
-            await _send_question_batch(bot_context, update, user_id, case_id)
+            await _send_question_batch(bot_context, update, user_id, case_id, context)
         else:
             # All blocks complete
             await _complete_intake(bot_context, update, user_id, case_id)
@@ -913,7 +916,7 @@ async def _send_question_batch(
     if not questions:
         # No questions in batch (all conditional), skip to next
         await advance_step(user_id, case_id)
-        await _send_question_batch(bot_context, update, user_id, case_id)
+        await _send_question_batch(bot_context, update, user_id, case_id, context)
         return
 
     # Send batch header (simplified for single-question mode)
@@ -934,7 +937,14 @@ async def _send_question_batch(
 
     # Send questions (now always 1 question per batch)
     for question in questions:
-        await _send_single_question(message, question, case_id=case_id, block_id=current_block_id)
+        await _send_single_question(
+            message,
+            question,
+            case_id=case_id,
+            block_id=current_block_id,
+            user_id=user_id,
+            context=context,
+        )
 
     # If batch has been fully sent, show navigation buttons
     # (user needs to answer all questions first, buttons shown after last answer)
@@ -945,8 +955,32 @@ async def _send_single_question(
     question: IntakeQuestion,
     case_id: str | None = None,
     block_id: str | None = None,
+    user_id: str | None = None,
+    context: ContextTypes.DEFAULT_TYPE | None = None,
 ) -> None:
     """Send a single question with formatting."""
+    # For DOCUMENT questions, enable upload mode so smart_upload handles it
+    if question.type == QuestionType.DOCUMENT and context is not None and user_id:
+        from .smart_upload_handlers import UPLOAD_MODE_KEY, upload_mode_filter
+
+        context.user_data[UPLOAD_MODE_KEY] = True
+        # Store intake context so smart_upload can continue intake after saving
+        context.user_data["intake_document_upload"] = {
+            "case_id": case_id,
+            "block_id": block_id,
+            "question_id": question.id,
+            "user_id": user_id,
+        }
+        # Add user to upload mode filter
+        if message.from_user:
+            upload_mode_filter.add_user(message.from_user.id)
+        logger.info(
+            "intake.document_question_upload_mode_enabled",
+            user_id=user_id,
+            case_id=case_id,
+            question_id=question.id,
+        )
+
     # Emit AG-UI event for question
     if case_id:
         _emit_agui_event(
@@ -1080,6 +1114,7 @@ async def continue_intake_after_career(
     update: Update,
     user_id: str,
     case_id: str,
+    context: ContextTypes.DEFAULT_TYPE | None = None,
 ) -> None:
     """Continue main intake after career block completion."""
     message = update.effective_message or update.callback_query.message
@@ -1103,7 +1138,7 @@ async def continue_intake_after_career(
             f"{next_block.description}",
             parse_mode=ParseMode.MARKDOWN,
         )
-        await _send_question_batch(bot_context, update, user_id, case_id)
+        await _send_question_batch(bot_context, update, user_id, case_id, context)
     else:
         # Career was last block
         await complete_block(user_id, case_id, "career", "intake_complete")
@@ -1473,7 +1508,7 @@ async def handle_document_upload(update: Update, context: ContextTypes.DEFAULT_T
         )
 
         # Send next question
-        await _send_question_batch(bot_context, update, user_id, active_case_id)
+        await _send_question_batch(bot_context, update, user_id, active_case_id, context)
         return True
 
     except Exception as e:

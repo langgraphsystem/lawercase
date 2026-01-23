@@ -743,6 +743,53 @@ async def _save_document_with_type(
             parse_mode=None,
         )
 
+        # Check if we came from intake - continue intake flow
+        intake_context = context.user_data.pop("intake_document_upload", None)
+        if intake_context:
+            # Remove user from upload mode filter
+            if query.from_user:
+                upload_mode_filter.remove_user(query.from_user.id)
+
+            logger.info(
+                "smart_upload.continuing_intake",
+                user_id=user_id,
+                case_id=intake_context.get("case_id"),
+                question_id=intake_context.get("question_id"),
+            )
+
+            # Advance intake step and send next question
+            try:
+                from core.storage.intake_progress import advance_step
+
+                from .intake_handlers import _send_question_batch
+
+                intake_case_id = intake_context.get("case_id")
+                intake_user_id = intake_context.get("user_id")
+
+                if intake_case_id and intake_user_id:
+                    await advance_step(intake_user_id, intake_case_id)
+
+                    # Send next question
+                    await query.message.reply_text(
+                        "✅ Документ сохранён!\nПереходим к следующему вопросу..."
+                    )
+                    await _send_question_batch(
+                        bot_ctx,
+                        query,  # Use query as update
+                        intake_user_id,
+                        intake_case_id,
+                        context,
+                    )
+            except Exception as intake_error:
+                logger.exception(
+                    "smart_upload.intake_continue_failed",
+                    error=str(intake_error),
+                )
+                await query.message.reply_text(
+                    "⚠️ Документ сохранён, но не удалось продолжить анкетирование.\n"
+                    "Используйте /intake_resume чтобы продолжить."
+                )
+
     except Exception as e:
         logger.exception("smart_upload.save_failed", error=str(e))
         await query.edit_message_text(
