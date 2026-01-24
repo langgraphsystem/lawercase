@@ -961,7 +961,7 @@ async def _send_single_question(
     """Send a single question with formatting."""
     # For DOCUMENT questions, enable upload mode so smart_upload handles it
     if question.type == QuestionType.DOCUMENT and context is not None and user_id:
-        from .smart_upload_handlers import UPLOAD_MODE_KEY, upload_mode_filter
+        from .smart_upload_handlers import UPLOAD_MODE_KEY
 
         context.user_data[UPLOAD_MODE_KEY] = True
         # Store intake context so smart_upload can continue intake after saving
@@ -971,9 +971,6 @@ async def _send_single_question(
             "question_id": question.id,
             "user_id": user_id,
         }
-        # Add user to upload mode filter
-        if message.from_user:
-            upload_mode_filter.add_user(message.from_user.id)
         logger.info(
             "intake.document_question_upload_mode_enabled",
             user_id=user_id,
