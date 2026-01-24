@@ -42,39 +42,20 @@ UPLOAD_MODE_KEY = "smart_upload_mode"
 
 
 class UploadModeFilter(MessageFilter):
-    """Filter that only matches when upload mode is active."""
+    """Filter that always matches - upload mode check happens in handler.
+
+    NOTE: We cannot check user_data from filter (no access to context).
+    The in-memory set approach breaks on process restart (Railway deploy).
+    So we always match and let handler check context.user_data.
+    """
 
     def filter(self, message) -> bool:
-        """Check if upload mode is active in user_data."""
-        # This filter is used with context - we'll check in handler instead
-        # For now, always return True and let handler decide
+        """Always return True - actual check in handler."""
         return True
 
 
-class UploadModeActiveFilter(MessageFilter):
-    """Custom filter that checks if upload_mode is active via callback_data context."""
-
-    def __init__(self) -> None:
-        super().__init__()
-        self._upload_mode_users: set[int] = set()
-
-    def add_user(self, user_id: int) -> None:
-        """Mark user as having upload mode active."""
-        self._upload_mode_users.add(user_id)
-
-    def remove_user(self, user_id: int) -> None:
-        """Mark user as having upload mode inactive."""
-        self._upload_mode_users.discard(user_id)
-
-    def filter(self, message) -> bool:
-        """Check if user has upload mode active."""
-        if message.from_user:
-            return message.from_user.id in self._upload_mode_users
-        return False
-
-
-# Global filter instance
-upload_mode_filter = UploadModeActiveFilter()
+# Global filter instance - always matches, handler checks upload mode
+upload_mode_filter = UploadModeFilter()
 
 
 def _bot_context(context: ContextTypes.DEFAULT_TYPE) -> BotContext:
@@ -107,10 +88,8 @@ async def upload_command(
     if not message:
         return
 
-    # Set upload mode flag
+    # Set upload mode flag in persistent user_data
     context.user_data[UPLOAD_MODE_KEY] = True
-    # Add user to filter so document handler matches
-    upload_mode_filter.add_user(update.effective_user.id)
 
     await message.reply_text(
         "📤 *Режим загрузки документов*\n\n"
@@ -143,11 +122,9 @@ async def cancel_upload_command(
     if not message:
         return
 
-    # Clear upload mode flag and pending data
+    # Clear upload mode flag and pending data from persistent user_data
     was_active = context.user_data.pop(UPLOAD_MODE_KEY, None)
     context.user_data.pop("pending_smart_upload", None)
-    # Remove user from filter
-    upload_mode_filter.remove_user(update.effective_user.id)
 
     if was_active:
         await message.reply_text(
@@ -291,7 +268,9 @@ async def handle_smart_upload(
         confidence_emoji = (
             "🟢"
             if classification.confidence >= 0.7
-            else "🟡" if classification.confidence >= 0.4 else "🔴"
+            else "🟡"
+            if classification.confidence >= 0.4
+            else "🔴"
         )
         confidence_pct = int(classification.confidence * 100)
 
@@ -747,10 +726,6 @@ async def _save_document_with_type(
         # Check if we came from intake - continue intake flow
         intake_context = context.user_data.pop("intake_document_upload", None)
         if intake_context:
-            # Remove user from upload mode filter
-            if query.from_user:
-                upload_mode_filter.remove_user(query.from_user.id)
-
             logger.info(
                 "smart_upload.continuing_intake",
                 user_id=user_id,
