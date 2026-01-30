@@ -113,7 +113,8 @@ class SupabaseSemanticStore:
                     namespace=self.namespace,
                     user_id=record.user_id or "anonymous",
                     thread_id=record.thread_id,
-                    case_id=record.case_id,  # Link document to case
+                    # NOTE: case_id is stored in metadata_json, not as direct column
+                    # to ensure compatibility with production DB schemas
                     text=clean_text,
                     type=record.type,
                     source=record.source,
@@ -367,7 +368,8 @@ class SupabaseSemanticStore:
         query_embedding = await self.embedder.aembed_query(query)
         embedding_str = "[" + ",".join(str(x) for x in query_embedding) + "]"
 
-        sql = text("""
+        sql = text(
+            """
             SELECT
                 id::text,
                 criterion,
@@ -380,7 +382,8 @@ class SupabaseSemanticStore:
             WHERE embedding IS NOT NULL
             ORDER BY embedding <=> CAST(:embedding AS vector)
             LIMIT :topk
-        """)
+        """
+        )
 
         async with self.db.session() as session:
             result = await session.execute(sql, {"embedding": embedding_str, "topk": topk})
@@ -428,6 +431,105 @@ class SupabaseSemanticStore:
 
         return memories
 
+    async def aretrieve_public_kb(
+        self,
+        query: str,
+        topk: int = 5,
+    ) -> list[MemoryRecord]:
+        """Search public.knowledge_base table using ILIKE keyword matching.
+
+        This table contains USCIS Policy Manual chunks, Kazarian case text,
+        I-140 instructions, and the EB1A Complete Guide (571 records).
+        Uses Supabase REST API to avoid pgbouncer prepared statement issues.
+
+        Args:
+            query: Search query text
+            topk: Maximum number of results
+
+        Returns:
+            List of MemoryRecord from public knowledge base
+        """
+        import os
+
+        from supabase import create_client
+
+        supabase_url = os.getenv("SUPABASE_URL", "")
+        supabase_key = os.getenv("SUPABASE_SERVICE_ROLE_KEY") or os.getenv("SUPABASE_KEY", "")
+
+        if not supabase_url or not supabase_key:
+            logger.warning("supabase_semantic_store.public_kb_no_credentials")
+            return []
+
+        # Split query into keywords for broader matching
+        keywords = [w.strip() for w in query.split() if len(w.strip()) >= 3]
+        if not keywords:
+            return []
+
+        try:
+            client = create_client(supabase_url, supabase_key)
+
+            # Build OR filter using the longest keyword for primary search
+            # Supabase REST ILIKE supports one filter at a time, so use the
+            # most specific keyword first, then filter in Python
+            primary_keyword = max(keywords, key=len)
+
+            result = (
+                client.table("knowledge_base")
+                .select("id, content, metadata, namespace, created_at")
+                .eq("namespace", "eb1a")
+                .ilike("content", f"%{primary_keyword}%")
+                .limit(topk * 3)  # Over-fetch to allow Python-side filtering
+                .execute()
+            )
+
+            rows = result.data or []
+
+            # Python-side: boost rows that match more keywords
+            scored_rows = []
+            for row in rows:
+                content_lower = (row.get("content") or "").lower()
+                match_count = sum(1 for kw in keywords if kw.lower() in content_lower)
+                scored_rows.append((match_count, row))
+
+            scored_rows.sort(key=lambda x: x[0], reverse=True)
+
+        except Exception as e:
+            logger.warning(
+                "supabase_semantic_store.public_kb_search_failed",
+                error=str(e),
+                query=query[:100],
+            )
+            return []
+
+        memories: list[MemoryRecord] = []
+        for match_count, row in scored_rows[:topk]:
+            content = row.get("content") or ""
+            metadata = row.get("metadata") if isinstance(row.get("metadata"), dict) else {}
+            # Scale confidence by keyword match ratio
+            confidence = min(0.7, 0.3 + 0.1 * match_count)
+
+            memories.append(
+                MemoryRecord(
+                    id=str(row.get("id", "")),
+                    user_id=None,
+                    type="semantic",
+                    text=content[:2000],  # Truncate long chunks
+                    source="public_knowledge_base",
+                    tags=["knowledge_base", "uscis_policy"],
+                    metadata=metadata,
+                    confidence=confidence,
+                )
+            )
+
+        logger.info(
+            "supabase_semantic_store.aretrieve_public_kb",
+            query=query[:100],
+            topk=topk,
+            results=len(memories),
+        )
+
+        return memories
+
     async def aretrieve_all_sources(
         self,
         query: str,
@@ -438,6 +540,7 @@ class SupabaseSemanticStore:
         Combines results from:
         - semantic_memory table (knowledge base, case docs, etc.)
         - rfe_knowledge table (RFE patterns and responses)
+        - public.knowledge_base table (USCIS policy, Kazarian, I-140)
 
         Args:
             query: Search query text
@@ -448,7 +551,7 @@ class SupabaseSemanticStore:
         """
         import asyncio
 
-        # Run both searches in parallel with timeouts
+        # Run all three searches in parallel with timeouts
         semantic_task = asyncio.create_task(
             self.aretrieve(
                 query=query,
@@ -462,10 +565,14 @@ class SupabaseSemanticStore:
             self._aretrieve_rfe_with_timeout(query=query, topk=topk, timeout=50.0)
         )
 
-        # Wait for both with overall timeout (increased for slow RFE queries)
+        public_kb_task = asyncio.create_task(
+            self._aretrieve_public_kb_with_timeout(query=query, topk=5, timeout=10.0)
+        )
+
+        # Wait for all three with overall timeout
         try:
-            semantic_results, rfe_results = await asyncio.wait_for(
-                asyncio.gather(semantic_task, rfe_task, return_exceptions=True),
+            semantic_results, rfe_results, public_kb_results = await asyncio.wait_for(
+                asyncio.gather(semantic_task, rfe_task, public_kb_task, return_exceptions=True),
                 timeout=55.0,
             )
         except TimeoutError:
@@ -476,6 +583,7 @@ class SupabaseSemanticStore:
             # Try to get whatever completed
             semantic_results = []
             rfe_results = []
+            public_kb_results = []
 
         # Handle exceptions from tasks
         if isinstance(semantic_results, Exception):
@@ -492,8 +600,15 @@ class SupabaseSemanticStore:
             )
             rfe_results = []
 
+        if isinstance(public_kb_results, Exception):
+            logger.warning(
+                "supabase_semantic_store.public_kb_search_failed",
+                error=str(public_kb_results),
+            )
+            public_kb_results = []
+
         # Combine and sort by confidence/similarity
-        all_results = semantic_results + rfe_results
+        all_results = semantic_results + rfe_results + public_kb_results
         all_results.sort(key=lambda r: r.confidence or 0.0, reverse=True)
 
         logger.info(
@@ -501,6 +616,7 @@ class SupabaseSemanticStore:
             query=query[:100],
             semantic_count=len(semantic_results),
             rfe_count=len(rfe_results),
+            public_kb_count=len(public_kb_results),
             total=len(all_results),
         )
 
@@ -530,6 +646,35 @@ class SupabaseSemanticStore:
         except Exception as e:
             logger.warning(
                 "supabase_semantic_store.rfe_search_error",
+                query=query[:100],
+                error=str(e),
+            )
+            return []
+
+    async def _aretrieve_public_kb_with_timeout(
+        self,
+        query: str,
+        topk: int,
+        timeout: float = 10.0,
+    ) -> list[MemoryRecord]:
+        """Search public.knowledge_base with timeout and graceful fallback."""
+        import asyncio
+
+        try:
+            return await asyncio.wait_for(
+                self.aretrieve_public_kb(query=query, topk=topk),
+                timeout=timeout,
+            )
+        except TimeoutError:
+            logger.warning(
+                "supabase_semantic_store.public_kb_search_timeout",
+                query=query[:100],
+                timeout=timeout,
+            )
+            return []
+        except Exception as e:
+            logger.warning(
+                "supabase_semantic_store.public_kb_search_error",
                 query=query[:100],
                 error=str(e),
             )
@@ -686,12 +831,14 @@ class SupabaseSemanticStore:
         """
         from sqlalchemy import text
 
-        sql = text("""
+        sql = text(
+            """
             SELECT criterion, COUNT(*) as count
             FROM mega_agent.rfe_knowledge
             GROUP BY criterion
             ORDER BY count DESC
-        """)
+        """
+        )
         async with self.db.session() as session:
             result = await session.execute(sql)
             rows = result.all()

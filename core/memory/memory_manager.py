@@ -27,8 +27,7 @@ def _create_default_stores() -> tuple:
     """
     import structlog
 
-    from .stores import (SupabaseEpisodicStore, SupabaseSemanticStore,
-                         SupabaseWorkingMemory)
+    from .stores import SupabaseEpisodicStore, SupabaseSemanticStore, SupabaseWorkingMemory
 
     logger = structlog.get_logger(__name__)
 
@@ -235,7 +234,7 @@ class MemoryManager:
     ) -> list[MemoryRecord]:
         """Retrieve from ALL memory sources without user filtering.
 
-        Searches both semantic_memory and rfe_knowledge tables.
+        Searches semantic_memory, rfe_knowledge, and public.knowledge_base tables.
         Use this for global knowledge lookup when user context is not needed.
 
         Args:
