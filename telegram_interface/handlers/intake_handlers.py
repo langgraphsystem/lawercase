@@ -1333,6 +1333,40 @@ async def _complete_intake(
 
     await message.reply_text(completion_text, parse_mode=ParseMode.MARKDOWN)
 
+    # Auto-generate case site
+    try:
+        from core.services.case_site_generator import CaseSiteGenerator
+        from telegram_interface.handlers.site_handlers import _upload_site_to_storage
+
+        site_case_data = {
+            "field": case_data.get("category", case_data.get("case_type", "EB-1A")),
+            "criteria": case_data.get("criteria", []),
+            "status": "intake_complete",
+        }
+        site_user_data = {
+            "full_name": case_title,
+            "email": f"user_{user_id}@case.local",
+        }
+
+        generator = CaseSiteGenerator()
+        site_path = generator.generate_site(case_id, site_case_data, site_user_data)
+
+        # Upload to Supabase Storage
+        site_url = await _upload_site_to_storage(case_id, site_path)
+
+        if site_url:
+            await message.reply_text(
+                f"🌐 Сайт кейса создан: {site_url}",
+                parse_mode=ParseMode.MARKDOWN,
+            )
+        else:
+            await message.reply_text(f"📁 Сайт кейса создан локально: {site_path}")
+
+        logger.info("intake.site_generated", case_id=case_id, site_url=site_url)
+
+    except Exception as e:
+        logger.error("intake.site_generation_failed", error=str(e), case_id=case_id)
+
 
 # --- Document Upload Handler for Intake ---
 
