@@ -6,8 +6,8 @@ Provides type-specific validation and normalization for user answers.
 
 from __future__ import annotations
 
-import re
 from datetime import datetime
+import re
 
 
 def validate_date(text: str) -> tuple[bool, str | None]:

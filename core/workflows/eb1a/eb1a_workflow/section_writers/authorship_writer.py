@@ -5,8 +5,7 @@ from __future__ import annotations
 from typing import Any
 
 from .....memory.memory_manager import MemoryManager
-from ...eb1a_coordinator import (EB1ACriterion, EB1AEvidence,
-                                 EB1APetitionRequest)
+from ...eb1a_coordinator import EB1ACriterion, EB1AEvidence, EB1APetitionRequest
 from .base_writer import BaseSectionWriter
 
 
@@ -54,10 +53,8 @@ class AuthorshipWriter(BaseSectionWriter):
         # Build opening with citation metrics
         citation_text = ""
         if request.citations_count:
-            citation_text = (
-                f" These publications have been cited {request.citations_count:,} times by \
+            citation_text = f" These publications have been cited {request.citations_count:,} times by \
 researchers worldwide"
-            )
             if request.h_index:
                 citation_text += f", with an h-index of {request.h_index}"
             citation_text += ", demonstrating significant impact and influence."

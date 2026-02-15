@@ -13,16 +13,16 @@ Features:
 from __future__ import annotations
 
 import argparse
+from datetime import UTC, datetime
 import logging
+from logging.handlers import TimedRotatingFileHandler
 import os
+from pathlib import Path
 import queue
 import subprocess  # nosec B404
 import sys
 import threading
 import time
-from datetime import datetime
-from logging.handlers import TimedRotatingFileHandler
-from pathlib import Path
 
 LOGGER = logging.getLogger(__name__)
 
@@ -108,7 +108,7 @@ def run_child(
             if proc.poll() is not None:
                 break
             continue
-        ts = datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
+        ts = datetime.now(UTC).strftime("%Y-%m-%d %H:%M:%S")
         line_s = line.rstrip()
         # Mirror to console and file
         print(f"{ts} | BOT | {line_s}")
@@ -120,7 +120,7 @@ def run_child(
             line = q.get_nowait()
         except queue.Empty:
             break
-        ts = datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
+        ts = datetime.now(UTC).strftime("%Y-%m-%d %H:%M:%S")
         line_s = line.rstrip()
         print(f"{ts} | BOT | {line_s}")
         bot_logger.info(line_s)

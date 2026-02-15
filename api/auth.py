@@ -9,14 +9,13 @@ This module provides:
 
 from __future__ import annotations
 
+from datetime import UTC, datetime, timedelta
 import secrets
-from datetime import datetime, timedelta
 from typing import Annotated
 
-import jwt
 from fastapi import Depends, HTTPException, status
-from fastapi.security import (APIKeyHeader, HTTPAuthorizationCredentials,
-                              HTTPBearer)
+from fastapi.security import APIKeyHeader, HTTPAuthorizationCredentials, HTTPBearer
+import jwt
 from passlib.context import CryptContext
 from pydantic import BaseModel
 
@@ -52,7 +51,7 @@ class User(BaseModel):
     email: str
     role: str
     is_active: bool = True
-    created_at: datetime = datetime.utcnow()
+    created_at: datetime = datetime.now(UTC)
 
 
 class TokenResponse(BaseModel):
@@ -104,14 +103,14 @@ def create_access_token(
     if settings is None:
         settings = get_settings()
 
-    expire = datetime.utcnow() + timedelta(minutes=settings.security.jwt_expiration_minutes)
+    expire = datetime.now(UTC) + timedelta(minutes=settings.security.jwt_expiration_minutes)
 
     payload = {
         "user_id": user_id,
         "email": email,
         "role": role,
         "exp": expire,
-        "iat": datetime.utcnow(),
+        "iat": datetime.now(UTC),
         "type": "access",
     }
 
@@ -136,12 +135,12 @@ def create_refresh_token(user_id: str, settings: AppSettings | None = None) -> s
     if settings is None:
         settings = get_settings()
 
-    expire = datetime.utcnow() + timedelta(days=settings.security.jwt_refresh_expiration_days)
+    expire = datetime.now(UTC) + timedelta(days=settings.security.jwt_refresh_expiration_days)
 
     payload = {
         "user_id": user_id,
         "exp": expire,
-        "iat": datetime.utcnow(),
+        "iat": datetime.now(UTC),
         "type": "refresh",
     }
 
@@ -214,28 +213,174 @@ def generate_api_key(settings: AppSettings | None = None) -> str:
     return f"{settings.security.api_key_prefix}{key}"
 
 
-def verify_api_key(api_key: str) -> bool:
-    """Verify API key.
+def hash_api_key(api_key: str) -> str:
+    """Hash API key for secure storage.
+
+    Args:
+        api_key: API key to hash
+
+    Returns:
+        Hashed API key
+    """
+    import hashlib
+
+    return hashlib.sha256(api_key.encode()).hexdigest()
+
+
+# In-memory cache for verified API keys (TTL + max size to prevent DoS)
+try:
+    from cachetools import TTLCache
+
+    _api_key_cache: dict[str, tuple[bool, datetime]] = TTLCache(maxsize=1024, ttl=300)
+except ImportError:
+    # Fallback: plain dict with manual TTL check (bounded by periodic cleanup)
+    _api_key_cache: dict[str, tuple[bool, datetime]] = {}
+_API_KEY_CACHE_TTL = timedelta(minutes=5)
+_API_KEY_CACHE_MAX_SIZE = 1024
+
+
+def _cache_put(key: str, value: tuple[bool, datetime]) -> None:
+    """Store in cache with size bound. Evicts oldest entries if full."""
+    if len(_api_key_cache) >= _API_KEY_CACHE_MAX_SIZE:
+        # Remove oldest ~10% to avoid evicting on every insert
+        to_remove = list(_api_key_cache.keys())[: _API_KEY_CACHE_MAX_SIZE // 10]
+        for k in to_remove:
+            _api_key_cache.pop(k, None)
+    _api_key_cache[key] = value
+
+
+async def verify_api_key_from_db(api_key: str) -> dict | None:
+    """Verify API key against database.
 
     Args:
         api_key: API key to verify
 
     Returns:
-        True if valid
+        User data if valid, None otherwise
+    """
+    try:
+        from supabase import create_client
 
-    Note:
-        In production, this should check against a database.
-        For now, we'll use a simple validation.
+        settings = get_settings()
+
+        # Get Supabase credentials
+        supabase_url = getattr(settings, "supabase_url", None)
+        supabase_key = getattr(settings, "supabase_service_key", None) or getattr(
+            settings, "supabase_anon_key", None
+        )
+
+        if not supabase_url or not supabase_key:
+            return None
+
+        client = create_client(supabase_url, supabase_key)
+
+        # Hash the API key for lookup
+        key_hash = hash_api_key(api_key)
+
+        # Query database for API key
+        response = (
+            client.table("api_keys")
+            .select("user_id, email, role, is_active, expires_at")
+            .eq("key_hash", key_hash)
+            .eq("is_active", True)
+            .maybe_single()
+            .execute()
+        )
+
+        if not response.data:
+            return None
+
+        # Check expiration
+        key_data = response.data
+        if key_data.get("expires_at"):
+            expires_at = datetime.fromisoformat(key_data["expires_at"].replace("Z", "+00:00"))
+            if expires_at < datetime.now(UTC):
+                return None
+
+        return key_data
+
+    except Exception:
+        # If database check fails, return None (deny access)
+        return None
+
+
+def verify_api_key(api_key: str) -> bool:
+    """Verify API key format and cache (sync-safe, no database call).
+
+    For full verification including database lookup, use verify_api_key_async().
+
+    Args:
+        api_key: API key to verify
+
+    Returns:
+        True if valid format and cached as valid, or auth is disabled
     """
     settings = get_settings()
 
-    # Check prefix
+    # Check prefix format
     if not api_key.startswith(settings.security.api_key_prefix):
         return False
 
-    # In production: check database for valid key
-    # For now: accept any key with correct prefix and length
-    return len(api_key) >= settings.security.api_key_length
+    # Check minimum length
+    if len(api_key) < settings.security.api_key_length:
+        return False
+
+    # Check cache first
+    cache_key = hash_api_key(api_key)
+    now = datetime.now(UTC)
+    if cache_key in _api_key_cache:
+        is_valid, cached_at = _api_key_cache[cache_key]
+        if now - cached_at < _API_KEY_CACHE_TTL:
+            return is_valid
+
+    # If API auth is disabled (development mode), accept format-valid keys
+    if not settings.features.enable_api_auth:
+        _cache_put(cache_key, (True, now))
+        return True
+
+    # Cannot do async DB call from sync context safely.
+    # Return False to force callers to use verify_api_key_async().
+    return False
+
+
+async def verify_api_key_async(api_key: str) -> tuple[bool, dict | None]:
+    """Async version of API key verification.
+
+    Args:
+        api_key: API key to verify
+
+    Returns:
+        Tuple of (is_valid, user_data)
+    """
+    settings = get_settings()
+
+    # Check format
+    if not api_key.startswith(settings.security.api_key_prefix):
+        return False, None
+
+    if len(api_key) < settings.security.api_key_length:
+        return False, None
+
+    # Check cache
+    cache_key = hash_api_key(api_key)
+    if cache_key in _api_key_cache:
+        is_valid, cached_at = _api_key_cache[cache_key]
+        if datetime.now(UTC) - cached_at < _API_KEY_CACHE_TTL:
+            return is_valid, None if not is_valid else {"cached": True}
+
+    # Development mode bypass
+    if not settings.features.enable_api_auth:
+        _cache_put(cache_key, (True, datetime.now(UTC)))
+        return True, {"user_id": "dev_user", "role": "admin", "email": "dev@local"}
+
+    # Database verification
+    user_data = await verify_api_key_from_db(api_key)
+    is_valid = user_data is not None
+
+    # Cache result
+    _cache_put(cache_key, (is_valid, datetime.now(UTC)))
+
+    return is_valid, user_data
 
 
 # ============================================================================
@@ -246,25 +391,24 @@ def verify_api_key(api_key: str) -> bool:
 async def get_current_user_from_token(
     credentials: Annotated[HTTPAuthorizationCredentials | None, Depends(bearer_scheme)] = None,
     settings: Annotated[AppSettings, Depends(get_settings)] = None,
-) -> User:
+) -> User | None:
     """Get current user from JWT token.
+
+    Returns None when no credentials are provided so that
+    get_current_user can fall through to API key authentication.
 
     Args:
         credentials: Bearer token from Authorization header
         settings: App settings
 
     Returns:
-        Current user
+        Current user or None if no token provided
 
     Raises:
-        HTTPException: If authentication fails
+        HTTPException: If token is present but invalid
     """
     if not credentials:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Missing authentication credentials",
-            headers={"WWW-Authenticate": "Bearer"},
-        )
+        return None
 
     try:
         token_data = verify_token(credentials.credentials, settings)
@@ -294,34 +438,44 @@ async def get_current_user_from_token(
 
 async def get_current_user_from_api_key(
     api_key: Annotated[str | None, Depends(api_key_scheme)] = None,
-) -> User:
+) -> User | None:
     """Get current user from API key.
+
+    Returns None when no API key is provided so that
+    get_current_user can fall through to JWT authentication.
 
     Args:
         api_key: API key from X-API-Key header
 
     Returns:
-        Current user
+        Current user or None if no key provided
 
     Raises:
-        HTTPException: If authentication fails
+        HTTPException: If key is present but invalid
     """
     if not api_key:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Missing API key",
-            headers={"WWW-Authenticate": "ApiKey"},
-        )
+        return None
 
-    if not verify_api_key(api_key):
+    # Use async verification to get user data
+    is_valid, user_data = await verify_api_key_async(api_key)
+
+    if not is_valid:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid API key",
             headers={"WWW-Authenticate": "ApiKey"},
         )
 
-    # In production: fetch user associated with API key from database
-    # For now: create a service user
+    # Create user from database data or default service user
+    if user_data and not user_data.get("cached"):
+        return User(
+            user_id=user_data.get("user_id", "service"),
+            email=user_data.get("email", "service@megaagent.com"),
+            role=user_data.get("role", "service"),
+            is_active=user_data.get("is_active", True),
+        )
+
+    # Fallback for cached or development mode
     return User(
         user_id="service",
         email="service@megaagent.com",

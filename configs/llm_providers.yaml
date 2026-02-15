@@ -1,0 +1,140 @@
+# LLM Providers Configuration
+# Supports: Gemini 3, ChatGPT 5.2, Opus 4.5
+
+providers:
+  # Google Gemini 3 - Research, Analysis, Summarization
+  gemini-3:
+    enabled: true
+    model_id: "gemini-3-pro-preview"
+    api_key_env: "GEMINI_API_KEY"
+    fallback_api_key_env: "GOOGLE_API_KEY"
+    max_context_tokens: 1000000
+    default_temperature: 0.7
+    default_max_tokens: 8192
+    cost:
+      input_per_1k: 0.00125
+      output_per_1k: 0.005
+    strengths:
+      - research
+      - summarization
+      - general
+      - analysis
+    rate_limits:
+      requests_per_minute: 60
+      tokens_per_minute: 1000000
+
+  # OpenAI ChatGPT 5.2 - Document Generation, Creative Tasks
+  chatgpt-5.2:
+    enabled: true
+    model_id: "gpt-5.2-turbo"
+    api_key_env: "OPENAI_API_KEY"
+    max_context_tokens: 128000
+    default_temperature: 0.8
+    default_max_tokens: 4096
+    cost:
+      input_per_1k: 0.01
+      output_per_1k: 0.03
+    strengths:
+      - document_generation
+      - creative_writing
+      - conversation
+      - translation
+    rate_limits:
+      requests_per_minute: 500
+      tokens_per_minute: 200000
+
+  # Anthropic Claude Opus 4.5 - Legal Analysis, Complex Reasoning
+  opus-4.5:
+    enabled: true
+    model_id: "claude-opus-4-5-20251101"
+    api_key_env: "ANTHROPIC_API_KEY"
+    max_context_tokens: 200000
+    default_temperature: 0.5
+    default_max_tokens: 4096
+    cost:
+      input_per_1k: 0.015
+      output_per_1k: 0.075
+    strengths:
+      - legal_analysis
+      - code_generation
+      - complex_reasoning
+      - data_extraction
+    rate_limits:
+      requests_per_minute: 60
+      tokens_per_minute: 100000
+
+# Task routing - maps task types to provider priority
+task_routing:
+  legal_analysis:
+    - opus-4.5
+    - chatgpt-5.2
+    - gemini-3
+
+  document_generation:
+    - chatgpt-5.2
+    - opus-4.5
+    - gemini-3
+
+  research:
+    - gemini-3
+    - chatgpt-5.2
+    - opus-4.5
+
+  code_generation:
+    - opus-4.5
+    - gemini-3
+    - chatgpt-5.2
+
+  summarization:
+    - gemini-3
+    - chatgpt-5.2
+    - opus-4.5
+
+  translation:
+    - chatgpt-5.2
+    - gemini-3
+    - opus-4.5
+
+  conversation:
+    - chatgpt-5.2
+    - opus-4.5
+    - gemini-3
+
+  creative_writing:
+    - chatgpt-5.2
+    - opus-4.5
+    - gemini-3
+
+  data_extraction:
+    - opus-4.5
+    - gemini-3
+    - chatgpt-5.2
+
+  general:
+    - gemini-3
+    - chatgpt-5.2
+    - opus-4.5
+
+# Fallback configuration
+fallback:
+  enabled: true
+  max_retries: 3
+  retry_delay_ms: 1000
+  circuit_breaker:
+    failure_threshold: 3
+    success_threshold: 2
+    recovery_timeout_seconds: 60
+
+# Caching configuration
+caching:
+  enabled: true
+  ttl_seconds: 3600
+  max_cache_size_mb: 100
+  semantic_similarity_threshold: 0.95
+
+# Cost optimization
+cost_optimization:
+  enabled: true
+  daily_budget_usd: 50.0
+  alert_threshold_percent: 80
+  prefer_cheaper_for_simple_tasks: true

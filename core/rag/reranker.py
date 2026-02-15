@@ -86,8 +86,7 @@ class CrossEncoderReranker:
             return  # Already loaded
 
         try:
-            from transformers import (AutoModelForSequenceClassification,
-                                      AutoTokenizer)
+            from transformers import AutoModelForSequenceClassification, AutoTokenizer
         except ImportError:
             raise ImportError(
                 "transformers library required for cross-encoder reranking. "

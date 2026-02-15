@@ -19,8 +19,7 @@ from pydantic import BaseModel, Field, computed_field
 
 from api.deps import get_current_user
 from core.logging_utils import get_logger
-from core.services.case_service import (CaseListFilter, CaseStatus, CaseType,
-                                        get_case_service)
+from core.services.case_service import CaseListFilter, CaseStatus, CaseType, get_case_service
 
 logger = get_logger(__name__)
 
@@ -186,7 +185,7 @@ async def create_case(
     return _case_to_response(case)
 
 
-@router.get("/statuses", tags=["Cases"])
+@router.get("/statuses", tags=["Cases"], deprecated=True)
 async def get_available_statuses() -> dict[str, Any]:
     """Get available case statuses and valid transitions."""
     return {
@@ -304,7 +303,7 @@ async def delete_case(
         )
 
 
-@router.post("/{case_id}/restore", response_model=CaseResponse)
+@router.post("/{case_id}/restore", response_model=CaseResponse, deprecated=True)
 async def restore_case(
     case_id: UUID,
     user: dict[str, Any] = Depends(get_current_user),
@@ -332,7 +331,7 @@ async def restore_case(
     return _case_to_response(case)
 
 
-@router.patch("/{case_id}/status", response_model=CaseResponse)
+@router.patch("/{case_id}/status", response_model=CaseResponse, deprecated=True)
 async def update_case_status(
     case_id: UUID,
     request: UpdateStatusRequest,

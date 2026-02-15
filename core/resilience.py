@@ -11,15 +11,14 @@ This module provides:
 from __future__ import annotations
 
 import asyncio
-import logging
-import time
 from collections.abc import Awaitable, Callable
 from enum import Enum
 from functools import wraps
+import logging
+import time
 from typing import Any, TypeVar
 
-from core.exceptions import (ExternalServiceError, LLMRateLimitError,
-                             LLMTimeoutError)
+from core.exceptions import ExternalServiceError, LLMRateLimitError, LLMTimeoutError
 
 logger = logging.getLogger(__name__)
 
@@ -503,8 +502,9 @@ class CircuitBreakers:
         """Reset circuit breaker(s)."""
         if name:
             if name in cls._breakers:
-                cls._breakers[name]._failure_count = 0
-                cls._breakers[name]._state = CircuitState.CLOSED
+                _resilience_names = cls._breakers[name]
+                _resilience_names._failure_count = 0
+                _resilience_names._state = CircuitState.CLOSED
         else:
             cls._breakers.clear()
 

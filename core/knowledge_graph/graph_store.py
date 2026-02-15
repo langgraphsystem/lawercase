@@ -7,12 +7,12 @@ and optional Neo4j backends for production deployments.
 
 from __future__ import annotations
 
+from collections.abc import Mapping, Sequence
+from dataclasses import dataclass
+from datetime import UTC, datetime
 import json
 import logging
 import threading
-from collections.abc import Mapping, Sequence
-from dataclasses import dataclass
-from datetime import datetime
 from typing import Any
 
 import networkx as nx
@@ -21,9 +21,7 @@ from .entities import KGEdge, KGNode, KnowledgeTriple
 
 try:  # Optional dependency – only required for RDF import/export.
     import rdflib
-    from rdflib import BNode
-    from rdflib import Graph as RDFGraph
-    from rdflib import Literal, Namespace
+    from rdflib import BNode, Graph as RDFGraph, Literal, Namespace
     from rdflib.namespace import RDF, RDFS
 except ImportError:  # pragma: no cover - exercised in environments without rdflib
     rdflib = None  # type: ignore
@@ -76,12 +74,12 @@ class GraphStore:
             attributes = {
                 "label": label,
                 "node_type": node_type,
-                "updated_at": datetime.utcnow().isoformat(),
+                "updated_at": datetime.now(UTC).isoformat(),
             }
             if metadata:
                 attributes["metadata"] = dict(metadata)
             if node_id not in self.graph:
-                attributes["created_at"] = datetime.utcnow().isoformat()
+                attributes["created_at"] = datetime.now(UTC).isoformat()
             self.graph.add_node(node_id, **attributes)
 
     def upsert_node(self, node: KGNode) -> None:
@@ -156,7 +154,7 @@ class GraphStore:
                 attributes["metadata"] = dict(metadata)
             if weight is not None:
                 attributes["weight"] = float(weight)
-            attributes.setdefault("created_at", datetime.utcnow().isoformat())
+            attributes.setdefault("created_at", datetime.now(UTC).isoformat())
             self.graph.add_edge(source, target, key=relation, **attributes)
 
     def upsert_edge(self, edge: KGEdge) -> None:

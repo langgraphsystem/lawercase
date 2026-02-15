@@ -10,7 +10,7 @@ context assembly utilities demanded by orchestrators and agents.
 
 from collections.abc import Iterable, Sequence
 from dataclasses import dataclass
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 from typing import Any
 
 from .episodic_memory import EpisodicMemory, EventQuery
@@ -18,11 +18,12 @@ from .models import AuditEvent, MemoryRecord
 
 # SUPABASE-ONLY: Use MemoryManager with Supabase stores
 try:
-    from .memory_manager_v2 import MemoryManager as _BaseMemoryManager
-    from .memory_manager_v2 import create_supabase_memory_manager
+    from .memory_manager_v2 import (
+        MemoryManager as _BaseMemoryManager,
+        create_supabase_memory_manager,
+    )
 except ImportError:  # pragma: no cover - defensive in environments without v2
-    from .memory_manager import \
-        MemoryManager as _BaseMemoryManager  # type: ignore
+    from .memory_manager import MemoryManager as _BaseMemoryManager  # type: ignore
 
     def create_supabase_memory_manager() -> _BaseMemoryManager:
         return _BaseMemoryManager()
@@ -115,7 +116,7 @@ class MemoryHierarchy:
             retrieved = await self.retrieve_semantic(query, user_id=user_id, topk=topk)
 
         # Episodic events in horizon window
-        horizon = datetime.utcnow() - since if since is not None else None
+        horizon = datetime.now(UTC) - since if since is not None else None
 
         episodic_events = await self.episodic.query(
             EventQuery(thread_id=thread_id, user_id=user_id, since=horizon)

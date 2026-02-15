@@ -9,10 +9,10 @@ This module provides:
 
 from __future__ import annotations
 
-import hashlib
-import math
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
+import hashlib
+import math
 from typing import Any
 
 import numpy as np
@@ -385,8 +385,7 @@ class ConsolidationPolicy:
     ) -> list[MemoryRecord]:
         """Compress memories using LLM summarization.
 
-        This is a placeholder for LLM-based compression.
-        Implementation requires LLM client to be provided.
+        Groups similar memories and summarizes them into consolidated records.
 
         Args:
             records: Records to compress
@@ -394,10 +393,134 @@ class ConsolidationPolicy:
         Returns:
             Compressed records
         """
-        # TODO: Implement LLM-based compression
-        # For now, keep top N by salience
-        sorted_records = sorted(records, key=lambda r: r.salience, reverse=True)
-        return sorted_records[: self.config.max_memories_per_user]
+        if not self.llm_client:
+            # Fallback: keep top N by salience
+            sorted_records = sorted(records, key=lambda r: r.salience, reverse=True)
+            return sorted_records[: self.config.max_memories_per_user]
+
+        try:
+            # Find semantic clusters for compression
+            clusters = find_semantic_duplicates(
+                records,
+                threshold=0.75,  # Lower threshold for compression groups
+            )
+
+            # Process each cluster through LLM summarization
+            compressed_records: list[MemoryRecord] = []
+            processed_ids: set[str] = set()
+
+            for cluster in clusters:
+                if len(cluster) < 3:
+                    # Too small to compress, keep as-is
+                    for rec in cluster:
+                        if rec.id and rec.id not in processed_ids:
+                            compressed_records.append(rec)
+                            processed_ids.add(rec.id)
+                    continue
+
+                # Summarize cluster using LLM
+                cluster_texts = [r.text for r in cluster]
+                summary = await self._summarize_with_llm(cluster_texts)
+
+                if summary:
+                    # Create compressed record
+                    base = cluster[0]  # Use first record as template
+                    merged_tags = set()
+                    for r in cluster:
+                        if r.tags:
+                            merged_tags.update(r.tags)
+                        if r.id:
+                            processed_ids.add(r.id)
+
+                    compressed_id = f"compressed_{hashlib.md5(summary.encode(), usedforsecurity=False).hexdigest()[:12]}"
+
+                    compressed_record = MemoryRecord(
+                        id=compressed_id,
+                        user_id=base.user_id,
+                        type=base.type,
+                        text=summary,
+                        embedding=None,  # Will need re-embedding
+                        salience=max(r.salience for r in cluster),
+                        confidence=sum(r.confidence or 0.7 for r in cluster) / len(cluster),
+                        source="consolidation",
+                        tags=[*list(merged_tags), "compressed"],
+                        metadata={
+                            "compressed_from": [r.id for r in cluster if r.id],
+                            "compression_count": len(cluster),
+                            "compression_method": "llm_summary",
+                        },
+                        created_at=datetime.now(UTC),
+                    )
+                    compressed_records.append(compressed_record)
+                else:
+                    # Fallback: keep highest salience from cluster
+                    best = max(cluster, key=lambda r: r.salience)
+                    if best.id and best.id not in processed_ids:
+                        compressed_records.append(best)
+                        processed_ids.add(best.id)
+
+            # Add non-clustered records
+            for r in records:
+                if r.id and r.id not in processed_ids:
+                    compressed_records.append(r)
+                    processed_ids.add(r.id)
+
+            # Final limit check
+            if len(compressed_records) > self.config.max_memories_per_user:
+                compressed_records = sorted(
+                    compressed_records, key=lambda r: r.salience, reverse=True
+                )[: self.config.max_memories_per_user]
+
+            return compressed_records
+
+        except Exception:
+            # Fallback on any error
+            sorted_records = sorted(records, key=lambda r: r.salience, reverse=True)
+            return sorted_records[: self.config.max_memories_per_user]
+
+    async def _summarize_with_llm(self, texts: list[str]) -> str | None:
+        """Summarize multiple memory texts into one using LLM.
+
+        Args:
+            texts: List of memory texts to summarize
+
+        Returns:
+            Summarized text or None if summarization fails
+        """
+        if not self.llm_client or not texts:
+            return None
+
+        try:
+            combined_text = "\n\n---\n\n".join(texts[:10])  # Limit input size
+
+            prompt = f"""Summarize the following related memories into a single, coherent summary.
+Preserve key facts, dates, names, and important details.
+Keep the summary concise but comprehensive.
+
+Memories to summarize:
+{combined_text}
+
+Summary:"""
+
+            # Call LLM client (assumes it has a generate/complete method)
+            if hasattr(self.llm_client, "agenerate"):
+                response = await self.llm_client.agenerate(prompt, max_tokens=500)
+            elif hasattr(self.llm_client, "complete"):
+                response = await self.llm_client.complete(prompt, max_tokens=500)
+            else:
+                return None
+
+            if isinstance(response, str):
+                return response.strip()
+            if hasattr(response, "content"):
+                return response.content.strip()
+            if hasattr(response, "text"):
+                return response.text.strip()
+
+            return None
+
+        except Exception:
+            return None
 
     def to_stats(self, result: ConsolidationResult) -> ConsolidateStats:
         """Convert ConsolidationResult to ConsolidateStats for backward compatibility.

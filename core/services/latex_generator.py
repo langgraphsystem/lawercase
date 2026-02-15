@@ -5,10 +5,10 @@ Generates high-quality PDF documents using LaTeX (pdflatex).
 
 from __future__ import annotations
 
+from pathlib import Path
 import shutil
 import subprocess
 import tempfile
-from pathlib import Path
 from typing import Any
 
 
@@ -79,7 +79,6 @@ class LaTeXGenerator:
 
             pdflatex = self._find_pdflatex()
 
-            # Run pdflatex twice for proper references
             for _ in range(2):
                 result = subprocess.run(
                     [
@@ -89,6 +88,7 @@ class LaTeXGenerator:
                         str(temp_path),
                         str(tex_file),
                     ],
+                    check=False,
                     capture_output=True,
                     text=True,
                     cwd=temp_path,

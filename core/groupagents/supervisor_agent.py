@@ -3,14 +3,14 @@
 from __future__ import annotations
 
 import asyncio
-import json
-import logging
-import uuid
 from collections.abc import Awaitable, Callable, Iterable
 from dataclasses import dataclass, field
+import json
+import logging
 from typing import Any, Literal
+import uuid
 
-from pydantic import BaseModel, Field, validator
+from pydantic import BaseModel, Field, field_validator
 
 from ..llm_interface import IntelligentRouter, LLMRequest
 from ..memory.memory_manager import MemoryManager
@@ -177,8 +177,9 @@ class SupervisorTaskRequest(BaseModel):
     max_depth: int = Field(default=3, ge=1, le=5)
     metadata: dict[str, Any] = Field(default_factory=dict)
 
-    @validator("task")
-    def _ensure_task(cls, value: str) -> str:  # noqa: N805
+    @field_validator("task")
+    @classmethod
+    def _ensure_task(cls, value: str) -> str:
         if not value.strip():
             raise ValueError("task must not be empty")
         return value

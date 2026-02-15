@@ -4,71 +4,149 @@
 
 {% block extra_head %}
 <style>
-    /* Legal Document Styling - Times New Roman like official petitions */
+    /* Legal Document Styling */
     .petition-document {
         font-family: 'Times New Roman', Times, Georgia, serif;
         font-size: 16px;
-        line-height: 1.6;
-        color: #000000;
+        line-height: 1.7;
+        color: var(--text-primary);
         counter-reset: page-counter;
     }
 
-    /* Running header */
-    .running-header {
-        font-size: 13px;
-        color: #555;
-        margin-bottom: 20px;
-        padding-bottom: 10px;
-        border-bottom: 1px solid #ddd;
+    /* Action Bar */
+    .action-bar {
+        position: sticky;
+        top: 0;
+        background: var(--card-bg);
+        padding: 16px 24px;
+        margin: -24px -24px 24px -24px;
+        border-bottom: 1px solid var(--border);
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        z-index: 100;
+        flex-wrap: wrap;
+        gap: 12px;
+    }
+    .action-bar-title {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+    }
+    .action-bar-title .icon {
+        width: 40px;
+        height: 40px;
+        background: var(--primary-bg);
+        border-radius: var(--radius-lg);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+    .action-bar-title .icon svg {
+        width: 20px;
+        height: 20px;
+        color: var(--primary);
+    }
+    .action-bar-title h1 {
+        font-size: 1.25rem;
+        margin: 0;
+        font-family: 'Inter', sans-serif;
+        color: var(--text-primary);
+    }
+    .action-buttons {
+        display: flex;
+        gap: 10px;
+        flex-wrap: wrap;
     }
 
-    /* Document header */
+    /* Document Header */
     .document-header {
         text-align: center;
-        margin-bottom: 40px;
-        padding-bottom: 30px;
-        border-bottom: 2px solid #333;
+        margin-bottom: 48px;
+        padding: 40px;
+        background: linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%);
+        border-radius: var(--radius-xl);
+        color: white;
+        position: relative;
+        overflow: hidden;
+    }
+    .document-header::before {
+        content: '';
+        position: absolute;
+        top: -50%;
+        right: -20%;
+        width: 500px;
+        height: 500px;
+        background: radial-gradient(circle, rgba(255,255,255,0.1) 0%, transparent 70%);
+        border-radius: 50%;
     }
     .document-header h1 {
-        font-size: 1.5rem;
-        font-weight: bold;
-        margin: 0 0 15px 0;
+        font-size: 1.75rem;
+        font-weight: 700;
+        margin: 0 0 8px 0;
         text-transform: uppercase;
-        letter-spacing: 1px;
+        letter-spacing: 2px;
+        position: relative;
+        font-family: 'Playfair Display', serif;
     }
     .document-header .subtitle {
         font-size: 1.1rem;
-        margin: 10px 0;
+        margin: 12px 0;
+        opacity: 0.95;
+        position: relative;
     }
     .document-header .beneficiary-name {
-        font-size: 1.3rem;
-        font-weight: bold;
-        color: var(--primary-color);
-        margin: 15px 0;
+        font-size: 1.5rem;
+        font-weight: 700;
+        margin: 20px 0;
+        position: relative;
+        font-family: 'Playfair Display', serif;
     }
     .document-header .classification {
         font-size: 0.95rem;
-        color: #333;
         line-height: 1.8;
-        text-align: left;
+        text-align: center;
         max-width: 600px;
-        margin: 20px auto 0;
+        margin: 24px auto 0;
+        opacity: 0.9;
+        position: relative;
     }
 
-    /* Table of Contents with dotted leaders */
+    /* Table of Contents */
     .toc-container {
-        background: #f8f9fa;
-        border: 1px solid #dee2e6;
-        border-radius: 8px;
-        padding: 25px 30px;
+        background: var(--card-bg);
+        border: 1px solid var(--border);
+        border-radius: var(--radius-xl);
+        padding: 32px;
         margin-bottom: 40px;
     }
-    .toc-container h2 {
-        font-size: 1.2rem;
-        margin: 0 0 20px 0;
-        padding-bottom: 10px;
-        border-bottom: 1px solid #dee2e6;
-        color: var(--primary-color);
+    .toc-header {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        margin-bottom: 24px;
+        padding-bottom: 16px;
+        border-bottom: 1px solid var(--border);
+    }
+    .toc-header .icon {
+        width: 40px;
+        height: 40px;
+        background: var(--primary-bg);
+        border-radius: var(--radius-lg);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+    .toc-header .icon svg {
+        width: 20px;
+        height: 20px;
+        color: var(--primary);
+    }
+    .toc-header h2 {
+        margin: 0;
+        font-size: 1.1rem;
+        color: var(--text-primary);
+        font-family: 'Inter', sans-serif;
     }
     .toc-list {
         list-style: none;
@@ -76,72 +154,186 @@
         margin: 0;
     }
     .toc-list li {
-        margin: 8px 0;
+        margin: 0;
     }
     .toc-item {
         display: flex;
         align-items: flex-end;
+        padding: 10px 0;
+        border-bottom: 1px dashed var(--border);
+    }
+    .toc-item:last-child {
+        border-bottom: none;
     }
     .toc-text {
         flex: 0 0 auto;
-        padding-right: 8px;
+        padding-right: 12px;
+        text-decoration: none;
+        color: var(--text-primary);
+        font-weight: 500;
+        transition: color 0.2s;
+    }
+    .toc-text:hover {
+        color: var(--primary);
     }
     .toc-dot-leader {
         flex: 1 1 auto;
-        border-bottom: 1px dotted #999;
-        margin: 0 8px 4px;
-        min-width: 20px;
+        border-bottom: 1px dotted var(--text-tertiary);
+        margin: 0 8px 6px;
+        min-width: 30px;
     }
     .toc-page-ref {
         flex: 0 0 auto;
         min-width: 30px;
         text-align: right;
-        font-weight: bold;
+        font-weight: 600;
+        color: var(--primary);
     }
-    .toc-section {
-        font-weight: bold;
-        text-decoration: none;
-        color: #333;
+    .toc-subsection .toc-text {
+        padding-left: 24px;
+        font-weight: 400;
     }
-    .toc-section:hover {
-        color: var(--primary-color);
-    }
-    .toc-subsection {
-        padding-left: 25px;
-        font-weight: normal;
-    }
-    .toc-subsubsection {
-        padding-left: 50px;
+    .toc-subsubsection .toc-text {
+        padding-left: 48px;
+        font-weight: 400;
         font-size: 0.95rem;
     }
 
-    /* Action bar */
-    .action-bar {
-        position: sticky;
-        top: 0;
-        background: white;
-        padding: 12px 0;
-        margin-bottom: 20px;
-        border-bottom: 1px solid #dee2e6;
+    /* Section Styling */
+    .petition-section {
+        margin-top: 48px;
+        padding-top: 32px;
+        border-top: 1px solid var(--border);
+        page-break-inside: avoid;
+    }
+    .petition-section:first-of-type {
+        margin-top: 0;
+        border-top: none;
+        padding-top: 0;
+    }
+    .section-header {
         display: flex;
-        justify-content: space-between;
         align-items: center;
-        z-index: 100;
+        gap: 16px;
+        margin-bottom: 24px;
     }
-    .action-bar h1 {
-        font-size: 1.1rem;
-        margin: 0;
-        color: var(--primary-color);
-        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-    }
-    .action-buttons {
+    .section-number-badge {
+        width: 48px;
+        height: 48px;
+        background: linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%);
+        border-radius: var(--radius-lg);
         display: flex;
-        gap: 10px;
+        align-items: center;
+        justify-content: center;
+        color: white;
+        font-weight: 700;
+        font-size: 1.1rem;
+        font-family: 'Inter', sans-serif;
+        flex-shrink: 0;
+    }
+    .section-title {
+        font-size: 1.4rem;
+        font-weight: 700;
+        margin: 0;
+        color: var(--text-primary);
+        font-family: 'Playfair Display', serif;
     }
 
-    /* Body text with proper indentation */
+    /* Subsection Styling */
+    .subsection {
+        margin: 40px 0;
+        padding: 24px;
+        background: var(--bg-secondary);
+        border-radius: var(--radius-xl);
+        border-left: 4px solid var(--primary);
+    }
+    .subsection-header {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        margin-bottom: 16px;
+    }
+    .subsection-number {
+        background: var(--primary);
+        color: white;
+        padding: 4px 12px;
+        border-radius: var(--radius-full);
+        font-size: 0.85rem;
+        font-weight: 600;
+        font-family: 'Inter', sans-serif;
+    }
+    .subsection-title {
+        font-size: 1.15rem;
+        font-weight: 600;
+        margin: 0;
+        color: var(--text-primary);
+    }
+    .regulatory-ref {
+        font-size: 0.85rem;
+        color: var(--text-tertiary);
+        font-style: italic;
+        margin-bottom: 16px;
+        padding: 8px 12px;
+        background: var(--card-bg);
+        border-radius: var(--radius);
+        display: inline-block;
+    }
+
+    /* Sub-subsection Styling */
+    .subsubsection {
+        margin: 24px 0;
+        padding: 20px;
+        background: var(--card-bg);
+        border-radius: var(--radius-lg);
+        border: 1px solid var(--border);
+    }
+    .subsubsection-header {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        margin-bottom: 12px;
+    }
+    .subsubsection-number {
+        background: var(--bg-secondary);
+        color: var(--text-secondary);
+        padding: 3px 10px;
+        border-radius: var(--radius);
+        font-size: 0.8rem;
+        font-weight: 600;
+        font-family: 'Inter', sans-serif;
+    }
+    .subsubsection-title {
+        font-size: 1.05rem;
+        font-weight: 600;
+        margin: 0;
+        color: var(--text-primary);
+    }
+
+    /* Deep Subsection */
+    .deep-subsection {
+        margin: 16px 0;
+        padding: 16px;
+        background: var(--bg-secondary);
+        border-radius: var(--radius);
+        border-left: 3px solid var(--border);
+    }
+    .deep-subsection-number {
+        font-size: 0.85rem;
+        font-weight: 600;
+        color: var(--text-secondary);
+        margin-bottom: 8px;
+        font-family: 'Inter', sans-serif;
+    }
+    .deep-subsection-title {
+        font-size: 1rem;
+        font-weight: 600;
+        margin: 0 0 12px 0;
+        color: var(--text-primary);
+    }
+
+    /* Body Text */
     .body-text {
-        margin: 12px 0;
+        margin: 16px 0;
         text-align: justify;
         text-indent: 2em;
     }
@@ -149,138 +341,53 @@
         text-indent: 0;
     }
 
-    /* Section styling */
-    .petition-section {
-        margin-top: 50px;
-        padding-top: 25px;
-        border-top: 1px solid #dee2e6;
-        page-break-inside: avoid;
-    }
-    .petition-section:first-of-type {
-        margin-top: 25px;
-        border-top: none;
-        padding-top: 0;
-    }
-    .section-number {
-        font-size: 1.2rem;
-        font-weight: bold;
-        color: var(--primary-color);
-        margin-bottom: 8px;
-    }
-    .section-title {
-        font-size: 1.3rem;
-        font-weight: bold;
-        margin: 0 0 20px 0;
-        color: #1a1a1a;
-    }
-
-    /* Subsection styling (2.1, 2.2...) */
-    .subsection {
-        margin: 40px 0;
-        padding-left: 20px;
-        border-left: 3px solid #e9ecef;
-    }
-    .subsection-number {
-        font-size: 1.1rem;
-        font-weight: bold;
-        color: var(--primary-color);
-        margin-bottom: 6px;
-    }
-    .subsection-title {
-        font-size: 1.15rem;
-        font-weight: bold;
-        margin: 0 0 12px 0;
-    }
-    .regulatory-ref {
-        font-size: 0.85rem;
-        color: #6c757d;
-        font-style: italic;
-        margin-bottom: 15px;
-    }
-
-    /* Sub-subsection styling (2.1.1, 2.1.2...) */
-    .subsubsection {
-        margin: 30px 0 30px 15px;
-        padding: 20px;
-        background: #fafbfc;
-        border-radius: 6px;
-        border-left: 3px solid #dee2e6;
-    }
-    .subsubsection-number {
-        font-size: 1rem;
-        font-weight: bold;
-        color: #444;
-        margin-bottom: 4px;
-    }
-    .subsubsection-title {
-        font-size: 1.05rem;
-        font-weight: bold;
-        margin: 0 0 15px 0;
-    }
-
-    /* Deep subsection styling (2.1.1.1, 2.1.1.2...) */
-    .deep-subsection {
-        margin: 20px 0;
-        padding: 15px;
-        background: #fff;
-        border: 1px solid #e9ecef;
-        border-radius: 4px;
-    }
-    .deep-subsection-number {
-        font-size: 0.95rem;
-        font-weight: bold;
-        color: #555;
-        margin-bottom: 8px;
-    }
-    .deep-subsection-title {
-        font-size: 1rem;
-        font-weight: bold;
-        margin: 0 0 12px 0;
-        color: #333;
-    }
-
-    /* Quote blocks - for evidence citations */
+    /* Quote Block */
     .quote-block {
-        margin: 20px 24px;
-        padding: 15px 20px;
-        border-left: 3px solid #333;
-        background-color: #f7f7f7;
+        margin: 24px 0;
+        padding: 20px 24px;
+        border-left: 4px solid var(--primary);
+        background: var(--primary-bg);
+        border-radius: 0 var(--radius-lg) var(--radius-lg) 0;
         font-style: italic;
-        line-height: 1.6;
+        line-height: 1.7;
+        color: var(--text-primary);
     }
     .quote-block .source {
         display: block;
-        margin-top: 10px;
+        margin-top: 12px;
         font-style: normal;
-        font-weight: bold;
+        font-weight: 600;
         font-size: 0.9rem;
-        color: #555;
+        color: var(--primary);
     }
 
-    /* Exhibit reference styling */
+    /* Exhibit Reference */
     .exhibit-ref {
-        color: var(--primary-color);
-        font-weight: 500;
+        color: var(--primary);
+        font-weight: 600;
         white-space: nowrap;
+        font-family: 'Inter', sans-serif;
+        font-size: 0.9em;
     }
 
-    /* Content block */
+    /* Content Block */
     .content-block {
-        margin: 15px 0;
+        margin: 20px 0;
     }
     .content-block p {
-        margin: 12px 0;
+        margin: 16px 0;
         text-align: justify;
     }
     .content-block ul, .content-block ol {
-        margin: 15px 0 15px 2.5em;
+        margin: 20px 0 20px 2em;
         padding: 0;
     }
     .content-block li {
-        margin: 8px 0;
+        margin: 10px 0;
+        line-height: 1.6;
     }
 
-    /* Numbered and bullet lists */
+    /* Lists */
     .numbered-list {
         list-style-type: decimal;
     }
@@ -292,54 +399,79 @@
         list-style-type: disc;
     }
 
-    /* Placeholder content */
+    /* Placeholder Content */
     .placeholder-content {
-        background: #fff3cd;
-        border: 1px dashed #ffc107;
-        border-radius: 6px;
-        padding: 25px;
+        background: var(--warning-bg);
+        border: 2px dashed var(--warning);
+        border-radius: var(--radius-lg);
+        padding: 32px;
         text-align: center;
-        color: #856404;
+        color: #92400e;
     }
     .placeholder-content p {
         margin: 8px 0;
+        text-align: center;
     }
 
-    /* Page number footer */
+    /* Page Number */
     .page-number {
-        margin-top: 30px;
+        margin-top: 32px;
         text-align: center;
-        font-size: 12px;
-        color: #555;
-        padding-top: 15px;
-        border-top: 1px solid #eee;
+        font-size: 0.85rem;
+        color: var(--text-tertiary);
+        padding-top: 16px;
+        border-top: 1px solid var(--border);
+        font-family: 'Inter', sans-serif;
+    }
+
+    /* Bottom Actions */
+    .bottom-actions {
+        margin-top: 48px;
+        padding-top: 24px;
+        border-top: 1px solid var(--border);
+        display: flex;
+        gap: 12px;
+        flex-wrap: wrap;
     }
 
     /* Print styles */
     @media print {
-        .sidebar { display: none !important; }
-        .main-content { padding: 0 !important; }
-        .container { box-shadow: none !important; max-width: 100% !important; }
         .action-bar { display: none !important; }
+        .bottom-actions { display: none !important; }
         .petition-section { page-break-inside: avoid; }
         .subsection { page-break-inside: avoid; }
         .subsubsection { page-break-inside: avoid; }
         body { font-size: 11pt; }
         .placeholder-content { display: none; }
         .petition-document { font-size: 12pt; }
-        .page-number {
-            position: fixed;
-            bottom: 20px;
-            width: 100%;
+        .document-header {
+            background: #1e40af !important;
+            -webkit-print-color-adjust: exact;
+            print-color-adjust: exact;
         }
     }
 
     /* Responsive */
     @media (max-width: 768px) {
-        .toc-subsection { padding-left: 15px; }
-        .toc-subsubsection { padding-left: 30px; }
-        .subsection { padding-left: 10px; }
-        .subsubsection { margin-left: 5px; }
+        .action-bar {
+            flex-direction: column;
+            align-items: flex-start;
+        }
+        .document-header {
+            padding: 24px;
+        }
+        .document-header h1 {
+            font-size: 1.4rem;
+        }
+        .toc-subsection .toc-text { padding-left: 16px; }
+        .toc-subsubsection .toc-text { padding-left: 32px; }
+        .subsection { padding: 16px; }
+        .subsubsection { margin-left: 0; }
+        .section-header {
+            flex-direction: column;
+            align-items: flex-start;
+            gap: 12px;
+        }
     }
 </style>
 {% endblock %}
@@ -347,49 +479,76 @@
 {% block content %}
 <!-- Action Bar -->
 <div class="action-bar">
-    <h1>EB-1A Petition Letter</h1>
+    <div class="action-bar-title">
+        <div class="icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                <polyline points="14 2 14 8 20 8"/>
+                <line x1="16" y1="13" x2="8" y2="13"/>
+                <line x1="16" y1="17" x2="8" y2="17"/>
+            </svg>
+        </div>
+        <h1>EB-1A Petition Letter</h1>
+    </div>
     <div class="action-buttons">
-        <button class="btn btn-secondary" onclick="window.print()">Print / Save PDF</button>
-        <a href="{{ base_path }}exhibits/index.html" class="btn">View Exhibits</a>
+        <button class="btn btn-secondary" onclick="window.print()">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:16px;height:16px;margin-right:6px;">
+                <polyline points="6 9 6 2 18 2 18 9"/>
+                <path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/>
+                <rect x="6" y="14" width="12" height="8"/>
+            </svg>
+            Print / Save PDF
+        </button>
+        <a href="{{ base_path }}exhibits.html" class="btn btn-primary">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:16px;height:16px;margin-right:6px;">
+                <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/>
+            </svg>
+            View Exhibits
+        </a>
     </div>
 </div>
 
 <div class="petition-document">
-    <!-- Running Header -->
-    <div class="running-header">
-        EB-1A Permanent Residency Petition for {{ case.user_data.full_name|default('Beneficiary') }}
-    </div>
-
     <!-- Document Header -->
     <div class="document-header">
         <h1>EB-1A Permanent Residency Petition</h1>
         <div class="subtitle">Petition for Permanent Residence under Extraordinary Ability</div>
         <div class="beneficiary-name">{{ case.user_data.full_name|default('Beneficiary Name') }}</div>
         <div class="classification">
-            <strong>Petitioner and Beneficiary:</strong> {{ case.user_data.full_name|default('Beneficiary') }}<br>
             <strong>Classification Sought:</strong> Employment-Based Immigration, First Preference<br>
             Extraordinary Ability in {{ case.case_data.field|default('Sciences') }} (EB-1A)<br>
-            Sec. 203(b)(1) INA [8 U.S.C. 1153]<br>
-            <strong>Type of Petition:</strong> I-140
+            Sec. 203(b)(1) INA [8 U.S.C. 1153] | Form I-140
         </div>
     </div>
 
-    <!-- Table of Contents with dotted leaders -->
+    <!-- Table of Contents -->
     <div class="toc-container">
-        <h2>Table of Contents</h2>
+        <div class="toc-header">
+            <div class="icon">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <line x1="8" y1="6" x2="21" y2="6"/>
+                    <line x1="8" y1="12" x2="21" y2="12"/>
+                    <line x1="8" y1="18" x2="21" y2="18"/>
+                    <line x1="3" y1="6" x2="3.01" y2="6"/>
+                    <line x1="3" y1="12" x2="3.01" y2="12"/>
+                    <line x1="3" y1="18" x2="3.01" y2="18"/>
+                </svg>
+            </div>
+            <h2>Table of Contents</h2>
+        </div>
         <ol class="toc-list">
             <li class="toc-item">
-                <a href="#intro" class="toc-text toc-section">Introduction</a>
+                <a href="#intro" class="toc-text">Introduction</a>
                 <span class="toc-dot-leader"></span>
                 <span class="toc-page-ref">1</span>
             </li>
             <li class="toc-item">
-                <a href="#section-1" class="toc-text toc-section">1. Summary of Achievements and Qualifications</a>
+                <a href="#section-1" class="toc-text">1. Summary of Achievements and Qualifications</a>
                 <span class="toc-dot-leader"></span>
                 <span class="toc-page-ref">3</span>
             </li>
             <li class="toc-item">
-                <a href="#section-2" class="toc-text toc-section">2. Initial Evidence of Extraordinary Ability</a>
+                <a href="#section-2" class="toc-text">2. Initial Evidence of Extraordinary Ability</a>
                 <span class="toc-dot-leader"></span>
                 <span class="toc-page-ref">5</span>
             </li>
@@ -450,29 +609,29 @@
             </li>
             {% endif %}
             <li class="toc-item">
-                <a href="#section-3" class="toc-text toc-section">3. Final Determination of Merits</a>
+                <a href="#section-3" class="toc-text">3. Final Determination of Merits</a>
                 <span class="toc-dot-leader"></span>
                 <span class="toc-page-ref">30</span>
             </li>
             <li class="toc-item">
-                <a href="#section-4" class="toc-text toc-section">4. National Importance</a>
+                <a href="#section-4" class="toc-text">4. National Importance</a>
                 <span class="toc-dot-leader"></span>
                 <span class="toc-page-ref">35</span>
             </li>
             <li class="toc-item">
-                <a href="#section-5" class="toc-text toc-section">5. Conclusion</a>
+                <a href="#section-5" class="toc-text">5. Conclusion</a>
                 <span class="toc-dot-leader"></span>
                 <span class="toc-page-ref">38</span>
             </li>
             <li class="toc-item">
-                <a href="#exhibits-list" class="toc-text toc-section">List of Exhibits</a>
+                <a href="#exhibits-list" class="toc-text">List of Exhibits</a>
                 <span class="toc-dot-leader"></span>
                 <span class="toc-page-ref">40</span>
             </li>
         </ol>
     </div>
 
-    <!-- Introduction / Cover Letter -->
+    <!-- Introduction -->
     <section id="intro" class="petition-section">
         <div class="content-block">
             <p class="body-text no-indent">Dear Immigration Officer,</p>
@@ -519,8 +678,10 @@
 
     <!-- Section 1: Summary of Achievements -->
     <section id="section-1" class="petition-section">
-        <div class="section-number">Section 1</div>
-        <h2 class="section-title">Summary of {{ case.user_data.full_name|default("Beneficiary") }}'s Achievements and Qualifications</h2>
+        <div class="section-header">
+            <div class="section-number-badge">1</div>
+            <h2 class="section-title">Summary of {{ case.user_data.full_name|default("Beneficiary") }}'s Achievements and Qualifications</h2>
+        </div>
 
         <div class="content-block">
             {% if sections.summary %}
@@ -538,23 +699,28 @@
 
     <!-- Section 2: Initial Evidence -->
     <section id="section-2" class="petition-section">
-        <div class="section-number">Section 2</div>
-        <h2 class="section-title">Initial Evidence of {{ case.user_data.full_name|default("Beneficiary") }}'s Extraordinary Ability</h2>
+        <div class="section-header">
+            <div class="section-number-badge">2</div>
+            <h2 class="section-title">Initial Evidence of {{ case.user_data.full_name|default("Beneficiary") }}'s Extraordinary Ability</h2>
+        </div>
 
         <!-- 2.1 Awards -->
         {% if sections.awards or not sections %}
         <div id="section-2-1" class="subsection">
-            <div class="subsection-number">2.1</div>
-            <h3 class="subsection-title">Evidence of Receipt of Nationally or Internationally Recognized Prizes or Awards</h3>
+            <div class="subsection-header">
+                <span class="subsection-number">2.1</span>
+                <h3 class="subsection-title">Evidence of Receipt of Nationally or Internationally Recognized Prizes or Awards</h3>
+            </div>
             <div class="regulatory-ref">8 CFR 204.5(h)(3)(i)</div>
 
             {% if sections.awards %}
             <div class="content-block">{{ sections.awards|safe }}</div>
             {% else %}
-            <!-- Example structure for awards with deep subsections -->
             <div class="subsubsection">
-                <div class="subsubsection-number">2.1.1</div>
-                <h4 class="subsubsection-title">Award Name</h4>
+                <div class="subsubsection-header">
+                    <span class="subsubsection-number">2.1.1</span>
+                    <h4 class="subsubsection-title">Award Name</h4>
+                </div>
 
                 <div class="deep-subsection">
                     <div class="deep-subsection-number">2.1.1.1</div>
@@ -595,16 +761,20 @@
         <!-- 2.2 Membership -->
         {% if sections.membership or not sections %}
         <div id="section-2-2" class="subsection">
-            <div class="subsection-number">2.2</div>
-            <h3 class="subsection-title">Evidence of Membership in Associations Requiring Outstanding Achievement</h3>
+            <div class="subsection-header">
+                <span class="subsection-number">2.2</span>
+                <h3 class="subsection-title">Evidence of Membership in Associations Requiring Outstanding Achievement</h3>
+            </div>
             <div class="regulatory-ref">8 CFR 204.5(h)(3)(ii)</div>
 
             {% if sections.membership %}
             <div class="content-block">{{ sections.membership|safe }}</div>
             {% else %}
             <div class="subsubsection">
-                <div class="subsubsection-number">2.2.1</div>
-                <h4 class="subsubsection-title">Association Name</h4>
+                <div class="subsubsection-header">
+                    <span class="subsubsection-number">2.2.1</span>
+                    <h4 class="subsubsection-title">Association Name</h4>
+                </div>
 
                 <div class="deep-subsection">
                     <div class="deep-subsection-number">2.2.1.1</div>
@@ -641,8 +811,10 @@
         <!-- 2.3 Judging -->
         {% if sections.judging or not sections %}
         <div id="section-2-3" class="subsection">
-            <div class="subsection-number">2.3</div>
-            <h3 class="subsection-title">Evidence of Participation as a Judge of the Work of Others</h3>
+            <div class="subsection-header">
+                <span class="subsection-number">2.3</span>
+                <h3 class="subsection-title">Evidence of Participation as a Judge of the Work of Others</h3>
+            </div>
             <div class="regulatory-ref">8 CFR 204.5(h)(3)(iv)</div>
 
             {% if sections.judging %}
@@ -659,8 +831,10 @@
         <!-- 2.4 Critical Role -->
         {% if sections.leading_role or not sections %}
         <div id="section-2-4" class="subsection">
-            <div class="subsection-number">2.4</div>
-            <h3 class="subsection-title">Evidence of Performance of a Critical Role in Distinguished Organizations</h3>
+            <div class="subsection-header">
+                <span class="subsection-number">2.4</span>
+                <h3 class="subsection-title">Evidence of Performance of a Critical Role in Distinguished Organizations</h3>
+            </div>
             <div class="regulatory-ref">8 CFR 204.5(h)(3)(viii)</div>
 
             {% if sections.leading_role %}
@@ -677,8 +851,10 @@
         <!-- 2.5 Original Contributions -->
         {% if sections.contribution or not sections %}
         <div id="section-2-5" class="subsection">
-            <div class="subsection-number">2.5</div>
-            <h3 class="subsection-title">Evidence of Original Contributions of Major Significance</h3>
+            <div class="subsection-header">
+                <span class="subsection-number">2.5</span>
+                <h3 class="subsection-title">Evidence of Original Contributions of Major Significance</h3>
+            </div>
             <div class="regulatory-ref">8 CFR 204.5(h)(3)(v)</div>
 
             {% if sections.contribution %}
@@ -695,8 +871,10 @@
         <!-- 2.6 High Salary -->
         {% if sections.salary or not sections %}
         <div id="section-2-6" class="subsection">
-            <div class="subsection-number">2.6</div>
-            <h3 class="subsection-title">Evidence of Commanding a High Salary</h3>
+            <div class="subsection-header">
+                <span class="subsection-number">2.6</span>
+                <h3 class="subsection-title">Evidence of Commanding a High Salary</h3>
+            </div>
             <div class="regulatory-ref">8 CFR 204.5(h)(3)(ix)</div>
 
             {% if sections.salary %}
@@ -713,8 +891,10 @@
         <!-- 2.7 Scholarly Articles -->
         {% if sections.articles %}
         <div id="section-2-7" class="subsection">
-            <div class="subsection-number">2.7</div>
-            <h3 class="subsection-title">Evidence of Authorship of Scholarly Articles</h3>
+            <div class="subsection-header">
+                <span class="subsection-number">2.7</span>
+                <h3 class="subsection-title">Evidence of Authorship of Scholarly Articles</h3>
+            </div>
             <div class="regulatory-ref">8 CFR 204.5(h)(3)(vi)</div>
             <div class="content-block">{{ sections.articles|safe }}</div>
         </div>
@@ -723,8 +903,10 @@
         <!-- 2.8 Published Material -->
         {% if sections.press %}
         <div id="section-2-8" class="subsection">
-            <div class="subsection-number">2.8</div>
-            <h3 class="subsection-title">Published Material About the Beneficiary</h3>
+            <div class="subsection-header">
+                <span class="subsection-number">2.8</span>
+                <h3 class="subsection-title">Published Material About the Beneficiary</h3>
+            </div>
             <div class="regulatory-ref">8 CFR 204.5(h)(3)(iii)</div>
             <div class="content-block">{{ sections.press|safe }}</div>
         </div>
@@ -735,8 +917,10 @@
 
     <!-- Section 3: Final Determination -->
     <section id="section-3" class="petition-section">
-        <div class="section-number">Section 3</div>
-        <h2 class="section-title">The Final Determination of Merits of {{ case.user_data.full_name|default("Beneficiary") }}'s Extraordinary Ability</h2>
+        <div class="section-header">
+            <div class="section-number-badge">3</div>
+            <h2 class="section-title">The Final Determination of Merits of {{ case.user_data.full_name|default("Beneficiary") }}'s Extraordinary Ability</h2>
+        </div>
 
         <div class="content-block">
             {% if sections.final_determination %}
@@ -757,8 +941,10 @@
 
     <!-- Section 4: National Importance -->
     <section id="section-4" class="petition-section">
-        <div class="section-number">Section 4</div>
-        <h2 class="section-title">{{ case.user_data.full_name|default("Beneficiary") }}'s Proposed Employment Has Both Substantial Merit and National Importance</h2>
+        <div class="section-header">
+            <div class="section-number-badge">4</div>
+            <h2 class="section-title">{{ case.user_data.full_name|default("Beneficiary") }}'s Proposed Employment Has Both Substantial Merit and National Importance</h2>
+        </div>
 
         <div class="content-block">
             {% if sections.national_importance %}
@@ -775,8 +961,10 @@
 
     <!-- Section 5: Conclusion -->
     <section id="section-5" class="petition-section">
-        <div class="section-number">Section 5</div>
-        <h2 class="section-title">Conclusion</h2>
+        <div class="section-header">
+            <div class="section-number-badge">5</div>
+            <h2 class="section-title">Conclusion</h2>
+        </div>
 
         <div class="content-block">
             {% if sections.conclusion %}
@@ -801,8 +989,10 @@
 
     <!-- List of Exhibits -->
     <section id="exhibits-list" class="petition-section">
-        <div class="section-number">Appendix</div>
-        <h2 class="section-title">List of Exhibits</h2>
+        <div class="section-header">
+            <div class="section-number-badge">A</div>
+            <h2 class="section-title">List of Exhibits</h2>
+        </div>
 
         <div class="content-block">
             <ol class="numbered-list">
@@ -817,17 +1007,34 @@
                 <li>Press Coverage</li>
                 <li>Salary Documentation</li>
                 <li>Expert Recommendation Letters</li>
-                <!-- Add more exhibits as needed -->
             </ol>
         </div>
         <div class="page-number">Page 40</div>
     </section>
 </div>
 
-<!-- Actions -->
-<div style="margin-top: 40px; padding-top: 20px; border-top: 1px solid #dee2e6; display: flex; gap: 15px; flex-wrap: wrap;">
-    <button class="btn" onclick="window.print()">Print / Save as PDF</button>
-    <a href="{{ base_path }}exhibits/index.html" class="btn btn-secondary">Manage Exhibits</a>
-    <a href="{{ base_path }}forms/index.html" class="btn btn-secondary">Fill USCIS Forms</a>
+<!-- Bottom Actions -->
+<div class="bottom-actions">
+    <button class="btn btn-primary" onclick="window.print()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:16px;height:16px;margin-right:6px;">
+            <polyline points="6 9 6 2 18 2 18 9"/>
+            <path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/>
+            <rect x="6" y="14" width="12" height="8"/>
+        </svg>
+        Print / Save as PDF
+    </button>
+    <a href="{{ base_path }}exhibits.html" class="btn btn-secondary">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:16px;height:16px;margin-right:6px;">
+            <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/>
+        </svg>
+        Manage Exhibits
+    </a>
+    <a href="{{ base_path }}forms.html" class="btn btn-secondary">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:16px;height:16px;margin-right:6px;">
+            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+            <polyline points="14 2 14 8 20 8"/>
+        </svg>
+        Fill USCIS Forms
+    </a>
 </div>
 {% endblock %}

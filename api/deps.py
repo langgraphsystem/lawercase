@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import functools
 from typing import Any
 
 from fastapi import Depends, HTTPException, Security
@@ -9,13 +10,16 @@ from starlette.status import HTTP_401_UNAUTHORIZED, HTTP_403_FORBIDDEN
 
 from core.di import get_container
 from core.groupagents.mega_agent import MegaAgent, UserRole
-from core.memory.memory_manager_v2 import (create_dev_memory_manager,
-                                           create_production_memory_manager)
+from core.memory.memory_manager_v2 import (
+    create_dev_memory_manager,
+    create_production_memory_manager,
+)
 from core.security.config import SecurityConfig
 
 auth_scheme = HTTPBearer(auto_error=True)
 
 
+@functools.lru_cache(maxsize=1)
 def get_security_config() -> SecurityConfig:
     return SecurityConfig()
 
@@ -38,9 +42,21 @@ def get_agent() -> MegaAgent:
 
     Returns:
         Shared MegaAgent instance from DI container
+
+    Raises:
+        RuntimeError: If mega_agent is not registered in the container
     """
     container = get_container()
-    return container.get("mega_agent")
+    try:
+        agent = container.get("mega_agent")
+    except (KeyError, AttributeError) as exc:
+        raise RuntimeError(
+            "MegaAgent not found in DI container. "
+            "Ensure the application lifespan initialized correctly."
+        ) from exc
+    if agent is None:
+        raise RuntimeError("MegaAgent resolved to None in DI container.")
+    return agent
 
 
 def get_current_user(

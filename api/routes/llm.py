@@ -9,12 +9,12 @@ from __future__ import annotations
 
 from typing import Any
 
-from fastapi import APIRouter, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
 
-from core.llm import (LLMProvider, Message, ResponseGenerator,
-                      create_response_generator)
+from api.auth import User, get_current_user
+from core.llm import LLMProvider, Message, ResponseGenerator, create_response_generator
 from core.logging_utils import get_logger
 
 logger = get_logger(__name__)
@@ -95,7 +95,9 @@ def _create_generator(request: GenerateRequest) -> ResponseGenerator:
 
 
 @router.post("/generate", response_model=GenerateResponse, tags=["LLM"])
-async def generate(request: GenerateRequest) -> GenerateResponse:
+async def generate(
+    request: GenerateRequest, user: User = Depends(get_current_user)
+) -> GenerateResponse:
     """Generate LLM response.
 
     Non-streaming endpoint for single response generation.
@@ -152,7 +154,9 @@ async def generate(request: GenerateRequest) -> GenerateResponse:
 
 
 @router.post("/generate/stream", tags=["LLM"])
-async def generate_stream(request: GenerateRequest) -> StreamingResponse:
+async def generate_stream(
+    request: GenerateRequest, user: User = Depends(get_current_user)
+) -> StreamingResponse:
     """Generate streaming LLM response.
 
     Server-Sent Events (SSE) endpoint for streaming responses.
@@ -222,7 +226,7 @@ async def generate_stream(request: GenerateRequest) -> StreamingResponse:
 
 
 @router.get("/models", tags=["LLM"])
-async def list_models() -> dict[str, Any]:
+async def list_models(user: User = Depends(get_current_user)) -> dict[str, Any]:
     """List available LLM models by provider.
 
     Returns:
@@ -263,8 +267,8 @@ async def list_models() -> dict[str, Any]:
     }
 
 
-@router.get("/stats", tags=["LLM"])
-async def get_stats() -> dict[str, Any]:
+@router.get("/stats", tags=["LLM"], deprecated=True)
+async def get_stats(user: User = Depends(get_current_user)) -> dict[str, Any]:
     """Get LLM generation statistics.
 
     Returns:

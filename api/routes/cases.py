@@ -8,7 +8,7 @@ from core.groupagents.mega_agent import CommandType, MegaAgentCommand
 router = APIRouter(prefix="/v1/case", tags=["case"])
 
 
-@router.post("/{action}")
+@router.post("/{action}", deprecated=True)
 async def case_action(
     action: str, payload: dict, agent=Depends(get_agent), user=Depends(get_current_user)
 ):

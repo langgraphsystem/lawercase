@@ -1,0 +1,146 @@
+# Legal NER Models Configuration for MegaAgent Pro
+# Named Entity Recognition models for legal document processing
+
+version: "1.0"
+
+models:
+  # Primary legal entity extraction model
+  legal_entities:
+    name: "legal-ner-base"
+    type: "transformer"
+    base_model: "roberta-base"
+    task: "token-classification"
+    labels:
+      - PERSON
+      - ORGANIZATION
+      - COURT
+      - CASE_NUMBER
+      - DATE
+      - STATUTE
+      - CFR_SECTION
+      - VISA_TYPE
+      - COUNTRY
+      - MONETARY_AMOUNT
+
+  # EB-1A specific entity model
+  eb1a_entities:
+    name: "eb1a-ner-specialized"
+    type: "transformer"
+    base_model: "legal-bert-base-uncased"
+    task: "token-classification"
+    labels:
+      - CRITERION_NAME
+      - EVIDENCE_TYPE
+      - PUBLICATION
+      - AWARD
+      - PATENT_NUMBER
+      - CITATION_COUNT
+      - INSTITUTION
+      - POSITION_TITLE
+      - FIELD_OF_EXPERTISE
+      - SALARY_AMOUNT
+      - MEMBERSHIP_ORG
+
+  # Citation extraction model
+  legal_citations:
+    name: "citation-extractor"
+    type: "regex-enhanced-transformer"
+    patterns:
+      - name: "us_code"
+        pattern: '(\d+)\s+U\.?S\.?C\.?\s+§?\s*(\d+)'
+        entity: "US_CODE"
+      - name: "cfr"
+        pattern: '(\d+)\s+C\.?F\.?R\.?\s+§?\s*([\d\.]+)'
+        entity: "CFR_SECTION"
+      - name: "case_law"
+        pattern: '([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*)\s+v\.?\s+([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*),?\s*(\d+)\s+([A-Z]\.\s*\d+d?)\s+(\d+)'
+        entity: "CASE_CITATION"
+      - name: "uscis_policy"
+        pattern: 'USCIS\s+Policy\s+Manual,?\s*(?:Vol\.?\s*)?(\d+),?\s*(?:Part\s+)?([A-Z]),?\s*(?:Ch\.?\s*)?(\d+)'
+        entity: "USCIS_POLICY"
+
+training:
+  # Training configuration
+  epochs: 10
+  batch_size: 16
+  learning_rate: 2e-5
+  warmup_steps: 500
+  weight_decay: 0.01
+  max_seq_length: 512
+
+  # Data augmentation
+  augmentation:
+    enabled: true
+    techniques:
+      - synonym_replacement
+      - back_translation
+      - entity_swapping
+
+  # Evaluation
+  evaluation:
+    metrics:
+      - precision
+      - recall
+      - f1
+      - entity_level_f1
+    validation_split: 0.1
+
+inference:
+  # Inference configuration
+  batch_size: 32
+  max_seq_length: 512
+  confidence_threshold: 0.85
+
+  # Post-processing
+  post_processing:
+    merge_adjacent_entities: true
+    apply_legal_rules: true
+    normalize_citations: true
+
+datasets:
+  # Training datasets
+  legal_ner_dataset:
+    path: "data/legal_ner_annotations.jsonl"
+    format: "jsonl"
+    fields:
+      text: "text"
+      entities: "entities"
+
+  eb1a_cases_dataset:
+    path: "data/eb1a_annotated_cases.jsonl"
+    format: "jsonl"
+    source: "internal"
+
+  # External datasets for pre-training
+  external:
+    - name: "legal_bert_corpus"
+      url: "https://huggingface.co/datasets/pile-of-law/pile-of-law"
+      subset: "us_court_opinions"
+    - name: "immigration_cases"
+      url: "https://huggingface.co/datasets/immigration-law/bia-decisions"
+
+export:
+  # Model export formats
+  formats:
+    - onnx
+    - pytorch
+    - tensorflow
+
+  # Quantization for deployment
+  quantization:
+    enabled: true
+    type: "int8"
+    calibration_samples: 100
+
+deployment:
+  # Deployment configuration
+  serving:
+    framework: "triton"
+    max_batch_size: 64
+    instance_count: 2
+
+  # Resource limits
+  resources:
+    cpu: "2"
+    memory: "4Gi"
+    gpu: "0"  # Set to 1 for GPU inference

@@ -1,0 +1,184 @@
+# MCP (Model Context Protocol) Configuration
+# Defines MCP servers, tools, and integration settings
+
+version: "1.0"
+
+# Server configuration
+server:
+  name: "mega_agent_mcp"
+  version: "1.0.0"
+  protocol_version: "2024-11-05"
+
+  # Transport options: stdio, websocket, http
+  transport: "stdio"
+
+  # WebSocket settings (when transport: websocket)
+  websocket:
+    host: "localhost"
+    port: 8765
+    path: "/mcp"
+
+  # HTTP settings (when transport: http)
+  http:
+    host: "localhost"
+    port: 8080
+    base_path: "/api/mcp"
+
+  # Request handling
+  request_timeout: 30.0  # seconds
+  max_concurrent_requests: 100
+
+  # Session management
+  max_sessions: 100
+  session_timeout: 3600  # seconds
+
+# Authentication (optional)
+auth:
+  enabled: false
+  # JWT settings
+  jwt:
+    secret_env: "MCP_JWT_SECRET"
+    algorithm: "HS256"
+    expiry: 86400  # 24 hours
+  # API key authentication
+  api_key:
+    header: "X-MCP-API-Key"
+    keys_env: "MCP_API_KEYS"  # comma-separated
+
+# Rate limiting
+rate_limiting:
+  enabled: true
+  requests_per_minute: 1000
+  burst_size: 100
+  # Per-tool limits
+  tool_limits:
+    web_search: 60
+    database_query: 120
+    llm_query: 30
+
+# Tool registry configuration
+tools:
+  # Auto-discovery settings
+  discovery:
+    enabled: true
+    scan_paths:
+      - "core/tools"
+      - "integrations/tools"
+    scan_interval: 300  # seconds
+
+  # Built-in tools
+  builtin:
+    - name: "web_search"
+      enabled: true
+      category: "search"
+      rate_limit: 60
+
+    - name: "academic_search"
+      enabled: true
+      category: "search"
+      rate_limit: 30
+
+    - name: "database_query"
+      enabled: true
+      category: "database"
+      requires_auth: true
+
+    - name: "llm_query"
+      enabled: true
+      category: "analysis"
+      rate_limit: 30
+
+    - name: "github_search"
+      enabled: true
+      category: "search"
+      rate_limit: 30
+
+# External MCP servers to connect to
+external_servers:
+  - name: "supabase"
+    enabled: true
+    transport: "stdio"
+    command: "npx"
+    args:
+      - "-y"
+      - "@supabase/mcp-server-supabase"
+    env:
+      SUPABASE_URL: "${SUPABASE_URL}"
+      SUPABASE_SERVICE_KEY: "${SUPABASE_SERVICE_KEY}"
+
+  - name: "github"
+    enabled: true
+    transport: "stdio"
+    command: "npx"
+    args:
+      - "-y"
+      - "@modelcontextprotocol/server-github"
+    env:
+      GITHUB_TOKEN: "${GITHUB_TOKEN}"
+
+  - name: "filesystem"
+    enabled: false
+    transport: "stdio"
+    command: "npx"
+    args:
+      - "-y"
+      - "@anthropic/mcp-server-filesystem"
+      - "--allowed-directories"
+      - "/workspace"
+
+# Logging
+logging:
+  level: "INFO"  # DEBUG, INFO, WARNING, ERROR
+  format: "json"
+  include_tool_inputs: false  # Privacy: don't log tool inputs
+  include_tool_outputs: false
+
+# Metrics
+metrics:
+  enabled: true
+  export_prometheus: true
+  prometheus_port: 9090
+
+  # Tracked metrics
+  track:
+    - tool_invocations
+    - tool_latency
+    - tool_errors
+    - session_count
+    - request_rate
+
+# Error handling
+error_handling:
+  # Retry failed tool calls
+  retry:
+    enabled: true
+    max_retries: 3
+    base_delay: 1.0
+    max_delay: 30.0
+
+  # Fallback behavior
+  fallback:
+    enabled: true
+    default_response: "Tool temporarily unavailable"
+
+# Resource management
+resources:
+  # Max tool result size (bytes)
+  max_result_size: 1048576  # 1MB
+
+  # Max concurrent tool executions
+  max_concurrent_tools: 10
+
+  # Timeout per tool (can be overridden per-tool)
+  default_tool_timeout: 60.0  # seconds
+
+# Capabilities advertised to clients
+capabilities:
+  tools:
+    list_changed: true
+  resources:
+    subscribe: false
+    list_changed: false
+  prompts:
+    list_changed: false
+  logging: true

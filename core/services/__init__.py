@@ -11,51 +11,72 @@ Provides service layer implementations:
 
 from __future__ import annotations
 
-from .case_service import (Case, CaseListFilter, CaseListResult, CaseService,
-                           CaseStatus, CaseType, CaseVersion, get_case_service)
-from .document_consistency_checker import (ConsistencyCheckResult,
-                                           ConsistencyIssue,
-                                           ConsistencyIssueType,
-                                           DocumentConsistencyChecker,
-                                           IssueSeverity,
-                                           get_consistency_checker)
-from .evidence_classifier import (CaseEvidenceAssessment, ClassificationResult,
-                                  CriterionEvidence, DocumentType,
-                                  EB1ACriterion, EvidenceClassifier,
-                                  RFERiskLevel)
-from .rfe_analyzer import (RFEAnalyzer, RFECategory, RFEIssueType, RFEPattern,
-                           RFERiskAssessment, SuccessPattern)
+from .case_service import (
+    Case,
+    CaseListFilter,
+    CaseListResult,
+    CaseService,
+    CaseStatus,
+    CaseType,
+    CaseVersion,
+    get_case_service,
+)
+from .document_consistency_checker import (
+    ConsistencyCheckResult,
+    ConsistencyIssue,
+    ConsistencyIssueType,
+    DocumentConsistencyChecker,
+    IssueSeverity,
+    get_consistency_checker,
+)
+from .evidence_classifier import (
+    CaseEvidenceAssessment,
+    ClassificationResult,
+    CriterionEvidence,
+    DocumentType,
+    EB1ACriterion,
+    EvidenceClassifier,
+    RFERiskLevel,
+)
+from .rfe_analyzer import (
+    RFEAnalyzer,
+    RFECategory,
+    RFEIssueType,
+    RFEPattern,
+    RFERiskAssessment,
+    SuccessPattern,
+)
 
 __all__ = [
     # Case Service
     "Case",
+    # Evidence Classifier
+    "CaseEvidenceAssessment",
     "CaseListFilter",
     "CaseListResult",
     "CaseService",
     "CaseStatus",
     "CaseType",
     "CaseVersion",
-    "get_case_service",
+    "ClassificationResult",
     # Document Consistency Checker
     "ConsistencyCheckResult",
     "ConsistencyIssue",
     "ConsistencyIssueType",
-    "DocumentConsistencyChecker",
-    "IssueSeverity",
-    "get_consistency_checker",
-    # Evidence Classifier
-    "CaseEvidenceAssessment",
-    "ClassificationResult",
     "CriterionEvidence",
+    "DocumentConsistencyChecker",
     "DocumentType",
     "EB1ACriterion",
     "EvidenceClassifier",
-    "RFERiskLevel",
+    "IssueSeverity",
     # RFE Analyzer
     "RFEAnalyzer",
     "RFECategory",
     "RFEIssueType",
     "RFEPattern",
     "RFERiskAssessment",
+    "RFERiskLevel",
     "SuccessPattern",
+    "get_case_service",
+    "get_consistency_checker",
 ]

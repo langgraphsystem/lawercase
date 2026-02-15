@@ -3,14 +3,13 @@ from __future__ import annotations
 from fastapi import APIRouter, Depends
 
 from api.deps import get_agent, get_current_user, map_role
-from api.schemas import (AgentCommandRequest, AskRequest, SearchRequest,
-                         ToolRequest)
+from api.schemas import AgentCommandRequest, AskRequest, SearchRequest, ToolRequest
 from core.groupagents.mega_agent import CommandType, MegaAgentCommand
 
 router = APIRouter(prefix="/v1", tags=["agent"])
 
 
-@router.post("/agent/command")
+@router.post("/agent/command", deprecated=True)
 async def agent_command(
     body: AgentCommandRequest, agent=Depends(get_agent), user=Depends(get_current_user)
 ):
@@ -25,7 +24,7 @@ async def agent_command(
     return resp.model_dump()
 
 
-@router.post("/ask")
+@router.post("/ask", deprecated=True)
 async def ask(body: AskRequest, agent=Depends(get_agent), user=Depends(get_current_user)):
     role = map_role(user)
     cmd = MegaAgentCommand(
@@ -38,7 +37,7 @@ async def ask(body: AskRequest, agent=Depends(get_agent), user=Depends(get_curre
     return resp.model_dump()
 
 
-@router.post("/search")
+@router.post("/search", deprecated=True)
 async def search(body: SearchRequest, agent=Depends(get_agent), user=Depends(get_current_user)):
     role = map_role(user)
     cmd = MegaAgentCommand(
@@ -51,7 +50,7 @@ async def search(body: SearchRequest, agent=Depends(get_agent), user=Depends(get
     return resp.model_dump()
 
 
-@router.post("/tool")
+@router.post("/tool", deprecated=True)
 async def call_tool(body: ToolRequest, agent=Depends(get_agent), user=Depends(get_current_user)):
     role = map_role(user)
     payload = body.model_dump()

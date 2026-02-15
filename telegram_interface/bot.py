@@ -2,11 +2,17 @@
 
 from __future__ import annotations
 
-import structlog
 from dotenv import load_dotenv
+import structlog
 from telegram import Update
-from telegram.ext import (Application, ApplicationBuilder, ContextTypes,
-                          Defaults, MessageHandler, filters)
+from telegram.ext import (
+    Application,
+    ApplicationBuilder,
+    ContextTypes,
+    Defaults,
+    MessageHandler,
+    filters,
+)
 
 from config.logging import setup_logging
 from config.settings import AppSettings, get_settings
@@ -54,7 +60,7 @@ def build_application(
         ApplicationBuilder()
         .token(token)
         .defaults(Defaults(parse_mode=None))
-        .concurrent_updates(False)
+        .concurrent_updates(True)
         .build()
     )
 

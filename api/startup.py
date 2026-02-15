@@ -1,8 +1,8 @@
 from __future__ import annotations
 
+from ipaddress import ip_address, ip_network
 import os
 import re
-from ipaddress import ip_address, ip_network
 from typing import Any
 from urllib.parse import urlparse
 

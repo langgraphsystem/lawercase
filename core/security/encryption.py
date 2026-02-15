@@ -10,11 +10,11 @@ Provides:
 from __future__ import annotations
 
 import base64
+from dataclasses import dataclass
+from datetime import UTC, datetime
 import hashlib
 import os
 import secrets
-from dataclasses import dataclass
-from datetime import datetime
 from typing import Any
 
 import structlog
@@ -94,11 +94,16 @@ class KeyManager:
         """Derive master key from environment or generate new one."""
         env_key = os.getenv("ENCRYPTION_MASTER_KEY")
         if env_key:
-            # Derive key from environment variable
+            # Use a salt derived from the key itself (stable but unique per key).
+            # For true production use, store a random salt in ENCRYPTION_SALT env var.
+            env_salt = (
+                os.getenv("ENCRYPTION_SALT", "").encode()
+                or hashlib.sha256(b"megaagent:" + env_key.encode()).digest()[:16]
+            )
             return hashlib.pbkdf2_hmac(
                 "sha256",
                 env_key.encode(),
-                b"mega_agent_salt",  # Fixed salt for deterministic derivation
+                env_salt,
                 100000,
                 dklen=32,
             )
@@ -124,7 +129,7 @@ class KeyManager:
         self._keys[key_id] = key
         self._key_metadata[key_id] = {
             "name": name,
-            "created_at": datetime.utcnow().isoformat(),
+            "created_at": datetime.now(UTC).isoformat(),
             "rotated_from": None,
             "status": "active",
         }
@@ -169,7 +174,7 @@ class KeyManager:
         # Mark old key as rotated
         self._key_metadata[old_key_id]["status"] = "rotated"
         self._key_metadata[old_key_id]["rotated_to"] = new_key_id
-        self._key_metadata[old_key_id]["rotated_at"] = datetime.utcnow().isoformat()
+        self._key_metadata[old_key_id]["rotated_at"] = datetime.now(UTC).isoformat()
 
         # Update current key
         self._current_key_id = new_key_id
@@ -253,7 +258,7 @@ class EncryptionService:
             nonce=nonce,
             tag=tag,
             key_id=key_id,
-            encrypted_at=datetime.utcnow(),
+            encrypted_at=datetime.now(UTC),
         )
 
     def decrypt(self, encrypted: EncryptedValue | str) -> bytes:

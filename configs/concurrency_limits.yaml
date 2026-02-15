@@ -1,0 +1,283 @@
+# Concurrency Limits Configuration
+# Controls parallel execution, rate limiting, and resource management
+
+version: "1.0"
+
+# Global concurrency settings
+global:
+  # Maximum concurrent async tasks
+  max_concurrent_tasks: 50
+
+  # Maximum concurrent LLM API calls
+  max_concurrent_llm_calls: 10
+
+  # Maximum concurrent web searches
+  max_concurrent_searches: 5
+
+  # Maximum concurrent database queries
+  max_concurrent_db_queries: 20
+
+  # Task queue settings
+  task_queue:
+    max_size: 1000
+    overflow_policy: "reject"  # reject, drop_oldest, block
+
+# Per-provider LLM limits
+llm_providers:
+  anthropic:
+    # Claude Opus 4.5
+    opus:
+      max_concurrent: 3
+      requests_per_minute: 50
+      tokens_per_minute: 100000
+      max_retries: 3
+      retry_delay: 1.0
+      timeout: 120.0
+    # Claude Sonnet
+    sonnet:
+      max_concurrent: 5
+      requests_per_minute: 100
+      tokens_per_minute: 200000
+      max_retries: 3
+      retry_delay: 0.5
+      timeout: 60.0
+    # Claude Haiku
+    haiku:
+      max_concurrent: 10
+      requests_per_minute: 200
+      tokens_per_minute: 500000
+      max_retries: 5
+      retry_delay: 0.2
+      timeout: 30.0
+
+  openai:
+    # ChatGPT 5.2
+    gpt5:
+      max_concurrent: 5
+      requests_per_minute: 60
+      tokens_per_minute: 150000
+      max_retries: 3
+      retry_delay: 1.0
+      timeout: 90.0
+    # GPT-4 Turbo
+    gpt4_turbo:
+      max_concurrent: 5
+      requests_per_minute: 100
+      tokens_per_minute: 300000
+      max_retries: 3
+      retry_delay: 0.5
+      timeout: 60.0
+
+  google:
+    # Gemini 3
+    gemini3:
+      max_concurrent: 5
+      requests_per_minute: 60
+      tokens_per_minute: 200000
+      max_retries: 3
+      retry_delay: 1.0
+      timeout: 90.0
+
+# Search provider limits
+search_providers:
+  tavily:
+    max_concurrent: 3
+    requests_per_minute: 60
+    cache_ttl: 3600  # 1 hour
+    timeout: 30.0
+
+  duckduckgo:
+    max_concurrent: 5
+    requests_per_minute: 30
+    cache_ttl: 3600
+    timeout: 15.0
+
+  arxiv:
+    max_concurrent: 3
+    requests_per_minute: 30
+    cache_ttl: 86400  # 24 hours
+    timeout: 45.0
+
+# Database connection pools
+database:
+  supabase:
+    min_connections: 2
+    max_connections: 20
+    connection_timeout: 10.0
+    idle_timeout: 300.0
+    max_lifetime: 3600.0
+
+  postgres:
+    min_connections: 5
+    max_connections: 50
+    connection_timeout: 5.0
+    idle_timeout: 600.0
+
+  redis:
+    min_connections: 2
+    max_connections: 20
+    connection_timeout: 2.0
+
+# Research execution limits
+research:
+  parallel_research:
+    max_concurrent_tasks: 5
+    max_sub_agents: 10
+    task_timeout: 300.0
+    result_aggregation_timeout: 60.0
+
+  deep_research:
+    max_iterations: 5
+    max_parallel_queries: 4
+    iteration_timeout: 120.0
+    total_timeout: 600.0
+
+# Backpressure settings
+backpressure:
+  enabled: true
+
+  # Load level thresholds (0-1)
+  thresholds:
+    elevated: 0.6
+    high: 0.8
+    critical: 0.95
+
+  # Load shedding probabilities
+  load_shedding:
+    enabled: true
+    probability_high: 0.3
+    probability_critical: 0.7
+
+  # Circuit breaker settings
+  circuit_breaker:
+    failure_threshold: 5
+    success_threshold: 3
+    timeout: 60.0
+    half_open_max_calls: 3
+
+# Retry configuration
+retry:
+  default:
+    max_retries: 3
+    strategy: "exponential"  # fixed, exponential, linear, fibonacci, decorrelated
+    base_delay: 1.0
+    max_delay: 60.0
+    jitter: true
+    jitter_factor: 0.5
+
+  # Per-operation overrides
+  operations:
+    llm_call:
+      max_retries: 3
+      strategy: "exponential"
+      base_delay: 2.0
+      max_delay: 30.0
+
+    web_search:
+      max_retries: 2
+      strategy: "fixed"
+      base_delay: 1.0
+
+    database_query:
+      max_retries: 3
+      strategy: "exponential"
+      base_delay: 0.5
+      max_delay: 10.0
+
+  # Shared retry budget (prevents retry storms)
+  budget:
+    enabled: true
+    total_budget: 100
+    window_seconds: 60.0
+    refill_rate: 1.0
+
+# Resource pools
+resource_pools:
+  llm_client:
+    min_size: 2
+    max_size: 10
+    acquire_timeout: 30.0
+    idle_timeout: 300.0
+    health_check_interval: 60.0
+
+  http_client:
+    min_size: 5
+    max_size: 50
+    acquire_timeout: 10.0
+    idle_timeout: 120.0
+
+# Priority queues
+priority_queues:
+  enabled: true
+
+  levels:
+    critical: 0
+    high: 1
+    normal: 2
+    low: 3
+    background: 4
+
+  # Starvation prevention
+  starvation_prevention:
+    enabled: true
+    max_wait_time: 60.0
+    promotion_interval: 30.0
+
+# Adaptive concurrency
+adaptive:
+  enabled: true
+
+  # Auto-adjust based on latency
+  latency_based:
+    target_latency_ms: 200
+    increase_threshold_ms: 100
+    decrease_threshold_ms: 500
+    adjustment_step: 1
+    min_concurrency: 1
+    max_concurrency: 20
+
+  # Auto-adjust based on error rate
+  error_based:
+    error_threshold: 0.1  # 10% error rate
+    recovery_threshold: 0.01  # 1% error rate
+    decrease_factor: 0.5
+    increase_factor: 1.1
+
+# Monitoring
+monitoring:
+  enabled: true
+
+  metrics:
+    - active_tasks
+    - queue_depth
+    - latency_p50
+    - latency_p95
+    - latency_p99
+    - error_rate
+    - retry_rate
+    - circuit_breaker_state
+
+  alerts:
+    queue_depth_high: 500
+    latency_p99_high_ms: 5000
+    error_rate_high: 0.2
+    circuit_breaker_open: true
+
+# Environment-specific overrides
+environments:
+  development:
+    global:
+      max_concurrent_tasks: 10
+      max_concurrent_llm_calls: 2
+    backpressure:
+      enabled: false
+
+  staging:
+    global:
+      max_concurrent_tasks: 25
+      max_concurrent_llm_calls: 5
+
+  production:
+    # Uses default values above
+    adaptive:
+      enabled: true

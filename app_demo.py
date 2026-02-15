@@ -1,8 +1,8 @@
 from __future__ import annotations
 
 import asyncio
+from datetime import UTC, datetime
 import uuid
-from datetime import datetime
 
 from core.memory.memory_manager import MemoryManager
 from core.memory.models import AuditEvent
@@ -19,7 +19,7 @@ async def main():
     # Seed an audit event (e.g., command handled)
     event = AuditEvent(
         event_id=str(uuid.uuid4()),
-        timestamp=datetime.utcnow(),
+        timestamp=datetime.now(UTC),
         user_id=user_id,
         thread_id=thread_id,
         source="demo_app",

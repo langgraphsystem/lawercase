@@ -11,19 +11,26 @@ EB1Agent - Интерактивный агент для EB-1A петиций
 
 from __future__ import annotations
 
-import uuid
-from datetime import datetime
+from datetime import UTC, datetime
 from typing import Any
+import uuid
 
 from ..memory.memory_manager import MemoryManager
 from ..memory.models import AuditEvent, MemoryRecord
-from ..skills.eb1a_criteria import (CriteriaAnalysisResult, CriterionType,
-                                    EB1ACriteriaSkill)
-from .eb1_models import (EB1_QUESTIONNAIRE_TEMPLATES, EB1Answer,
-                         EB1ConversationState, EB1Criterion,
-                         EB1CriterionEvidence, EB1FieldOfExpertise,
-                         EB1PersonalInfo, EB1PetitionData, EB1PetitionStatus,
-                         EB1Question, EB1QuestionnaireStep)
+from ..skills.eb1a_criteria import CriteriaAnalysisResult, CriterionType, EB1ACriteriaSkill
+from .eb1_models import (
+    EB1_QUESTIONNAIRE_TEMPLATES,
+    EB1Answer,
+    EB1ConversationState,
+    EB1Criterion,
+    EB1CriterionEvidence,
+    EB1FieldOfExpertise,
+    EB1PersonalInfo,
+    EB1PetitionData,
+    EB1PetitionStatus,
+    EB1Question,
+    EB1QuestionnaireStep,
+)
 
 # Mapping between EB1Criterion (agent) and CriterionType (skill)
 CRITERION_MAPPING: dict[EB1Criterion, CriterionType] = {
@@ -230,7 +237,7 @@ class EB1Agent:
         answer = EB1Answer(
             question_id=current_question_id,
             answer=validation_result["parsed_value"],
-            answered_at=datetime.utcnow(),
+            answered_at=datetime.now(UTC),
         )
 
         conversation.answers[current_question_id] = answer
@@ -356,7 +363,7 @@ class EB1Agent:
             if petition.field_of_expertise:
                 petition.field_of_expertise.education_level = value
 
-        petition.updated_at = datetime.utcnow()
+        petition.updated_at = datetime.now(UTC)
 
     async def _update_criterion_evidence(
         self, petition: EB1PetitionData, question: EB1Question, answer: EB1Answer
@@ -625,8 +632,8 @@ class EB1Agent:
     ) -> str:
         """Завершение и сохранение петиции"""
 
-        petition.completed_at = datetime.utcnow()
-        petition.updated_at = datetime.utcnow()
+        petition.completed_at = datetime.now(UTC)
+        petition.updated_at = datetime.now(UTC)
 
         # Сохранение в память
         await self._store_petition_memory(petition, petition.user_id, "completed")

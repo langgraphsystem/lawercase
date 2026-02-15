@@ -1,39 +1,72 @@
+"""Unified FastAPI application for MegaAgent Pro.
+
+This module provides:
+- Complete API setup with production-grade middleware
+- Telegram bot integration (webhook mode)
+- Authentication and authorization
+- Rate limiting with multiple strategies
+- Request ID tracking and performance monitoring
+- Health checks and metrics
+- OpenAPI documentation
+"""
+
 from __future__ import annotations
 
 import asyncio
+from contextlib import asynccontextmanager
 import os
+from pathlib import Path
 import tempfile
 import time
-from pathlib import Path
 
-import structlog
 from fastapi import FastAPI, HTTPException, Request, status
+from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.middleware.gzip import GZipMiddleware
+from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
+import structlog
 from telegram import Update
 from telegram.error import RetryAfter, TelegramError
 
-from api.middleware import (RateLimitMiddleware, RequestMetricsMiddleware,
-                            get_rate_limit_settings)
-from api.routes import agent as agent_routes
-from api.routes import auth as auth_routes
-from api.routes import case_management as case_management_routes
-from api.routes import cases as cases_routes
-from api.routes import document_monitor as document_monitor_routes
-from api.routes import health as health_routes
-from api.routes import memory as memory_routes
-from api.routes import metrics as metrics_routes
-from api.routes import workflows as workflows_routes
+from api.middleware import (
+    RateLimitMiddleware,
+    RequestMetricsMiddleware,
+    RequestSizeLimitMiddleware,
+    get_rate_limit_settings,
+)
+from api.routes import (
+    auth as auth_routes,
+    case_management as case_management_routes,
+    document_monitor as document_monitor_routes,
+    health as health_routes,
+    llm as llm_routes,
+    metrics as metrics_routes,
+)
 from api.startup import register_builtin_tools
 from config.settings import AppSettings, get_settings
 from core.agui.middleware import include_agui_router
 from core.di import get_container
-from core.observability import (TracingConfig, init_logging_from_env,
-                                init_tracing)
+from core.observability import TracingConfig, init_logging_from_env, init_tracing
 from core.security import configure_security
 from core.security.config import SecurityConfig
-from telegram_interface.bot import (build_application, initialize_application,
-                                    set_webhook, shutdown_application)
+from telegram_interface.bot import (
+    build_application,
+    initialize_application,
+    set_webhook,
+    shutdown_application,
+)
+
+# Try to import production middleware (optional enhancements)
+try:
+    from api.middleware_production import (
+        RequestIDMiddleware,
+        SecurityHeadersMiddleware,
+    )
+
+    PRODUCTION_MIDDLEWARE_AVAILABLE = True
+except ImportError:
+    PRODUCTION_MIDDLEWARE_AVAILABLE = False
 
 logger = structlog.get_logger(__name__)
 
@@ -209,20 +242,140 @@ def _build_webhook_url(settings: AppSettings) -> str:
         source=(
             "PUBLIC_BASE_URL"
             if settings.public_base_url
-            else "RAILWAY_STATIC_URL" if settings.railway_static_url else "RAILWAY_PUBLIC_DOMAIN"
+            else "RAILWAY_STATIC_URL"
+            if settings.railway_static_url
+            else "RAILWAY_PUBLIC_DOMAIN"
         ),
     )
     return webhook_url
 
 
+async def _startup_telegram(
+    app: FastAPI,
+    *,
+    settings: AppSettings,
+    telegram_secret: str | None,
+) -> None:
+    # Initialize DI container (singleton - shared across API and Telegram)
+    container = get_container()
+    app.state.di_container = container
+    logger.info(
+        "di.container.initialized",
+        dependencies=list(container.list_dependencies().keys()),
+    )
+
+    # Get shared MegaAgent from DI container (ensures same instance for API and Telegram)
+    mega_agent = container.get("mega_agent")
+
+    # Check if Telegram token is available
+    token = settings.telegram_token or settings.telegram_bot_token_legacy
+    if not token:
+        logger.warning("telegram.disabled", reason="TELEGRAM_TOKEN not configured")
+        app.state.telegram_application = None
+        app.state.telegram_webhook_lock_owned = False
+        app.state.telegram_webhook_url = None
+        return
+
+    # Build Telegram application with shared MegaAgent
+    telegram_app = build_application(settings=settings, mega_agent=mega_agent)
+    await initialize_application(telegram_app)
+
+    webhook_url = _build_webhook_url(settings)
+    lock_owned = await _acquire_webhook_lock(_WEBHOOK_LOCK_TIMEOUT)
+    set_success = False
+    actual_url = webhook_url
+
+    if lock_owned:
+        set_success = await _ensure_webhook(
+            telegram_app,
+            url=webhook_url,
+            secret_token=telegram_secret,
+            drop_pending_updates=True,
+        )
+        if not set_success:
+            _release_webhook_lock()
+            lock_owned = False
+
+    if not set_success:
+        inspected_url = await _inspect_existing_webhook(telegram_app, webhook_url)
+        if inspected_url:
+            actual_url = inspected_url
+
+    app.state.telegram_webhook_lock_owned = bool(set_success and lock_owned)
+    app.state.telegram_application = telegram_app
+    app.state.telegram_webhook_url = actual_url
+
+    if set_success:
+        logger.info("telegram.webhook.active", url=actual_url)
+    else:
+        logger.info("telegram.webhook.active.reused", url=actual_url)
+
+
+async def _shutdown_telegram(app: FastAPI) -> None:
+    telegram_app = getattr(app.state, "telegram_application", None)
+    if telegram_app is None:
+        return
+    owns_lock = getattr(app.state, "telegram_webhook_lock_owned", False)
+    try:
+        if owns_lock:
+            try:
+                # IMPORTANT: Do NOT delete webhook on shutdown in production
+                # Webhook should persist across restarts/redeploys
+                # Only delete webhook manually when truly needed
+                # await delete_webhook(telegram_app, drop_pending_updates=True)
+                pass
+            finally:
+                _release_webhook_lock()
+        else:
+            logger.debug("telegram.webhook.delete.skipped", reason="not_lock_owner")
+    finally:
+        await shutdown_application(telegram_app)
+        logger.info("telegram.webhook.stopped")
+
+
 def create_app() -> FastAPI:
-    app = FastAPI(title="mega_agent_pro API", version="1.0")
+    """Create and configure FastAPI application with production-grade middleware.
+
+    Returns:
+        Configured FastAPI application with all middleware and routes
+    """
+    settings = get_settings()
+
+    # Determine if production mode
+    is_production = os.getenv("ENVIRONMENT", "development").lower() in ("production", "prod")
+    telegram_secret = settings.telegram_webhook_secret or None
+
+    @asynccontextmanager
+    async def lifespan(app: FastAPI):
+        await _startup_telegram(app, settings=settings, telegram_secret=telegram_secret)
+        try:
+            yield
+        finally:
+            await _shutdown_telegram(app)
+
+    app = FastAPI(
+        title="MegaAgent Pro API",
+        version="1.0",
+        description="EB-1A petition analysis and workflow system",
+        docs_url="/docs" if not is_production else None,
+        redoc_url="/redoc" if not is_production else None,
+        openapi_url="/openapi.json" if not is_production else None,
+        lifespan=lifespan,
+    )
 
     # Observability setup
     init_logging_from_env()
     init_tracing(TracingConfig.from_env())
 
-    # CORS from security config
+    # ========================================================================
+    # Middleware Stack (order matters - first added = outermost layer)
+    # ========================================================================
+
+    # 1. Security headers (outermost) - production only
+    if PRODUCTION_MIDDLEWARE_AVAILABLE and is_production:
+        app.add_middleware(SecurityHeadersMiddleware)
+
+    # 2. CORS from security config
     sc = SecurityConfig()
     configure_security(sc)
     app.add_middleware(
@@ -233,21 +386,53 @@ def create_app() -> FastAPI:
         allow_headers=sc.cors_allowed_headers,
     )
 
+    # 3. GZip compression (production only)
+    if is_production:
+        app.add_middleware(GZipMiddleware, minimum_size=1000)
+
+    # 4. Request ID tracking - production only
+    if PRODUCTION_MIDDLEWARE_AVAILABLE and is_production:
+        app.add_middleware(RequestIDMiddleware)
+
+    # 5. Request size limit (reject oversized payloads early)
+    app.add_middleware(RequestSizeLimitMiddleware, max_mb=sc.request_size_limit_mb)
+
+    # 6. Rate limiting
     limit, window = get_rate_limit_settings()
     app.add_middleware(RateLimitMiddleware, limit=limit, window=window)
+
+    # 7. Request metrics (innermost)
     app.add_middleware(RequestMetricsMiddleware)
 
-    settings = get_settings()
+    # ========================================================================
+    # Exception Handlers
+    # ========================================================================
+
+    @app.exception_handler(RequestValidationError)
+    async def validation_exception_handler(
+        request: Request, exc: RequestValidationError
+    ) -> JSONResponse:
+        """Handle validation errors with structured response."""
+        logger.warning(
+            "validation_error",
+            errors=exc.errors(),
+            path=request.url.path,
+        )
+        return JSONResponse(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            content={
+                "error": "validation_error",
+                "message": "Request validation failed",
+                "details": exc.errors(),
+            },
+        )
 
     # Routes
     app.include_router(health_routes.router)
     app.include_router(auth_routes.router, prefix="/auth", tags=["auth"])
-    app.include_router(agent_routes.router)
-    app.include_router(memory_routes.router)
-    app.include_router(cases_routes.router)
+    app.include_router(llm_routes.router, prefix="/v1/llm", tags=["llm"])
     app.include_router(case_management_routes.router, prefix="/cases", tags=["cases"])
     app.include_router(metrics_routes.router)
-    app.include_router(workflows_routes.router)
     app.include_router(document_monitor_routes.router)
 
     # AG-UI Protocol endpoints for real-time streaming
@@ -255,79 +440,8 @@ def create_app() -> FastAPI:
 
     register_builtin_tools()
 
-    telegram_secret = settings.telegram_webhook_secret or None
-
     # Define Telegram webhook endpoint BEFORE mounting static files
     # This ensures /telegram/webhook is not intercepted by StaticFiles
-
-    @app.on_event("startup")
-    async def startup_telegram() -> None:
-        # Initialize DI container (singleton - shared across API and Telegram)
-        container = get_container()
-        app.state.di_container = container
-        logger.info(
-            "di.container.initialized",
-            dependencies=list(container.list_dependencies().keys()),
-        )
-
-        # Get shared MegaAgent from DI container (ensures same instance for API and Telegram)
-        mega_agent = container.get("mega_agent")
-
-        # Build Telegram application with shared MegaAgent
-        telegram_app = build_application(settings=settings, mega_agent=mega_agent)
-        await initialize_application(telegram_app)
-
-        webhook_url = _build_webhook_url(settings)
-        lock_owned = await _acquire_webhook_lock(_WEBHOOK_LOCK_TIMEOUT)
-        set_success = False
-        actual_url = webhook_url
-
-        if lock_owned:
-            set_success = await _ensure_webhook(
-                telegram_app,
-                url=webhook_url,
-                secret_token=telegram_secret,
-                drop_pending_updates=True,
-            )
-            if not set_success:
-                _release_webhook_lock()
-                lock_owned = False
-
-        if not set_success:
-            inspected_url = await _inspect_existing_webhook(telegram_app, webhook_url)
-            if inspected_url:
-                actual_url = inspected_url
-
-        app.state.telegram_webhook_lock_owned = bool(set_success and lock_owned)
-        app.state.telegram_application = telegram_app
-        app.state.telegram_webhook_url = actual_url
-
-        if set_success:
-            logger.info("telegram.webhook.active", url=actual_url)
-        else:
-            logger.info("telegram.webhook.active.reused", url=actual_url)
-
-    @app.on_event("shutdown")
-    async def shutdown_telegram() -> None:
-        telegram_app = getattr(app.state, "telegram_application", None)
-        if telegram_app is None:
-            return
-        owns_lock = getattr(app.state, "telegram_webhook_lock_owned", False)
-        try:
-            if owns_lock:
-                try:
-                    # IMPORTANT: Do NOT delete webhook on shutdown in production
-                    # Webhook should persist across restarts/redeploys
-                    # Only delete webhook manually when truly needed
-                    # await delete_webhook(telegram_app, drop_pending_updates=True)
-                    pass
-                finally:
-                    _release_webhook_lock()
-            else:
-                logger.debug("telegram.webhook.delete.skipped", reason="not_lock_owner")
-        finally:
-            await shutdown_application(telegram_app)
-            logger.info("telegram.webhook.stopped")
 
     @app.post("/telegram/webhook")
     async def telegram_webhook(request: Request) -> dict[str, str]:

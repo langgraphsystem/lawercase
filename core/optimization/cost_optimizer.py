@@ -8,7 +8,7 @@ from __future__ import annotations
 
 from collections import defaultdict, deque
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import UTC, datetime
 from enum import Enum
 from typing import Any
 
@@ -221,7 +221,7 @@ class CostTracker:
 
         # Create record
         record = CostRecord(
-            timestamp=datetime.utcnow(),
+            timestamp=datetime.now(UTC),
             model=model,
             input_tokens=input_tokens,
             output_tokens=output_tokens,
@@ -264,8 +264,8 @@ class CostTracker:
 
     def _check_budget_alerts(self) -> None:
         """Check if budget thresholds are exceeded."""
-        today = datetime.utcnow().strftime("%Y-%m-%d")
-        this_month = datetime.utcnow().strftime("%Y-%m")
+        today = datetime.now(UTC).strftime("%Y-%m-%d")
+        this_month = datetime.now(UTC).strftime("%Y-%m")
 
         # Daily budget check
         if self.daily_budget:
@@ -282,13 +282,13 @@ class CostTracker:
     def get_daily_cost(self, date: str | None = None) -> float:
         """Get cost for a specific day (or today)."""
         if date is None:
-            date = datetime.utcnow().strftime("%Y-%m-%d")
+            date = datetime.now(UTC).strftime("%Y-%m-%d")
         return self.daily_costs.get(date, 0.0)
 
     def get_monthly_cost(self, month: str | None = None) -> float:
         """Get cost for a specific month (or current month)."""
         if month is None:
-            month = datetime.utcnow().strftime("%Y-%m")
+            month = datetime.now(UTC).strftime("%Y-%m")
         return self.monthly_costs.get(month, 0.0)
 
     def get_model_stats(self, model: str) -> dict[str, Any]:
@@ -326,7 +326,7 @@ class CostTracker:
 
     def project_monthly_cost(self) -> float:
         """Project end-of-month cost based on current usage."""
-        today = datetime.utcnow()
+        today = datetime.now(UTC)
         days_in_month = 30  # Simplified
         day_of_month = today.day
 

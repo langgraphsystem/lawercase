@@ -8,7 +8,7 @@
 
 ## Frontend (Next.js 14 - eb1a-frontend repo)
 Located in `web/` folder (separate git repo):
-- `web/src/app/` — Next.js App Router pages (dashboard, chat, cases, documents)
+- `web/src/app/` — Next.js App Router pages (`/`, `/chat`, `/login`, `/cases`)
 - `web/src/components/ui/` — shadcn/ui components
 - `web/src/lib/agui.ts` — AG-UI types and API functions
 - **Chat features**: Case selector dropdown, localStorage persistence per case
@@ -18,7 +18,7 @@ Located in `web/` folder (separate git repo):
 - `core/` — agents (`groupagents`), memory system, LangGraph orchestration, RAG, security, workers, observability.
 - `core/agui/` — AG-UI adapter for SSE streaming to frontend (adapter.py, events.py)
 - `api/` — FastAPI app (`api.main:app`), middleware, metrics routes.
-- `api/routes/agui_routes.py` — AG-UI SSE endpoints (/agui/agent, /agui/run)
+- `core/agui/middleware.py` — AG-UI endpoints and JWT/RBAC helpers (`/agui/run`, `/agui/agent`, `/agui/validation/submit`)
 - `config/` — Pydantic settings, secrets manager, environment profiles.
 - `deployment/` & `k8s/` — Dockerfiles, compose profiles, smoke tests, Kubernetes manifests.
 - `recommendation_pipeline/`, `data/`, `out/` — EB-1A PDF pipeline assets and outputs.
@@ -29,7 +29,7 @@ Located in `web/` folder (separate git repo):
 pip install -r requirements.txt                    # Base dependencies
 ruff check . && black . --line-length 100          # Lint + format
 pytest -q                                          # Fast suite (async supported)
-pytest tests/unit tests/integration -vv --tb=short # Targeted runs
+pytest tests -vv --tb=short                        # Full local suite
 uvicorn api.main:app --reload                      # Local API with .env
 python app_demo.py                                 # LangGraph demo pipeline
 python -m core.workers.task_worker smoke           # Worker smoke test
@@ -44,7 +44,7 @@ docker-compose up --build api worker               # Compose profile for API + w
 
 ## Testing Guidelines
 - Frameworks: `pytest`, `pytest-asyncio`, `hypothesis`, `respx`, `freezegun`; CI uses `CACHE_USE_FAKEREDIS=true`.
-- Place unit tests in `tests/unit`, integration flows in `tests/integration`/`tests/workflows`; name files `test_*.py` and functions `test_*`.
+- Current layout keeps tests in `tests/test_*.py`; name files `test_*.py` and functions `test_*`.
 - For API/Telegram flows, seed `.env` and reuse fixtures; prefer fake clients over live services.
 - Run `pytest -vv --maxfail=1 --tb=short` before pushing; add regression cases with each bug fix.
 

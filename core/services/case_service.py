@@ -11,7 +11,7 @@ Provides comprehensive case management:
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import UTC, datetime
 from enum import Enum
 from typing import Any
 from uuid import UUID, uuid4
@@ -175,7 +175,7 @@ class CaseService:
         db = await self._get_db()
 
         case_id = uuid4()
-        now = datetime.utcnow()
+        now = datetime.now(UTC)
 
         case = Case(
             case_id=case_id,
@@ -345,7 +345,7 @@ class CaseService:
 
                 # Increment version
                 db_case.version += 1
-                db_case.updated_at = datetime.utcnow()
+                db_case.updated_at = datetime.now(UTC)
 
                 self.logger.info(
                     "case_updated",
@@ -413,7 +413,7 @@ class CaseService:
                             CaseDB.user_id == user_id,
                             CaseDB.deleted_at.is_(None),
                         )
-                        .values(deleted_at=datetime.utcnow())
+                        .values(deleted_at=datetime.now(UTC))
                     )
                     result = await session.execute(stmt)
                     deleted = result.rowcount > 0
@@ -461,7 +461,7 @@ class CaseService:
                         CaseDB.user_id == user_id,
                         CaseDB.deleted_at.isnot(None),
                     )
-                    .values(deleted_at=None, updated_at=datetime.utcnow())
+                    .values(deleted_at=None, updated_at=datetime.now(UTC))
                 )
                 result = await session.execute(stmt)
 

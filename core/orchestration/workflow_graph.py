@@ -527,9 +527,7 @@ def build_eb1a_complete_workflow(memory: MemoryManager):
     _ensure_langgraph()
 
     from ..groupagents.eb1a_evidence_analyzer import EB1AEvidenceAnalyzer
-    from ..groupagents.validator_agent import (ValidationLevel,
-                                               ValidationRequest,
-                                               ValidatorAgent)
+    from ..groupagents.validator_agent import ValidationLevel, ValidationRequest, ValidatorAgent
     from ..workflows.eb1a.eb1a_coordinator import EB1ACriterion
 
     analyzer = EB1AEvidenceAnalyzer(memory_manager=memory)
@@ -561,7 +559,9 @@ def build_eb1a_complete_workflow(memory: MemoryManager):
             "decision": (
                 "proceed"
                 if (meets_criteria and has_evidence)
-                else "insufficient" if not meets_criteria else "need_more_info"
+                else "insufficient"
+                if not meets_criteria
+                else "need_more_info"
             ),
         }
 
@@ -703,7 +703,9 @@ def build_eb1a_complete_workflow(memory: MemoryManager):
         state.agent_results["readiness_decision"] = (
             "ready_to_file"
             if case_analysis.overall_score >= 80 and case_analysis.meets_minimum_criteria
-            else "needs_improvement" if case_analysis.overall_score >= 60 else "not_ready"
+            else "needs_improvement"
+            if case_analysis.overall_score >= 60
+            else "not_ready"
         )
 
         # Audit log
@@ -741,9 +743,7 @@ def build_eb1a_complete_workflow(memory: MemoryManager):
         gaps = {
             "missing_criteria": [
                 c for c in EB1ACriterion if c not in case_strength.criterion_evaluations
-            ][
-                :3
-            ],  # Top 3
+            ][:3],  # Top 3
             "weak_criteria": [
                 k for k, v in case_strength.criterion_evaluations.items() if not v.is_satisfied
             ],
@@ -781,21 +781,120 @@ def build_eb1a_complete_workflow(memory: MemoryManager):
 
     # === NODE 8: Generate Documents ===
     async def node_generate_documents(state: WorkflowState) -> WorkflowState:
-        """Generate petition documents if ready."""
+        """Generate petition documents if ready using WriterAgent."""
         import structlog
+
+        from ..groupagents.writer_agent import (
+            DocumentFormat,
+            DocumentRequest,
+            DocumentType,
+            Language,
+            ToneStyle,
+            WriterAgent,
+        )
 
         logger = structlog.get_logger(__name__)
         logger.info("eb1a_generate_documents")
 
         decision = state.agent_results.get("readiness_decision")
 
-        if decision == "ready_to_file":
-            # Generate petition document (placeholder)
-            state.agent_results["documents_generated"] = True
-            state.agent_results["petition_content"] = "# EB-1A Petition\n\n[Generated content...]"
-        else:
+        if decision != "ready_to_file":
             state.agent_results["documents_generated"] = False
             state.agent_results["skip_reason"] = f"Not ready: {decision}"
+            state.workflow_step = "documents_generated"
+            return state
+
+        try:
+            # Initialize WriterAgent
+            writer = WriterAgent(memory_manager=memory)
+
+            # Gather case data for document generation
+            payload = state.case_data or {}
+            case_strength = state.agent_results.get("case_strength")
+            criterion_evaluations = state.agent_results.get("criterion_evaluations", {})
+            evidence_list = state.agent_results.get("evidence_list", [])
+
+            # Build content data for petition generation
+            content_data = {
+                "case_id": state.case_id,
+                "beneficiary_name": payload.get("beneficiary_name", "Beneficiary"),
+                "field_of_expertise": payload.get("field", ""),
+                "criteria": payload.get("criteria", []),
+                "evidence_summary": [
+                    {
+                        "criterion": ev.criterion.value if hasattr(ev, "criterion") else str(ev),
+                        "description": ev.description if hasattr(ev, "description") else "",
+                        "documents": ev.documents if hasattr(ev, "documents") else [],
+                    }
+                    for ev in evidence_list[:10]  # Top 10 evidence items
+                ],
+                "criterion_evaluations": {
+                    k: {
+                        "is_satisfied": v.is_satisfied if hasattr(v, "is_satisfied") else False,
+                        "confidence": v.confidence if hasattr(v, "confidence") else 0.0,
+                    }
+                    for k, v in criterion_evaluations.items()
+                },
+                "overall_score": case_strength.overall_score if case_strength else 0,
+                "meets_minimum_criteria": (
+                    case_strength.meets_minimum_criteria if case_strength else False
+                ),
+                "recommendations": state.agent_results.get("recommendations", []),
+            }
+
+            # Create document request
+            doc_request = DocumentRequest(
+                document_type=DocumentType.PETITION,
+                content_data=content_data,
+                format=DocumentFormat.MARKDOWN,
+                language=Language.ENGLISH,
+                tone=ToneStyle.FORMAL,
+                case_id=state.case_id,
+                approval_required=True,
+                custom_instructions=(
+                    "Generate a comprehensive EB-1A petition letter that demonstrates "
+                    "extraordinary ability based on the provided evidence and criterion evaluations. "
+                    "Include proper legal citations (8 CFR 204.5(h)(3)) and structure the document "
+                    "according to USCIS requirements."
+                ),
+            )
+
+            # Generate document using WriterAgent
+            generated_doc = await writer.agenerate_document(doc_request)
+
+            state.agent_results["documents_generated"] = True
+            state.agent_results["petition_content"] = generated_doc.content
+            state.agent_results["petition_document_id"] = generated_doc.document_id
+            state.agent_results["petition_format"] = generated_doc.format.value
+            state.agent_results["petition_word_count"] = generated_doc.word_count
+
+            logger.info(
+                "eb1a_documents_generated",
+                document_id=generated_doc.document_id,
+                word_count=generated_doc.word_count,
+            )
+
+            # Audit log
+            await memory.alog_audit(
+                AuditEvent(
+                    event_id=str(uuid4()),
+                    user_id=state.user_id or "system",
+                    thread_id=state.thread_id,
+                    source="eb1a_workflow",
+                    action="generate_documents",
+                    payload={
+                        "document_id": generated_doc.document_id,
+                        "word_count": generated_doc.word_count,
+                        "format": generated_doc.format.value,
+                    },
+                    tags=["eb1a", "document_generation"],
+                )
+            )
+
+        except Exception as e:
+            logger.error("eb1a_document_generation_error", error=str(e))
+            state.agent_results["documents_generated"] = False
+            state.agent_results["generation_error"] = str(e)
 
         state.workflow_step = "documents_generated"
         return state

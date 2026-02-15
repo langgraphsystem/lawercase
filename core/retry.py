@@ -1,7 +1,13 @@
-"""Retry logic for external service calls.
+"""Retry decorators for external service calls (tenacity-based).
 
-This module provides simple, user-friendly retry decorators built on top
-of the comprehensive resilience.py module.
+This module provides simple retry decorators. For advanced resilience
+patterns (circuit breakers, bulkheads, rate limiters), use core.resilience
+directly.
+
+Module guide:
+    core.retry            - Simple @with_retry / @with_llm_retry decorators (this file)
+    core.resilience       - CircuitBreaker, Bulkhead, RateLimiter, Timeout
+    core.validation.retry_handler  - Confidence-based retry for self-correcting agents
 
 Usage:
     from core.retry import with_retry, with_llm_retry
@@ -19,16 +25,26 @@ Usage:
 
 from __future__ import annotations
 
-import logging
 from collections.abc import Callable
 from functools import wraps
+import logging
 from typing import TypeVar
 
-from tenacity import (before_sleep_log, retry, retry_if_exception_type,
-                      stop_after_attempt, wait_exponential)
+from tenacity import (
+    before_sleep_log,
+    retry,
+    retry_if_exception_type,
+    stop_after_attempt,
+    wait_exponential,
+)
 
-from core.exceptions import (DatabaseError, ExternalServiceError, LLMError,
-                             LLMRateLimitError, LLMTimeoutError)
+from core.exceptions import (
+    DatabaseError,
+    ExternalServiceError,
+    LLMError,
+    LLMRateLimitError,
+    LLMTimeoutError,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -148,14 +164,18 @@ def with_database_retry(func: Callable[..., T]) -> Callable[..., T]:
     return wrapper
 
 
-# Legacy compatibility - import from resilience.py if needed
-try:
-    from core.resilience import (CircuitBreaker, RateLimiter, RetryConfig,
-                                 Timeout, get_database_circuit_breaker,
-                                 get_llm_circuit_breaker, retry_async)
+__all__ = [
+    "with_database_retry",
+    "with_llm_retry",
+    "with_retry",
+]
 
-    __all__ = [
-        # Advanced patterns from resilience.py
+
+# Legacy re-exports from core.resilience — import directly from there instead.
+# These are kept for backward compatibility but will emit a deprecation warning
+# in a future release.
+def __getattr__(name: str):
+    _resilience_names = {
         "CircuitBreaker",
         "RateLimiter",
         "RetryConfig",
@@ -163,14 +183,17 @@ try:
         "get_database_circuit_breaker",
         "get_llm_circuit_breaker",
         "retry_async",
-        "with_database_retry",
-        "with_llm_retry",
-        # Simple decorators
-        "with_retry",
-    ]
-except ImportError:
-    __all__ = [
-        "with_database_retry",
-        "with_llm_retry",
-        "with_retry",
-    ]
+    }
+    if name in _resilience_names:
+        import warnings
+
+        warnings.warn(
+            f"Importing '{name}' from core.retry is deprecated. "
+            f"Import from core.resilience instead.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+        import core.resilience as _resilience
+
+        return getattr(_resilience, name)
+    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")

@@ -9,10 +9,10 @@ This file configures Alembic to work with:
 from __future__ import annotations
 
 import asyncio
-import os
-import sys
 from logging.config import fileConfig
+import os
 from pathlib import Path
+import sys
 
 from sqlalchemy import pool, text
 from sqlalchemy.engine import Connection

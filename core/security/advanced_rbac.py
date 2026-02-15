@@ -2,11 +2,11 @@
 
 from __future__ import annotations
 
-import json
-import logging
 from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
+import json
+import logging
 from pathlib import Path
 from typing import Any
 
@@ -401,6 +401,94 @@ class RBACManager:
                 continue
             self.register_user(user)
 
+    # Action-to-permission mapping for simplified API
+    ACTION_PERMISSION_MAP: dict[str, dict[str, Permission]] = {
+        # Case operations
+        "case": {
+            "create": Permission.CASE_CREATE,
+            "read": Permission.CASE_READ,
+            "get": Permission.CASE_READ,
+            "update": Permission.CASE_UPDATE,
+            "delete": Permission.CASE_DELETE,
+            "list": Permission.CASE_LIST,
+            "search": Permission.CASE_LIST,
+        },
+        # Document operations
+        "document": {
+            "create": Permission.DOCUMENT_CREATE,
+            "read": Permission.DOCUMENT_READ,
+            "get": Permission.DOCUMENT_READ,
+            "update": Permission.DOCUMENT_UPDATE,
+            "delete": Permission.DOCUMENT_DELETE,
+            "approve": Permission.DOCUMENT_APPROVE,
+            "upload": Permission.DOCUMENT_CREATE,
+            "download": Permission.DOCUMENT_READ,
+            "validate": Permission.DOCUMENT_READ,
+            "generate": Permission.DOCUMENT_CREATE,
+        },
+        # Agent operations
+        "agent": {
+            "execute": Permission.AGENT_EXECUTE,
+            "ask": Permission.AGENT_EXECUTE,
+            "run": Permission.AGENT_EXECUTE,
+            "invoke": Permission.AGENT_EXECUTE,
+            "configure": Permission.AGENT_CONFIGURE,
+            "monitor": Permission.AGENT_MONITOR,
+            "status": Permission.AGENT_MONITOR,
+        },
+        # System operations
+        "system": {
+            "admin": Permission.SYSTEM_ADMIN,
+            "configure": Permission.SYSTEM_ADMIN,
+        },
+        # User management
+        "user": {
+            "create": Permission.USER_MANAGE,
+            "read": Permission.USER_MANAGE,
+            "update": Permission.USER_MANAGE,
+            "delete": Permission.USER_MANAGE,
+            "manage": Permission.USER_MANAGE,
+        },
+        # Role management
+        "role": {
+            "create": Permission.ROLE_MANAGE,
+            "read": Permission.ROLE_MANAGE,
+            "update": Permission.ROLE_MANAGE,
+            "delete": Permission.ROLE_MANAGE,
+            "manage": Permission.ROLE_MANAGE,
+        },
+        # Audit operations
+        "audit": {
+            "view": Permission.AUDIT_VIEW,
+            "read": Permission.AUDIT_VIEW,
+            "export": Permission.AUDIT_EXPORT,
+        },
+        # Data operations
+        "data": {
+            "read_sensitive": Permission.DATA_READ_SENSITIVE,
+            "export": Permission.DATA_EXPORT,
+            "import": Permission.DATA_IMPORT,
+        },
+        # Memory operations (used by ASK/SEARCH commands)
+        "memory": {
+            "read": Permission.DATA_READ_SENSITIVE,
+            "write": Permission.DATA_READ_SENSITIVE,
+            "search": Permission.DATA_READ_SENSITIVE,
+        },
+        # Workflow operations
+        "workflow": {
+            "run": Permission.AGENT_EXECUTE,
+            "start": Permission.AGENT_EXECUTE,
+            "stop": Permission.AGENT_EXECUTE,
+            "status": Permission.AGENT_MONITOR,
+        },
+        # Tool operations
+        "tool": {
+            "use": Permission.AGENT_EXECUTE,
+            "execute": Permission.AGENT_EXECUTE,
+        },
+    }
+
     def check_permission(
         self,
         role: str,
@@ -416,33 +504,75 @@ class RBACManager:
 
         Args:
             role: Role name (e.g., "lawyer", "admin")
-            action: Action to perform (e.g., "ask", "case_get")
-            resource: Resource type (e.g., "agent", "case")
-            context: Additional context (optional, not currently used)
+            action: Action to perform (e.g., "ask", "case_get", "create")
+            resource: Resource type (e.g., "agent", "case", "document")
+            context: Additional context (optional)
 
         Returns:
             True if permission granted, False otherwise
-
-        Note:
-            Currently implements permissive authorization - returns True for all requests.
-            TODO: Implement proper action-to-permission mapping and role-based checks.
         """
         # Log the authorization check
         logger.debug(
             f"RBAC check: role={role}, action={action}, resource={resource}, context={context}"
         )
 
-        # For now, allow all authenticated requests
-        # In production, this should map actions to Permission enums and check roles
-        # Example implementation:
-        # try:
-        #     role_enum = Role(role)
-        #     # Map action to Permission enum
-        #     # Check if role has that permission using has_permission()
-        # except ValueError:
-        #     return False
+        # Validate role
+        try:
+            role_enum = Role(role.lower())
+        except ValueError:
+            logger.warning(f"Unknown role in permission check: {role}")
+            return False
 
-        return True  # Permissive mode for development/testing
+        # Get permissions for the role
+        role_permissions = self.role_permissions.get(role_enum, set())
+        if not role_permissions:
+            logger.warning(f"No permissions defined for role: {role}")
+            return False
+
+        # Normalize action and resource
+        action_lower = action.lower()
+        resource_lower = resource.lower()
+
+        # Handle compound actions like "case:get" or "case_get"
+        if ":" in action_lower:
+            parts = action_lower.split(":", 1)
+            if len(parts) == 2:
+                resource_lower, action_lower = parts
+        elif "_" in action_lower and resource_lower not in self.ACTION_PERMISSION_MAP:
+            parts = action_lower.split("_", 1)
+            if len(parts) == 2:
+                resource_lower, action_lower = parts
+
+        # Look up the required permission
+        resource_permissions = self.ACTION_PERMISSION_MAP.get(resource_lower)
+        if not resource_permissions:
+            # Unknown resource - deny by default for security
+            logger.warning(f"Unknown resource in permission check: {resource}")
+            return False
+
+        required_permission = resource_permissions.get(action_lower)
+        if not required_permission:
+            # Unknown action - deny by default for security
+            logger.warning(
+                f"Unknown action '{action}' for resource '{resource}' in permission check"
+            )
+            return False
+
+        # Check if the role has the required permission
+        has_permission = required_permission in role_permissions
+
+        if has_permission:
+            logger.debug(
+                f"Permission GRANTED: role={role}, action={action}, "
+                f"resource={resource}, permission={required_permission.value}"
+            )
+        else:
+            logger.warning(
+                f"Permission DENIED: role={role}, action={action}, "
+                f"resource={resource}, required={required_permission.value}"
+            )
+
+        return has_permission
 
     def load_policy_file(self, path: str | Path) -> None:
         """Load policy JSON file and apply it."""

@@ -2,12 +2,12 @@
 
 from __future__ import annotations
 
+from dataclasses import dataclass, field
+from datetime import UTC, datetime
+from enum import Enum
 import hashlib
 import json
 import logging
-from dataclasses import dataclass, field
-from datetime import datetime
-from enum import Enum
 from pathlib import Path
 from typing import Any
 
@@ -90,7 +90,7 @@ class AuditEvent:
         data_str = json.dumps(data, sort_keys=True)
 
         # Calculate SHA256
-        return hashlib.sha256(data_str.encode()).hexdigest()
+        return hashlib.sha256(data_str.encode(), usedforsecurity=False).hexdigest()
 
     def to_dict(self) -> dict[str, Any]:
         """Convert event to dictionary.
@@ -211,14 +211,15 @@ class AuditTrail:
         """
         # Generate event ID
         event_id = hashlib.sha256(
-            f"{datetime.utcnow().isoformat()}{user_id}{action}".encode()
+            f"{datetime.now(UTC).isoformat()}{user_id}{action}".encode(),
+            usedforsecurity=False,
         ).hexdigest()[:16]
 
         # Create event
         event = AuditEvent(
             event_id=event_id,
             event_type=event_type,
-            timestamp=datetime.utcnow(),
+            timestamp=datetime.now(UTC),
             user_id=user_id,
             resource_type=resource_type,
             resource_id=resource_id,
@@ -358,7 +359,7 @@ class AuditTrail:
         """
         from datetime import timedelta
 
-        start_time = datetime.utcnow() - timedelta(hours=hours)
+        start_time = datetime.now(UTC) - timedelta(hours=hours)
 
         security_types = [
             AuditEventType.ACCESS_DENIED,

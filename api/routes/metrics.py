@@ -1,12 +1,16 @@
 from __future__ import annotations
 
-from fastapi import APIRouter
+from fastapi import APIRouter, Depends
 from prometheus_client import REGISTRY, generate_latest
 from starlette.responses import Response
 
+from core.agui.middleware import require_role, verify_jwt
 from core.observability import get_metrics_collector
 
-router = APIRouter(tags=["metrics"])
+router = APIRouter(
+    tags=["metrics"],
+    dependencies=[Depends(verify_jwt), Depends(require_role("admin"))],
+)
 
 # Initialize metrics collector on module import
 # This ensures all Prometheus metrics are registered

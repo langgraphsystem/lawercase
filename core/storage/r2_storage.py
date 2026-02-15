@@ -7,8 +7,8 @@ https://developers.cloudflare.com/r2/api/s3/tokens/
 
 from __future__ import annotations
 
+from datetime import UTC, datetime
 import io
-from datetime import datetime
 from typing import TYPE_CHECKING, Any, BinaryIO
 from uuid import uuid4
 
@@ -119,7 +119,7 @@ class R2Storage:
         # Prepare S3 metadata
         s3_metadata = {
             "original-filename": filename,
-            "uploaded-at": datetime.utcnow().isoformat(),
+            "uploaded-at": datetime.now(UTC).isoformat(),
             "file-id": file_id,
         }
 

@@ -4,7 +4,7 @@
 from __future__ import annotations
 
 import asyncio
-from datetime import datetime
+from datetime import UTC, datetime
 
 from sqlalchemy import text
 
@@ -19,7 +19,7 @@ async def main():
     print("=" * 80)
     print("USER CASES CHECK")
     print(f"User ID: {USER_ID}")
-    print(f"Timestamp: {datetime.utcnow().isoformat()}")
+    print(f"Timestamp: {datetime.now(UTC).isoformat()}")
     print("=" * 80)
     print()
 
@@ -56,13 +56,15 @@ async def main():
         db = get_db_manager()
         async with db.session() as session:
             # Check cases table
-            stmt = text("""
+            stmt = text(
+                """
                 SELECT id, title, status, case_type, client_id, created_at, updated_at
                 FROM mega_agent.cases
                 WHERE client_id = :user_id
                 ORDER BY created_at DESC
                 LIMIT 50
-            """)
+            """
+            )
             result = await session.execute(stmt, {"user_id": USER_ID})
             rows = result.fetchall()
 
@@ -91,13 +93,15 @@ async def main():
     print("-" * 80)
     try:
         async with db.session() as session:
-            stmt = text("""
+            stmt = text(
+                """
                 SELECT user_id, case_id, current_block, current_step,
                        completed_blocks, updated_at
                 FROM mega_agent.case_intake_progress
                 WHERE user_id = :user_id
                 ORDER BY updated_at DESC
-            """)
+            """
+            )
             result = await session.execute(stmt, {"user_id": USER_ID})
             rows = result.fetchall()
 

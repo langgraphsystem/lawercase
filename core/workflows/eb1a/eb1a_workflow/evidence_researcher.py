@@ -12,15 +12,14 @@ additional evidence for EB-1A petitions, including:
 
 from __future__ import annotations
 
+from datetime import UTC, datetime
 import re
-from datetime import datetime
 from typing import Any
 
 from pydantic import BaseModel, Field
 
 from ....memory.memory_manager import MemoryManager
-from ..eb1a_coordinator import (EB1ACriterion, EB1AEvidence,
-                                EB1APetitionRequest, EvidenceType)
+from ..eb1a_coordinator import EB1ACriterion, EB1AEvidence, EB1APetitionRequest, EvidenceType
 
 # === New Models for Research ===
 
@@ -442,7 +441,7 @@ class EvidenceResearcher:
                     f"- Top 10% threshold: ${benchmark['top_10_percent']:,}"
                 ),
                 source="Bureau of Labor Statistics / Industry Surveys",
-                date=datetime.utcnow(),
+                date=datetime.now(UTC),
                 metadata={
                     "field": field,
                     "median_salary": benchmark["median"],
@@ -472,7 +471,7 @@ class EvidenceResearcher:
                     f"- Estimated percentile: {percentile}th (top quartile)"
                 ),
                 source="Google Scholar / Web of Science",
-                date=datetime.utcnow(),
+                date=datetime.now(UTC),
                 metadata={
                     "field": field,
                     "total_citations": citations,
@@ -669,7 +668,7 @@ class EvidenceResearcher:
             elif research_type == "competition":
                 # Extract competition info
                 comp_name = evidence_item.title
-                year = evidence_item.date.year if evidence_item.date else datetime.utcnow().year
+                year = evidence_item.date.year if evidence_item.date else datetime.now(UTC).year
                 stats = await self.research_competition_stats(comp_name, year)
                 enriched_metadata["competition_stats"] = stats.model_dump()
                 enriched_metadata["competitiveness_score"] = stats.get_competitiveness_score()
@@ -775,7 +774,7 @@ class EvidenceResearcher:
                 "Rigorous review process",
             ],
             metadata={
-                "research_date": datetime.utcnow().isoformat(),
+                "research_date": datetime.now(UTC).isoformat(),
                 "search_query": search_results.get("query"),
             },
         )
@@ -827,7 +826,7 @@ class EvidenceResearcher:
             selection_criteria=["Peer review", "Technical merit", "Innovation and impact"],
             organizing_body=context if context else "Professional Organization",
             metadata={
-                "research_date": datetime.utcnow().isoformat(),
+                "research_date": datetime.now(UTC).isoformat(),
                 "search_query": search_results.get("query"),
             },
         )
@@ -865,7 +864,7 @@ class EvidenceResearcher:
             circulation=circulation,
             geographic_reach="International",
             metadata={
-                "research_date": datetime.utcnow().isoformat(),
+                "research_date": datetime.now(UTC).isoformat(),
                 "search_query": search_results.get("query"),
             },
         )

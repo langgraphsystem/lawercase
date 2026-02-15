@@ -10,7 +10,7 @@ This module coordinates the entire EB-1A petition workflow:
 
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import UTC, datetime
 from enum import Enum
 from typing import Any
 from uuid import uuid4
@@ -200,7 +200,7 @@ class EB1ACoordinator:
         Raises:
             ValueError: If request has fewer than 3 primary criteria
         """
-        start_time = datetime.utcnow()
+        start_time = datetime.now(UTC)
 
         # Validate request
         if len(request.primary_criteria) < 3:
@@ -232,7 +232,7 @@ class EB1ACoordinator:
         recommendations = self._generate_recommendations(sections, request)
 
         # Calculate generation time
-        generation_time = (datetime.utcnow() - start_time).total_seconds()
+        generation_time = (datetime.now(UTC) - start_time).total_seconds()
 
         return EB1APetitionResult(
             beneficiary_name=request.beneficiary_name,

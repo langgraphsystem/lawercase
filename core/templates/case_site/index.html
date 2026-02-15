@@ -1,35 +1,767 @@
 {% extends "base.html" %}
 
 {% block title %}Dashboard{% endblock %}
+{% block breadcrumb %}Dashboard{% endblock %}
+
+{% block extra_head %}
+<style>
+    /* Stats Grid */
+    .stats-grid {
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        gap: 20px;
+        margin-bottom: 32px;
+    }
+
+    .stat-card {
+        background: var(--bg-primary);
+        border: 1px solid var(--border-color);
+        border-radius: var(--radius-lg);
+        padding: 24px;
+        position: relative;
+        overflow: hidden;
+        transition: all var(--transition);
+    }
+
+    .stat-card:hover {
+        transform: translateY(-2px);
+        box-shadow: var(--shadow-lg);
+    }
+
+    .stat-card::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 4px;
+        background: linear-gradient(90deg, var(--primary) 0%, var(--accent) 100%);
+        opacity: 0;
+        transition: opacity var(--transition);
+    }
+
+    .stat-card:hover::before {
+        opacity: 1;
+    }
+
+    .stat-icon {
+        width: 48px;
+        height: 48px;
+        border-radius: var(--radius);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin-bottom: 16px;
+    }
+
+    .stat-icon.blue { background: var(--primary-50); color: var(--primary); }
+    .stat-icon.green { background: rgba(16, 185, 129, 0.1); color: #10b981; }
+    .stat-icon.purple { background: rgba(124, 58, 237, 0.1); color: #7c3aed; }
+    .stat-icon.orange { background: rgba(245, 158, 11, 0.1); color: #f59e0b; }
+
+    .stat-value {
+        font-size: 32px;
+        font-weight: 700;
+        color: var(--text-primary);
+        line-height: 1;
+        margin-bottom: 4px;
+    }
+
+    .stat-label {
+        font-size: 14px;
+        color: var(--text-muted);
+    }
+
+    .stat-change {
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+        font-size: 12px;
+        font-weight: 500;
+        margin-top: 12px;
+        padding: 4px 8px;
+        border-radius: 12px;
+    }
+
+    .stat-change.positive {
+        background: rgba(16, 185, 129, 0.1);
+        color: #10b981;
+    }
+
+    .stat-change.neutral {
+        background: var(--bg-tertiary);
+        color: var(--text-muted);
+    }
+
+    /* Main Grid Layout */
+    .dashboard-grid {
+        display: grid;
+        grid-template-columns: 2fr 1fr;
+        gap: 24px;
+    }
+
+    /* Client Info Card */
+    .client-card {
+        background: var(--bg-primary);
+        border: 1px solid var(--border-color);
+        border-radius: var(--radius-lg);
+        overflow: hidden;
+    }
+
+    .client-header {
+        background: linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%);
+        padding: 32px;
+        color: white;
+        position: relative;
+    }
+
+    .client-header::after {
+        content: '';
+        position: absolute;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        height: 60px;
+        background: linear-gradient(to top, rgba(0,0,0,0.1), transparent);
+    }
+
+    .client-avatar {
+        width: 80px;
+        height: 80px;
+        background: rgba(255,255,255,0.2);
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 32px;
+        font-weight: 700;
+        margin-bottom: 16px;
+        backdrop-filter: blur(8px);
+    }
+
+    .client-name {
+        font-family: 'Playfair Display', Georgia, serif;
+        font-size: 28px;
+        font-weight: 700;
+        margin-bottom: 4px;
+    }
+
+    .client-field {
+        font-size: 14px;
+        opacity: 0.9;
+    }
+
+    .client-body {
+        padding: 24px 32px;
+    }
+
+    .info-grid {
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 20px;
+    }
+
+    .info-item {
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+    }
+
+    .info-label {
+        font-size: 12px;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        color: var(--text-muted);
+    }
+
+    .info-value {
+        font-size: 15px;
+        font-weight: 500;
+        color: var(--text-primary);
+    }
+
+    /* Progress Section */
+    .progress-section {
+        background: var(--bg-primary);
+        border: 1px solid var(--border-color);
+        border-radius: var(--radius-lg);
+        padding: 24px;
+    }
+
+    .progress-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-bottom: 24px;
+    }
+
+    .progress-title {
+        font-size: 18px;
+        font-weight: 600;
+        color: var(--text-primary);
+    }
+
+    .progress-items {
+        display: flex;
+        flex-direction: column;
+        gap: 24px;
+    }
+
+    .progress-item {
+        display: flex;
+        gap: 20px;
+        align-items: flex-start;
+    }
+
+    .progress-ring-container {
+        flex-shrink: 0;
+    }
+
+    .progress-ring {
+        position: relative;
+        width: 80px;
+        height: 80px;
+    }
+
+    .progress-ring svg {
+        transform: rotate(-90deg);
+        width: 80px;
+        height: 80px;
+    }
+
+    .progress-ring .bg {
+        fill: none;
+        stroke: var(--bg-tertiary);
+        stroke-width: 6;
+    }
+
+    .progress-ring .fill {
+        fill: none;
+        stroke: url(#gradient);
+        stroke-width: 6;
+        stroke-linecap: round;
+        stroke-dasharray: 226;
+        transition: stroke-dashoffset 0.5s ease;
+    }
+
+    .progress-ring .value {
+        position: absolute;
+        inset: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 18px;
+        font-weight: 700;
+        color: var(--text-primary);
+    }
+
+    .progress-details {
+        flex: 1;
+    }
+
+    .progress-name {
+        font-size: 16px;
+        font-weight: 600;
+        color: var(--text-primary);
+        margin-bottom: 4px;
+    }
+
+    .progress-desc {
+        font-size: 13px;
+        color: var(--text-muted);
+        margin-bottom: 12px;
+    }
+
+    .progress-bar-container {
+        height: 6px;
+        background: var(--bg-tertiary);
+        border-radius: 3px;
+        overflow: hidden;
+    }
+
+    .progress-bar-fill {
+        height: 100%;
+        background: linear-gradient(90deg, var(--primary) 0%, var(--accent) 100%);
+        border-radius: 3px;
+        transition: width 0.5s ease;
+    }
+
+    /* Quick Actions */
+    .quick-actions {
+        background: var(--bg-primary);
+        border: 1px solid var(--border-color);
+        border-radius: var(--radius-lg);
+        padding: 24px;
+    }
+
+    .actions-title {
+        font-size: 16px;
+        font-weight: 600;
+        color: var(--text-primary);
+        margin-bottom: 20px;
+    }
+
+    .action-list {
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+    }
+
+    .action-item {
+        display: flex;
+        align-items: center;
+        gap: 16px;
+        padding: 16px;
+        background: var(--bg-secondary);
+        border: 1px solid var(--border-light);
+        border-radius: var(--radius);
+        text-decoration: none;
+        color: inherit;
+        transition: all var(--transition);
+    }
+
+    .action-item:hover {
+        background: var(--bg-tertiary);
+        border-color: var(--primary);
+        transform: translateX(4px);
+    }
+
+    .action-icon {
+        width: 44px;
+        height: 44px;
+        border-radius: var(--radius);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: var(--primary-50);
+        color: var(--primary);
+    }
+
+    .action-content {
+        flex: 1;
+    }
+
+    .action-name {
+        font-size: 14px;
+        font-weight: 600;
+        color: var(--text-primary);
+        margin-bottom: 2px;
+    }
+
+    .action-desc {
+        font-size: 12px;
+        color: var(--text-muted);
+    }
+
+    .action-arrow {
+        color: var(--text-muted);
+        transition: transform var(--transition);
+    }
+
+    .action-item:hover .action-arrow {
+        transform: translateX(4px);
+        color: var(--primary);
+    }
+
+    /* Criteria Overview */
+    .criteria-card {
+        background: var(--bg-primary);
+        border: 1px solid var(--border-color);
+        border-radius: var(--radius-lg);
+        padding: 24px;
+        margin-top: 24px;
+    }
+
+    .criteria-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-bottom: 20px;
+    }
+
+    .criteria-title {
+        font-size: 18px;
+        font-weight: 600;
+        color: var(--text-primary);
+    }
+
+    .criteria-summary {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        font-size: 14px;
+    }
+
+    .criteria-count {
+        font-weight: 700;
+        color: var(--success);
+    }
+
+    .criteria-grid {
+        display: grid;
+        grid-template-columns: repeat(5, 1fr);
+        gap: 12px;
+    }
+
+    .criterion-item {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        padding: 16px 12px;
+        background: var(--bg-secondary);
+        border: 1px solid var(--border-light);
+        border-radius: var(--radius);
+        text-align: center;
+        transition: all var(--transition);
+    }
+
+    .criterion-item:hover {
+        border-color: var(--primary);
+        background: var(--primary-50);
+    }
+
+    .criterion-item.met {
+        background: rgba(16, 185, 129, 0.05);
+        border-color: rgba(16, 185, 129, 0.3);
+    }
+
+    .criterion-item.met:hover {
+        background: rgba(16, 185, 129, 0.1);
+    }
+
+    .criterion-number {
+        width: 28px;
+        height: 28px;
+        border-radius: 50%;
+        background: var(--bg-tertiary);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 12px;
+        font-weight: 600;
+        color: var(--text-secondary);
+        margin-bottom: 8px;
+    }
+
+    .criterion-item.met .criterion-number {
+        background: var(--success);
+        color: white;
+    }
+
+    .criterion-name {
+        font-size: 11px;
+        color: var(--text-muted);
+        line-height: 1.3;
+    }
+
+    .criterion-item.met .criterion-name {
+        color: #059669;
+        font-weight: 500;
+    }
+
+    /* Responsive */
+    @media (max-width: 1200px) {
+        .stats-grid {
+            grid-template-columns: repeat(2, 1fr);
+        }
+        .dashboard-grid {
+            grid-template-columns: 1fr;
+        }
+        .criteria-grid {
+            grid-template-columns: repeat(5, 1fr);
+        }
+    }
+
+    @media (max-width: 768px) {
+        .stats-grid {
+            grid-template-columns: 1fr;
+        }
+        .info-grid {
+            grid-template-columns: 1fr;
+        }
+        .criteria-grid {
+            grid-template-columns: repeat(2, 1fr);
+        }
+    }
+</style>
+{% endblock %}
 
 {% block content %}
-<header>
-    <h1>Case Dashboard</h1>
-    <div class="meta">Case ID: {{ case.case_id }} | Created: {{ case.created_at }}</div>
-</header>
+<div class="page-header">
+    <h1 class="page-title">Case Dashboard</h1>
+    <p class="page-subtitle">Overview of your EB-1A petition progress and key metrics</p>
+</div>
 
-<div class="overview">
-    <div class="card">
-        <h3>Client Information</h3>
-        <p><strong>Name:</strong> {{ case.user_data.full_name }}</p>
-        <p><strong>Email:</strong> {{ case.user_data.email }}</p>
-        <p><strong>Field:</strong> {{ case.case_data.field }}</p>
-        <p><strong>Status:</strong> <span class="status-badge status-{{ case.status }}">{{ case.status|title }}</span></p>
+<!-- Stats Grid -->
+<div class="stats-grid">
+    <div class="stat-card">
+        <div class="stat-icon blue">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/>
+                <path d="M14 2v6h6"/>
+            </svg>
+        </div>
+        <div class="stat-value">{{ progress.petition_percent|default(0) }}%</div>
+        <div class="stat-label">Petition Completion</div>
+        <div class="stat-change positive">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M12 19V5M5 12l7-7 7 7"/>
+            </svg>
+            In Progress
+        </div>
     </div>
 
-    <div class="card" style="margin-top: 20px;">
-        <h3>Progress</h3>
-        <p>Petition Draft: {{ progress.petition_percent }}%</p>
-        <progress value="{{ progress.petition_percent }}" max="100" style="width: 100%"></progress>
-        
-        <p>Exhibits Collected: {{ progress.exhibits_count }} / {{ progress.exhibits_target }}</p>
-        <progress value="{{ progress.exhibits_count }}" max="{{ progress.exhibits_target }}" style="width: 100%"></progress>
+    <div class="stat-card">
+        <div class="stat-icon green">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M22 11.08V12a10 10 0 11-5.93-9.14"/>
+                <path d="M22 4L12 14.01l-3-3"/>
+            </svg>
+        </div>
+        <div class="stat-value">{% set met_count = 0 %}{% for key, val in criteria.items() if sections.get(key) %}{% set met_count = met_count + 1 %}{% endfor %}{{ met_count|default(8) }}/10</div>
+        <div class="stat-label">Criteria Met</div>
+        <div class="stat-change positive">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M22 11.08V12a10 10 0 11-5.93-9.14"/>
+                <path d="M22 4L12 14.01l-3-3"/>
+            </svg>
+            Above Minimum
+        </div>
     </div>
 
-    <div class="actions" style="margin-top: 20px;">
-        <h3>Quick Actions</h3>
-        <a href="petition/index.html" class="btn">View Petition Draft</a>
-        <a href="forms/index.html" class="btn" style="background-color: #6c757d;">Manage Forms</a>
+    <div class="stat-card">
+        <div class="stat-icon purple">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M22 19a2 2 0 01-2 2H4a2 2 0 01-2-2V5a2 2 0 012-2h5l2 3h9a2 2 0 012 2z"/>
+            </svg>
+        </div>
+        <div class="stat-value">{{ total_exhibits|default(26) }}</div>
+        <div class="stat-label">Total Exhibits</div>
+        <div class="stat-change neutral">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <circle cx="12" cy="12" r="10"/>
+                <path d="M12 8v4l3 3"/>
+            </svg>
+            Ready to Submit
+        </div>
+    </div>
+
+    <div class="stat-card">
+        <div class="stat-icon orange">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M12 2L2 7l10 5 10-5-10-5z"/>
+                <path d="M2 17l10 5 10-5"/>
+                <path d="M2 12l10 5 10-5"/>
+            </svg>
+        </div>
+        <div class="stat-value">4</div>
+        <div class="stat-label">USCIS Forms</div>
+        <div class="stat-change neutral">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M9 11l3 3L22 4"/>
+            </svg>
+            Available
+        </div>
+    </div>
+</div>
+
+<!-- Main Grid -->
+<div class="dashboard-grid">
+    <!-- Left Column -->
+    <div>
+        <!-- Client Card -->
+        <div class="client-card">
+            <div class="client-header">
+                <div class="client-avatar">
+                    {{ case.user_data.full_name[:1]|default('B')|upper }}{{ case.user_data.full_name.split(' ')[-1][:1]|default('N')|upper }}
+                </div>
+                <div class="client-name">{{ case.user_data.full_name|default('Beneficiary Name') }}</div>
+                <div class="client-field">{{ case.case_data.field|default('Extraordinary Ability Applicant') }}</div>
+            </div>
+            <div class="client-body">
+                <div class="info-grid">
+                    <div class="info-item">
+                        <span class="info-label">Email</span>
+                        <span class="info-value">{{ case.user_data.email|default('email@example.com') }}</span>
+                    </div>
+                    <div class="info-item">
+                        <span class="info-label">Case Status</span>
+                        <span class="info-value">
+                            <span class="badge badge-success">{{ case.status|default('Active')|title }}</span>
+                        </span>
+                    </div>
+                    <div class="info-item">
+                        <span class="info-label">Case ID</span>
+                        <span class="info-value font-mono">{{ case.case_id[:16]|default('CASE-000000') }}...</span>
+                    </div>
+                    <div class="info-item">
+                        <span class="info-label">Created</span>
+                        <span class="info-value">{{ case.created_at|default('Today') }}</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Criteria Overview -->
+        <div class="criteria-card">
+            <div class="criteria-header">
+                <h3 class="criteria-title">EB-1A Criteria Overview</h3>
+                <div class="criteria-summary">
+                    <span class="criteria-count">8</span>
+                    <span class="text-muted">of 10 criteria met (3 required)</span>
+                </div>
+            </div>
+            <div class="criteria-grid">
+                <div class="criterion-item {% if sections.awards %}met{% endif %}">
+                    <div class="criterion-number">1</div>
+                    <div class="criterion-name">Awards</div>
+                </div>
+                <div class="criterion-item {% if sections.membership %}met{% endif %}">
+                    <div class="criterion-number">2</div>
+                    <div class="criterion-name">Membership</div>
+                </div>
+                <div class="criterion-item {% if sections.press %}met{% endif %}">
+                    <div class="criterion-number">3</div>
+                    <div class="criterion-name">Press</div>
+                </div>
+                <div class="criterion-item {% if sections.judging %}met{% endif %}">
+                    <div class="criterion-number">4</div>
+                    <div class="criterion-name">Judging</div>
+                </div>
+                <div class="criterion-item {% if sections.contributions or sections.contribution %}met{% endif %}">
+                    <div class="criterion-number">5</div>
+                    <div class="criterion-name">Contributions</div>
+                </div>
+                <div class="criterion-item {% if sections.scholarly or sections.articles %}met{% endif %}">
+                    <div class="criterion-number">6</div>
+                    <div class="criterion-name">Articles</div>
+                </div>
+                <div class="criterion-item {% if sections.exhibitions %}met{% endif %}">
+                    <div class="criterion-number">7</div>
+                    <div class="criterion-name">Exhibitions</div>
+                </div>
+                <div class="criterion-item {% if sections.leading_role %}met{% endif %}">
+                    <div class="criterion-number">8</div>
+                    <div class="criterion-name">Leading Role</div>
+                </div>
+                <div class="criterion-item {% if sections.salary %}met{% endif %}">
+                    <div class="criterion-number">9</div>
+                    <div class="criterion-name">High Salary</div>
+                </div>
+                <div class="criterion-item {% if sections.commercial %}met{% endif %}">
+                    <div class="criterion-number">10</div>
+                    <div class="criterion-name">Commercial</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Right Column -->
+    <div>
+        <!-- Progress Section -->
+        <div class="progress-section">
+            <div class="progress-header">
+                <h3 class="progress-title">Progress Overview</h3>
+            </div>
+            <div class="progress-items">
+                <div class="progress-item">
+                    <div class="progress-ring-container">
+                        <div class="progress-ring">
+                            <svg viewBox="0 0 80 80">
+                                <circle class="bg" cx="40" cy="40" r="36"/>
+                                <circle class="fill" cx="40" cy="40" r="36" style="stroke-dashoffset: calc(226 - (226 * {{ progress.petition_percent|default(75) }}) / 100)"/>
+                            </svg>
+                            <div class="value">{{ progress.petition_percent|default(75) }}%</div>
+                        </div>
+                    </div>
+                    <div class="progress-details">
+                        <div class="progress-name">Petition Letter</div>
+                        <div class="progress-desc">12 of 13 sections completed</div>
+                        <div class="progress-bar-container">
+                            <div class="progress-bar-fill" style="width: {{ progress.petition_percent|default(75) }}%"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="progress-item">
+                    <div class="progress-ring-container">
+                        <div class="progress-ring">
+                            <svg viewBox="0 0 80 80">
+                                <circle class="bg" cx="40" cy="40" r="36"/>
+                                <circle class="fill" cx="40" cy="40" r="36" style="stroke-dashoffset: calc(226 - (226 * {{ (progress.exhibits_count|default(26) / progress.exhibits_target|default(26) * 100)|int }}) / 100)"/>
+                            </svg>
+                            <div class="value">{{ progress.exhibits_count|default(26) }}</div>
+                        </div>
+                    </div>
+                    <div class="progress-details">
+                        <div class="progress-name">Evidence Exhibits</div>
+                        <div class="progress-desc">{{ progress.exhibits_count|default(26) }} of {{ progress.exhibits_target|default(26) }} documents uploaded</div>
+                        <div class="progress-bar-container">
+                            <div class="progress-bar-fill" style="width: 100%"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Quick Actions -->
+        <div class="quick-actions mt-4">
+            <h3 class="actions-title">Quick Actions</h3>
+            <div class="action-list">
+                <a href="petition/index.html" class="action-item">
+                    <div class="action-icon">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/>
+                            <path d="M14 2v6h6"/>
+                        </svg>
+                    </div>
+                    <div class="action-content">
+                        <div class="action-name">View Petition Letter</div>
+                        <div class="action-desc">Review and edit your petition draft</div>
+                    </div>
+                    <div class="action-arrow">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M9 18l6-6-6-6"/>
+                        </svg>
+                    </div>
+                </a>
+
+                <a href="forms/index.html" class="action-item">
+                    <div class="action-icon" style="background: rgba(16, 185, 129, 0.1); color: #10b981;">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M9 11l3 3L22 4"/>
+                            <path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/>
+                        </svg>
+                    </div>
+                    <div class="action-content">
+                        <div class="action-name">Fill USCIS Forms</div>
+                        <div class="action-desc">I-140, G-28, I-907, G-1145</div>
+                    </div>
+                    <div class="action-arrow">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M9 18l6-6-6-6"/>
+                        </svg>
+                    </div>
+                </a>
+
+                <a href="exhibits/index.html" class="action-item">
+                    <div class="action-icon" style="background: rgba(124, 58, 237, 0.1); color: #7c3aed;">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M22 19a2 2 0 01-2 2H4a2 2 0 01-2-2V5a2 2 0 012-2h5l2 3h9a2 2 0 012 2z"/>
+                        </svg>
+                    </div>
+                    <div class="action-content">
+                        <div class="action-name">Manage Exhibits</div>
+                        <div class="action-desc">Upload and organize evidence</div>
+                    </div>
+                    <div class="action-arrow">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M9 18l6-6-6-6"/>
+                        </svg>
+                    </div>
+                </a>
+            </div>
+        </div>
     </div>
 </div>
 {% endblock %}

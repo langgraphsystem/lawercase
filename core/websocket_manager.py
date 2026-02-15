@@ -9,13 +9,54 @@ from __future__ import annotations
 
 from typing import Any
 
+from fastapi import WebSocket, status
 import structlog
-from fastapi import WebSocket
 
 logger = structlog.get_logger(__name__)
 
 # Active WebSocket connections: thread_id -> list of WebSocket connections
 active_connections: dict[str, list[WebSocket]] = {}
+
+
+def _extract_token_from_ws(websocket: WebSocket) -> str | None:
+    """Extract JWT token from WebSocket query params or first message.
+
+    Looks for ?token=<jwt> in the connection URL.
+    """
+    return websocket.query_params.get("token")
+
+
+async def _authenticate_websocket(websocket: WebSocket) -> dict | None:
+    """Verify JWT token from WebSocket connection.
+
+    Returns:
+        Token claims dict if valid, None if invalid or auth disabled.
+    """
+    import os
+
+    # Skip auth if disabled (development mode)
+    if os.getenv("DEV_BYPASS_AUTH", "false").lower() == "true":
+        return {"user_id": "dev_user", "roles": ["admin"]}
+
+    token = _extract_token_from_ws(websocket)
+    if not token:
+        return None
+
+    try:
+        from jose import jwt as jose_jwt
+
+        from core.security.config import SecurityConfig
+
+        config = SecurityConfig()
+        payload = jose_jwt.decode(
+            token,
+            config.jwt_secret_key,
+            algorithms=[config.jwt_algorithm],
+        )
+        return payload
+    except Exception:
+        logger.warning("websocket_auth_failed", reason="invalid_token")
+        return None
 
 
 class ConnectionManager:
@@ -24,13 +65,39 @@ class ConnectionManager:
     def __init__(self):
         self.active_connections: dict[str, list[WebSocket]] = {}
 
-    async def connect(self, websocket: WebSocket, thread_id: str) -> None:
+    async def connect(
+        self,
+        websocket: WebSocket,
+        thread_id: str,
+        *,
+        pre_authenticated_claims: dict | None = None,
+    ) -> None:
         """Accept and register a new WebSocket connection.
+
+        If *pre_authenticated_claims* is provided the caller has already
+        verified the JWT (e.g. via ``verify_jwt_from_header``), so the
+        connection manager skips its own query-param-based auth check.
+        Otherwise it falls back to extracting the token from ``?token=``
+        query parameters.
 
         Args:
             websocket: WebSocket connection
             thread_id: Workflow thread ID to subscribe to
+            pre_authenticated_claims: JWT claims already verified by caller
+
+        Raises:
+            WebSocketDisconnect: If authentication fails
         """
+        claims = pre_authenticated_claims or await _authenticate_websocket(websocket)
+        if claims is None:
+            await websocket.close(code=status.WS_1008_POLICY_VIOLATION)
+            logger.warning(
+                "websocket_rejected",
+                thread_id=thread_id,
+                reason="authentication_required",
+            )
+            return
+
         await websocket.accept()
 
         if thread_id not in self.active_connections:
@@ -41,6 +108,7 @@ class ConnectionManager:
         logger.info(
             "websocket_connected",
             thread_id=thread_id,
+            user_id=claims.get("user_id"),
             total_connections=len(self.active_connections[thread_id]),
         )
 

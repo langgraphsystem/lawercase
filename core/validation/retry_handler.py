@@ -7,10 +7,10 @@ for self-correcting agents.
 from __future__ import annotations
 
 import asyncio
-import time
 from collections.abc import Callable
 from dataclasses import dataclass
 from enum import Enum
+import time
 from typing import Any
 
 from .confidence_scorer import ConfidenceMetrics, ConfidenceScorer

@@ -10,11 +10,11 @@ This module provides:
 
 from __future__ import annotations
 
-import os
-import secrets
 from enum import Enum
 from functools import lru_cache
+import os
 from pathlib import Path
+import secrets
 from typing import Any
 
 from pydantic import Field, SecretStr, field_validator, model_validator
@@ -55,7 +55,7 @@ class DatabaseSettings(BaseSettings):
     postgres_host: str = Field(default="localhost")
     postgres_port: int = Field(default=5432, ge=1, le=65535)
     postgres_user: str = Field(default="megaagent")
-    postgres_password: SecretStr = Field(default=SecretStr("changeme"))
+    postgres_password: SecretStr = Field(description="PostgreSQL password (required)")
     postgres_db: str = Field(default="megaagent_pro")
     postgres_dsn: str | None = Field(default=None, alias="POSTGRES_DSN")
 

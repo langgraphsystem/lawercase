@@ -120,3 +120,5 @@ test_case_create.py
 test_db_config.py
 create_cases_table.py
 create_database_tables.py
+primer/inkin.pdf
+update_env.py

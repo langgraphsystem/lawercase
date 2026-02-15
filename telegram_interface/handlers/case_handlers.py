@@ -705,8 +705,7 @@ async def eb1_potential(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
 
     try:
         from core.di.container import get_container
-        from core.groupagents.eb1a_evidence_analyzer import \
-            analyze_intake_potential_batch
+        from core.groupagents.eb1a_evidence_analyzer import analyze_intake_potential_batch
 
         container = get_container()
         memory = container.get("memory_manager")
@@ -865,8 +864,7 @@ async def eb1_analyze(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
 
     try:
         from core.di.container import get_container
-        from core.groupagents.eb1a_evidence_analyzer import \
-            analyze_intake_for_eb1a
+        from core.groupagents.eb1a_evidence_analyzer import analyze_intake_for_eb1a
 
         container = get_container()
         memory = container.get("memory_manager")
@@ -954,9 +952,7 @@ def _format_eb1a_analysis(analysis: Any, case_id: str) -> str:
     # Time estimate
     if analysis.estimated_days_to_ready:
         lines.append("")
-        lines.append(
-            f"⏱️ <b>Estimated time to filing:</b> ~{analysis.estimated_days_to_ready} days"
-        )
+        lines.append(f"⏱️ <b>Estimated time to filing:</b> ~{analysis.estimated_days_to_ready} days")
 
     return "\n".join(lines)
 

@@ -10,10 +10,10 @@ from __future__ import annotations
 
 import os
 
-import structlog
 from dotenv import load_dotenv
 from langchain_core.messages import HumanMessage, SystemMessage
 from langchain_openai import ChatOpenAI
+import structlog
 from telegram import Update
 from telegram.ext import CommandHandler, ContextTypes
 

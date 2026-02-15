@@ -2,10 +2,10 @@
 
 from __future__ import annotations
 
-import logging
 from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
+import logging
 from typing import Any
 
 logger = logging.getLogger(__name__)
@@ -298,3 +298,280 @@ def get_context_manager(max_tokens: int = 8000) -> ContextManager:
     if _context_manager is None:
         _context_manager = ContextManager(max_context_tokens=max_tokens)
     return _context_manager
+
+
+# ============================================================================
+# Enhanced Context Engineering (v2.0)
+# ============================================================================
+
+from .context_compressor import CompressionStrategy, ContextCompressor
+from .context_pipelines import ContextPipeline
+from .priority_scorer import PriorityScorer
+
+
+class ContextBlockType(str, Enum):
+    """Extended block types for context engineering."""
+
+    SYSTEM = "system"
+    USER_QUERY = "user_query"
+    CASE_DATA = "case_data"
+    LEGAL_REF = "legal_ref"
+    EXAMPLES = "examples"
+    MEMORY = "memory"
+    SEARCH = "search"
+    HISTORY = "history"
+    CUSTOM = "custom"
+
+
+@dataclass
+class ContextConfig:
+    """Configuration for advanced context building."""
+
+    max_tokens: int = 100000
+    reserved_for_response: int = 4000
+    min_context_tokens: int = 1000
+
+    block_budgets: dict[str, float] = field(
+        default_factory=lambda: {
+            "system": 0.10,
+            "user_query": 0.05,
+            "case_data": 0.30,
+            "legal_ref": 0.20,
+            "examples": 0.15,
+            "memory": 0.10,
+            "search": 0.05,
+            "history": 0.05,
+        }
+    )
+
+    compress_when_over_budget: bool = True
+    compression_strategy: str = "extract"
+    scoring_strategy: str = "hybrid"
+    use_pipeline: bool = True
+
+    @property
+    def available_tokens(self) -> int:
+        return self.max_tokens - self.reserved_for_response
+
+
+@dataclass
+class BuiltContext:
+    """Result of advanced context building."""
+
+    content: str
+    total_tokens: int
+    blocks_included: int
+    blocks_excluded: int
+    compressed: bool = False
+    compression_ratio: float = 1.0
+    build_time_ms: float = 0.0
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "content": self.content,
+            "total_tokens": self.total_tokens,
+            "blocks_included": self.blocks_included,
+            "blocks_excluded": self.blocks_excluded,
+            "compressed": self.compressed,
+            "compression_ratio": self.compression_ratio,
+            "build_time_ms": self.build_time_ms,
+        }
+
+
+class AdvancedContextManager(ContextManager):
+    """Extended context manager with priority scoring, compression, and pipelines.
+
+    Usage:
+        manager = AdvancedContextManager(max_tokens=100000)
+
+        manager.add_case_data(case_info)
+        manager.add_legal_refs(legal_docs)
+        manager.add_examples(similar_cases)
+
+        result = await manager.build_advanced_context(
+            query="Is this case eligible for EB-1A?",
+            task_type="legal_analysis"
+        )
+
+        # Use result.content with LLM
+    """
+
+    def __init__(
+        self,
+        config: ContextConfig | None = None,
+        max_tokens: int = 100000,
+    ) -> None:
+        super().__init__(max_context_tokens=max_tokens)
+
+        self.config = config or ContextConfig(max_tokens=max_tokens)
+        self.advanced_blocks: list[tuple[str, ContextBlockType, float]] = []
+        self.scorer = PriorityScorer()
+        self.compressor = ContextCompressor()
+        self._pipelines = {
+            "default": ContextPipeline.default_pipeline(),
+            "legal": ContextPipeline.legal_pipeline(),
+            "research": ContextPipeline.research_pipeline(),
+        }
+
+    def add_case_data(self, content: str, priority: float = 0.9) -> AdvancedContextManager:
+        """Add case-specific data."""
+        self.advanced_blocks.append((content, ContextBlockType.CASE_DATA, priority))
+        return self
+
+    def add_legal_refs(self, content: str, priority: float = 0.8) -> AdvancedContextManager:
+        """Add legal references."""
+        self.advanced_blocks.append((content, ContextBlockType.LEGAL_REF, priority))
+        return self
+
+    def add_examples(self, examples: list[str], priority: float = 0.7) -> AdvancedContextManager:
+        """Add relevant examples."""
+        content = "\n\n---\n\n".join(examples)
+        self.advanced_blocks.append((content, ContextBlockType.EXAMPLES, priority))
+        return self
+
+    def add_search_results(
+        self, results: list[dict], priority: float = 0.6
+    ) -> AdvancedContextManager:
+        """Add search results."""
+        formatted = []
+        for r in results:
+            title = r.get("title", "")
+            snippet = r.get("snippet", r.get("content", ""))
+            formatted.append(f"**{title}**\n{snippet}")
+        content = "\n\n".join(formatted)
+        self.advanced_blocks.append((content, ContextBlockType.SEARCH, priority))
+        return self
+
+    def add_memory(self, content: str, priority: float = 0.7) -> AdvancedContextManager:
+        """Add retrieved memory."""
+        self.advanced_blocks.append((content, ContextBlockType.MEMORY, priority))
+        return self
+
+    def clear_advanced_blocks(self) -> AdvancedContextManager:
+        """Clear all advanced blocks."""
+        self.advanced_blocks.clear()
+        return self
+
+    async def build_advanced_context(
+        self,
+        query: str = "",
+        task_type: str = "general",
+        system_prompt: str = "",
+    ) -> BuiltContext:
+        """Build optimized context with scoring and compression.
+
+        Args:
+            query: User query/task
+            task_type: Type of task (legal_analysis, research, etc.)
+            system_prompt: System instructions
+
+        Returns:
+            BuiltContext with optimized content
+        """
+        import time
+
+        start_time = time.perf_counter()
+
+        available = self.config.available_tokens
+        sections = []
+        used_tokens = 0
+        included = 0
+        excluded = 0
+
+        # Add system prompt first (required)
+        if system_prompt:
+            sections.append(system_prompt)
+            used_tokens += len(system_prompt) // 4
+
+        # Add query
+        if query:
+            sections.append(f"## User Query\n{query}")
+            used_tokens += len(query) // 4 + 10
+
+        # Score and sort blocks
+        scored_blocks = []
+        for content, block_type, priority in self.advanced_blocks:
+            score = self.scorer.score_item(
+                content=content,
+                query=query,
+                task_type=task_type,
+                source_type=block_type.value,
+            )
+            final_score = 0.6 * score.score + 0.4 * priority
+            tokens = len(content) // 4
+            scored_blocks.append((content, block_type, final_score, tokens))
+
+        # Sort by score
+        scored_blocks.sort(key=lambda x: x[2], reverse=True)
+
+        # Select blocks within budget
+        for content, block_type, _score, tokens in scored_blocks:
+            if used_tokens + tokens <= available:
+                header = self._get_header(block_type)
+                if header:
+                    sections.append(f"## {header}\n{content}")
+                else:
+                    sections.append(content)
+                used_tokens += tokens
+                included += 1
+            else:
+                excluded += 1
+
+        # Combine sections
+        full_content = "\n\n".join(sections)
+
+        # Compress if needed
+        compressed = False
+        compression_ratio = 1.0
+
+        if len(full_content) // 4 > available and self.config.compress_when_over_budget:
+            result = await self.compressor.compress(
+                text=full_content,
+                target_tokens=available,
+                strategy=CompressionStrategy.EXTRACT,
+                query=query,
+            )
+            full_content = result.compressed_text
+            compressed = True
+            compression_ratio = result.compression_ratio
+
+        elapsed_ms = (time.perf_counter() - start_time) * 1000
+
+        return BuiltContext(
+            content=full_content,
+            total_tokens=len(full_content) // 4,
+            blocks_included=included,
+            blocks_excluded=excluded,
+            compressed=compressed,
+            compression_ratio=compression_ratio,
+            build_time_ms=elapsed_ms,
+        )
+
+    def _get_header(self, block_type: ContextBlockType) -> str:
+        """Get section header for block type."""
+        headers = {
+            ContextBlockType.CASE_DATA: "Case Information",
+            ContextBlockType.LEGAL_REF: "Legal References",
+            ContextBlockType.EXAMPLES: "Relevant Examples",
+            ContextBlockType.MEMORY: "Previous Context",
+            ContextBlockType.SEARCH: "Search Results",
+            ContextBlockType.HISTORY: "Conversation History",
+        }
+        return headers.get(block_type, "")
+
+
+def create_advanced_context_manager(
+    max_tokens: int = 100000,
+    task_type: str = "general",
+) -> AdvancedContextManager:
+    """Create pre-configured advanced context manager."""
+    config = ContextConfig(max_tokens=max_tokens)
+
+    if task_type == "legal_analysis":
+        config.block_budgets["legal_ref"] = 0.30
+        config.block_budgets["case_data"] = 0.35
+    elif task_type == "research":
+        config.block_budgets["search"] = 0.25
+        config.block_budgets["examples"] = 0.20
+
+    return AdvancedContextManager(config=config)

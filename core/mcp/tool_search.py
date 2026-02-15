@@ -16,11 +16,11 @@ Based on 2025-2026 research on efficient MCP tool management.
 
 from __future__ import annotations
 
-import hashlib
-import re
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from enum import Enum
+import hashlib
+import re
 from typing import Any
 from uuid import uuid4
 
@@ -700,7 +700,20 @@ class MCPToolSearch:
         return values.get(priority, 0)
 
     async def _generate_embedding(self, text: str) -> list[float]:
-        """Generate embedding for text."""
+        """Generate embedding for text using the configured embedding client.
+
+        Supports multiple embedding providers:
+        - OpenAI embeddings (text-embedding-3-small/large)
+        - Sentence Transformers (local)
+        - Anthropic voyage embeddings
+        - Custom embedding clients with embed/aembed methods
+
+        Args:
+            text: Text to embed
+
+        Returns:
+            Embedding vector as list of floats
+        """
         if not self._embedding_client:
             return []
 
@@ -709,11 +722,59 @@ class MCPToolSearch:
         if cache_key in self._embedding_cache:
             return self._embedding_cache[cache_key]
 
-        # Generate (placeholder - actual implementation depends on embedding client)
-        # In production, this would call the embedding API
-        embedding = [0.0] * 768  # Placeholder
+        embedding: list[float] = []
 
-        if self._cache_embeddings:
+        try:
+            # Try different embedding client interfaces
+            if hasattr(self._embedding_client, "aembed"):
+                # Async embedding method (preferred)
+                result = await self._embedding_client.aembed(text)
+                if isinstance(result, list):
+                    embedding = result
+                elif hasattr(result, "embedding"):
+                    embedding = result.embedding
+                elif hasattr(result, "data") and result.data:
+                    embedding = result.data[0].embedding
+
+            elif hasattr(self._embedding_client, "embed"):
+                # Sync embedding method
+                result = self._embedding_client.embed(text)
+                if isinstance(result, list):
+                    embedding = result
+                elif hasattr(result, "embedding"):
+                    embedding = result.embedding
+
+            elif hasattr(self._embedding_client, "encode"):
+                # Sentence Transformers style
+                result = self._embedding_client.encode(text)
+                if hasattr(result, "tolist"):
+                    embedding = result.tolist()
+                elif isinstance(result, list):
+                    embedding = result
+
+            elif hasattr(self._embedding_client, "create"):
+                # OpenAI style client
+                response = await self._embedding_client.create(
+                    input=text,
+                    model="text-embedding-3-small",
+                )
+                if hasattr(response, "data") and response.data:
+                    embedding = response.data[0].embedding
+
+            elif callable(self._embedding_client):
+                # Direct callable
+                result = self._embedding_client(text)
+                if hasattr(result, "__await__"):
+                    result = await result
+                if isinstance(result, list):
+                    embedding = result
+
+        except Exception:
+            # Return empty on any error - caller should handle gracefully
+            pass
+
+        # Cache if successful
+        if embedding and self._cache_embeddings:
             self._embedding_cache[cache_key] = embedding
 
         return embedding

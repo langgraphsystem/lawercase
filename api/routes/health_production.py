@@ -10,14 +10,15 @@ This module provides:
 from __future__ import annotations
 
 import asyncio
-import time
-from datetime import datetime
+from datetime import UTC, datetime
 from enum import Enum
+import time
 from typing import Any
 
 from fastapi import APIRouter, Depends, status
 from pydantic import BaseModel
 
+from core.agui.middleware import require_role, verify_jwt
 from core.config.production_settings import AppSettings, get_settings
 from core.logging_utils import get_logger
 
@@ -193,6 +194,10 @@ async def check_redis_health() -> DependencyHealth:
 async def check_llm_health(settings: AppSettings) -> DependencyHealth:
     """Check LLM provider availability.
 
+    Verifies API keys are configured and attempts a lightweight API call
+    to confirm connectivity. Uses a short timeout to avoid blocking the
+    health endpoint.
+
     Args:
         settings: Application settings
 
@@ -200,32 +205,102 @@ async def check_llm_health(settings: AppSettings) -> DependencyHealth:
         LLM health status
     """
     start_time = time.perf_counter()
+    _health_timeout = 5.0
 
     try:
-        # TODO: Implement actual LLM check
-        # For now, check if API keys are configured
-        await asyncio.sleep(0.002)
+        # 1. Check if any API key is configured
+        openai_key = getattr(settings.llm, "openai_api_key", None)
+        anthropic_key = getattr(settings.llm, "anthropic_api_key", None)
+        gemini_key = getattr(settings.llm, "gemini_api_key", None)
 
-        has_api_key = (
-            settings.llm.openai_api_key is not None
-            or settings.llm.anthropic_api_key is not None
-            or settings.llm.gemini_api_key is not None
-        )
+        has_api_key = any(k is not None for k in (openai_key, anthropic_key, gemini_key))
 
-        response_time = (time.perf_counter() - start_time) * 1000
-
-        if has_api_key:
+        if not has_api_key:
+            response_time = (time.perf_counter() - start_time) * 1000
             return DependencyHealth(
                 name="llm_provider",
-                status=HealthStatus.HEALTHY,
+                status=HealthStatus.DEGRADED,
                 response_time_ms=response_time,
-                message="LLM provider configured",
+                message="No LLM API keys configured",
             )
+
+        # 2. Attempt a lightweight connectivity check with the first available provider
+        provider_name = "unknown"
+        try:
+            if openai_key:
+                provider_name = "openai"
+                import httpx
+
+                key = (
+                    openai_key.get_secret_value()
+                    if hasattr(openai_key, "get_secret_value")
+                    else str(openai_key)
+                )
+                async with httpx.AsyncClient(timeout=_health_timeout) as client:
+                    resp = await client.get(
+                        "https://api.openai.com/v1/models",
+                        headers={"Authorization": f"Bearer {key}"},
+                    )
+                    resp.raise_for_status()
+
+            elif anthropic_key:
+                provider_name = "anthropic"
+                import httpx
+
+                key = (
+                    anthropic_key.get_secret_value()
+                    if hasattr(anthropic_key, "get_secret_value")
+                    else str(anthropic_key)
+                )
+                async with httpx.AsyncClient(timeout=_health_timeout) as client:
+                    resp = await client.get(
+                        "https://api.anthropic.com/v1/models",
+                        headers={
+                            "x-api-key": key,
+                            "anthropic-version": "2023-06-01",
+                        },
+                    )
+                    resp.raise_for_status()
+
+            elif gemini_key:
+                provider_name = "google"
+                import httpx
+
+                key = (
+                    gemini_key.get_secret_value()
+                    if hasattr(gemini_key, "get_secret_value")
+                    else str(gemini_key)
+                )
+                async with httpx.AsyncClient(timeout=_health_timeout) as client:
+                    resp = await client.get(
+                        f"https://generativelanguage.googleapis.com/v1beta/models?key={key}",
+                    )
+                    resp.raise_for_status()
+
+        except TimeoutError:
+            response_time = (time.perf_counter() - start_time) * 1000
+            return DependencyHealth(
+                name="llm_provider",
+                status=HealthStatus.DEGRADED,
+                response_time_ms=response_time,
+                message=f"LLM provider ({provider_name}) reachable but slow (timeout {_health_timeout}s)",
+            )
+        except Exception as ping_err:
+            response_time = (time.perf_counter() - start_time) * 1000
+            logger.warning("llm_health_ping_failed", provider=provider_name, error=str(ping_err))
+            return DependencyHealth(
+                name="llm_provider",
+                status=HealthStatus.DEGRADED,
+                response_time_ms=response_time,
+                message=f"LLM key configured but connectivity check failed ({provider_name}): {ping_err!s}",
+            )
+
+        response_time = (time.perf_counter() - start_time) * 1000
         return DependencyHealth(
             name="llm_provider",
-            status=HealthStatus.DEGRADED,
+            status=HealthStatus.HEALTHY,
             response_time_ms=response_time,
-            message="No LLM API keys configured",
+            message=f"LLM provider ({provider_name}) reachable",
         )
 
     except Exception as e:
@@ -334,7 +409,7 @@ async def health_check(
 
     return HealthResponse(
         status=overall_status,
-        timestamp=datetime.utcnow(),
+        timestamp=datetime.now(UTC),
         uptime_seconds=uptime,
         version=settings.app_version,
         environment=settings.env.value,
@@ -356,7 +431,7 @@ async def liveness_probe() -> dict[str, Any]:
     """
     return {
         "status": "alive",
-        "timestamp": datetime.utcnow().isoformat(),
+        "timestamp": datetime.now(UTC).isoformat(),
     }
 
 
@@ -395,7 +470,7 @@ async def readiness_probe(
 
     return {
         "status": "ready",
-        "timestamp": datetime.utcnow().isoformat(),
+        "timestamp": datetime.now(UTC).isoformat(),
     }
 
 
@@ -421,13 +496,16 @@ async def startup_probe() -> dict[str, Any]:
 
     return {
         "status": "started",
-        "timestamp": datetime.utcnow().isoformat(),
+        "timestamp": datetime.now(UTC).isoformat(),
         "uptime_seconds": uptime,
     }
 
 
 @router.get("/metrics", tags=["Health"])
-async def metrics() -> dict[str, Any]:
+async def metrics(
+    _: dict[str, Any] = Depends(verify_jwt),
+    __: dict[str, Any] = Depends(require_role("admin")),
+) -> dict[str, Any]:
     """Basic metrics endpoint.
 
     Returns:
@@ -437,7 +515,7 @@ async def metrics() -> dict[str, Any]:
 
     return {
         "uptime_seconds": uptime,
-        "timestamp": datetime.utcnow().isoformat(),
+        "timestamp": datetime.now(UTC).isoformat(),
         # TODO: Add more metrics
         # - Request count
         # - Error rate

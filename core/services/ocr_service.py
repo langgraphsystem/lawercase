@@ -137,7 +137,7 @@ Output the extracted text directly, preserving original formatting as much as po
                     ),
                     timeout=OCR_TIMEOUT_SECONDS,
                 )
-            except asyncio.TimeoutError:
+            except TimeoutError:
                 logger.warning(
                     "ocr.timeout",
                     file_name=file_name,

@@ -11,7 +11,7 @@ This module provides advanced workflow patterns including:
 from __future__ import annotations
 
 import asyncio
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 from enum import Enum
 from typing import TYPE_CHECKING, Any, Literal
 from uuid import uuid4
@@ -221,7 +221,7 @@ class HumanReviewManager:
         """Request human review and pause workflow."""
         timeout = timeout_minutes or self.default_timeout_minutes
         state.awaiting_human_feedback = True
-        state.feedback_timeout = datetime.utcnow() + timedelta(minutes=timeout)
+        state.feedback_timeout = datetime.now(UTC) + timedelta(minutes=timeout)
         state.workflow_step = "awaiting_human_feedback"
 
         # Store review request
@@ -268,7 +268,7 @@ class HumanReviewManager:
     async def check_timeout(self, state: EnhancedWorkflowState) -> EnhancedWorkflowState:
         """Check if human feedback timeout expired."""
         if state.awaiting_human_feedback and state.feedback_timeout:
-            if datetime.utcnow() > state.feedback_timeout:
+            if datetime.now(UTC) > state.feedback_timeout:
                 state.awaiting_human_feedback = False
                 state.workflow_step = "human_feedback_timeout"
                 state.error = "Human feedback timeout expired"
@@ -372,7 +372,7 @@ def build_enhanced_memory_workflow(
     async def node_initialize(state: EnhancedWorkflowState) -> EnhancedWorkflowState:
         """Initialize workflow."""
         state.current_stage = WorkflowStage.INIT
-        state.stage_history.append((WorkflowStage.INIT, datetime.utcnow()))
+        state.stage_history.append((WorkflowStage.INIT, datetime.now(UTC)))
         state.workflow_step = "initialized"
         return state
 
@@ -382,14 +382,14 @@ def build_enhanced_memory_workflow(
     async def node_log_audit_safe(state: EnhancedWorkflowState) -> EnhancedWorkflowState:
         """Log audit event with error recovery."""
         try:
-            start_time = datetime.utcnow()
+            start_time = datetime.now(UTC)
 
             if state.event:
                 await memory.alog_audit(state.event)
                 state.workflow_step = "audit_logged"
 
             # Track execution time
-            elapsed = (datetime.utcnow() - start_time).total_seconds()
+            elapsed = (datetime.now(UTC) - start_time).total_seconds()
             state.node_execution_times["log_audit"] = elapsed
 
         except Exception as e:
@@ -403,7 +403,7 @@ def build_enhanced_memory_workflow(
     async def node_reflect_safe(state: EnhancedWorkflowState) -> EnhancedWorkflowState:
         """Reflect facts with retry logic."""
         try:
-            start_time = datetime.utcnow()
+            start_time = datetime.now(UTC)
 
             if state.event:
                 reflections = await memory.awrite(state.event)
@@ -411,7 +411,7 @@ def build_enhanced_memory_workflow(
                 state.workflow_step = "reflected"
                 state.current_stage = WorkflowStage.PROCESSING
 
-            elapsed = (datetime.utcnow() - start_time).total_seconds()
+            elapsed = (datetime.now(UTC) - start_time).total_seconds()
             state.node_execution_times["reflect"] = elapsed
 
         except Exception as e:
@@ -425,7 +425,7 @@ def build_enhanced_memory_workflow(
     async def node_retrieve_optimized(state: EnhancedWorkflowState) -> EnhancedWorkflowState:
         """Retrieve with routing optimization."""
         try:
-            start_time = datetime.utcnow()
+            start_time = datetime.now(UTC)
 
             if state.query:
                 # Determine retrieval strategy
@@ -444,7 +444,7 @@ def build_enhanced_memory_workflow(
                 state.retrieved = records
                 state.workflow_step = f"retrieved_{strategy}"
 
-            elapsed = (datetime.utcnow() - start_time).total_seconds()
+            elapsed = (datetime.now(UTC) - start_time).total_seconds()
             state.node_execution_times["retrieve"] = elapsed
 
         except Exception as e:
@@ -473,11 +473,11 @@ def build_enhanced_memory_workflow(
     async def node_finalize(state: EnhancedWorkflowState) -> EnhancedWorkflowState:
         """Finalize workflow execution."""
         state.current_stage = WorkflowStage.COMPLETION
-        state.stage_history.append((WorkflowStage.COMPLETION, datetime.utcnow()))
+        state.stage_history.append((WorkflowStage.COMPLETION, datetime.now(UTC)))
         state.workflow_step = "completed"
 
         # Calculate total execution time
-        elapsed = (datetime.utcnow() - state.workflow_start_time).total_seconds()
+        elapsed = (datetime.now(UTC) - state.workflow_start_time).total_seconds()
         state.total_execution_time = elapsed
 
         # Create checkpoint
@@ -556,7 +556,7 @@ async def execute_parallel_agents(
     state: EnhancedWorkflowState, agent_tasks: dict[str, Any]
 ) -> EnhancedWorkflowState:
     """Execute multiple agents in parallel (fan-out/fan-in pattern)."""
-    start_time = datetime.utcnow()
+    start_time = datetime.now(UTC)
 
     # Execute all tasks concurrently
     results = await asyncio.gather(*agent_tasks.values(), return_exceptions=True)
@@ -569,7 +569,7 @@ async def execute_parallel_agents(
             state.parallel_results[agent_name] = result
 
     # Track execution time
-    elapsed = (datetime.utcnow() - start_time).total_seconds()
+    elapsed = (datetime.now(UTC) - start_time).total_seconds()
     state.node_execution_times["parallel_execution"] = elapsed
 
     return state

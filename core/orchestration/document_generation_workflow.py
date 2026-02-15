@@ -11,7 +11,6 @@ Integrates:
 
 from __future__ import annotations
 
-import asyncio
 from datetime import datetime
 from typing import Any
 
@@ -284,12 +283,14 @@ async def node_validate_section(state: WorkflowState) -> WorkflowState:
     """Validate generated section using ValidatorAgent."""
     thread_id = state.thread_id
     workflow_store = get_document_workflow_store()
+    memory_manager = get_memory_manager()
 
     current_section = state.document_data.get("current_section") if state.document_data else None
     if not current_section:
         return state
 
     section_id = current_section["id"]
+    section_name = current_section["name"]
 
     logger.info("validating_section", thread_id=thread_id, section_id=section_id)
 
@@ -299,14 +300,119 @@ async def node_validate_section(state: WorkflowState) -> WorkflowState:
         {
             "timestamp": datetime.now().isoformat(),
             "level": "info",
-            "message": f"Validating section: {current_section['name']}",
+            "message": f"Validating section: {section_name}",
             "agent": "ValidatorAgent",
         },
     )
 
-    # TODO: Integrate real ValidatorAgent
-    # For now, simulated validation (always passes)
-    await asyncio.sleep(0.5)
+    # Get generated content from agent_results
+    section_result = state.agent_results.get(section_id, {}) if state.agent_results else {}
+    content_html = section_result.get("content_html", "")
+
+    if not content_html:
+        logger.warning("no_content_to_validate", section_id=section_id)
+        state.workflow_step = f"section_{section_id}_validated"
+        return state
+
+    try:
+        # Import ValidatorAgent
+        from core.groupagents.validator_agent import (
+            ValidationCategory,
+            ValidationLevel,
+            ValidationRequest,
+            ValidatorAgent,
+        )
+
+        # Initialize ValidatorAgent
+        validator = ValidatorAgent(memory_manager=memory_manager)
+
+        # Create validation request
+        validation_request = ValidationRequest(
+            document_id=f"{thread_id}_{section_id}",
+            content=content_html,
+            document_type="eb1a_petition_section",
+            validation_level=ValidationLevel.STANDARD,
+            categories=[
+                ValidationCategory.FORMAL,
+                ValidationCategory.LEGAL,
+                ValidationCategory.STRUCTURE,
+                ValidationCategory.CONTENT,
+            ],
+            user_id=state.user_id or "system",
+        )
+
+        # Run validation
+        validation_report = await validator.avalidate_document(validation_request)
+
+        # Process validation results
+        issues_count = len(validation_report.issues)
+        errors = [i for i in validation_report.issues if i.severity == "error"]
+        warnings = [i for i in validation_report.issues if i.severity == "warning"]
+
+        # Update section with validation results
+        validation_status = "validated" if not errors else "needs_revision"
+        await workflow_store.update_section(
+            thread_id,
+            section_id,
+            {
+                "validation_status": validation_status,
+                "validation_issues": issues_count,
+                "validation_errors": len(errors),
+                "validation_warnings": len(warnings),
+                "validation_score": (
+                    validation_report.overall_result.score
+                    if validation_report.overall_result
+                    else None
+                ),
+            },
+        )
+
+        # Add validation result log
+        log_level = "success" if not errors else "warning"
+        await workflow_store.add_log(
+            thread_id,
+            {
+                "timestamp": datetime.now().isoformat(),
+                "level": log_level,
+                "message": f"Validation complete for {section_name}: {issues_count} issues ({len(errors)} errors, {len(warnings)} warnings)",
+                "agent": "ValidatorAgent",
+            },
+        )
+
+        # Broadcast validation result
+        from core.websocket_manager import broadcast_workflow_update
+
+        await broadcast_workflow_update(
+            thread_id,
+            {
+                "section_id": section_id,
+                "validation_status": validation_status,
+                "validation_issues": issues_count,
+            },
+        )
+
+        # Store validation result in state
+        if not state.agent_results:
+            state.agent_results = {}
+        state.agent_results[f"{section_id}_validation"] = {
+            "status": validation_status,
+            "issues_count": issues_count,
+            "errors": len(errors),
+            "warnings": len(warnings),
+            "report_id": validation_report.report_id,
+        }
+
+    except Exception as e:
+        logger.error("validation_error", section_id=section_id, error=str(e))
+        await workflow_store.add_log(
+            thread_id,
+            {
+                "timestamp": datetime.now().isoformat(),
+                "level": "error",
+                "message": f"Validation failed for {section_name}: {e!s}",
+                "agent": "ValidatorAgent",
+            },
+        )
 
     state.workflow_step = f"section_{section_id}_validated"
     return state

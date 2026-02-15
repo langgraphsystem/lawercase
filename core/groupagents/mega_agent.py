@@ -11,41 +11,57 @@ MegaAgent - Центральный оркестратор системы mega_ag
 
 from __future__ import annotations
 
-import time
-import uuid
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import UTC, datetime
 from enum import Enum
+import time
 from typing import Any
+import uuid
 
-import structlog
 from pydantic import BaseModel, Field, ValidationError
+import structlog
 
 from ..agents import ComplexityAnalyzer, ComplexityResult, TaskTier
 from ..exceptions import AgentError, MegaAgentError
-from ..execution.secure_sandbox import (SandboxPolicy, SandboxRunner,
-                                        SandboxViolation, ensure_tool_allowed)
+from ..execution.secure_sandbox import (
+    SandboxPolicy,
+    SandboxRunner,
+    SandboxViolation,
+    ensure_tool_allowed,
+)
 from ..llm_interface.intelligent_router import IntelligentRouter
 from ..memory.memory_manager import MemoryManager
 from ..memory.models import AuditEvent
 from ..orchestration.enhanced_workflows import EnhancedWorkflowState
-from ..orchestration.pipeline_manager import build_enhanced_pipeline
-from ..orchestration.pipeline_manager import run as run_pipeline
+from ..orchestration.pipeline_manager import build_enhanced_pipeline, run as run_pipeline
 from ..orchestration.workflow_graph import WorkflowState, build_case_workflow
 from ..prompts import CoTTemplate, enhance_prompt_with_cot, select_cot_template
 from ..retry import with_retry
-from ..security import (PromptInjectionResult, get_audit_trail,
-                        get_prompt_detector, get_rbac_manager, security_config)
+from ..security import (
+    PromptInjectionResult,
+    get_audit_trail,
+    get_prompt_detector,
+    get_rbac_manager,
+    security_config,
+)
 from ..storage.connection import get_db_manager
 from ..tools.tool_registry import get_tool_registry
 from .case_agent import CaseAgent
 from .eb1_agent import EB1Agent
-from .models import (AskPayload, BatchTrainPayload, FeedbackPayload,
-                     ImprovePayload, LegalPayload, MemoryLookupPayload,
-                     OptimizePayload, RecommendPayload, SearchPayload,
-                     ToolCommandPayload, TrainPayload)
-from .supervisor_agent import (PlannedSubTask, SupervisorAgent,
-                               SupervisorTaskRequest)
+from .models import (
+    AskPayload,
+    BatchTrainPayload,
+    FeedbackPayload,
+    ImprovePayload,
+    LegalPayload,
+    MemoryLookupPayload,
+    OptimizePayload,
+    RecommendPayload,
+    SearchPayload,
+    ToolCommandPayload,
+    TrainPayload,
+)
+from .supervisor_agent import PlannedSubTask, SupervisorAgent, SupervisorTaskRequest
 from .validator_agent import ValidationRequest, ValidatorAgent
 from .writer_agent import DocumentRequest, DocumentType, WriterAgent
 
@@ -89,6 +105,7 @@ class CommandType(str, Enum):
     ADMIN = "admin"
     TOOL = "tool"
     EB1 = "eb1"  # EB-1A Immigration petitions
+    DEEP_RESEARCH = "deep_research"  # Deep Research Agent for iterative research
 
 
 class MegaAgentCommand(BaseModel):
@@ -236,6 +253,7 @@ class MegaAgent:
         CommandType.WORKFLOW: "workflow_system",
         CommandType.TOOL: "tool_runner",
         CommandType.EB1: "eb1_agent",
+        CommandType.DEEP_RESEARCH: "deep_research_agent",
     }
 
     # Опциональная валидация payload через Pydantic-модели
@@ -339,7 +357,7 @@ class MegaAgent:
             SecurityError: При нарушении безопасности
             CommandError: При ошибках команды
         """
-        start_time = datetime.utcnow()
+        start_time = datetime.now(UTC)
 
         decision: RoutingDecision | None = None
 
@@ -365,7 +383,7 @@ class MegaAgent:
             result = await self._dispatch_to_agent(command, user_role, decision)
 
             # Расчет времени выполнения
-            execution_time = (datetime.utcnow() - start_time).total_seconds()
+            execution_time = (datetime.now(UTC) - start_time).total_seconds()
 
             # Создание успешного ответа
             response = MegaAgentResponse(
@@ -391,7 +409,7 @@ class MegaAgent:
             return response
 
         except Exception as e:
-            execution_time = (datetime.utcnow() - start_time).total_seconds()
+            execution_time = (datetime.now(UTC) - start_time).total_seconds()
 
             # Создание ответа с ошибкой
             response = MegaAgentResponse(
@@ -642,6 +660,10 @@ class MegaAgent:
         if agent_name == "eb1_agent":
             return await self._handle_eb1_command(command)
 
+        # Deep Research Agent
+        if agent_name == "deep_research_agent":
+            return await self._handle_deep_research_command(command)
+
         # Placeholder для других агентов
         return {
             "message": f"Agent {agent_name} not yet implemented",
@@ -683,7 +705,7 @@ class MegaAgent:
             context["tags"].extend(
                 payload_tags if isinstance(payload_tags, list) else [payload_tags]
             )
-        context.setdefault("time", context.get("time") or datetime.utcnow().strftime("%H:%M"))
+        context.setdefault("time", context.get("time") or datetime.now(UTC).strftime("%H:%M"))
         context.setdefault("mfa_verified", context.get("mfa_verified", False))
         allowed = self.rbac_manager.check_permission(
             user_role.value,
@@ -795,7 +817,7 @@ class MegaAgent:
 
         event = AuditEvent(
             event_id=event_payload.get("event_id", str(uuid.uuid4())),
-            timestamp=event_payload.get("timestamp", datetime.utcnow()),
+            timestamp=event_payload.get("timestamp", datetime.now(UTC)),
             user_id=command.user_id,
             thread_id=thread_id,
             source=event_payload.get("source", "mega_agent"),
@@ -1263,8 +1285,7 @@ class MegaAgent:
             elif anthropic_key:
                 # Anthropic
                 try:
-                    from core.llm_interface.anthropic_client import \
-                        AnthropicClient
+                    from core.llm_interface.anthropic_client import AnthropicClient
 
                     client = AnthropicClient(
                         model=AnthropicClient.CLAUDE_HAIKU_3_5,
@@ -1793,12 +1814,12 @@ class MegaAgent:
                 "status": "healthy",
                 "memory_system": memory_ok,
                 "case_agent": case_agent_ok,
-                "timestamp": datetime.utcnow().isoformat(),
+                "timestamp": datetime.now(UTC).isoformat(),
             }
 
         except Exception as e:
             return {
                 "status": "unhealthy",
                 "error": str(e),
-                "timestamp": datetime.utcnow().isoformat(),
+                "timestamp": datetime.now(UTC).isoformat(),
             }

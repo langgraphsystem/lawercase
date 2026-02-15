@@ -186,12 +186,21 @@ class ConfigurationError(MegaAgentError):
 class AuthenticationError(MegaAgentError):
     """Authentication failed."""
 
-    def __init__(self, message: str = "Authentication failed", **kwargs: Any):
+    def __init__(
+        self,
+        message: str = "Authentication failed",
+        code: ErrorCode = ErrorCode.AUTH_FAILED,
+        user_message: str = "Authentication failed. Please check your credentials.",
+        **kwargs: Any,
+    ):
+        # Remove code and user_message from kwargs if passed to avoid conflicts
+        kwargs.pop("code", None)
+        kwargs.pop("user_message", None)
         super().__init__(
             message=message,
-            code=ErrorCode.AUTH_FAILED,
+            code=code,
             category=ErrorCategory.AUTHENTICATION,
-            user_message="Authentication failed. Please check your credentials.",
+            user_message=user_message,
             recoverable=True,
             **kwargs,
         )

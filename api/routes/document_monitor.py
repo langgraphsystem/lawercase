@@ -14,17 +14,23 @@ from typing import Any, Literal
 from uuid import uuid4
 
 import aiofiles
-import structlog
-from fastapi import (APIRouter, File, Form, HTTPException, UploadFile,
-                     WebSocket, WebSocketDisconnect)
+from fastapi import (
+    APIRouter,
+    Depends,
+    File,
+    Form,
+    HTTPException,
+    UploadFile,
+    WebSocket,
+    WebSocketDisconnect,
+)
 from fastapi.responses import FileResponse
 from pydantic import BaseModel, Field
+import structlog
 
+from core.agui.middleware import get_token_user_id, verify_jwt, verify_jwt_from_header
 from core.storage.document_workflow_store import get_document_workflow_store
 from core.websocket_manager import manager as ws_manager
-
-# Optional: Import for authentication
-# from api.deps import get_current_user
 
 logger = structlog.get_logger(__name__)
 router = APIRouter(prefix="/api", tags=["document-monitor"])
@@ -34,6 +40,26 @@ workflow_store = get_document_workflow_store()
 
 # Store background tasks to prevent garbage collection
 background_tasks: set[asyncio.Task] = set()
+
+
+def _require_token_user_id(claims: dict[str, Any]) -> str:
+    token_user_id = get_token_user_id(claims)
+    if not token_user_id:
+        raise HTTPException(status_code=403, detail="Forbidden")
+    return token_user_id
+
+
+async def _assert_thread_ownership(thread_id: str, claims: dict[str, Any]) -> dict[str, Any]:
+    state = await workflow_store.load_state(thread_id)
+    if not state:
+        raise HTTPException(status_code=404, detail=f"Workflow thread {thread_id} not found")
+
+    token_user_id = _require_token_user_id(claims)
+    owner_user_id = str(state.get("user_id") or "")
+    if not owner_user_id or owner_user_id != token_user_id:
+        raise HTTPException(status_code=403, detail="Forbidden")
+
+    return state
 
 
 # ═══════════════════════════════════════════════════════════════════════════
@@ -134,7 +160,7 @@ class UploadExhibitResponse(BaseModel):
 @router.post("/generate-petition", response_model=StartGenerationResponse)
 async def start_document_generation(
     request: StartGenerationRequest,
-    # user = Depends(get_current_user),  # Uncomment for auth
+    user_claims: dict[str, Any] = Depends(verify_jwt),
 ) -> StartGenerationResponse:
     """
     Start a new document generation workflow.
@@ -153,6 +179,10 @@ async def start_document_generation(
     """
 
     try:
+        token_user_id = _require_token_user_id(user_claims)
+        if request.user_id != token_user_id:
+            raise HTTPException(status_code=403, detail="Forbidden")
+
         thread_id = str(uuid4())
 
         # Get section definitions for document type
@@ -201,6 +231,8 @@ async def start_document_generation(
             message=f"Document generation started for case {request.case_id}",
         )
 
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error("start_generation_error", error=str(e), request=request.model_dump())
         raise HTTPException(
@@ -212,7 +244,7 @@ async def start_document_generation(
 @router.get("/document/preview/{thread_id}", response_model=DocumentPreviewResponse)
 async def get_document_preview(
     thread_id: str,
-    # user = Depends(get_current_user),  # Uncomment for auth
+    user_claims: dict[str, Any] = Depends(verify_jwt),
 ) -> DocumentPreviewResponse:
     """
     Get current status of document generation.
@@ -231,11 +263,8 @@ async def get_document_preview(
     """
 
     try:
-        # Load workflow state
-        state = await workflow_store.load_state(thread_id)
-
-        if not state:
-            raise HTTPException(status_code=404, detail=f"Workflow thread {thread_id} not found")
+        # Load and validate workflow ownership
+        state = await _assert_thread_ownership(thread_id, user_claims)
 
         # Convert sections to schema
         sections = []
@@ -311,7 +340,7 @@ async def upload_exhibit(
     thread_id: str,
     exhibit_id: str = Form(...),
     file: UploadFile = File(...),
-    # user = Depends(get_current_user),  # Uncomment for auth
+    user_claims: dict[str, Any] = Depends(verify_jwt),
 ) -> UploadExhibitResponse:
     """
     Upload an exhibit file for the document.
@@ -329,10 +358,8 @@ async def upload_exhibit(
     """
 
     try:
-        # Validate thread exists
-        state = await workflow_store.load_state(thread_id)
-        if not state:
-            raise HTTPException(status_code=404, detail=f"Workflow thread {thread_id} not found")
+        # Validate thread ownership
+        _ = await _assert_thread_ownership(thread_id, user_claims)
 
         # Create upload directory
         upload_dir = Path("uploads") / thread_id
@@ -401,7 +428,7 @@ async def upload_exhibit(
 @router.get("/download-petition-pdf/{thread_id}")
 async def download_petition_pdf(
     thread_id: str,
-    # user = Depends(get_current_user),  # Uncomment for auth
+    user_claims: dict[str, Any] = Depends(verify_jwt),
 ):
     """
     Download the generated petition as PDF.
@@ -417,10 +444,8 @@ async def download_petition_pdf(
     """
 
     try:
-        # Load workflow state
-        state = await workflow_store.load_state(thread_id)
-        if not state:
-            raise HTTPException(status_code=404, detail=f"Workflow thread {thread_id} not found")
+        # Load and validate workflow ownership
+        state = await _assert_thread_ownership(thread_id, user_claims)
 
         # Check if generation is completed
         if state.get("status") != "completed":
@@ -462,7 +487,7 @@ async def download_petition_pdf(
 @router.post("/pause/{thread_id}")
 async def pause_generation(
     thread_id: str,
-    # user = Depends(get_current_user),  # Uncomment for auth
+    user_claims: dict[str, Any] = Depends(verify_jwt),
 ):
     """
     Pause document generation.
@@ -478,10 +503,8 @@ async def pause_generation(
     """
 
     try:
-        # Load state
-        state = await workflow_store.load_state(thread_id)
-        if not state:
-            raise HTTPException(status_code=404, detail=f"Workflow thread {thread_id} not found")
+        # Load and validate workflow ownership
+        state = await _assert_thread_ownership(thread_id, user_claims)
 
         current_status = state.get("status")
 
@@ -526,7 +549,7 @@ async def pause_generation(
 @router.post("/resume/{thread_id}")
 async def resume_generation(
     thread_id: str,
-    # user = Depends(get_current_user),  # Uncomment for auth
+    user_claims: dict[str, Any] = Depends(verify_jwt),
 ):
     """
     Resume paused document generation.
@@ -542,10 +565,8 @@ async def resume_generation(
     """
 
     try:
-        # Load state
-        state = await workflow_store.load_state(thread_id)
-        if not state:
-            raise HTTPException(status_code=404, detail=f"Workflow thread {thread_id} not found")
+        # Load and validate workflow ownership
+        state = await _assert_thread_ownership(thread_id, user_claims)
 
         current_status = state.get("status")
 
@@ -619,9 +640,14 @@ def calculate_metadata(state: dict[str, Any]) -> MetadataSchema:
     completed = sum(1 for s in sections if s.get("status") == "completed")
     total = len(sections)
 
-    # Calculate elapsed time
-    started_at = datetime.fromisoformat(state.get("started_at", datetime.now().isoformat()))
-    elapsed = int((datetime.now() - started_at).total_seconds())
+    # Calculate elapsed time.
+    # Handle both naive and timezone-aware timestamps to avoid mixed datetime subtraction errors.
+    try:
+        started_at = datetime.fromisoformat(state.get("started_at", datetime.now().isoformat()))
+    except (TypeError, ValueError):
+        started_at = datetime.now()
+    now = datetime.now(started_at.tzinfo) if started_at.tzinfo else datetime.now()
+    elapsed = max(0, int((now - started_at).total_seconds()))
 
     # Estimate remaining time (simple linear projection)
     if completed > 0:
@@ -718,8 +744,7 @@ async def _run_document_generation_workflow(
     try:
         # Try to use real LangGraph workflow
         try:
-            from core.orchestration.document_generation_workflow import \
-                run_document_generation
+            from core.orchestration.document_generation_workflow import run_document_generation
 
             logger.info(
                 "using_real_workflow",
@@ -970,7 +995,22 @@ async def websocket_endpoint(websocket: WebSocket, thread_id: str):
         websocket: WebSocket connection
         thread_id: Workflow thread ID to subscribe to
     """
-    await ws_manager.connect(websocket, thread_id)
+    try:
+        claims = verify_jwt_from_header(websocket.headers.get("authorization"))
+        await _assert_thread_ownership(thread_id, claims)
+    except HTTPException as exc:
+        if exc.status_code == 401:
+            close_code = 4401
+        elif exc.status_code == 403:
+            close_code = 4403
+        elif exc.status_code == 404:
+            close_code = 4404
+        else:
+            close_code = 4400
+        await websocket.close(code=close_code)
+        return
+
+    await ws_manager.connect(websocket, thread_id, pre_authenticated_claims=claims)
 
     try:
         logger.info("websocket_connected", thread_id=thread_id)

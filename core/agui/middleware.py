@@ -6,12 +6,17 @@ Provides HTTP endpoints for AG-UI protocol integration.
 
 from __future__ import annotations
 
+import os
 from typing import Any
 
-import structlog
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Security
 from fastapi.responses import StreamingResponse
+from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
+from jose import ExpiredSignatureError, JWTError, jwt
 from pydantic import BaseModel, Field
+import structlog
+
+from core.security.config import SecurityConfig
 
 from .adapter import get_agui_adapter
 from .events import AGUIEvent
@@ -20,6 +25,85 @@ logger = structlog.get_logger(__name__)
 
 # FastAPI Router for AG-UI endpoints
 router = APIRouter(prefix="/agui", tags=["AG-UI Protocol"])
+auth_scheme = HTTPBearer(auto_error=False)
+
+
+def _jwt_secret() -> str:
+    secret = (os.getenv("JWT_SECRET") or os.getenv("JWT_SECRET_KEY") or "").strip()
+    if not secret:
+        secret = (SecurityConfig().jwt_secret_key or "").strip()
+    if not secret:
+        raise HTTPException(status_code=500, detail="JWT secret is not configured")
+    return secret
+
+
+def _jwt_algorithm() -> str:
+    return (os.getenv("JWT_ALGORITHM") or "HS256").strip() or "HS256"
+
+
+def _decode_token(token: str) -> dict[str, Any]:
+    try:
+        payload = jwt.decode(token, _jwt_secret(), algorithms=[_jwt_algorithm()])
+    except ExpiredSignatureError as exc:
+        raise HTTPException(status_code=401, detail="Token expired") from exc
+    except JWTError as exc:
+        raise HTTPException(status_code=401, detail="Invalid token") from exc
+
+    if not isinstance(payload, dict):
+        raise HTTPException(status_code=401, detail="Invalid token payload")
+    return payload
+
+
+def verify_jwt(
+    credentials: HTTPAuthorizationCredentials | None = Security(auth_scheme),
+) -> dict[str, Any]:
+    """Validate JWT from Authorization Bearer header."""
+    if credentials is None or credentials.scheme.lower() != "bearer" or not credentials.credentials:
+        raise HTTPException(status_code=401, detail="Missing or invalid authorization header")
+    return _decode_token(credentials.credentials)
+
+
+def verify_jwt_from_header(authorization_header: str | None) -> dict[str, Any]:
+    """Validate JWT from a raw Authorization header value."""
+    if not authorization_header:
+        raise HTTPException(status_code=401, detail="Missing authorization header")
+
+    scheme, _, token = authorization_header.partition(" ")
+    if scheme.lower() != "bearer" or not token:
+        raise HTTPException(status_code=401, detail="Missing or invalid authorization header")
+    return _decode_token(token)
+
+
+def get_token_user_id(claims: dict[str, Any]) -> str | None:
+    user_id = claims.get("user_id") or claims.get("sub")
+    return str(user_id) if user_id else None
+
+
+def get_token_role(claims: dict[str, Any]) -> str:
+    role = claims.get("role")
+    if isinstance(role, str) and role.strip():
+        return role.strip().lower()
+
+    roles = claims.get("roles")
+    if isinstance(roles, list) and roles:
+        first_role = roles[0]
+        if isinstance(first_role, str) and first_role.strip():
+            return first_role.strip().lower()
+
+    return ""
+
+
+def require_role(role: str):
+    """Dependency factory that enforces a specific role from JWT payload."""
+    expected_role = role.strip().lower()
+
+    def _enforce(claims: dict[str, Any] = Depends(verify_jwt)) -> dict[str, Any]:
+        token_role = get_token_role(claims)
+        if token_role != expected_role:
+            raise HTTPException(status_code=403, detail="Forbidden")
+        return claims
+
+    return _enforce
 
 
 class AGUIRunRequest(BaseModel):
@@ -65,13 +149,19 @@ class AGUIMiddleware:
 
 
 @router.post("/run", response_class=StreamingResponse)
-async def run_workflow(request: AGUIRunRequest) -> StreamingResponse:
+async def run_workflow(
+    request: AGUIRunRequest, user_claims: dict[str, Any] = Depends(verify_jwt)
+) -> StreamingResponse:
     """
     Execute workflow with AG-UI event streaming.
 
     Returns Server-Sent Events stream of AG-UI events.
     """
     adapter = get_agui_adapter()
+    token_user_id = get_token_user_id(user_claims)
+    if request.user_id and token_user_id and request.user_id != token_user_id:
+        raise HTTPException(status_code=403, detail="Forbidden")
+    effective_user_id = request.user_id or token_user_id
 
     async def event_generator():
         """Generate SSE events from workflow execution."""
@@ -80,7 +170,7 @@ async def run_workflow(request: AGUIRunRequest) -> StreamingResponse:
                 case_id=request.case_id,
                 operation=request.operation,
                 data=request.data,
-                user_id=request.user_id,
+                user_id=effective_user_id,
             ):
                 yield event.to_sse()
         except Exception as e:
@@ -100,13 +190,16 @@ async def run_workflow(request: AGUIRunRequest) -> StreamingResponse:
 
 
 @router.post("/agent", response_class=StreamingResponse)
-async def invoke_agent(request: AGUIAgentRequest) -> StreamingResponse:
+async def invoke_agent(
+    request: AGUIAgentRequest, user_claims: dict[str, Any] = Depends(verify_jwt)
+) -> StreamingResponse:
     """
     Invoke single agent with AG-UI event streaming.
 
     Returns Server-Sent Events stream of agent response.
     """
     adapter = get_agui_adapter()
+    _ = user_claims
 
     async def event_generator():
         """Generate SSE events from agent response."""
@@ -134,13 +227,16 @@ async def invoke_agent(request: AGUIAgentRequest) -> StreamingResponse:
 
 
 @router.post("/validation/submit")
-async def submit_validation(request: AGUIValidationRequest) -> dict[str, Any]:
+async def submit_validation(
+    request: AGUIValidationRequest, user_claims: dict[str, Any] = Depends(verify_jwt)
+) -> dict[str, Any]:
     """
     Submit human validation result.
 
     Called by frontend when user approves/rejects a validation request.
     """
     adapter = get_agui_adapter()
+    _ = user_claims
 
     success = adapter.submit_validation_result(
         validation_id=request.validation_id,
@@ -178,6 +274,13 @@ try:
 
         Supports both streaming events and receiving user input.
         """
+        try:
+            _ = verify_jwt_from_header(websocket.headers.get("authorization"))
+        except HTTPException as exc:
+            close_code = 4401 if exc.status_code == 401 else 4403
+            await websocket.close(code=close_code)
+            return
+
         await websocket.accept()
         adapter = get_agui_adapter()
 

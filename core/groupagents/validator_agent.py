@@ -12,10 +12,10 @@ ValidatorAgent - Валидация и проверка качества док�
 
 from __future__ import annotations
 
-import uuid
-from datetime import datetime
+from datetime import UTC, datetime
 from enum import Enum
 from typing import Any
+import uuid
 
 from pydantic import BaseModel, Field
 
@@ -296,7 +296,7 @@ class ValidatorAgent:
             ValidatorError: При ошибках валидации
         """
         try:
-            start_time = datetime.utcnow()
+            start_time = datetime.now(UTC)
 
             # Получение активных правил для запроса
             rules = self._get_applicable_rules(request)
@@ -322,7 +322,7 @@ class ValidatorAgent:
             overall_result = self._calculate_overall_result(issues, magcc_assessment)
 
             # Создание отчета
-            execution_time = (datetime.utcnow() - start_time).total_seconds()
+            execution_time = (datetime.now(UTC) - start_time).total_seconds()
 
             report = ValidationReport(
                 request_id=request.request_id,

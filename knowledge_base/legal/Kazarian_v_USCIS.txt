@@ -1,0 +1,32 @@
+CASE NAME: Kazarian v. USCIS
+CITATION: 596 F.3d 1115 (9th Cir. 2010)
+DATE: March 4, 2010
+
+SUMMARY:
+Kazarian v. USCIS is the seminal Ninth Circuit decision that established the current two-step framework for adjudicating EB-1A (Alien of Extraordinary Ability) petitions. The court held that USCIS may not unilaterally impose novel evidentiary requirements beyond those set forth in the regulations.
+
+THE TWO-STEP FRAMEWORK:
+
+STEP 1: EVIDENTIARY CRITERIA (Counting the Evidence)
+- The adjudicator must determine whether the petitioner has submitted evidence that meets at least three of the ten regulatory criteria found at 8 C.F.R. § 204.5(h)(3).
+- Alternatively, the petitioner may submit a one-time achievement (a major, internationally recognized award).
+- CRITICAL HOLDING: At this step, USCIS cannot impose "extra-regulatory" requirements. For example:
+    - If the regulation requires "authorship of scholarly articles," USCIS cannot require those articles to be "widely cited" at Step 1.
+    - If the regulation requires "participation as a judge of the work of others," USCIS cannot require that the judging be for "major" competitions at Step 1.
+- If the petitioner meets fewer than three criteria (and lacks a major award), the petition is denied.
+- If the petitioner meets at least three criteria, the adjudication proceeds to Step 2.
+
+STEP 2: FINAL MERITS DETERMINATION (Totality of the Evidence)
+- The adjudicator must consider all of the evidence in its totality to determine whether the petitioner has:
+    1. A level of expertise indicating that the individual is one of that small percentage who have risen to the very top of the field of endeavor.
+    2. Sustained national or international acclaim.
+- It is at this step that the *quality* and *significance* of the evidence are evaluated.
+- For example, while low citation counts cannot disqualify an article at Step 1, they can be used at Step 2 to argue that the petitioner is not at the "very top of the field."
+
+COMMON USCIS ERRORS (DEFENSE STRATEGIES):
+1. Circular Reasoning (Merging Steps): USCIS often improperly imports Step 2 analysis into Step 1. (e.g., "You judged a competition, but it wasn't prestigious enough, so it doesn't count for Step 1.") This is a direct violation of Kazarian.
+2. Novel Evidentiary Requirements: Requiring evidence not listed in the regulations (e.g., requiring a specific salary amount when the regulation only says "high salary").
+3. Failure to Consider Totality: In Step 2, USCIS must look at the whole picture. They cannot simply dismiss each piece of evidence individually; they must weigh the cumulative effect.
+
+RELEVANCE TO EB-1A PETITIONS:
+Every EB-1A petition letter should explicitly structure its argument around this two-step framework to prevent the adjudicator from making legal errors. The "Preponderance of the Evidence" standard applies to both steps.

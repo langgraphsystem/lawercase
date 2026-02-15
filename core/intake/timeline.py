@@ -7,8 +7,8 @@ to enable chronological reconstruction of user's life/career history.
 
 from __future__ import annotations
 
-import re
 from dataclasses import dataclass
+import re
 from typing import Any
 
 

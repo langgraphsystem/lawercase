@@ -24,11 +24,11 @@ Options:
 from __future__ import annotations
 
 import asyncio
+from datetime import UTC, datetime
 import sys
-from datetime import datetime
 
-import structlog
 from sqlalchemy import text
+import structlog
 
 from core.groupagents.case_agent import CaseAgent
 from core.groupagents.models import CaseType
@@ -48,7 +48,8 @@ async def find_orphaned_intake_records():
 
     async with db.session() as session:
         # SQL query to find orphaned records
-        query = text("""
+        query = text(
+            """
             SELECT DISTINCT cip.user_id, cip.case_id
             FROM mega_agent.case_intake_progress cip
             WHERE NOT EXISTS (
@@ -57,7 +58,8 @@ async def find_orphaned_intake_records():
                 WHERE c.case_id::text = cip.case_id
             )
             ORDER BY cip.updated_at DESC
-            """)
+            """
+        )
 
         result = await session.execute(query)
         orphans = result.fetchall()
@@ -93,7 +95,7 @@ async def recover_orphaned_case(
             case_data={
                 "case_id": case_id,  # Preserve original case_id
                 "title": "Intake Session (Recovered)",
-                "description": f"Case automatically recovered on {datetime.utcnow().isoformat()}",
+                "description": f"Case automatically recovered on {datetime.now(UTC).isoformat()}",
                 "client_id": user_id,
                 "case_type": CaseType.IMMIGRATION.value,
                 "status": "draft",

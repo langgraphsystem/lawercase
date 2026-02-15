@@ -1,0 +1,285 @@
+{
+  "collection": "uscis_eb1a",
+  "description": "Complete USCIS EB-1A Extraordinary Ability Visa Documentation",
+  "last_updated": "2026-01-22",
+  "source": "https://www.uscis.gov",
+  "categories": {
+    "forms": {
+      "description": "Official USCIS Forms for EB-1A Application",
+      "documents": [
+        {
+          "id": "form-i140",
+          "name": "Form I-140",
+          "file": "forms/i-140.pdf",
+          "description": "Immigrant Petition for Alien Workers - Main petition form for EB-1A",
+          "required": true,
+          "url": "https://www.uscis.gov/i-140"
+        },
+        {
+          "id": "form-i140-instr",
+          "name": "Form I-140 Instructions",
+          "file": "forms/i-140-instr.pdf",
+          "description": "Official instructions for completing Form I-140",
+          "required": true,
+          "url": "https://www.uscis.gov/sites/default/files/document/forms/i-140instr.pdf"
+        },
+        {
+          "id": "form-i907",
+          "name": "Form I-907",
+          "file": "forms/i-907.pdf",
+          "description": "Request for Premium Processing Service",
+          "required": false,
+          "url": "https://www.uscis.gov/i-907"
+        },
+        {
+          "id": "form-i907-instr",
+          "name": "Form I-907 Instructions",
+          "file": "forms/i-907-instr.pdf",
+          "description": "Official instructions for Form I-907",
+          "required": false,
+          "url": "https://www.uscis.gov/sites/default/files/document/forms/i-907instr.pdf"
+        },
+        {
+          "id": "form-g1055",
+          "name": "Form G-1055 Fee Schedule",
+          "file": "forms/g-1055-fee-schedule.pdf",
+          "description": "USCIS Fee Schedule - Current filing fees",
+          "required": true,
+          "url": "https://www.uscis.gov/g-1055"
+        },
+        {
+          "id": "form-g1450",
+          "name": "Form G-1450",
+          "file": "forms/g-1450-credit-card.pdf",
+          "description": "Authorization for Credit Card Transactions",
+          "required": false,
+          "url": "https://www.uscis.gov/g-1450"
+        },
+        {
+          "id": "form-g1650",
+          "name": "Form G-1650",
+          "file": "forms/g-1650-ach.pdf",
+          "description": "Authorization for ACH Transactions",
+          "required": false,
+          "url": "https://www.uscis.gov/g-1650"
+        },
+        {
+          "id": "form-g1145",
+          "name": "Form G-1145",
+          "file": "forms/g-1145-e-notification.pdf",
+          "description": "E-Notification of Application/Petition Acceptance",
+          "required": false,
+          "url": "https://www.uscis.gov/g-1145"
+        },
+        {
+          "id": "form-g28",
+          "name": "Form G-28",
+          "file": "forms/g-28-attorney.pdf",
+          "description": "Notice of Entry of Appearance as Attorney or Accredited Representative",
+          "required": false,
+          "url": "https://www.uscis.gov/g-28"
+        },
+        {
+          "id": "form-i485",
+          "name": "Form I-485",
+          "file": "forms/i-485.pdf",
+          "description": "Application to Register Permanent Residence or Adjust Status",
+          "required": false,
+          "url": "https://www.uscis.gov/i-485"
+        },
+        {
+          "id": "form-i485-instr",
+          "name": "Form I-485 Instructions",
+          "file": "forms/i-485-instr.pdf",
+          "description": "Official instructions for Form I-485",
+          "required": false,
+          "url": "https://www.uscis.gov/sites/default/files/document/forms/i-485instr.pdf"
+        },
+        {
+          "id": "form-i131",
+          "name": "Form I-131",
+          "file": "forms/i-131.pdf",
+          "description": "Application for Travel Document (Advance Parole)",
+          "required": false,
+          "url": "https://www.uscis.gov/i-131"
+        },
+        {
+          "id": "form-i765",
+          "name": "Form I-765",
+          "file": "forms/i-765.pdf",
+          "description": "Application for Employment Authorization Document (EAD)",
+          "required": false,
+          "url": "https://www.uscis.gov/i-765"
+        }
+      ]
+    },
+    "policy": {
+      "description": "USCIS Policy Manual and Case Law",
+      "documents": [
+        {
+          "id": "policy-vol6-partE",
+          "name": "Policy Manual Vol.6 Part E",
+          "file": "policy/policy-manual-vol6-partE-employment-based.pdf",
+          "description": "Employment-Based Immigration Overview",
+          "url": "https://www.uscis.gov/policy-manual/volume-6-part-e"
+        },
+        {
+          "id": "policy-vol6-partF-ch1",
+          "name": "Policy Manual Vol.6 Part F Chapter 1",
+          "file": "policy/policy-manual-vol6-partF-ch1-purpose-background.pdf",
+          "description": "EB-1 Purpose and Background",
+          "url": "https://www.uscis.gov/policy-manual/volume-6-part-f-chapter-1"
+        },
+        {
+          "id": "policy-vol6-partF-ch2",
+          "name": "Policy Manual Vol.6 Part F Chapter 2",
+          "file": "policy/policy-manual-vol6-partF-ch2-extraordinary-ability.pdf",
+          "description": "EB-1A Extraordinary Ability - Complete criteria and evaluation",
+          "url": "https://www.uscis.gov/policy-manual/volume-6-part-f-chapter-2"
+        },
+        {
+          "id": "caselaw-kazarian",
+          "name": "Kazarian v. USCIS (9th Cir. 2010)",
+          "file": "policy/kazarian-v-uscis-9th-cir-2010.pdf",
+          "description": "Landmark case establishing two-step analysis for EB-1A",
+          "url": "https://cdn.ca9.uscourts.gov/datastore/opinions/2010/03/04/07-56774.pdf"
+        }
+      ]
+    },
+    "guides": {
+      "description": "Filing Guides and Resources",
+      "documents": [
+        {
+          "id": "guide-eb1-main",
+          "name": "EB-1 Main Page",
+          "file": "guides/eb1-main-page.pdf",
+          "description": "USCIS EB-1 Overview Page",
+          "url": "https://www.uscis.gov/working-in-the-united-states/permanent-workers/employment-based-immigration-first-preference-eb-1"
+        },
+        {
+          "id": "guide-evidence-checklist",
+          "name": "I-140 Evidence Checklist",
+          "file": "guides/i-140-evidence-checklist.pdf",
+          "description": "Required initial evidence for Form I-140",
+          "url": "https://www.uscis.gov/forms/filing-guidance/checklist-of-required-initial-evidence-for-form-i-140-for-informational-purposes-only"
+        },
+        {
+          "id": "guide-filing-addresses",
+          "name": "I-140 Filing Addresses",
+          "file": "guides/i-140-filing-addresses.pdf",
+          "description": "Direct filing addresses for Form I-140",
+          "url": "https://www.uscis.gov/forms/all-forms/direct-filing-addresses-for-form-i-140-immigrant-petition-for-alien-worker"
+        },
+        {
+          "id": "guide-premium-processing",
+          "name": "Premium Processing Guide",
+          "file": "guides/premium-processing-guide.pdf",
+          "description": "How to request premium processing",
+          "url": "https://www.uscis.gov/forms/all-forms/how-do-i-request-premium-processing"
+        },
+        {
+          "id": "guide-fee-schedule",
+          "name": "Fee Schedule for I-140",
+          "file": "guides/fee-schedule-i140.pdf",
+          "description": "Current filing fees for I-140",
+          "url": "https://www.uscis.gov/g-1055?form=i-140"
+        }
+      ]
+    }
+  },
+  "eb1a_criteria": {
+    "description": "10 Criteria for EB-1A Extraordinary Ability (need minimum 3)",
+    "criteria": [
+      {
+        "number": 1,
+        "name": "Awards",
+        "regulation": "8 CFR 204.5(h)(3)(i)",
+        "description": "Documentation of the beneficiary's receipt of lesser nationally or internationally recognized prizes or awards for excellence in the field of endeavor"
+      },
+      {
+        "number": 2,
+        "name": "Membership",
+        "regulation": "8 CFR 204.5(h)(3)(ii)",
+        "description": "Documentation of the beneficiary's membership in associations in the field for which classification is sought, which require outstanding achievements of their members"
+      },
+      {
+        "number": 3,
+        "name": "Published Material",
+        "regulation": "8 CFR 204.5(h)(3)(iii)",
+        "description": "Published material about the beneficiary in professional or major trade publications or other major media"
+      },
+      {
+        "number": 4,
+        "name": "Judging",
+        "regulation": "8 CFR 204.5(h)(3)(iv)",
+        "description": "Evidence of the beneficiary's participation as a judge of the work of others in the same or an allied field"
+      },
+      {
+        "number": 5,
+        "name": "Original Contributions",
+        "regulation": "8 CFR 204.5(h)(3)(v)",
+        "description": "Evidence of the beneficiary's original scientific, scholarly, artistic, athletic, or business-related contributions of major significance in the field"
+      },
+      {
+        "number": 6,
+        "name": "Scholarly Articles",
+        "regulation": "8 CFR 204.5(h)(3)(vi)",
+        "description": "Evidence of the beneficiary's authorship of scholarly articles in the field, in professional or major trade publications or other major media"
+      },
+      {
+        "number": 7,
+        "name": "Artistic Exhibitions",
+        "regulation": "8 CFR 204.5(h)(3)(vii)",
+        "description": "Evidence of the display of the beneficiary's work in the field at artistic exhibitions or showcases"
+      },
+      {
+        "number": 8,
+        "name": "Leading/Critical Role",
+        "regulation": "8 CFR 204.5(h)(3)(viii)",
+        "description": "Evidence that the beneficiary has performed in a leading or critical role for organizations or establishments that have a distinguished reputation"
+      },
+      {
+        "number": 9,
+        "name": "High Salary",
+        "regulation": "8 CFR 204.5(h)(3)(ix)",
+        "description": "Evidence that the beneficiary has commanded a high salary or other significantly high remuneration for services"
+      },
+      {
+        "number": 10,
+        "name": "Commercial Success",
+        "regulation": "8 CFR 204.5(h)(3)(x)",
+        "description": "Evidence of commercial successes in the performing arts, as shown by box office receipts or record, cassette, compact disk, or video sales"
+      }
+    ],
+    "alternative": {
+      "name": "One-Time Achievement",
+      "regulation": "8 CFR 204.5(h)(3)",
+      "description": "A one-time achievement (major internationally recognized award) such as Nobel Prize, Oscar, Olympic Medal"
+    }
+  },
+  "fees": {
+    "last_updated": "2026-01-22",
+    "i140": {
+      "online": 665,
+      "paper": 715
+    },
+    "asylum_program_fee": {
+      "regular": 600,
+      "self_petitioner_small_employer": 300,
+      "nonprofit": 0
+    },
+    "premium_processing": {
+      "eb1a": 2805,
+      "processing_days": 15
+    }
+  },
+  "processing_times": {
+    "eb1a_regular": "Varies - check USCIS website",
+    "eb1a_premium": "15 business days"
+  },
+  "key_legal_references": {
+    "statute": "INA 203(b)(1)(A)",
+    "regulation": "8 CFR 204.5(h)",
+    "landmark_case": "Kazarian v. USCIS, 596 F.3d 1115 (9th Cir. 2010)"
+  }
+}

@@ -1,16 +1,16 @@
 from __future__ import annotations
 
-import csv
-import json
-import logging
-import pickle  # nosec B403 - required for model serialization
-import uuid
 from collections import Counter
 from collections.abc import Iterable, Mapping, Sequence
+import csv
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import UTC, datetime
+import json
+import logging
 from pathlib import Path
+import pickle  # nosec B403 - required for model serialization
 from typing import Any
+import uuid
 
 import numpy as np
 
@@ -586,7 +586,7 @@ class TrainingPipeline:
             ModelRegistryEntry(
                 model_name=model_name,
                 version=model_version,
-                created_at=datetime.utcnow().isoformat(),
+                created_at=datetime.now(UTC).isoformat(),
                 artifact_path=str(artifact_path),
                 metrics=metrics.to_dict(),
                 data_summary=summary.to_dict(),
@@ -659,7 +659,7 @@ class TrainingPipeline:
         return artifact_path, version
 
     def _generate_version(self) -> str:
-        timestamp = datetime.utcnow().strftime("%Y%m%dT%H%M%S")
+        timestamp = datetime.now(UTC).strftime("%Y%m%dT%H%M%S")
         short_uuid = uuid.uuid4().hex[:8]
         return f"{timestamp}-{short_uuid}"
 

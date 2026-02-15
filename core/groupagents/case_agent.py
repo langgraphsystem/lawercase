@@ -8,23 +8,29 @@ CaseAgent - Агент для управления делами и случая�
 
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import UTC, datetime
 from typing import Any
 from uuid import UUID
 
 from sqlalchemy import select
 
-from ..exceptions import AgentError, NotFoundError
-from ..exceptions import ValidationError as MegaValidationError
+from ..exceptions import AgentError, NotFoundError, ValidationError as MegaValidationError
 from ..logging_config import StructuredLogger
 from ..memory.memory_manager import MemoryManager
 from ..memory.models import AuditEvent, MemoryRecord
 from ..skills.eb1a_criteria.criteria import CRITERION_CLASSES
 from ..storage.connection import DatabaseManager
 from ..storage.models import CaseDB
-from .models import (CaseExhibit, CaseOperationResult, CaseQuery, CaseRecord,
-                     CaseStatus, CaseVersion, CaseWorkflowState,
-                     ValidationResult)
+from .models import (
+    CaseExhibit,
+    CaseOperationResult,
+    CaseQuery,
+    CaseRecord,
+    CaseStatus,
+    CaseVersion,
+    CaseWorkflowState,
+    ValidationResult,
+)
 
 # =============================================================================
 # EB-1A Case Support
@@ -401,7 +407,7 @@ class CaseAgent:
         case_data = current_case.model_dump()
         case_data.update(updates)
         case_data["version"] = current_case.version + 1
-        case_data["updated_at"] = datetime.utcnow()
+        case_data["updated_at"] = datetime.now(UTC)
 
         updated_case = CaseRecord(**case_data)
 

@@ -1,11 +1,11 @@
 from __future__ import annotations
 
-import shutil
 from pathlib import Path
+import shutil
 from typing import Any
 
-import structlog
 from jinja2 import Environment, FileSystemLoader, select_autoescape
+import structlog
 
 logger = structlog.get_logger(__name__)
 

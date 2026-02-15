@@ -15,7 +15,7 @@ jobs:
           fetch-depth: 0
       - uses: actions/setup-python@v5
         with:
-          python-version: "3.11"
+          python-version: "3.12"
           cache: "pip"
       - name: Install dependencies
         run: |
@@ -24,10 +24,12 @@ jobs:
           pip install --no-cache-dir ruff pip-audit
       - name: Ruff lint
         run: ruff check . --extend-ignore=A003,S603,S112,E402
-      - name: Run tests
+      - name: Run tests with coverage
         env:
           CACHE_USE_FAKEREDIS: "true"
-        run: pytest -vv --tb=short --maxfail=1 -x
+          JWT_SECRET_KEY: "ci-test-secret-do-not-use-in-production"
+          DB_POSTGRES_PASSWORD: "ci-test-password"
+        run: pytest -vv --tb=short --maxfail=1 -x --cov --cov-report=term-missing
       - name: Dependency audit
         run: |
           pip-audit --progress-spinner off \

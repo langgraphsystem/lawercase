@@ -11,14 +11,20 @@ This example demonstrates:
 from __future__ import annotations
 
 import asyncio
-from datetime import datetime
+from datetime import UTC, datetime
 
 from core.memory.memory_manager import MemoryManager
 from core.memory.models import AuditEvent
 from core.orchestration.enhanced_workflows import (
-    EnhancedWorkflowState, ErrorRecoveryManager, HumanFeedback,
-    HumanReviewManager, RetryStrategy, RouterOptimizer,
-    create_enhanced_orchestration, execute_parallel_agents)
+    EnhancedWorkflowState,
+    ErrorRecoveryManager,
+    HumanFeedback,
+    HumanReviewManager,
+    RetryStrategy,
+    RouterOptimizer,
+    create_enhanced_orchestration,
+    execute_parallel_agents,
+)
 
 # ============================================================================
 # EXAMPLE 1: Error Recovery with Retry
@@ -251,11 +257,11 @@ async def example_parallel_execution():
     }
 
     print("\n1. Executing 3 agents in parallel...")
-    start_time = datetime.utcnow()
+    start_time = datetime.now(UTC)
 
     state = await execute_parallel_agents(state, agent_tasks)
 
-    elapsed = (datetime.utcnow() - start_time).total_seconds()
+    elapsed = (datetime.now(UTC) - start_time).total_seconds()
 
     print(f"   ✓ Execution time: {elapsed:.2f}s")
     print(f"   ✓ Successful agents: {len(state.parallel_results)}")

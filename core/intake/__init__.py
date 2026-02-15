@@ -9,8 +9,14 @@ This module provides:
 
 from __future__ import annotations
 
-from core.intake.schema import (BLOCKS_BY_ID, INTAKE_BLOCKS, IntakeBlock,
-                                IntakeCondition, IntakeQuestion, QuestionType)
+from core.intake.schema import (
+    BLOCKS_BY_ID,
+    INTAKE_BLOCKS,
+    IntakeBlock,
+    IntakeCondition,
+    IntakeQuestion,
+    QuestionType,
+)
 
 __all__ = [
     "BLOCKS_BY_ID",

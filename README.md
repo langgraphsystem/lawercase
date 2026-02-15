@@ -30,14 +30,27 @@
 Скрипт создаёт `AuditEvent`, прогоняет его через граф, отражает факт в семантической памяти, делает упрощённый поиск и обновляет RMT буфер. В консоли увидите отражённые факты, найденные записи и сформированные слоты RMT.
 
 ## FastAPI слой
-- Приложение: `uvicorn api.main:app --reload`.
-- Авторизация: Bearer JWT (секреты задаются через `.env` или `env/*.env`).
+- Локальный запуск: `uvicorn api.main:app --reload`.
+- Production entrypoint: `uvicorn api.main:app --host 0.0.0.0 --port 8000` (тот же entrypoint используется в `Procfile`).
+- Авторизация: Bearer JWT.
+- Ключевые переменные окружения для JWT:
+  - `JWT_SECRET` (рекомендуемый primary secret)
+  - `JWT_SECRET_KEY` (legacy fallback для совместимости)
+  - `JWT_ALGORITHM` (по умолчанию `HS256`)
 - Основные эндпоинты:
   - `GET /health`, `GET /ready`
-  - `GET /metrics` (только для ролей с `admin`)
-  - `POST /v1/ask`, `/v1/search`, `/v1/tool`, `/v1/agent/command`
-  - `POST /v1/case/{action}` — операции над делами
-  - `/v1/memory/snapshot|write|retrieve`
+  - `POST /auth/login`, `GET /auth/me`
+  - `GET/POST /cases`, `GET/PUT/DELETE /cases/{case_id}`
+  - `POST /agui/run`, `POST /agui/agent`, `POST /agui/validation/submit`
+  - `GET /metrics` (только для роли `admin`)
+  - `POST /v1/llm/generate`, `POST /v1/llm/generate/stream`, `GET /v1/llm/models`, `GET /v1/llm/stats`
+- Deprecated API:
+  - `GET /auth/me`
+  - `GET /cases/statuses`
+  - `POST /cases/{case_id}/restore`
+  - `PATCH /cases/{case_id}/status`
+  - `GET /v1/llm/stats`
+- Legacy `/v1/*` роуты (`agent/cases/memory/workflows`) удалены из публичной регистрации в `api.main` и больше не входят в текущий API-контракт.
 - Ограничение запросов по умолчанию: 60 запросов/минуту (см. `API_RATE_LIMIT`, `API_RATE_WINDOW`).
 - Встроенный инструмент `http.get` (доступен для ролей `admin`, `lawyer`):
   ```json
@@ -150,4 +163,3 @@ GitHub Actions workflow `.github/workflows/ci.yml` выполняет:
 - `gitleaks` — сканирование репозитория на секреты.
 
 Запускается на push/PR в `main|master`. Добавьте дополнительные проверки (deploy, integration) при необходимости.
-

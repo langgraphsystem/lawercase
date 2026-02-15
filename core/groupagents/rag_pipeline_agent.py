@@ -14,11 +14,11 @@ Implementation phases:
 
 from __future__ import annotations
 
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 from typing import Any
 
-import structlog
 from pydantic import BaseModel, Field
+import structlog
 
 from ..memory.memory_manager import MemoryManager
 from ..memory.models import MemoryRecord
@@ -258,7 +258,7 @@ class RagPipelineAgent:
         """
         self.logger.info("rag_query_start", question=question[:100], topk=topk)
 
-        start_time = datetime.utcnow()
+        start_time = datetime.now(UTC)
         self._stats["total_queries"] += 1
 
         # Check cache
@@ -271,7 +271,7 @@ class RagPipelineAgent:
 
         self._stats["cache_misses"] += 1
 
-        retrieval_start = datetime.utcnow()
+        retrieval_start = datetime.now(UTC)
 
         pipeline_results: list[RAGResult] = []
         pipeline_context: dict[str, Any] | None = None
@@ -282,7 +282,7 @@ class RagPipelineAgent:
             pipeline_context = pipeline_payload.get("context")
 
         retrieved_records = await self.memory.aretrieve(query=question, user_id=user_id, topk=topk)
-        retrieval_time = (datetime.utcnow() - retrieval_start).total_seconds() * 1000
+        retrieval_time = (datetime.now(UTC) - retrieval_start).total_seconds() * 1000
 
         pipeline_sources = self._convert_pipeline_results(pipeline_results)
         memory_sources = self._convert_to_sources(retrieved_records, question)
@@ -305,15 +305,15 @@ class RagPipelineAgent:
 
         context_used = "\n\n".join(context_parts) if context_parts else "No context available."
 
-        # Phase 1: Simple answer generation (placeholder - no LLM yet)
-        generation_start = datetime.utcnow()
-        answer_text = self._generate_answer_simple(question, context_used, sources)
-        generation_time = (datetime.utcnow() - generation_start).total_seconds() * 1000
+        # Generate answer using LLM (with fallback to simple extraction)
+        generation_start = datetime.now(UTC)
+        answer_text = await self._generate_answer_with_llm(question, context_used, sources)
+        generation_time = (datetime.now(UTC) - generation_start).total_seconds() * 1000
 
         # Calculate confidence
         confidence = self._calculate_confidence(sources, context_used)
 
-        total_time = (datetime.utcnow() - start_time).total_seconds() * 1000
+        total_time = (datetime.now(UTC) - start_time).total_seconds() * 1000
 
         # Create answer
         answer = RagAnswer(
@@ -574,7 +574,7 @@ class RagPipelineAgent:
         answer, timestamp = self._query_cache[question]
 
         # Check if expired
-        if datetime.utcnow() - timestamp > timedelta(seconds=self.cache_ttl):
+        if datetime.now(UTC) - timestamp > timedelta(seconds=self.cache_ttl):
             del self._query_cache[question]
             return None
 
@@ -582,7 +582,7 @@ class RagPipelineAgent:
 
     def _cache_result(self, question: str, answer: RagAnswer) -> None:
         """Cache query result."""
-        self._query_cache[question] = (answer, datetime.utcnow())
+        self._query_cache[question] = (answer, datetime.now(UTC))
 
         # Simple cache size limit
         if len(self._query_cache) > 1000:
@@ -672,23 +672,89 @@ class RagPipelineAgent:
 
         return similarity
 
-    def _generate_answer_simple(
+    async def _generate_answer_with_llm(
         self,
         question: str,
         context: str,
         sources: list[RagSource],
     ) -> str:
         """
-        Generate answer from context (Phase 1: simple extraction).
+        Generate answer from context using LLM synthesis.
 
-        Future: Use LLM for generation.
+        Uses IntelligentRouter to select optimal LLM for answer generation.
+        Falls back to simple extraction if LLM is unavailable.
         """
         if not sources:
             return f"I don't have enough information to answer: {question}"
 
-        # Simple answer: return most relevant source content
-        top_source = sources[0]
+        try:
+            from ..llm_interface.intelligent_router import IntelligentRouter, LLMRequest
 
+            # Build comprehensive prompt for LLM
+            source_texts = "\n\n".join(
+                [
+                    f"Source {i+1} (relevance: {s.relevance_score:.2f}):\n{s.content}"
+                    for i, s in enumerate(sources[:5])
+                ]
+            )
+
+            # Check for EB-1A context enrichment
+            eb1a_context = get_eb1a_context_for_query(question)
+            additional_context = f"\n\nEB-1A Context:\n{eb1a_context}" if eb1a_context else ""
+
+            prompt = f"""Based on the following sources, provide a comprehensive and accurate answer to the question.
+
+Question: {question}
+
+{additional_context}
+
+Sources:
+{source_texts}
+
+Instructions:
+1. Synthesize information from multiple sources when relevant
+2. Cite specific sources when making claims
+3. If sources conflict, acknowledge the discrepancy
+4. If information is insufficient, clearly state what is missing
+5. For EB-1A related questions, include relevant legal citations (8 CFR 204.5(h)(3))
+6. Keep the answer focused and actionable
+
+Answer:"""
+
+            # Create LLM request
+            router = IntelligentRouter()
+            request = LLMRequest(
+                prompt=prompt,
+                task_type="rag_synthesis",
+                max_tokens=1000,
+                temperature=0.3,  # Lower temperature for factual answers
+            )
+
+            # Route to optimal LLM
+            response = await router.aroute_request(request)
+
+            if response and response.content:
+                return response.content
+
+        except ImportError:
+            self.logger.warning("llm_router_not_available", fallback="simple_extraction")
+        except Exception as e:
+            self.logger.error("llm_generation_error", error=str(e), fallback="simple_extraction")
+
+        # Fallback to simple extraction
+        return self._generate_answer_simple_fallback(question, context, sources)
+
+    def _generate_answer_simple_fallback(
+        self,
+        question: str,
+        context: str,
+        sources: list[RagSource],
+    ) -> str:
+        """Fallback answer generation using simple extraction."""
+        if not sources:
+            return f"I don't have enough information to answer: {question}"
+
+        top_source = sources[0]
         answer_parts = [
             "Based on the available information:",
             "",
@@ -698,10 +764,24 @@ class RagPipelineAgent:
         if len(sources) > 1:
             answer_parts.append("")
             answer_parts.append("Additional relevant information:")
-            for source in sources[1:3]:  # Add 2 more sources
+            for source in sources[1:3]:
                 answer_parts.append(f"- {source.content[:200]}...")
 
         return "\n".join(answer_parts)
+
+    def _generate_answer_simple(
+        self,
+        question: str,
+        context: str,
+        sources: list[RagSource],
+    ) -> str:
+        """
+        Generate answer from context.
+
+        Note: This is the sync wrapper. For LLM-based generation,
+        use the async arag() method which calls _generate_answer_with_llm.
+        """
+        return self._generate_answer_simple_fallback(question, context, sources)
 
     def _calculate_confidence(self, sources: list[RagSource], context: str) -> float:
         """Calculate confidence in answer."""

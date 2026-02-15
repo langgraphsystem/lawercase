@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import UTC, datetime
 
 from sqlalchemy import select
 from sqlalchemy.dialects.postgresql import insert
@@ -38,13 +38,13 @@ class SupabaseWorkingMemory:
                 .values(
                     thread_id=thread_id,
                     slots=slots,
-                    updated_at=datetime.utcnow(),
+                    updated_at=datetime.now(UTC),
                 )
                 .on_conflict_do_update(
                     index_elements=["thread_id"],
                     set_={
                         "slots": slots,
-                        "updated_at": datetime.utcnow(),
+                        "updated_at": datetime.now(UTC),
                     },
                 )
             )
@@ -111,7 +111,7 @@ class SupabaseWorkingMemory:
         async with self.db.session() as session:
             stmt = delete(RMTBufferDB).where(
                 RMTBufferDB.expires_at.isnot(None),
-                RMTBufferDB.expires_at < datetime.utcnow(),
+                RMTBufferDB.expires_at < datetime.now(UTC),
             )
             result = await session.execute(stmt)
             await session.commit()

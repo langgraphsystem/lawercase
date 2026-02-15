@@ -14,8 +14,7 @@ from __future__ import annotations
 
 import asyncio
 
-from core.groupagents.mega_agent import (CommandType, MegaAgent,
-                                         MegaAgentCommand, UserRole)
+from core.groupagents.mega_agent import CommandType, MegaAgent, MegaAgentCommand, UserRole
 
 
 async def run_eb1_demo():

@@ -5,8 +5,7 @@ from __future__ import annotations
 from typing import Any
 
 from .....memory.memory_manager import MemoryManager
-from ...eb1a_coordinator import (EB1ACriterion, EB1AEvidence,
-                                 EB1APetitionRequest)
+from ...eb1a_coordinator import EB1ACriterion, EB1AEvidence, EB1APetitionRequest
 from .base_writer import BaseSectionWriter
 
 
@@ -148,10 +147,8 @@ the top percentile of earners in {field}, clearly meets this criterion.
 
         comp_text = ""
         if highest_comp:
-            comp_text = (
-                f" {possessive} highest documented compensation of ${highest_comp:,} places \
+            comp_text = f" {possessive} highest documented compensation of ${highest_comp:,} places \
 {beneficiary.split()[-1]} well above typical compensation levels in {field}."
-            )
 
         return f"""
 **Analysis of Compensation Significance**

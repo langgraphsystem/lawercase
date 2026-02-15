@@ -14,8 +14,8 @@ from __future__ import annotations
 
 import asyncio
 import json
-import sys
 from pathlib import Path
+import sys
 from typing import Any
 
 from dotenv import load_dotenv

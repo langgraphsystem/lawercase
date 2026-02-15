@@ -2,9 +2,9 @@
 
 from __future__ import annotations
 
-import math
 from collections.abc import Sequence
 from dataclasses import dataclass
+import math
 
 from .ingestion import DocumentChunk, DocumentStore, SupportsEmbed
 from .utils import clamp, cosine_similarity, tokenize

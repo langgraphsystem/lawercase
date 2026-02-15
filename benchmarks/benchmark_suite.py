@@ -2,13 +2,13 @@
 
 from __future__ import annotations
 
-import json
-import logging
-import time
 from collections.abc import Callable
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import UTC, datetime
+import json
+import logging
 from pathlib import Path
+import time
 from typing import Any
 
 import numpy as np
@@ -283,7 +283,7 @@ class BenchmarkSuite:
         output_path = self.output_dir / filename
 
         results_data = {
-            "timestamp": datetime.utcnow().isoformat(),
+            "timestamp": datetime.now(UTC).isoformat(),
             "total_benchmarks": len(self.results),
             "results": [r.to_dict() for r in self.results],
         }
@@ -304,7 +304,7 @@ class BenchmarkSuite:
             "=" * 80,
             "PERFORMANCE BENCHMARK REPORT",
             "=" * 80,
-            f"Generated: {datetime.utcnow().isoformat()}",
+            f"Generated: {datetime.now(UTC).isoformat()}",
             f"Total Benchmarks: {len(self.results)}",
             "",
         ]

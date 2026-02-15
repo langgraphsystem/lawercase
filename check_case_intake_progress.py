@@ -4,7 +4,7 @@
 from __future__ import annotations
 
 import asyncio
-from datetime import datetime
+from datetime import UTC, datetime
 
 from core.groupagents.case_agent import CaseAgent
 from core.memory.memory_manager import MemoryManager
@@ -20,7 +20,7 @@ async def main():
     print("CASE INTAKE PROGRESS CHECK")
     print(f"Case ID: {CASE_ID}")
     print(f"User ID: {USER_ID}")
-    print(f"Timestamp: {datetime.utcnow().isoformat()}")
+    print(f"Timestamp: {datetime.now(UTC).isoformat()}")
     print("=" * 80)
     print()
 
@@ -118,7 +118,6 @@ async def main():
     print("4. EPISODIC MEMORY (Recent events)")
     print("-" * 80)
     try:
-        # Get recent events from episodic store
         events = await memory_manager.episodic_store.aget_recent(limit=20)
 
         case_events = [e for e in events if CASE_ID in str(e.get("text", ""))]
@@ -150,12 +149,14 @@ async def main():
         db = get_db_manager()
         async with db.session() as session:
             # Check case_intake_progress table
-            stmt = text("""
+            stmt = text(
+                """
                 SELECT user_id, case_id, current_block, current_step,
                        completed_blocks, updated_at
                 FROM mega_agent.case_intake_progress
                 WHERE case_id = :case_id AND user_id = :user_id
-            """)
+            """
+            )
             result = await session.execute(stmt, {"case_id": CASE_ID, "user_id": USER_ID})
             row = result.fetchone()
 

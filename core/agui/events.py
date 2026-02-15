@@ -7,8 +7,8 @@ https://docs.ag-ui.com/
 
 from __future__ import annotations
 
-import time
 from enum import Enum
+import time
 from typing import Any
 from uuid import uuid4
 
@@ -202,7 +202,7 @@ class AGUIEvent(BaseModel):
         return cls(type=EventType.STATE_SNAPSHOT, state=state, **kwargs)
 
     @classmethod
-    def state_delta(cls, delta: dict[str, Any], **kwargs) -> AGUIEvent:
+    def create_state_delta(cls, delta: dict[str, Any], **kwargs) -> AGUIEvent:
         return cls(type=EventType.STATE_DELTA, state_delta=delta, **kwargs)
 
     @classmethod

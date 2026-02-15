@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import UTC, datetime
 from typing import TYPE_CHECKING
 from uuid import uuid4
 
@@ -54,7 +54,7 @@ class SupabaseEpisodicStore:
                     event.payload if isinstance(event.payload, dict) else {"value": event.payload}
                 ),
                 tags=list(event.tags) if event.tags else [],
-                timestamp=event.timestamp or datetime.utcnow(),
+                timestamp=event.timestamp or datetime.now(UTC),
                 parent_event_id=None,
             )
             session.add(db_event)

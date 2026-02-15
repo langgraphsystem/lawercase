@@ -1,0 +1,292 @@
+# Research Strategies Configuration
+# Defines parameters for adaptive research planning
+
+version: "1.0"
+
+# Strategy definitions
+strategies:
+  breadth_first:
+    description: "Explore many topics quickly for comprehensive coverage"
+    parameters:
+      max_sub_queries: 8
+      depth_limit: 1
+      parallel_queries: 4
+      time_per_query: 30  # seconds
+      max_iterations: 2
+    use_cases:
+      - "overview questions"
+      - "listing requests"
+      - "survey topics"
+    keywords:
+      - "overview"
+      - "summary"
+      - "list"
+      - "types of"
+      - "categories"
+      - "examples of"
+      - "all"
+    resource_allocation:
+      time_weight: 0.6
+      cost_weight: 0.4
+
+  depth_first:
+    description: "Deep investigation into fewer topics for thorough understanding"
+    parameters:
+      max_sub_queries: 3
+      depth_limit: 4
+      parallel_queries: 1
+      time_per_query: 90
+      max_iterations: 4
+    use_cases:
+      - "detailed explanations"
+      - "how-to questions"
+      - "root cause analysis"
+    keywords:
+      - "explain"
+      - "how to"
+      - "why does"
+      - "how does"
+      - "step by step"
+      - "in detail"
+      - "deep dive"
+    resource_allocation:
+      time_weight: 0.8
+      cost_weight: 0.7
+
+  balanced:
+    description: "Mix of breadth and depth for moderate complexity"
+    parameters:
+      max_sub_queries: 5
+      depth_limit: 2
+      parallel_queries: 2
+      time_per_query: 60
+      max_iterations: 3
+    use_cases:
+      - "general research"
+      - "moderate complexity"
+      - "default strategy"
+    keywords: []  # Default when no other matches
+    resource_allocation:
+      time_weight: 0.5
+      cost_weight: 0.5
+
+  focused:
+    description: "Single topic deep dive for specific questions"
+    parameters:
+      max_sub_queries: 2
+      depth_limit: 5
+      parallel_queries: 1
+      time_per_query: 120
+      max_iterations: 3
+    use_cases:
+      - "specific definitions"
+      - "narrow questions"
+      - "fact lookup"
+    keywords:
+      - "what is"
+      - "define"
+      - "meaning of"
+      - "specifically"
+    resource_allocation:
+      time_weight: 0.7
+      cost_weight: 0.6
+
+  comparative:
+    description: "Compare multiple options for decision support"
+    parameters:
+      max_sub_queries: 4
+      depth_limit: 2
+      parallel_queries: 4
+      time_per_query: 60
+      max_iterations: 2
+      comparison_mode: true
+    use_cases:
+      - "comparison questions"
+      - "decision making"
+      - "evaluation"
+    keywords:
+      - "compare"
+      - "difference"
+      - "vs"
+      - "versus"
+      - "better"
+      - "choose between"
+      - "pros and cons"
+    resource_allocation:
+      time_weight: 0.5
+      cost_weight: 0.5
+
+  exploratory:
+    description: "Open-ended exploration for unknown areas"
+    parameters:
+      max_sub_queries: 6
+      depth_limit: 2
+      parallel_queries: 3
+      time_per_query: 45
+      max_iterations: 4
+      allow_tangents: true
+    use_cases:
+      - "unknown topics"
+      - "brainstorming"
+      - "research discovery"
+    keywords:
+      - "explore"
+      - "possibilities"
+      - "options"
+      - "what can"
+      - "discover"
+    resource_allocation:
+      time_weight: 0.4
+      cost_weight: 0.3
+
+# Domain-specific adjustments
+domain_adjustments:
+  legal:
+    default_strategy: "depth_first"
+    depth_multiplier: 1.5
+    require_citations: true
+    max_sub_queries_multiplier: 0.8
+
+  scientific:
+    default_strategy: "depth_first"
+    depth_multiplier: 1.3
+    require_citations: true
+    prefer_academic_sources: true
+
+  technical:
+    default_strategy: "balanced"
+    depth_multiplier: 1.2
+    include_code_examples: true
+
+  business:
+    default_strategy: "balanced"
+    time_sensitivity: high
+    prefer_recent_sources: true
+
+  medical:
+    default_strategy: "depth_first"
+    require_citations: true
+    require_peer_reviewed: true
+    caution_level: high
+
+  general:
+    default_strategy: "balanced"
+    depth_multiplier: 1.0
+
+# Complexity-based adjustments
+complexity_adjustments:
+  simple:
+    max_iterations: 1
+    depth_limit_cap: 1
+    skip_decomposition: true
+
+  moderate:
+    max_iterations: 2
+    depth_limit_cap: 3
+
+  complex:
+    max_iterations: 3
+    depth_limit_cap: 4
+    enable_llm_decomposition: true
+
+  expert:
+    max_iterations: 4
+    depth_limit_cap: 5
+    enable_llm_decomposition: true
+    require_expert_sources: true
+
+# Resource constraints
+resource_constraints:
+  # Time budgets (seconds)
+  time_budgets:
+    minimal: 60
+    short: 120
+    standard: 300
+    extended: 600
+    unlimited: 3600
+
+  # Cost budgets (relative units)
+  cost_budgets:
+    minimal: 0.1
+    low: 0.3
+    standard: 1.0
+    high: 3.0
+    unlimited: 10.0
+
+  # Automatic adjustments when resources are low
+  low_resource_adjustments:
+    time_below_60s:
+      reduce_depth: 1
+      reduce_sub_queries: 0.5
+      disable_llm_refinement: true
+
+    budget_below_0.3:
+      reduce_depth: 1
+      reduce_parallel: 0.5
+      prefer_cached: true
+
+# Refinement settings
+refinement:
+  enabled: true
+  max_iterations: 3
+
+  # Coverage thresholds
+  thresholds:
+    broaden_below: 0.5
+    deepen_above: 0.8
+    narrow_quality_below: 0.3
+    satisfactory: 0.7
+
+  # Actions
+  actions:
+    broaden:
+      add_queries: 3
+      priority: high
+    deepen:
+      increase_depth: 1
+      max_depth: 5
+    narrow:
+      remove_low_priority: true
+      quality_threshold: 0.3
+    reprioritize:
+      use_findings_quality: true
+
+# Query decomposition
+decomposition:
+  strategies:
+    semantic:
+      description: "Based on semantic meaning"
+      llm_required: true
+    structural:
+      description: "Based on grammatical structure"
+      llm_required: false
+    aspect:
+      description: "Based on different aspects"
+      llm_required: false
+    temporal:
+      description: "Based on time sequence"
+      llm_required: false
+    hierarchical:
+      description: "From general to specific"
+      llm_required: false
+
+  # Default aspects to consider
+  default_aspects:
+    - definition
+    - process
+    - requirements
+    - examples
+    - reasons
+    - timeline
+
+# Logging and metrics
+logging:
+  log_strategy_selection: true
+  log_decomposition: true
+  log_refinements: true
+
+  metrics:
+    - strategy_distribution
+    - avg_iterations_per_strategy
+    - coverage_improvement
+    - refinement_effectiveness

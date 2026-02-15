@@ -6,13 +6,13 @@ self-correcting agents.
 
 from __future__ import annotations
 
+from collections import deque
 import csv
+from dataclasses import dataclass, field
+from datetime import UTC, datetime
 import io
 import json
 import time
-from collections import deque
-from dataclasses import dataclass, field
-from datetime import datetime
 from typing import Any
 
 
@@ -103,7 +103,7 @@ class QualityTracker:
         metrics = QualityMetrics(
             operation_id=operation_id,
             agent_name=agent_name,
-            timestamp=datetime.utcnow(),
+            timestamp=datetime.now(UTC),
             confidence_score=confidence_score,
             retry_count=retry_count,
             duration_seconds=duration_seconds,

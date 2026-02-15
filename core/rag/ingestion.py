@@ -2,10 +2,10 @@
 
 from __future__ import annotations
 
-import uuid
 from collections.abc import Sequence
 from dataclasses import dataclass, field
 from typing import Protocol
+import uuid
 
 from .utils import tokenize
 
@@ -13,7 +13,8 @@ from .utils import tokenize
 class SupportsEmbed(Protocol):
     """Async embedding protocol used by the ingestion pipeline."""
 
-    async def aembed(self, texts: list[str]) -> list[list[float]]: ...
+    async def aembed(self, texts: list[str]) -> list[list[float]]:
+        ...
 
 
 @dataclass(slots=True)

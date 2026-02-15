@@ -4,7 +4,7 @@
 from __future__ import annotations
 
 import asyncio
-from datetime import datetime
+from datetime import UTC, datetime
 
 from sqlalchemy import text
 
@@ -33,7 +33,7 @@ def print_subheader(title: str):
 async def main():
     """Check completed blocks data."""
     print_header("COMPLETED BLOCKS DATA CHECK")
-    print(f"Timestamp: {datetime.utcnow().isoformat()}")
+    print(f"Timestamp: {datetime.now(UTC).isoformat()}")
     print(f"User ID: {USER_ID}")
     print(f"Case ID: {CASE_ID}")
     print(f"Completed Blocks: {', '.join(COMPLETED_BLOCKS)}")
@@ -64,7 +64,8 @@ async def main():
     try:
         async with db.session() as session:
             # Check all semantic memory for this user/case
-            stmt = text("""
+            stmt = text(
+                """
                 SELECT record_id, text, type, tags, metadata_json, created_at
                 FROM mega_agent.semantic_memory
                 WHERE user_id = :user_id
@@ -73,7 +74,8 @@ async def main():
                       OR case_id = :case_id
                   )
                 ORDER BY created_at DESC
-            """)
+            """
+            )
             result = await session.execute(stmt, {"user_id": USER_ID, "case_id": CASE_ID})
             all_records = result.fetchall()
 
@@ -106,14 +108,16 @@ async def main():
     print_subheader("3. ALL USER SEMANTIC MEMORY")
     try:
         async with db.session() as session:
-            stmt = text("""
+            stmt = text(
+                """
                 SELECT COUNT(*),
                        COUNT(*) FILTER (WHERE tags @> ARRAY['intake']::text[]) as intake_count,
                        MIN(created_at) as first_record,
                        MAX(created_at) as last_record
                 FROM mega_agent.semantic_memory
                 WHERE user_id = :user_id
-            """)
+            """
+            )
             result = await session.execute(stmt, {"user_id": USER_ID})
             stats = result.fetchone()
 
@@ -133,11 +137,13 @@ async def main():
     print_subheader("4. INTAKE PROGRESS VERIFICATION")
     try:
         async with db.session() as session:
-            stmt = text("""
+            stmt = text(
+                """
                 SELECT current_block, current_step, completed_blocks, updated_at
                 FROM mega_agent.case_intake_progress
                 WHERE user_id = :user_id AND case_id = :case_id
-            """)
+            """
+            )
             result = await session.execute(stmt, {"user_id": USER_ID, "case_id": CASE_ID})
             progress = result.fetchone()
 

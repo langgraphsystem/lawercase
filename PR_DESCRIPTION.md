@@ -1,134 +1,122 @@
-# Fix: Critical Intake Bug - Orphaned Progress Records
+# Hardening: JWT/RBAC + API Contract Alignment + Production Entrypoint
 
-## 🐛 Problem
+## Problem
 
-Critical architectural bug where `/intake_start` created intake progress WITHOUT creating the case record, resulting in:
+Several production-facing issues existed simultaneously:
 
-- Orphaned `case_intake_progress` records
-- `CaseNotFoundError` when users try to continue intake
-- Data integrity issues preventing users from completing intake flow
+- Security gaps: critical routes (`/metrics`, document-monitor, AGUI) were previously callable without consistent JWT and role enforcement.
+- Ownership gaps: document-monitor thread resources could be accessed without strict owner checks.
+- Contract drift: frontend/backend route usage diverged (missing frontend `/cases` page, AGUI auth header mismatch, unregistered LLM routes).
+- Deployment confusion: legacy `api/main_production.py` path and entrypoint drift from the canonical `api.main:app`.
+- Documentation/testing drift: docs referenced stale paths and did not include a clear security coverage matrix.
 
-## ✅ Solution
+## Solution Summary
 
-### 1. Fixed `/intake_start` Handler
-- **ATOMIC OPERATION:** Create Case BEFORE intake progress
-- Verify case exists before creating progress
-- Auto-recover missing cases if detected
-- Enhanced error handling and logging
+### 1) Security hardening (JWT + RBAC + ownership)
 
-**Code Flow:**
-```python
-# BEFORE (❌ BUG):
-/intake_start → create progress (NO CASE!) → CaseNotFoundError
+- Implemented JWT verification and role checks in AGUI middleware.
+- Enforced admin-only access for `/metrics`.
+- Enforced JWT + ownership checks across document-monitor HTTP and WS endpoints.
+- Added WS close-code handling:
+  - `4401` unauthorized
+  - `4403` forbidden
+  - `4404` not found
 
-# AFTER (✅ FIXED):
-/intake_start → create case → create progress → Success!
-```
+### 2) API contract alignment
 
-### 2. Added `@ensure_case_exists` Decorator
-- Protects ALL intake handlers
-- Auto-creates missing cases (defense-in-depth)
-- Prevents future orphaned records
+- Registered LLM router in `api.main` at `/v1/llm`.
+- Removed legacy v1 (`agent/cases/memory/workflows`) routes from public `api.main` registration.
+- Marked weakly used endpoints as `deprecated=True` (`/auth/me`, `/cases/statuses`, `/cases/{case_id}/restore`, `/cases/{case_id}/status`, `/v1/llm/stats`).
+- Fixed frontend AGUI call to include auth headers.
+- Added frontend `/cases` page (TODO placeholder) to resolve broken nav route.
 
-**Applied to:**
-- `intake_status`
-- `intake_cancel`
-- `intake_resume`
-- `handle_intake_callback`
-- `handle_text_message`
+### 3) Production entrypoint alignment
 
-### 3. Data Recovery Script
-**File:** `recover_orphaned_intake_cases.py`
+- Standardized Procfile to canonical entrypoint:
+  - `uvicorn api.main:app --host 0.0.0.0 --port ${PORT:-8000}`
+- Removed deprecated duplicate entry module (`api/main_production.py`) from active path usage.
 
-- Finds existing orphaned records via SQL query
-- Creates matching case records
-- Supports `--dry-run` mode for safety
-- Interactive confirmation before changes
+### 4) Reliability fix
 
-### 4. Comprehensive Test Suite
-**File:** `tests/integration/telegram/test_intake_flow.py`
+- Fixed timezone-aware vs naive datetime handling in document monitor metadata calculation to prevent intermittent `500` in preview responses.
 
-- Tests atomic case + progress creation
-- Tests decorator auto-recovery
-- Tests orphan prevention
-- Tests full end-to-end intake flow
+### 5) Documentation updates
 
-## 📁 Files Changed
+- Updated `AGENTS.md` paths/structure to current repository reality.
+- Updated `README.md` (entrypoint, JWT env vars, current API layout, legacy API policy).
+- Added `docs/SECURITY_TEST_MATRIX.md` with explicit endpoint/scenario/status/test mapping.
 
-### Modified
-- `telegram_interface/handlers/intake_handlers.py`
-  - Fixed `intake_start()` to create case first
-  - Added `@ensure_case_exists` decorator
-  - Applied decorator to all intake handlers
+## Files Changed
 
-### New Files
-- `recover_orphaned_intake_cases.py` - Data recovery script
-- `tests/integration/telegram/test_intake_flow.py` - Test suite
-- `tests/integration/telegram/__init__.py` - Test module init
-- `INTAKE_BUG_FIX_DOCUMENTATION.md` - Full technical documentation
-- `INTAKE_BUG_FIX_SUMMARY.md` - Executive summary
-- `PR_DESCRIPTION.md` - This PR description
+### Backend (main repo)
 
-## 🧪 Testing
+- `api/main.py`
+- `Procfile`
+- `api/main_production.py` (removed from active flow / deleted)
+- `core/agui/middleware.py`
+- `api/routes/metrics.py`
+- `api/routes/document_monitor.py`
+- `api/routes/health_production.py`
+- `api/routes/agent.py`
+- `api/routes/cases.py`
+- `api/routes/memory.py`
+- `api/routes/workflows.py`
 
-```bash
-# Run tests
-pytest tests/integration/telegram/test_intake_flow.py -v
+### Tests
 
-# Check for orphans (dry-run)
-python recover_orphaned_intake_cases.py --dry-run
+- `tests/test_jwt_auth_hardening.py`
+- `tests/test_auth_security.py`
+- `tests/test_auth_websocket_security.py`
 
-# Recover orphans (if needed)
-python recover_orphaned_intake_cases.py
-```
+### Docs
 
-## 📊 Impact
+- `AGENTS.md`
+- `README.md`
+- `docs/SECURITY_TEST_MATRIX.md`
 
-### Before Fix
-- ❌ Orphaned records possible
-- ❌ CaseNotFoundError during intake
-- ❌ Users unable to complete intake
+### Frontend (nested `web/` repo)
 
-### After Fix
-- ✅ Zero orphaned records
-- ✅ No CaseNotFoundError
-- ✅ Smooth intake flow
-- ✅ Automatic recovery mechanisms
+- `web/src/app/chat/page.tsx`
+- `web/src/app/cases/page.tsx`
 
-## 🚀 Deployment
+## Validation / Test Evidence
 
-1. Review code changes
-2. Run recovery script (dry-run first): `python recover_orphaned_intake_cases.py --dry-run`
-3. Deploy to staging
-4. Run integration tests
-5. Deploy to production
-6. Monitor logs for `intake.case_created`, `intake.case_recovered`
+### Security + contract tests
 
-## 📈 Success Metrics
+- `pytest -q tests/test_jwt_auth_hardening.py` -> `6 passed`
+- `pytest -q tests/test_auth_security.py tests/test_auth_websocket_security.py` -> `38 passed`
 
-- Zero orphaned intake_progress records
-- Zero CaseNotFoundError during intake
-- 100% case creation success rate
-- All tests passing ✅
+### Lint checks
 
-## 🔄 Rollback Plan
+- `ruff check tests/test_auth_security.py tests/test_auth_websocket_security.py api/routes/document_monitor.py` -> passed
 
-If issues occur:
-```bash
-git revert <commit-hash>
-# Recovery script is idempotent and can be re-run
-```
+### Entrypoint/runtime checks
 
-## 🎯 Risk Level
+- `python -m py_compile api/main.py` -> passed (validated in unrestricted mode due sandbox file-lock behavior)
+- `uvicorn api.main:app --host 0.0.0.0 --port 8000` -> starts; `/health` returns `200`
 
-**LOW** - Changes are defensive, include automatic recovery, comprehensive tests
+## Risks
 
-## 📝 Documentation
+- Medium: removing legacy public registration can break external clients still calling old `/v1/*` endpoints.
+- Frontend changes are split across nested `web/` repo and require coordinated PR/merge there.
 
-Full technical documentation: `INTAKE_BUG_FIX_DOCUMENTATION.md`
+## Rollback Plan
 
----
+1. Revert this PR commit.
+2. Restore previous Procfile command if needed.
+3. If needed, temporarily remove strict checks by reverting:
+   - `core/agui/middleware.py`
+   - `api/routes/metrics.py`
+   - `api/routes/document_monitor.py`
+4. Keep test files to preserve regression visibility.
 
-**Priority:** 🔴 HIGH (Critical bug fix)
-**Status:** ✅ Ready for Review
-**Reviewer:** Please review changes in `telegram_interface/handlers/intake_handlers.py`
+## Notes for Review
+
+- Focus review on:
+  - `core/agui/middleware.py`
+  - `api/routes/document_monitor.py`
+  - `tests/test_auth_security.py`
+  - `tests/test_auth_websocket_security.py`
+  - `docs/SECURITY_TEST_MATRIX.md`
+
+- Legacy v1 endpoints are intentionally removed from public registration in this PR to avoid drift and accidental exposure.

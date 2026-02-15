@@ -4,8 +4,8 @@
 from __future__ import annotations
 
 import asyncio
+from datetime import UTC, datetime
 import os
-from datetime import datetime
 
 from dotenv import load_dotenv
 from supabase import Client, create_client
@@ -35,7 +35,7 @@ def print_subheader(title: str):
 async def main():
     """Monitor intake data in Supabase."""
     print_header("SUPABASE INTAKE DATA MONITOR")
-    print(f"Timestamp: {datetime.utcnow().isoformat()}")
+    print(f"Timestamp: {datetime.now(UTC).isoformat()}")
     print(f"User ID: {USER_ID}")
 
     if not SUPABASE_URL or not SUPABASE_KEY:

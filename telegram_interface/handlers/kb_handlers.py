@@ -122,8 +122,11 @@ async def kb_search(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         )
 
     except Exception as e:
-        logger.exception("telegram.kb_search.exception", user_id=user_id, error=str(e))
         await message.reply_text(f"❌ Ошибка поиска: {e!s}", parse_mode=None)
+        try:
+            logger.exception("telegram.kb_search.exception", user_id=user_id, error=str(e))
+        except Exception:
+            logger.error("telegram.kb_search.exception", user_id=user_id, error=str(e))
 
 
 async def memory_search(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -223,8 +226,11 @@ async def memory_search(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
         )
 
     except Exception as e:
-        logger.exception("telegram.memory_search.exception", user_id=user_id, error=str(e))
         await message.reply_text(f"❌ Ошибка поиска: {e!s}", parse_mode=None)
+        try:
+            logger.exception("telegram.memory_search.exception", user_id=user_id, error=str(e))
+        except Exception:
+            logger.error("telegram.memory_search.exception", user_id=user_id, error=str(e))
 
 
 async def memory_stats(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -320,8 +326,11 @@ async def memory_stats(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
         )
 
     except Exception as e:
-        logger.exception("telegram.memory_stats.exception", user_id=user_id, error=str(e))
         await message.reply_text(f"❌ Ошибка: {e!s}", parse_mode=None)
+        try:
+            logger.exception("telegram.memory_stats.exception", user_id=user_id, error=str(e))
+        except Exception:
+            logger.error("telegram.memory_stats.exception", user_id=user_id, error=str(e))
 
 
 async def kb_stats(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -398,15 +407,18 @@ async def kb_stats(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         logger.info(
             "telegram.kb_stats.success",
             user_id=user_id,
-            total_count=total_count,
+            total_count=semantic_count + rfe_count,
             kb_count=kb_count,
             case_doc_count=case_doc_count,
             sources_count=len(kb_sources),
         )
 
     except Exception as e:
-        logger.exception("telegram.kb_stats.exception", user_id=user_id, error=str(e))
         await message.reply_text(f"❌ Ошибка: {e!s}", parse_mode=None)
+        try:
+            logger.exception("telegram.kb_stats.exception", user_id=user_id, error=str(e))
+        except Exception:
+            logger.error("telegram.kb_stats.exception", user_id=user_id, error=str(e))
 
 
 def get_handlers(bot_context: BotContext) -> list:

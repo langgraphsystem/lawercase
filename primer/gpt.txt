@@ -1,0 +1,893 @@
+Вот базовый HTML-документ с вёрсткой первых ключевых разделов (оглавление, страницы с паспортом и начало петиции с разделом 2.1.1). Структура и стили универсальные — по этим же классам можно дорисовать все остальные 500+ страниц, просто добавляя новые блоки `<section class="page">` с нужным текстом и элементами. 
+
+---
+
+```html
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <title>Восстановленный документ</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <header class="doc-header">
+    <div class="doc-header-inner">
+      <p class="doc-header-title">
+        EB-1A Permanent Residency Petition for Mr. Alexey Inkin
+      </p>
+    </div>
+  </header>
+
+  <main class="doc-main">
+
+    <!-- ===================== PAGE 1 — TABLE OF CONTENTS ===================== -->
+    <section class="page page-1">
+      <div class="page-inner">
+        <h1 class="heading-1 heading-title">
+          EB-1A Permanent Residency Petition for Mr. Alexey Inkin
+        </h1>
+
+        <h2 class="heading-2 heading-toc">
+          Table of Contents
+        </h2>
+
+        <ol class="toc-list">
+          <li class="toc-item">
+            <span class="toc-text">
+              Form G-1145, e-Notification of Application/Petition Acceptance.
+            </span>
+            <span class="toc-dot-leader"></span>
+            <span class="toc-page-ref">1</span>
+          </li>
+          <li class="toc-item">
+            <span class="toc-text">
+              Form I-140, Immigrant Petition for Alien Worker, with $700 filing fee.
+            </span>
+            <span class="toc-dot-leader"></span>
+            <span class="toc-page-ref">2</span>
+          </li>
+          <li class="toc-item">
+            <span class="toc-text">
+              Form I-907, Request for Premium Processing Service, with the $2500 filing fee.
+            </span>
+            <span class="toc-dot-leader"></span>
+            <span class="toc-page-ref">12</span>
+          </li>
+          <li class="toc-item">
+            <span class="toc-text">
+              Photocopy of the current passport and the expired passport with a B1/B2 visa – Page 19.
+            </span>
+            <span class="toc-dot-leader"></span>
+            <span class="toc-page-ref">19</span>
+          </li>
+          <li class="toc-item">
+            <span class="toc-text">
+              Petition for Permanent Residence under Extraordinary ability (EB-1A) – Page 21.
+            </span>
+            <span class="toc-dot-leader"></span>
+            <span class="toc-page-ref">22</span>
+          </li>
+          <li class="toc-item">
+            <span class="toc-text">
+              Statement from Mr. Inkin detailing plans on how he intends to continue work in the United
+              States – Page 81.
+            </span>
+            <span class="toc-dot-leader"></span>
+            <span class="toc-page-ref">81</span>
+          </li>
+          <li class="toc-item">
+            <span class="toc-text">
+              List of Exhibits – Page 83.
+            </span>
+            <span class="toc-dot-leader"></span>
+            <span class="toc-page-ref">83</span>
+          </li>
+          <li class="toc-item">
+            <span class="toc-text">
+              Exhibits 1–169 – Page 93.
+            </span>
+            <span class="toc-dot-leader"></span>
+            <span class="toc-page-ref">93</span>
+          </li>
+        </ol>
+
+        <div class="page-number">
+          <span>1</span>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===================== PAGE 19 — CURRENT PASSPORT ===================== -->
+    <section class="page page-19">
+      <div class="page-inner">
+        <p class="running-header">
+          EB-1A Permanent Residency Petition for Mr. Alexey Inkin
+        </p>
+
+        <h2 class="heading-2 heading-centered">
+          Photocopy of the passport
+        </h2>
+
+        <p class="body-text">
+          The current passport:
+        </p>
+
+        <figure class="figure-passport">
+          <!-- Замените src на реальный путь к изображению скана -->
+          <img src="images/inkin-passport-current.jpg"
+               alt="Current passport of Mr. Alexey Inkin"
+               class="img-passport" />
+          <figcaption class="caption">
+            Current passport biographical page (redacted).
+          </figcaption>
+        </figure>
+
+        <div class="page-number">
+          <span>19</span>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===================== PAGE 20 — EXPIRED PASSPORT ===================== -->
+    <section class="page page-20">
+      <div class="page-inner">
+        <p class="running-header">
+          EB-1A Permanent Residency Petition for Mr. Alexey Inkin
+        </p>
+
+        <p class="body-text">
+          An expired passport:
+        </p>
+
+        <figure class="figure-passport">
+          <img src="images/inkin-passport-expired.jpg"
+               alt="Expired passport of Mr. Alexey Inkin"
+               class="img-passport" />
+          <figcaption class="caption">
+            Expired passport with “ANNULIROVANO” stamp (redacted).
+          </figcaption>
+        </figure>
+
+        <div class="page-number">
+          <span>20</span>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===================== PAGE 21 — B1/B2 VISA ===================== -->
+    <section class="page page-21">
+      <div class="page-inner">
+        <p class="running-header">
+          EB-1A Permanent Residency Petition for Mr. Alexey Inkin
+        </p>
+
+        <p class="body-text">
+          A B1/B2 visa in the expired passport:
+        </p>
+
+        <figure class="figure-passport">
+          <img src="images/inkin-visa-b1b2.jpg"
+               alt="B1/B2 visa in expired passport"
+               class="img-passport" />
+          <figcaption class="caption">
+            B1/B2 nonimmigrant visa in the expired passport (redacted).
+          </figcaption>
+        </figure>
+
+        <div class="page-number">
+          <span>21</span>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===================== PAGE 22–23 — PETITION INTRO ===================== -->
+    <section class="page page-22">
+      <div class="page-inner">
+        <p class="running-header">
+          EB-1A Permanent Residency Petition for Mr. Alexey Inkin
+        </p>
+
+        <h1 class="heading-1 heading-centered multiline-heading">
+          Petition for Permanent Residency under Extraordinary<br />
+          ability (EB-1A)
+        </h1>
+
+        <p class="body-text no-indent">
+          <strong>Petitioner and Beneficiary:</strong> Alexey Inkin<br />
+          <strong>Classification Sought:</strong> Employment-Based Immigration, First Preference<br />
+          Extraordinary Ability in Science (EB-1A)<br />
+          Sec. 203(b)(1) INA [8 U.S.C. 1153]<br />
+          <strong>Type of Petition:</strong> I-140
+        </p>
+
+        <p class="body-text">
+          Dear Immigration Officer,
+        </p>
+
+        <p class="body-text">
+          This following evidence is respectfully submitted in support of the petition of Mr. Alexey Inkin
+          for classification as a qualified immigrant under the first preference employment immigration
+          for Aliens of Extraordinary Ability pursuant to section 203(b)(1)(A) of the Immigration and
+          Nationality Act.
+        </p>
+
+        <p class="body-text">
+          This evidence demonstrates that Mr. Inkin has extraordinary ability in sciences, specifically in
+          Software Development, that he sustained national and international acclaim, and his achievements
+          have been recognized in the field of expertise.
+        </p>
+
+        <p class="body-text">
+          Specifically, the evidence shows that:
+        </p>
+
+        <ol class="body-list numbered-list">
+          <li class="body-list-item">
+            <span class="body-text-inline">
+              Mr. Inkin satisfies six of the ten criteria listed in 8 CFR, Section 204.5(h)(3), namely:
+            </span>
+            <ol class="sub-numbered-list">
+              <li class="body-list-item">
+                <span class="body-text-inline">
+                  Evidence of Mr. Inkin’s receipt of lesser nationally or internationally recognized prizes
+                  or awards for excellence [Section 2.1, page 26].
+                </span>
+              </li>
+              <li class="body-list-item">
+                <span class="body-text-inline">
+                  Evidence of Mr. Inkin’s membership in associations in the field which demand out&shy;
+                  standing achievement of their members [Section 2.2, page 34].
+                </span>
+              </li>
+              <li class="body-list-item">
+                <span class="body-text-inline">
+                  Evidence that Mr. Inkin has been asked to judge the work of others on a panel
+                  [Section 2.3, page 41].
+                </span>
+              </li>
+              <li class="body-list-item">
+                <span class="body-text-inline">
+                  Evidence of Mr. Inkin’s original scientific contributions of major significance to the
+                  field [Section 2.5, page 55].
+                </span>
+              </li>
+              <li class="body-list-item">
+                <span class="body-text-inline">
+                  Evidence of Mr. Inkin’s performance of a critical role in distinguished organizations
+                  [Section 2.4, page 44].
+                </span>
+              </li>
+              <li class="body-list-item">
+                <span class="body-text-inline">
+                  Evidence that Mr. Inkin commands a high salary in relation to others in the field
+                  [Section 2.6, page 63].
+                </span>
+              </li>
+            </ol>
+          </li>
+          <li class="body-list-item">
+            <span class="body-text-inline">
+              Mr. Inkin satisfies an additional criterion through comparable evidence. Specifically, his
+              technical articles were curated by various teams for wide online distribution, which is
+              comparable to scholarly articles for those in academia [Section 2.7, page 66].
+            </span>
+          </li>
+          <li class="body-list-item">
+            <span class="body-text-inline">
+              Mr. Inkin is one of that small percentage who has risen to the very top of the field of
+              Software Development, and he has sustained international acclaim [Section 3, page 72].
+            </span>
+          </li>
+          <li class="body-list-item">
+            <span class="body-text-inline">
+              Mr. Inkin’s work will substantially benefit the United States [Section 4, page 78].
+            </span>
+          </li>
+        </ol>
+
+        <p class="body-text">
+          Pursuant to 8 CFR, Section 204.5(h)(1), Mr. Inkin may file an I-140 visa petition for classification
+          under Section 203(b)(1)(A) of the Act as an alien of extraordinary ability in science on his own
+          behalf.
+        </p>
+
+        <p class="body-text">
+          Pursuant to 8 CFR, Section 204.5(h)(5), neither an offer for employment in the United States nor
+          a labor certification is required for this classification.
+        </p>
+
+        <div class="page-number">
+          <span>22</span>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===================== PAGE 24–25 — SUMMARY OF ACHIEVEMENTS (СЖАТО) ===================== -->
+    <section class="page page-24">
+      <div class="page-inner">
+        <p class="running-header">
+          EB-1A Permanent Residency Petition for Mr. Alexey Inkin
+        </p>
+
+        <h2 class="heading-2 section-heading">
+          1 Summary of Mr. Inkin’s achievements and qualifications
+        </h2>
+
+        <p class="body-text">
+          Mr. Inkin is an engineer specializing in software development, see his resume in [Exhibit 1,
+          page 93]. He graduated from Nizhny Novgorod State Technical University with honors. He has a
+          Bachelor’s degree [Exhibit 2, page 98] and an Engineer’s degree (a post-Bachelor degree in Russia)
+          in Information Technology [Exhibit 3, page 105].
+        </p>
+
+        <p class="body-text">
+          In his 19 years in the profession, he was working in the areas of backend software development
+          with PHP and frontend software development with Flutter, a technology from Google.
+        </p>
+
+        <p class="body-text">
+          Mr. Inkin was awarded a title of ‘Google Developer Expert’, a prestigious award from Google
+          [Section 2.1.1, page 26]. He also held a podium place in ‘Digital Breakthrough’, a large nationally
+          recognized hackathon in Russia [Section 2.1.2, page 30].
+        </p>
+
+        <p class="body-text">
+          Mr. Inkin is a Senior Member of Institute of Electrical and Electronics Engineers, the largest
+          professional association for engineers. The prestigious Senior Membership requires extensive
+          significant performance [Section 2.2.1, page 34]. Mr. Inkin is also a member of ‘Google Developer
+          Experts’ community. This membership requires outstanding achievements with about thousand
+          members in total and just over 100 members specializing in Flutter. This puts him in top 0.025%
+          of the developers who actively use Flutter [Section 2.2.2, page 38].
+        </p>
+
+        <p class="body-text">
+          Mr. Inkin was invited to judge new applicants to Senior Membership of IEEE and received a
+          Thank You letter from the chair of the committee that reviews the applications and promotes
+          members [Section 2.3, page 41].
+        </p>
+
+        <p class="body-text">
+          Mr. Inkin performed critical role in multiple distinguished organizations. He was a developer
+          and a leader of the team that developed frontend for two important applications for The Apache
+          Software Foundation, one of the largest open-source foundations [Section 2.4.1, page 44]. This was
+          done during his employment at Akvelon, an international company headquartered in the United
+          States. For Akvelon, he lead the development of a specialized code editor in Flutter, which not
+          only became the central part of those Apache applications but also a valuable product of its own
+          [Section 2.4.2, page 48].
+        </p>
+
+        <p class="body-text">
+          Before that, Mr. Inkin worked for Calltouch, a large Russian platform for advertising analytics.
+          He was in charge of the authentication system there, finding and fixing security issues, which is
+          critical by definition [Section 2.4.3, page 50]. He also was a CTO for Mr. Sergey Gran, the founder
+          of Sergey Gran’s School, implementing technical solutions that increased the company’s revenue
+          severalfold [Section 2.4.4, page 53].
+        </p>
+
+        <p class="body-text">
+          Mr. Inkin made contributions of major importance to the field of Software Development. He
+          designed and implemented a major feature in PHPStan, the most popular static analyzer of code
+          in PHP programming language. This feature reduced false-positive errors reported by the analyzer
+          and reduced the burden to correctly document the code for the analyzer to work properly. This
+          had major effect since PHP powers the majority of websites worldwide [Section 2.5.1, page 55].
+          Also, the code editor for Flutter that the team of Mr. Inkin developed became the second most
+          popular editor for that framework and is used in many applications [Section 2.5.2, page 59].
+        </p>
+
+        <p class="body-text">
+          Mr. Inkin commanded higher salary during his employment at Akvelon, 3 times higher than the
+          average in Information Technology in the country of Georgia, and 2.02 times higher than the
+          average in Software Development [Section 2.6, page 63].
+        </p>
+
+        <p class="body-text">
+          Mr. Inkin has authored 49 technical articles in his blog on Medium. 9 of them were curated for
+          wider online publication [Section 2.7, page 66].
+        </p>
+
+        <div class="page-number">
+          <span>24–25</span>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===================== PAGE 26–28 — SECTION 2.1.1 (ЧАСТЬ) ===================== -->
+    <section class="page page-26">
+      <div class="page-inner">
+        <p class="running-header">
+          EB-1A Permanent Residency Petition for Mr. Alexey Inkin
+        </p>
+
+        <h2 class="heading-2 section-heading">
+          2 Initial Evidence of Mr. Inkin’s Extraordinary Ability
+        </h2>
+
+        <h3 class="heading-3 subsection-heading">
+          2.1 Evidence of receipt of lesser nationally or internationally recognized
+          prizes or awards for excellence
+        </h3>
+
+        <h4 class="heading-4 subsubsection-heading">
+          2.1.1 Google Developer Expert Award
+        </h4>
+
+        <h5 class="heading-5 subsubsection-heading">
+          2.1.1.1 Proof of Mr. Inkin being the recipient of the award
+        </h5>
+
+        <p class="body-text">
+          Mr. Inkin was awarded the title of Google Developer Expert in 2023. This can be verified at his
+          public profile on Google’s website. A badge in the profile reads:
+        </p>
+
+        <p class="body-text quote-block">
+          “Was awarded the title of Google Developer Expert in 2023.” [Exhibit 12, page 127]
+        </p>
+
+        <p class="body-text">
+          This award is granted together with the membership in the Google Developer Experts program, as
+          explained in the description of the award badge: “Earn this badge by becoming a Google Developer
+          Expert.” [Exhibit 13, page 128]. The supporting letter to Mr. Inkin from Google confirms his
+          current membership and thus additionally confirms the award:
+        </p>
+
+        <p class="body-text quote-block">
+          “He is part of the Google Developer Experts (GDE) community... Alexey Inkin has
+          been one of them since Jul 27, 2023.” (&lt;Google Officer&gt;, &lt;Google Officer Title&gt;)
+          [Exhibit 5, page 116]
+        </p>
+
+        <h5 class="heading-5 subsubsection-heading">
+          2.1.1.2 Proof of the criteria being excellence in the field
+        </h5>
+
+        <p class="body-text">
+          The home page of the Google Developer Experts program shows these among the eligibility criteria:
+        </p>
+
+        <ul class="body-list bullet-list">
+          <li class="body-list-item">
+            <span class="body-text-inline">
+              “Solid expertise in an area featuring Google technology such as Android, Google
+              Cloud, Machine Learning, Web and more. You do not need a formal education to
+              be considered for the GDE program.
+            </span>
+          </li>
+          <li class="body-list-item">
+            <span class="body-text-inline">
+              Display significant contributions in the developer community including but not
+              limited to speaking at events, publishing content, mentoring other developers and
+              companies."
+            </span>
+          </li>
+        </ul>
+
+        <p class="body-text quote-block">
+          (Google Developer Experts home page) [Exhibit 14, page 129]
+        </p>
+
+        <p class="body-text">
+          This proves that the basis for granting the award is excellence in the field.
+        </p>
+
+        <h5 class="heading-5 subsubsection-heading">
+          2.1.1.3 Proof of no limitation to competitors except being 18+ years old
+        </h5>
+
+        <p class="body-text">
+          On the same home page, the complete eligibility criteria read like this:
+        </p>
+
+        <p class="body-text quote-block">
+          “Google Developer Experts have a variety of diverse backgrounds. They are developers,
+          founders, mothers, activists, and so much more. The one thing they have in common
+          is that they’re passionate professionals with expertise in Google technology who enjoy
+          continuous learning, sharing knowledge, and making an impact on the community.
+        </p>
+
+        <ul class="body-list bullet-list">
+          <li class="body-list-item">
+            <span class="body-text-inline">
+              Eligibility criteria:
+            </span>
+          </li>
+          <li class="body-list-item">
+            <span class="body-text-inline">
+              Solid expertise in an area featuring Google technology such as Android, Google
+              Cloud, Machine Learning, Web and more. You do not need a formal education to
+              be considered for the GDE program.
+            </span>
+          </li>
+          <li class="body-list-item">
+            <span class="body-text-inline">
+              Display significant contributions in the developer community including but not
+              limited to speaking at events, publishing content, mentoring other developers and
+              companies.
+            </span>
+          </li>
+          <li class="body-list-item">
+            <span class="body-text-inline">
+              Ability to articulate clearly and provide meaningful advice to others.
+            </span>
+          </li>
+          <li class="body-list-item">
+            <span class="body-text-inline">
+              Must be 18+ years old.
+            </span>
+          </li>
+          <li class="body-list-item">
+            <span class="body-text-inline">
+              Ability to interview and communicate in English as it’s the official language of
+              the program."
+            </span>
+          </li>
+        </ul>
+
+        <p class="body-text quote-block">
+          (Google Developer Experts home page) [Exhibit 14, page 129]
+        </p>
+
+        <p class="body-text">
+          It mentions diverse background, no need for any formal education, and the only limiting factor is
+          the minimal age of 18 years old. This further increases the significance of the award, because
+          almost all developers can compete for it.
+        </p>
+
+        <h5 class="heading-5 subsubsection-heading">
+          2.1.1.4 Proof of the international recognition of the award
+        </h5>
+
+        <p class="body-text">
+          The same supporting letter from Google highlights the significance, the international status, and
+          the rareness of the award:
+        </p>
+
+        <p class="body-text quote-block">
+          “The GDE program is a global network of highly experienced technology experts, in&shy;
+          fluencers, and thought leaders who have expertise in Google technologies, are active
+          leaders in the space, natural mentors, and contribute to the wider developer and startup
+          ecosystem. Nearly a thousand Experts represent Google technologies around the world,
+          whereas there are about 105 Dart &amp; Flutter technology experts. Alexey Inkin has
+          been one of them since Jul 27, 2023.” (&lt;Google Officer&gt;, &lt;Google Officer Title&gt;)
+          [Exhibit 5, page 116]
+        </p>
+
+        <p class="body-text">
+          For context, Flutter is a technology developed by Google for cross-platform development of web,
+          mobile, and computer apps.
+        </p>
+
+        <!-- далее по аналогии можно продолжить остальные подпункты 2.1.1 и последующие разделы -->
+
+        <div class="page-number">
+          <span>26–28</span>
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <footer class="doc-footer">
+    <div class="doc-footer-inner">
+      <!-- при необходимости сюда можно поместить общие примечания -->
+    </div>
+  </footer>
+</body>
+</html>
+```
+
+---
+
+Ниже — CSS (`styles.css`), учитывающий шрифты, отступы, сетку страниц и основные роли текста.
+
+```css
+/* ========= БАЗОВЫЕ НАСТРОЙКИ ДОКУМЕНТА ========= */
+
+/* Семейства и роли шрифтов:
+   - Основной текст и заголовки: "Times New Roman", Georgia, "Times", serif
+   - Можно подключить реальные шрифты через @font-face при наличии файлов.
+*/
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+  height: 100%;
+}
+
+body {
+  font-family: "Times New Roman", Georgia, "Times", serif;
+  font-size: 16px;          /* близко к 11–12 pt */
+  line-height: 1.5;         /* межстрочный интервал */
+  color: #000000;
+  background-color: #ffffff;
+}
+
+/* ========= ОБЩАЯ СТРУКТУРА ========= */
+
+.doc-header {
+  border-bottom: 1px solid #cccccc;
+  background-color: #ffffff;
+}
+
+.doc-header-inner {
+  max-width: 800px;
+  margin: 0 auto;
+  padding: 12px 60px 8px;
+}
+
+.doc-header-title {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.2;
+  text-align: left;
+  color: #333333;
+}
+
+.doc-main {
+  max-width: 800px;
+  margin: 0 auto;
+  padding: 20px 60px 40px;
+  box-sizing: border-box;
+}
+
+.doc-footer {
+  border-top: 1px solid #cccccc;
+  margin-top: 24px;
+}
+
+.doc-footer-inner {
+  max-width: 800px;
+  margin: 0 auto;
+  padding: 12px 60px;
+  font-size: 12px;
+  color: #666666;
+}
+
+/* ========= СЕТКА СТРАНИЦ ========= */
+
+.page {
+  position: relative;
+  padding: 40px 0 60px;
+  margin: 0 auto 32px;
+  border-bottom: 1px solid #e0e0e0; /* визуальное разделение страниц, приблизительно */
+}
+
+.page-inner {
+  position: relative;
+}
+
+.page-number {
+  margin-top: 24px;
+  text-align: center;
+  font-size: 12px;
+  line-height: 1;
+  color: #555555;
+}
+
+/* Если нужно разделять страницы при печати */
+@media print {
+  .page {
+    page-break-after: always;
+    border-bottom: none;
+    margin-bottom: 0;
+  }
+}
+
+/* ========= ТЕКСТОВЫЕ РОЛИ ========= */
+
+.body-text {
+  font-size: 16px;
+  line-height: 1.5;
+  margin: 0 0 12px;
+  text-align: justify;
+  text-indent: 1.5em; /* первая строка абзаца с отступом, как в петиции */
+  letter-spacing: 0.01em; /* приблизительно */
+  word-spacing: 0.03em;   /* приблизительно */
+}
+
+.body-text.no-indent {
+  text-indent: 0;
+}
+
+.body-text-inline {
+  font-size: 1em;
+}
+
+/* Краткие цитаты, выдержки из писем, USCIS и т.п. */
+.quote-block {
+  margin: 8px 24px 12px;
+  padding: 8px 12px;
+  border-left: 2px solid #999999;
+  background-color: #f7f7f7;
+  font-size: 15px;
+  line-height: 1.5;
+}
+
+/* Бегущий заголовок внутри страниц (сверху слева) */
+.running-header {
+  margin: 0 0 16px;
+  font-size: 13px;
+  line-height: 1.3;
+  text-align: left;
+  color: #555555;
+}
+
+/* ========= ЗАГОЛОВКИ ========= */
+
+.heading-1 {
+  font-size: 22px;        /* примерно как крупный заголовок в петиции */
+  font-weight: 700;
+  line-height: 1.3;
+  margin: 0 0 16px;
+  text-align: left;
+}
+
+.heading-2 {
+  font-size: 18px;
+  font-weight: 700;
+  line-height: 1.35;
+  margin: 24px 0 12px;
+}
+
+.heading-3 {
+  font-size: 16.5px;
+  font-weight: 700;
+  line-height: 1.4;
+  margin: 20px 0 10px;
+}
+
+.heading-4 {
+  font-size: 15.5px;
+  font-weight: 700;
+  line-height: 1.4;
+  margin: 18px 0 8px;
+}
+
+.heading-5 {
+  font-size: 15px;
+  font-weight: 700;
+  line-height: 1.4;
+  margin: 16px 0 8px;
+}
+
+.heading-title {
+  text-align: center;
+  margin-top: 12px;
+  margin-bottom: 24px;
+}
+
+.heading-toc {
+  text-align: left;
+  margin-top: 8px;
+}
+
+.heading-centered {
+  text-align: center;
+}
+
+.multiline-heading {
+  margin-top: 24px;
+}
+
+/* ========= СПИСКИ ========= */
+
+.body-list {
+  margin: 0 0 12px 2.5em;
+  padding: 0;
+}
+
+.numbered-list {
+  list-style-type: decimal;
+}
+
+.sub-numbered-list {
+  margin-top: 6px;
+  list-style-type: lower-roman;
+}
+
+.bullet-list {
+  list-style-type: disc;
+}
+
+.body-list-item {
+  margin: 4px 0;
+}
+
+.body-list-item .body-text-inline {
+  text-indent: 0;
+}
+
+/* ========= ОГЛАВЛЕНИЕ ========= */
+
+.toc-list {
+  list-style: none;
+  padding: 0;
+  margin: 16px 0 0;
+  font-size: 15px;
+}
+
+.toc-item {
+  display: flex;
+  align-items: flex-end;
+  margin-bottom: 4px;
+}
+
+.toc-text {
+  flex: 1 1 auto;
+  padding-right: 8px;
+}
+
+.toc-dot-leader {
+  flex: 0 0 auto;
+  border-bottom: 1px dotted #999999;
+  height: 0;
+  margin: 0 4px;
+  align-self: center;
+  min-width: 40px; /* приблизительно */
+}
+
+.toc-page-ref {
+  flex: 0 0 auto;
+  text-align: right;
+  min-width: 24px;
+}
+
+/* ========= ИЗОБРАЖЕНИЯ ПАСПОРТА / ВИЗЫ ========= */
+
+.figure-passport {
+  margin: 16px auto 12px;
+  text-align: center;
+}
+
+.img-passport {
+  max-width: 100%;
+  height: auto;
+  border: 1px solid #cccccc;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.08);
+}
+
+.caption {
+  margin-top: 6px;
+  font-size: 13px;
+  color: #555555;
+}
+
+/* ========= СПЕЦИАЛЬНЫЕ ЭЛЕМЕНТЫ ========= */
+
+/* Небольшие разделительные линии между крупными разделами */
+.section-heading {
+  border-top: 1px solid #999999;
+  padding-top: 12px;
+}
+
+.subsection-heading,
+.subsubsection-heading {
+  font-style: normal;
+}
+
+/* ========= ДОПОЛНИТЕЛЬНЫЕ КОММЕНТАРИИ ПО СТИЛЯМ ========= */
+
+/*
+  1) Все размеры подобраны приблизительно по визуальному виду PDF.
+     При необходимости можно масштабировать:
+        body { font-size: 15px; }
+        .doc-main { max-width: 820px; }
+     чтобы точнее попасть в исходный макет.
+
+  2) Для остальных 500+ страниц достаточно:
+        - добавить новые <section class="page page-N">...</section>
+        - использовать классы .body-text, .heading-N, .quote-block, .body-list и т.п.
+        - для форм USCIS можно завести отдельные классы .uscis-form, .uscis-row, .uscis-label,
+          .uscis-input и сверстать сетку через CSS Grid или flex.
+
+  3) При печати страницы будут разделены благодаря правилу @media print с page-break-after.
+*/
+```
+
+Если нужно, дальше можно расширить:
+
+* детальную сетку для USCIS-форм (I-140, I-907) с таблицами и полями;
+* отдельные классы для примечаний, сносок, подписей к Exhibit’ам;
+* разметку всех разделов 2.1.2+, 2.2, 2.3 и т.д. по тому же шаблону.

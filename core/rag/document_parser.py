@@ -9,9 +9,9 @@ Phase 3: Hybrid RAG Pipeline
 from __future__ import annotations
 
 import asyncio
-import mimetypes
 from dataclasses import dataclass
 from enum import Enum
+import mimetypes
 from pathlib import Path
 from typing import Any
 
@@ -251,12 +251,55 @@ class MarkitdownParser:
         Returns:
             Markdown content
 
-        Note:
-            This is a placeholder for MCP integration.
-            Actual implementation would use MCP client to call server.
+        Uses MCP client to call markitdown server for document conversion.
+        Falls back to direct library if MCP server is unavailable.
         """
-        # TODO: Implement MCP client integration
-        # For now, fall back to direct library
+        try:
+            from core.mcp.client import MCPClientManager
+
+            # Initialize MCP client manager
+            mcp_manager = MCPClientManager()
+
+            try:
+                # Connect to MCP servers
+                tools = await mcp_manager.connect()
+
+                # Find markitdown tool
+                markitdown_tool = None
+                for tool in tools:
+                    if "markitdown" in tool.name.lower() or "convert" in tool.name.lower():
+                        markitdown_tool = tool
+                        break
+
+                if markitdown_tool:
+                    # Call MCP tool to parse document
+                    result = await markitdown_tool.ainvoke(
+                        {
+                            "file_path": str(file_path),
+                        }
+                    )
+
+                    if isinstance(result, str):
+                        return result
+                    if hasattr(result, "content"):
+                        return result.content
+                    if hasattr(result, "text"):
+                        return result.text
+                    if isinstance(result, dict) and "content" in result:
+                        return result["content"]
+
+            finally:
+                # Always disconnect
+                await mcp_manager.disconnect()
+
+        except ImportError:
+            pass  # MCP client not available
+        except ConnectionError:
+            pass  # MCP server not reachable
+        except Exception:
+            pass  # Any other MCP error
+
+        # Fallback to direct library
         return await self._parse_with_library(file_path)
 
     def _detect_format(self, file_path: Path) -> DocumentFormat:
@@ -461,14 +504,110 @@ class DocumentIngestionPipeline:
     async def _embed_chunks(self, chunks: list[Any]) -> list[Any]:
         """Embed chunks using provided embedding function.
 
+        Supports multiple embedding function signatures:
+        - Async function: async def embed(text) -> list[float]
+        - Sync function: def embed(text) -> list[float]
+        - Batch async: async def embed_batch(texts) -> list[list[float]]
+        - Object with embed method: obj.embed(text) or obj.aembed(text)
+
+        Args:
+            chunks: List of DocumentChunk objects
+
+        Returns:
+            List of chunks with embeddings attached to metadata
+        """
+        if not self.embed_fn or not chunks:
+            return chunks
+
+        import asyncio
+
+        # Try batch embedding first (more efficient)
+        if hasattr(self.embed_fn, "embed_batch") or hasattr(self.embed_fn, "aembed_batch"):
+            return await self._embed_chunks_batch(chunks)
+
+        # Fall back to individual embedding
+        embedded_chunks = []
+
+        for chunk in chunks:
+            try:
+                # Get chunk content
+                content = chunk.content if hasattr(chunk, "content") else str(chunk)
+
+                # Generate embedding based on function type
+                embedding = None
+
+                if hasattr(self.embed_fn, "aembed"):
+                    # Async method on object
+                    embedding = await self.embed_fn.aembed(content)
+                elif hasattr(self.embed_fn, "embed"):
+                    # Sync method on object
+                    loop = asyncio.get_event_loop()
+                    embedding = await loop.run_in_executor(None, self.embed_fn.embed, content)
+                elif asyncio.iscoroutinefunction(self.embed_fn):
+                    # Async function
+                    embedding = await self.embed_fn(content)
+                elif callable(self.embed_fn):
+                    # Sync function
+                    loop = asyncio.get_event_loop()
+                    embedding = await loop.run_in_executor(None, self.embed_fn, content)
+
+                # Attach embedding to chunk
+                if embedding is not None:
+                    if hasattr(chunk, "embedding"):
+                        chunk.embedding = embedding
+                    elif hasattr(chunk, "metadata"):
+                        chunk.metadata["embedding"] = embedding
+                    else:
+                        # Create new chunk with embedding
+                        chunk = {  # noqa: PLW2901
+                            "content": content,
+                            "embedding": embedding,
+                            "original": chunk,
+                        }
+
+                embedded_chunks.append(chunk)
+
+            except Exception:
+                # Keep chunk without embedding on error
+                embedded_chunks.append(chunk)
+
+        return embedded_chunks
+
+    async def _embed_chunks_batch(self, chunks: list[Any]) -> list[Any]:
+        """Embed chunks using batch embedding function.
+
         Args:
             chunks: List of DocumentChunk objects
 
         Returns:
             List of chunks with embeddings attached
         """
-        # TODO: Implement embedding integration
-        # This would call the embed_fn on each chunk's content
+        import asyncio
+
+        # Extract content from chunks
+        contents = [chunk.content if hasattr(chunk, "content") else str(chunk) for chunk in chunks]
+
+        try:
+            # Generate embeddings in batch
+            embeddings = None
+
+            if hasattr(self.embed_fn, "aembed_batch"):
+                embeddings = await self.embed_fn.aembed_batch(contents)
+            elif hasattr(self.embed_fn, "embed_batch"):
+                loop = asyncio.get_event_loop()
+                embeddings = await loop.run_in_executor(None, self.embed_fn.embed_batch, contents)
+
+            if embeddings and len(embeddings) == len(chunks):
+                # Attach embeddings to chunks
+                for chunk, embedding in zip(chunks, embeddings, strict=False):
+                    if hasattr(chunk, "embedding"):
+                        chunk.embedding = embedding
+                    elif hasattr(chunk, "metadata"):
+                        chunk.metadata["embedding"] = embedding
+
+        except Exception:
+            pass  # Return chunks without embeddings on error
+
         return chunks
 
 

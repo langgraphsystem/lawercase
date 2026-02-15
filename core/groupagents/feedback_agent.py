@@ -12,10 +12,10 @@ FeedbackAgent - Система обратной связи и обзора до�
 
 from __future__ import annotations
 
-import uuid
-from datetime import datetime
+from datetime import UTC, datetime
 from enum import Enum
 from typing import Any
+import uuid
 
 from pydantic import BaseModel, Field
 
@@ -342,7 +342,7 @@ class FeedbackAgent:
             session.comments.extend(feedback_comments)
             session.overall_rating = overall_rating
             session.status = FeedbackStatus.REVIEWED
-            session.completed_at = datetime.utcnow()
+            session.completed_at = datetime.now(UTC)
 
             # Автоматический анализ
             await self._analyze_session_feedback(session)
@@ -553,7 +553,7 @@ class FeedbackAgent:
         if not request.reviewer_ids:
             raise FeedbackError("At least one reviewer must be specified")
 
-        if request.deadline and request.deadline <= datetime.utcnow():
+        if request.deadline and request.deadline <= datetime.now(UTC):
             raise FeedbackError("Deadline must be in the future")
 
     async def _validate_collaborative_edit(self, edit: CollaborativeEdit) -> None:

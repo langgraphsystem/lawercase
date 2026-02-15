@@ -10,7 +10,7 @@ Pydantic модели для Core Group Agents.
 
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import UTC, datetime
 from enum import Enum
 from typing import Any
 from uuid import uuid4
@@ -108,7 +108,7 @@ class CaseRecord(_AgentBaseModel):
     @field_validator("updated_at", mode="before")
     @classmethod
     def set_updated_at(cls, value: datetime | None) -> datetime:  # pragma: no cover - simple setter
-        return datetime.utcnow()
+        return datetime.now(UTC)
 
 
 class CaseVersion(_AgentBaseModel):

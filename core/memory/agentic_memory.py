@@ -15,12 +15,12 @@ Features:
 
 from __future__ import annotations
 
-import json
-import uuid
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import UTC, datetime
 from enum import Enum
+import json
 from typing import Any
+import uuid
 
 import structlog
 
@@ -74,9 +74,9 @@ class MemoryNote:
     # Metadata
     case_id: str | None = None
     user_id: str | None = None
-    created_at: datetime = field(default_factory=datetime.utcnow)
-    updated_at: datetime = field(default_factory=datetime.utcnow)
-    accessed_at: datetime = field(default_factory=datetime.utcnow)
+    created_at: datetime = field(default_factory=lambda: datetime.now(UTC))
+    updated_at: datetime = field(default_factory=lambda: datetime.now(UTC))
+    accessed_at: datetime = field(default_factory=lambda: datetime.now(UTC))
     access_count: int = 0
 
     # Importance and decay
@@ -95,7 +95,7 @@ class MemoryNote:
         R = e^(-t/S) where S is memory strength
         """
         if current_time is None:
-            current_time = datetime.utcnow()
+            current_time = datetime.now(UTC)
 
         # Time since last access (in days)
         time_delta = (current_time - self.accessed_at).total_seconds() / 86400
@@ -149,17 +149,17 @@ class MemoryNote:
             created_at=(
                 datetime.fromisoformat(data["created_at"])
                 if "created_at" in data
-                else datetime.utcnow()
+                else datetime.now(UTC)
             ),
             updated_at=(
                 datetime.fromisoformat(data["updated_at"])
                 if "updated_at" in data
-                else datetime.utcnow()
+                else datetime.now(UTC)
             ),
             accessed_at=(
                 datetime.fromisoformat(data["accessed_at"])
                 if "accessed_at" in data
-                else datetime.utcnow()
+                else datetime.now(UTC)
             ),
             access_count=data.get("access_count", 0),
             importance=data.get("importance", 0.5),
@@ -180,8 +180,8 @@ class EntityNode:
     name: str = ""
     entity_type: str = ""  # person, organization, document, concept, criterion
     attributes: dict[str, Any] = field(default_factory=dict)
-    created_at: datetime = field(default_factory=datetime.utcnow)
-    updated_at: datetime = field(default_factory=datetime.utcnow)
+    created_at: datetime = field(default_factory=lambda: datetime.now(UTC))
+    updated_at: datetime = field(default_factory=lambda: datetime.now(UTC))
     version: int = 1
 
 
@@ -199,9 +199,9 @@ class EntityRelation:
     relation_type: str = ""  # worked_at, authored, awarded, supports_criterion
     attributes: dict[str, Any] = field(default_factory=dict)
     confidence: float = 1.0
-    valid_from: datetime = field(default_factory=datetime.utcnow)
+    valid_from: datetime = field(default_factory=lambda: datetime.now(UTC))
     valid_until: datetime | None = None  # None = still valid
-    created_at: datetime = field(default_factory=datetime.utcnow)
+    created_at: datetime = field(default_factory=lambda: datetime.now(UTC))
 
 
 class AgenticMemory:
@@ -369,7 +369,7 @@ class AgenticMemory:
         if importance is not None:
             note.importance = importance
 
-        note.updated_at = datetime.utcnow()
+        note.updated_at = datetime.now(UTC)
 
         self._stats["total_updates"] += 1
 
@@ -439,7 +439,7 @@ class AgenticMemory:
 
         if note:
             # Update access metadata
-            note.accessed_at = datetime.utcnow()
+            note.accessed_at = datetime.now(UTC)
             note.access_count += 1
             self._stats["total_retrievals"] += 1
 
@@ -530,7 +530,7 @@ class AgenticMemory:
 
         # Update access metadata
         for note in results:
-            note.accessed_at = datetime.utcnow()
+            note.accessed_at = datetime.now(UTC)
             note.access_count += 1
 
         self._stats["total_retrievals"] += len(results)
@@ -587,7 +587,7 @@ class AgenticMemory:
                         consolidated += 1
 
         # Remove low-relevance notes
-        current_time = datetime.utcnow()
+        current_time = datetime.now(UTC)
         for note in list(self._semantic_memory.values()):
             relevance = note.calculate_relevance(current_time)
             if relevance < 0.05 and note.access_count == 0:
@@ -853,7 +853,7 @@ Respond in JSON format:
         ) / max(note1.access_count + note2.access_count, 1)
 
         # Update metadata
-        note1.updated_at = datetime.utcnow()
+        note1.updated_at = datetime.now(UTC)
         note1.access_count += note2.access_count
 
         # Regenerate context

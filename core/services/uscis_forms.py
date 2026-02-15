@@ -16,10 +16,10 @@ Features:
 
 from __future__ import annotations
 
-import json
 from dataclasses import dataclass, field
 from datetime import date
 from enum import Enum
+import json
 from pathlib import Path
 from typing import Any
 

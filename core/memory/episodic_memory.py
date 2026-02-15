@@ -14,7 +14,7 @@ without forcing downstream callers to work with the low-level dictionary API.
 
 from collections.abc import Iterable, Sequence
 from dataclasses import dataclass
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 from typing import Any
 
 from .models import AuditEvent
@@ -106,7 +106,7 @@ class EpisodicMemory:
     ) -> list[str]:
         """Return human-friendly bullet points for the recent conversation."""
 
-        now = datetime.utcnow()
+        now = datetime.now(UTC)
         events = await self.query(EventQuery(thread_id=thread_id, since=now - horizon, until=now))
         lines: list[str] = []
         for event in events:

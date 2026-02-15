@@ -1,0 +1,578 @@
+{
+  "metadata": {
+    "version": "1.0",
+    "source": "EB-1A Petition Sample Document",
+    "description": "Real examples from approved EB-1A petitions for RAG retrieval",
+    "last_updated": "2025-01-18"
+  },
+  "examples": [
+    {
+      "id": "awards_example_1",
+      "criterion": "awards",
+      "criterion_code": "8_cfr_204.5_h_3_i",
+      "title": "Education 2.0 Conference Award",
+      "field": "education",
+      "summary": "International education conference award with competitive selection",
+      "full_text": "The Petitioner was honored with the Education 2.0 Conference Award, which recognizes outstanding contributions to the field of education. This award was presented at an international conference attended by education professionals from multiple countries. The selection process involved a rigorous review by a panel of recognized experts in educational innovation. The conference attracted over 500 nominations, with only 20 awards given, demonstrating the competitive nature of this recognition. The award ceremony received coverage in major education trade publications.",
+      "key_elements": [
+        "International scope - attendees from multiple countries",
+        "Competitive selection - 500 nominations, 20 winners (4% acceptance)",
+        "Expert judges - panel of recognized education professionals",
+        "Media coverage in trade publications"
+      ],
+      "required_documents": [
+        "Award certificate",
+        "Conference program listing award recipients",
+        "Selection criteria documentation",
+        "Judges panel credentials",
+        "Press coverage of award ceremony"
+      ],
+      "language": "en"
+    },
+    {
+      "id": "awards_example_2",
+      "criterion": "awards",
+      "criterion_code": "8_cfr_204.5_h_3_i",
+      "title": "Lady Mail.ru Award",
+      "field": "media_entertainment",
+      "summary": "National Russian award for women's achievements with wide recognition",
+      "full_text": "The Petitioner received the prestigious Lady Mail.ru Award (also known as Lady Award), a nationally recognized prize in Russia honoring exceptional women in various fields. The award is presented by Mail.ru Group, one of Russia's largest internet companies. The selection process involves public voting combined with expert panel evaluation. The award ceremony is broadcast nationally and receives significant media coverage. Previous recipients include prominent figures in business, arts, and social leadership across Russia.",
+      "key_elements": [
+        "National recognition throughout Russia",
+        "Organized by major media company (Mail.ru Group)",
+        "Combined public voting and expert selection",
+        "National broadcast of ceremony",
+        "Prestigious past recipients"
+      ],
+      "required_documents": [
+        "Award certificate or trophy",
+        "Invitation to award ceremony",
+        "Media coverage of the event",
+        "Documentation of selection process",
+        "List of past recipients showing prestige"
+      ],
+      "language": "en"
+    },
+    {
+      "id": "membership_example_1",
+      "criterion": "membership",
+      "criterion_code": "8_cfr_204.5_h_3_ii",
+      "title": "Manitoba Council for International Education Membership",
+      "field": "education",
+      "summary": "Professional education organization requiring demonstrated achievements",
+      "full_text": "The Petitioner is a member of the Manitoba Council for International Education (MCIE), an organization that requires members to demonstrate outstanding achievements in international education. Membership is evaluated by a committee of recognized experts in the field. Applicants must submit evidence of significant contributions to international education, including publications, presentations, and leadership roles. The organization has a limited membership of education professionals who have made substantial impact in advancing international education initiatives.",
+      "key_elements": [
+        "Membership requires demonstrated achievements",
+        "Expert committee evaluates applications",
+        "Limited membership numbers",
+        "Requires evidence of significant contributions",
+        "Members must show leadership and impact"
+      ],
+      "required_documents": [
+        "Membership certificate",
+        "MCIE bylaws showing membership requirements",
+        "Application materials demonstrating achievements",
+        "Committee evaluation criteria",
+        "List of other distinguished members"
+      ],
+      "language": "en"
+    },
+    {
+      "id": "membership_example_2",
+      "criterion": "membership",
+      "criterion_code": "8_cfr_204.5_h_3_ii",
+      "title": "The Podcast Academy Membership",
+      "field": "media_entertainment",
+      "summary": "Professional podcast organization with achievement-based admission",
+      "full_text": "The Petitioner is a member of The Podcast Academy, the professional organization that presents the Ambies (Podcast Academy Awards). Membership requires demonstrated excellence in podcasting, including successful podcast creation, significant audience reach, or notable contributions to the podcasting industry. Applications are reviewed by a panel of industry professionals who evaluate the applicant's achievements and contributions to the field. The Academy maintains strict membership standards to ensure only accomplished podcast professionals are admitted.",
+      "key_elements": [
+        "Membership tied to Ambies awards organization",
+        "Requires demonstrated excellence in podcasting",
+        "Industry professional review panel",
+        "Strict admission standards",
+        "Achievement-based rather than fee-based"
+      ],
+      "required_documents": [
+        "Membership confirmation letter",
+        "Academy bylaws and membership criteria",
+        "Evidence of podcast achievements submitted",
+        "Review panel composition",
+        "Acceptance rate statistics"
+      ],
+      "language": "en"
+    },
+    {
+      "id": "membership_example_3",
+      "criterion": "membership",
+      "criterion_code": "8_cfr_204.5_h_3_ii",
+      "title": "National Association of Cadastral Engineers",
+      "field": "engineering_surveying",
+      "summary": "Professional surveying organization requiring expertise and achievements",
+      "full_text": "The Petitioner holds membership in the National Association of Cadastral Engineers of Russia, which requires members to demonstrate outstanding achievements in the field of land surveying and cadastral engineering. Admission requires passing a comprehensive examination, submitting evidence of significant projects completed, and receiving endorsement from existing members. The association limits membership to professionals who have made notable contributions to the advancement of cadastral practices in Russia.",
+      "key_elements": [
+        "Comprehensive examination required",
+        "Project portfolio evaluation",
+        "Endorsement from existing members required",
+        "Limited to professionals with notable contributions",
+        "National scope organization"
+      ],
+      "required_documents": [
+        "Membership certificate",
+        "Association bylaws",
+        "Examination results or certification",
+        "Project portfolio submitted for evaluation",
+        "Member endorsement letters"
+      ],
+      "language": "en"
+    },
+    {
+      "id": "published_material_example_1",
+      "criterion": "published_material",
+      "criterion_code": "8_cfr_204.5_h_3_iii",
+      "title": "Brandon Now Media Coverage",
+      "field": "education",
+      "summary": "Six months of regular media coverage in regional newspaper",
+      "full_text": "The Petitioner received extensive media coverage from Brandon Now, a major regional newspaper in Manitoba, Canada. Over a six-month period, the newspaper published multiple articles about the Petitioner's work in international education and contributions to the local community. The coverage focused on the Petitioner's innovative educational programs and their impact on international students. Brandon Now has a circulation covering the Brandon metropolitan area and is recognized as a credible news source in the region.",
+      "key_elements": [
+        "Six months of continuous coverage",
+        "Multiple articles about the Petitioner",
+        "Coverage focused on Petitioner's work and impact",
+        "Established regional newspaper",
+        "Documented circulation data"
+      ],
+      "required_documents": [
+        "Copies of all published articles",
+        "Publication dates and authors",
+        "Brandon Now circulation statistics",
+        "Website traffic data (Similarweb)",
+        "English translations if needed"
+      ],
+      "language": "en"
+    },
+    {
+      "id": "published_material_example_2",
+      "criterion": "published_material",
+      "criterion_code": "8_cfr_204.5_h_3_iii",
+      "title": "Medium.com Feature Article",
+      "field": "education",
+      "summary": "Article about the Petitioner on major online publishing platform",
+      "full_text": "An article titled 'What happens when your students become your teachers?' was published on Medium.com featuring the Petitioner's innovative teaching methodology. Medium.com is a major online publishing platform with over 100 million monthly readers worldwide. The article discussed the Petitioner's unique approach to education and their impact on students. The platform qualifies as major media given its significant readership and recognition as a credible publishing venue.",
+      "key_elements": [
+        "Article specifically about the Petitioner",
+        "Published on Medium.com - major platform",
+        "100+ million monthly readers",
+        "Discusses Petitioner's methodology and impact",
+        "International reach"
+      ],
+      "required_documents": [
+        "Full article copy with URL",
+        "Author information",
+        "Medium.com traffic statistics",
+        "Publication date",
+        "Readership/engagement metrics for the article"
+      ],
+      "language": "en"
+    },
+    {
+      "id": "published_material_example_3",
+      "criterion": "published_material",
+      "criterion_code": "8_cfr_204.5_h_3_iii",
+      "title": "OOPS Magazine Interview",
+      "field": "fashion_beauty",
+      "summary": "Interview feature in major Russian fashion magazine",
+      "full_text": "The Petitioner was featured in an interview published in OOPS Magazine, a major Russian fashion and lifestyle publication. The interview focused on the Petitioner's career achievements and contributions to the fashion industry. OOPS Magazine is a nationally recognized publication in Russia with significant circulation among fashion industry professionals and consumers. The interview included photographs and detailed discussion of the Petitioner's work.",
+      "key_elements": [
+        "Interview format - substantively about Petitioner",
+        "National Russian fashion magazine",
+        "Professional industry publication",
+        "Photographs included",
+        "Detailed coverage of career and achievements"
+      ],
+      "required_documents": [
+        "Full interview copy",
+        "Magazine circulation data",
+        "Publication credentials",
+        "English translation with certification",
+        "Photographer credits"
+      ],
+      "language": "en"
+    },
+    {
+      "id": "judging_example_1",
+      "criterion": "judging",
+      "criterion_code": "8_cfr_204.5_h_3_iv",
+      "title": "Swimming Competition Judge",
+      "field": "sports_athletics",
+      "summary": "Official judge at regional and national swimming competitions",
+      "full_text": "The Petitioner served as an official judge at multiple swimming competitions, including regional championships and national qualifying events. The Petitioner was invited to serve as a judge based on their expertise and credentials as a former competitive swimmer and certified coach. Judging responsibilities included evaluating technical performance, timing, and adherence to competitive swimming rules. The Petitioner judged over 50 events across multiple competitions over a three-year period.",
+      "key_elements": [
+        "Invited to judge based on expertise",
+        "Official capacity - not volunteer",
+        "Multiple competitions including national events",
+        "50+ events judged over 3 years",
+        "Technical expertise required"
+      ],
+      "required_documents": [
+        "Official invitation to serve as judge",
+        "Competition programs listing Petitioner as judge",
+        "Certification as qualified judge",
+        "Letter from swimming federation confirming role",
+        "List of competitions and events judged"
+      ],
+      "language": "en"
+    },
+    {
+      "id": "judging_example_2",
+      "criterion": "judging",
+      "criterion_code": "8_cfr_204.5_h_3_iv",
+      "title": "Music Box Golden Hit Competition Jury",
+      "field": "media_entertainment",
+      "summary": "Television music competition jury member",
+      "full_text": "The Petitioner served on the jury panel for the Music Box Golden Hit television music competition, a nationally broadcast show in Russia. The Petitioner was invited to serve as a judge based on their expertise in music production and industry experience. As a jury member, the Petitioner evaluated musical performances and voted on competition outcomes. The show reaches millions of viewers nationally, and jury selection is based on recognized expertise in the music industry.",
+      "key_elements": [
+        "National television competition",
+        "Invited based on music industry expertise",
+        "Jury member - official role",
+        "Evaluated performances and determined outcomes",
+        "Millions of viewers nationally"
+      ],
+      "required_documents": [
+        "Invitation letter to serve on jury",
+        "Contract or agreement with television network",
+        "Program credits showing Petitioner as jury member",
+        "Television broadcast records",
+        "Letter from producer confirming role"
+      ],
+      "language": "en"
+    },
+    {
+      "id": "original_contributions_example_1",
+      "criterion": "original_contributions",
+      "criterion_code": "8_cfr_204.5_h_3_v",
+      "title": "Legal Practice Innovations in Kazakhstan",
+      "field": "law",
+      "summary": "Novel legal methodologies adopted by other practitioners",
+      "full_text": "The Petitioner developed original legal practice methodologies in Kazakhstan that have been adopted by other law firms and legal professionals. The innovations include standardized contract templates for international transactions, compliance frameworks for regulatory matters, and client advisory protocols. Evidence of significance includes adoption by 15+ law firms, citation in legal publications, and recognition by the Kazakhstan Bar Association. Independent legal experts have provided letters confirming the significance of these contributions to the field.",
+      "key_elements": [
+        "Original methodologies developed by Petitioner",
+        "Adopted by 15+ law firms",
+        "Cited in legal publications",
+        "Bar Association recognition",
+        "Independent expert testimonials"
+      ],
+      "required_documents": [
+        "Description of innovations developed",
+        "Evidence of adoption by other firms",
+        "Citations in legal publications",
+        "Bar Association recognition letter",
+        "Independent expert recommendation letters",
+        "Timeline showing Petitioner as originator"
+      ],
+      "language": "en"
+    },
+    {
+      "id": "original_contributions_example_2",
+      "criterion": "original_contributions",
+      "criterion_code": "8_cfr_204.5_h_3_v",
+      "title": "Swimming Methodology for Children with Special Needs",
+      "field": "sports_athletics",
+      "summary": "Innovative swimming teaching methodology for children with disabilities",
+      "full_text": "The Petitioner developed an original swimming methodology called 'Swimming in a New Way and with Care' specifically designed for teaching children with special needs, including those with cerebral palsy, autism, and developmental disabilities. The methodology incorporates fairy tale stories, water exercises and games, conditional signals and gestures, and individualized approach based on child development biomechanics. The methodology has been adopted by other swimming schools and coaches, with documented success in helping children with disabilities learn to swim safely. Expert letters from pediatric therapists and special education professionals confirm the significance of this contribution.",
+      "key_elements": [
+        "Original methodology created by Petitioner",
+        "Specifically designed for children with special needs",
+        "Incorporates innovative teaching elements",
+        "Adopted by other swimming schools",
+        "Documented success with special needs children",
+        "Expert endorsements from therapists"
+      ],
+      "required_documents": [
+        "Detailed description of methodology",
+        "Evidence of development by Petitioner",
+        "Adoption by other schools/coaches",
+        "Success stories and case studies",
+        "Letters from pediatric experts",
+        "Training materials demonstrating originality"
+      ],
+      "language": "en"
+    },
+    {
+      "id": "scholarly_articles_example_1",
+      "criterion": "scholarly_articles",
+      "criterion_code": "8_cfr_204.5_h_3_vi",
+      "title": "Scientific Journal Publications",
+      "field": "science_research",
+      "summary": "Peer-reviewed articles in indexed scientific journals",
+      "full_text": "The Petitioner has authored multiple peer-reviewed articles published in scientific journals indexed in Scopus and Web of Science. The articles focus on the Petitioner's research in their field of expertise and have received citations from other researchers. The journals include international publications with impact factors, demonstrating the quality and recognition of the venues. The Petitioner is listed as first author on several publications, indicating primary contribution.",
+      "key_elements": [
+        "Peer-reviewed publications",
+        "Indexed in Scopus and Web of Science",
+        "International journals with impact factors",
+        "Citations by other researchers",
+        "First author on multiple articles"
+      ],
+      "required_documents": [
+        "Full citations for all articles",
+        "Copies of published articles",
+        "Journal impact factors",
+        "Citation counts (Google Scholar)",
+        "Indexing verification (Scopus, WoS)"
+      ],
+      "language": "en"
+    },
+    {
+      "id": "exhibitions_example_1",
+      "criterion": "exhibitions",
+      "criterion_code": "8_cfr_204.5_h_3_vii",
+      "title": "ICEF Education Exhibitions",
+      "field": "education",
+      "summary": "Presentation at international education recruitment exhibitions",
+      "full_text": "The Petitioner's educational programs and institution were showcased at ICEF (International Consultants for Education and Fairs) exhibitions, which are premier international education recruitment events held worldwide. The Petitioner represented their institution at multiple ICEF events across different countries, presenting educational offerings to international student recruitment agents and education professionals. ICEF events attract thousands of education professionals from over 100 countries.",
+      "key_elements": [
+        "ICEF - premier international education exhibition",
+        "Multiple events attended",
+        "Presented own educational programs",
+        "International scope - 100+ countries",
+        "Recognized venue for education professionals"
+      ],
+      "required_documents": [
+        "ICEF participation confirmation",
+        "Exhibition catalogs listing Petitioner's institution",
+        "Photographs from exhibition booth",
+        "ICEF event statistics and reach",
+        "Materials presented at exhibition"
+      ],
+      "language": "en"
+    },
+    {
+      "id": "exhibitions_example_2",
+      "criterion": "exhibitions",
+      "criterion_code": "8_cfr_204.5_h_3_vii",
+      "title": "EduCanada Exhibitions",
+      "field": "education",
+      "summary": "Showcasing Canadian education at international education fairs",
+      "full_text": "The Petitioner participated in EduCanada exhibitions, official Canadian government-sponsored international education fairs promoting Canadian educational institutions globally. At these exhibitions, the Petitioner showcased their institution's programs and services to prospective international students and education agents. EduCanada exhibitions are held in major cities worldwide and are recognized as authoritative showcases for Canadian education.",
+      "key_elements": [
+        "Government-sponsored education fair",
+        "Official EduCanada brand",
+        "International venues worldwide",
+        "Showcased own institution's programs",
+        "Recognized authoritative venue"
+      ],
+      "required_documents": [
+        "EduCanada participation confirmation",
+        "Exhibition program materials",
+        "Government sponsorship documentation",
+        "Photographs from events",
+        "Attendance and reach statistics"
+      ],
+      "language": "en"
+    },
+    {
+      "id": "exhibitions_example_3",
+      "criterion": "exhibitions",
+      "criterion_code": "8_cfr_204.5_h_3_vii",
+      "title": "Dog Show Competitions",
+      "field": "animal_breeding",
+      "summary": "Display of breeding work at recognized dog shows",
+      "full_text": "The Petitioner's dogs have been displayed at recognized dog show competitions, including national and international breed shows sanctioned by kennel clubs. As a breeder and trainer, the Petitioner's work is showcased through the presentation of dogs they have bred or trained. The shows are judged by certified breed experts, and achievements include Best in Show and breed championship titles.",
+      "key_elements": [
+        "Sanctioned dog shows - kennel club recognition",
+        "Petitioner's breeding/training work displayed",
+        "National and international competitions",
+        "Judged by certified experts",
+        "Championship titles earned"
+      ],
+      "required_documents": [
+        "Show entry confirmations",
+        "Championship certificates",
+        "Kennel club registration",
+        "Photographs from shows",
+        "Judge's scorecards or evaluations"
+      ],
+      "language": "en"
+    },
+    {
+      "id": "leading_role_example_1",
+      "criterion": "leading_role",
+      "criterion_code": "8_cfr_204.5_h_3_viii",
+      "title": "English School of Canada Leadership",
+      "field": "education",
+      "summary": "Senior leadership position at distinguished language school",
+      "full_text": "The Petitioner served in a senior leadership role at the English School of Canada, a distinguished private language school in Toronto. In this role, the Petitioner was responsible for strategic direction, program development, and operational oversight. The English School of Canada is recognized as one of Canada's leading private language schools, accredited by Languages Canada and with partnerships with major universities. The school has received multiple industry awards and serves thousands of international students annually.",
+      "key_elements": [
+        "Senior leadership position with strategic responsibility",
+        "Distinguished organization - industry recognition",
+        "Languages Canada accreditation",
+        "University partnerships",
+        "Industry awards received by school",
+        "Thousands of students served"
+      ],
+      "required_documents": [
+        "Employment contract showing title",
+        "Job description with responsibilities",
+        "Organizational chart",
+        "School's accreditations and awards",
+        "Letter from supervisor explaining role significance",
+        "School rankings and reputation evidence"
+      ],
+      "language": "en"
+    },
+    {
+      "id": "leading_role_example_2",
+      "criterion": "leading_role",
+      "criterion_code": "8_cfr_204.5_h_3_viii",
+      "title": "GridGain Critical Engineering Role",
+      "field": "technology",
+      "summary": "Critical technical role at distinguished technology company",
+      "full_text": "The Petitioner performed a critical role as a senior engineer at GridGain Systems, a distinguished technology company specializing in in-memory computing platforms. The Petitioner's expertise was essential to the development of key product features and their work contributed to patents held by the company. GridGain is recognized as a leader in its market segment, having received industry awards and funding from major venture capital firms. The company's products are used by Fortune 500 companies worldwide.",
+      "key_elements": [
+        "Critical technical contribution",
+        "Essential expertise for product development",
+        "Patent contributions",
+        "Distinguished company - VC funding, industry awards",
+        "Fortune 500 client base",
+        "Market leadership position"
+      ],
+      "required_documents": [
+        "Employment verification and title",
+        "Description of critical contributions",
+        "Patent documentation with Petitioner listed",
+        "Company funding and valuation data",
+        "Industry awards received by company",
+        "Letter explaining critical nature of role"
+      ],
+      "language": "en"
+    },
+    {
+      "id": "high_salary_example_1",
+      "criterion": "high_salary",
+      "criterion_code": "8_cfr_204.5_h_3_ix",
+      "title": "Head of Direction Salary Comparison - Moscow",
+      "field": "management",
+      "summary": "Salary significantly exceeding average for position in Moscow",
+      "full_text": "The Petitioner's salary as Head of Direction significantly exceeded the average salary for this position in Moscow. According to statistics from GorodRabot.ru, the average salary for a Head of Direction in Moscow was 134,272 rubles ($1,439 USD) in 2022. The Petitioner's documented salary was substantially higher than this average, demonstrating high remuneration compared to others in the same occupation and geographic area. Currency conversion documentation and official salary statistics were provided as supporting evidence.",
+      "key_elements": [
+        "Documented salary with official records",
+        "Same occupation comparison",
+        "Same geographic area (Moscow)",
+        "Official statistics source (GorodRabot.ru)",
+        "Currency conversion documentation",
+        "Significant percentage above average"
+      ],
+      "required_documents": [
+        "Employment contract with salary",
+        "Tax returns or pay stubs",
+        "GorodRabot.ru statistics printout",
+        "Currency conversion documentation",
+        "Calculation showing percentage above average"
+      ],
+      "language": "en"
+    },
+    {
+      "id": "high_salary_example_2",
+      "criterion": "high_salary",
+      "criterion_code": "8_cfr_204.5_h_3_ix",
+      "title": "Entrepreneur Income Comparison - Buryatia",
+      "field": "business",
+      "summary": "Business income significantly exceeding regional and national averages",
+      "full_text": "The Petitioner's business income of 5,608,679 Rubles ($58,625.87 USD) for tax year 2022 significantly exceeded average earnings in the Republic of Buryatia and among Russian entrepreneurs generally. The average monthly wage in Buryatia was 37,337 Rubles ($390.45 USD). Additionally, a Beeline Business study of 70,000 entrepreneurs showed that only 29.23% earn 75,000-100,000 rubles monthly ($819-$1,092 USD), with the Petitioner's annual earnings far exceeding these benchmarks. This demonstrates the Petitioner commands high remuneration compared to peers.",
+      "key_elements": [
+        "Tax return documentation",
+        "Regional average comparison (Buryatia)",
+        "National entrepreneur study comparison",
+        "Multiple comparison data points",
+        "Currency conversion with sources",
+        "Significantly above all benchmarks"
+      ],
+      "required_documents": [
+        "Tax return for 2022",
+        "Average wage statistics for Buryatia",
+        "Beeline Business study documentation",
+        "Currency conversion at applicable rates",
+        "Calculation showing comparative position"
+      ],
+      "language": "en"
+    },
+    {
+      "id": "area_of_expertise_example_1",
+      "criterion": "area_of_expertise",
+      "criterion_code": "continuation_of_work",
+      "title": "Mobile Swimming School Business (NKswim LLC)",
+      "field": "sports_athletics",
+      "summary": "Registered US business with expansion plans in swimming instruction",
+      "full_text": "The Petitioner registered NKswim LLC in Miami, Florida and developed a comprehensive business plan for a mobile swimming school. The business provides swimming instruction to people of all ages, with special focus on children with special needs. Evidence includes company registration, business plan, letters of interest from potential partners (Swim Right Academy, Swim Malahit Miami LLC), and letters of recommendation from clients. Future plans include franchise expansion to major US cities including New York, Los Angeles, San Francisco, Phoenix, Tampa, Orlando, Dallas, Houston, Austin, and Chicago.",
+      "key_elements": [
+        "Registered US LLC in Florida",
+        "Comprehensive business plan",
+        "Existing operations in Miami",
+        "Partnership letters of interest",
+        "Client testimonials",
+        "Franchise expansion plans"
+      ],
+      "required_documents": [
+        "LLC registration certificate",
+        "Business plan",
+        "Letters of interest from partners",
+        "Client recommendation letters",
+        "Franchise expansion plan",
+        "Evidence of current operations"
+      ],
+      "language": "en"
+    },
+    {
+      "id": "area_of_expertise_example_2",
+      "criterion": "area_of_expertise",
+      "criterion_code": "continuation_of_work",
+      "title": "LGBT Content Creator/Influencer",
+      "field": "media_entertainment",
+      "summary": "Social media influencer with brand partnerships continuing work in US",
+      "full_text": "The Petitioner's area of expertise is Influencer and LGBT Content Creator. Evidence of continued work includes growing US-based follower statistics, contracts with major brands (Gucci, L'Oreal, Starbucks, Benetton, Alo Yoga, Meta), and a signed contract with VX Media production agency in New York. The Petitioner has earned over $100,000 in the past six months through media and advertising work. Future plans include continued brand collaborations, launching product lines, and providing psychological support to LGBT immigrants.",
+      "key_elements": [
+        "Established social media presence",
+        "Major brand partnerships (Gucci, L'Oreal, etc.)",
+        "VX Media agency contract (New York)",
+        "Documented income $100,000+ in 6 months",
+        "Growing US audience",
+        "Specific future work plans"
+      ],
+      "required_documents": [
+        "Social media statistics showing US growth",
+        "Brand contracts and partnerships",
+        "VX Media contract",
+        "Income documentation",
+        "Letters from brand partners",
+        "Statement of future plans"
+      ],
+      "language": "en"
+    },
+    {
+      "id": "substantial_benefit_example_1",
+      "criterion": "substantial_benefit",
+      "criterion_code": "prospective_benefit",
+      "title": "Coffee Shop Chain (Arvaci Corp)",
+      "field": "business",
+      "summary": "Growing coffee business creating jobs and contributing to US economy",
+      "full_text": "The Petitioner established Arvaci Corp and opened multiple coffee shops in New York City. The business has grown from $71,105 in 2021 to $911,465 in gross receipts by 2023. The Petitioner has created 7+ jobs for US workers and plans to expand by 5-8 additional locations. Evidence includes tax returns, lease agreements, employee records, and recommendation letters from landlords, suppliers, and business partners. The Petitioner advocates for eco-friendly practices including biodegradable cups, contributing to environmental sustainability. The business demonstrates economic contribution through job creation, tax payments, and support for the US coffee industry.",
+      "key_elements": [
+        "Revenue growth documented ($71K to $911K)",
+        "7+ jobs created",
+        "Expansion plans (5-8 more locations)",
+        "Tax returns as evidence",
+        "Supplier and partner relationships",
+        "Environmental sustainability practices",
+        "Economic contribution to US"
+      ],
+      "required_documents": [
+        "Business registration documents",
+        "Tax returns 2021-2023",
+        "Lease agreements for locations",
+        "Employee records",
+        "Letters from landlords and partners",
+        "Business expansion plan",
+        "Website showing operations"
+      ],
+      "language": "en"
+    }
+  ]
+}

@@ -13,8 +13,7 @@ from abc import ABC, abstractmethod
 from typing import Any
 
 from .....memory.memory_manager import MemoryManager
-from ...eb1a_coordinator import (EB1ACriterion, EB1AEvidence,
-                                 EB1APetitionRequest, SectionContent)
+from ...eb1a_coordinator import EB1ACriterion, EB1AEvidence, EB1APetitionRequest, SectionContent
 from ...templates.language_patterns import LanguagePatterns
 from ...templates.section_templates import SectionTemplates
 

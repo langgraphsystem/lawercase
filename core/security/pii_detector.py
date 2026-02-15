@@ -2,10 +2,10 @@
 
 from __future__ import annotations
 
-import logging
-import re
 from dataclasses import dataclass, field
 from enum import Enum
+import logging
+import re
 from typing import Any
 
 logger = logging.getLogger(__name__)
@@ -392,7 +392,9 @@ class PIIDetector:
                     (
                         self.scan_dict(item, sensitive_keys)
                         if isinstance(item, dict)
-                        else self.redact(item) if isinstance(item, str) else item
+                        else self.redact(item)
+                        if isinstance(item, str)
+                        else item
                     )
                     for item in value
                 ]

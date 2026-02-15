@@ -1,311 +1,1019 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-theme="light">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{% block title %}Case Dashboard{% endblock %} - MegaAgent Pro</title>
+    <title>{% block title %}Case Dashboard{% endblock %} | EB-1A Portal</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Playfair+Display:wght@600;700&display=swap" rel="stylesheet">
     <style>
+        /* ========== CSS Variables & Theme ========== */
         :root {
-            --primary-color: #0066cc;
-            --secondary-color: #f8f9fa;
-            --text-color: #333;
-            --border-color: #dee2e6;
-            --sidebar-bg: #1a252f;
-            --sidebar-hover: #2c3e50;
-        }
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-            margin: 0;
-            padding: 0;
-            color: var(--text-color);
-            display: flex;
-            min-height: 100vh;
-        }
-        .sidebar {
-            width: 280px;
-            background: var(--sidebar-bg);
-            color: white;
-            padding: 0;
-            flex-shrink: 0;
-            overflow-y: auto;
-        }
-        .sidebar-header {
-            padding: 20px;
-            background: rgba(0,0,0,0.2);
-            border-bottom: 1px solid rgba(255,255,255,0.1);
-        }
-        .sidebar-header h2 {
-            margin: 0;
-            font-size: 1.3rem;
-            color: #fff;
-        }
-        .sidebar-header .case-id {
-            font-size: 0.8rem;
-            color: rgba(255,255,255,0.6);
-            margin-top: 5px;
+            /* Colors */
+            --primary: #2563eb;
+            --primary-dark: #1d4ed8;
+            --primary-light: #3b82f6;
+            --primary-50: #eff6ff;
+            --primary-100: #dbeafe;
+
+            --secondary: #7c3aed;
+            --accent: #06b6d4;
+            --success: #10b981;
+            --warning: #f59e0b;
+            --danger: #ef4444;
+
+            /* Neutrals */
+            --gray-50: #f9fafb;
+            --gray-100: #f3f4f6;
+            --gray-200: #e5e7eb;
+            --gray-300: #d1d5db;
+            --gray-400: #9ca3af;
+            --gray-500: #6b7280;
+            --gray-600: #4b5563;
+            --gray-700: #374151;
+            --gray-800: #1f2937;
+            --gray-900: #111827;
+
+            /* Semantic */
+            --bg-primary: #ffffff;
+            --bg-secondary: #f8fafc;
+            --bg-tertiary: #f1f5f9;
+            --text-primary: #0f172a;
+            --text-secondary: #475569;
+            --text-muted: #94a3b8;
+            --border-color: #e2e8f0;
+            --border-light: #f1f5f9;
+
+            /* Sidebar */
+            --sidebar-bg: linear-gradient(180deg, #0f172a 0%, #1e293b 100%);
+            --sidebar-text: #e2e8f0;
+            --sidebar-text-muted: #64748b;
+            --sidebar-hover: rgba(255,255,255,0.08);
+            --sidebar-active: rgba(37,99,235,0.2);
+            --sidebar-active-border: #3b82f6;
+
+            /* Effects */
+            --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+            --shadow: 0 1px 3px 0 rgb(0 0 0 / 0.1), 0 1px 2px -1px rgb(0 0 0 / 0.1);
+            --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+            --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
+            --shadow-xl: 0 20px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.1);
+
+            /* Dimensions */
+            --sidebar-width: 280px;
+            --header-height: 64px;
+            --radius-sm: 6px;
+            --radius: 8px;
+            --radius-lg: 12px;
+            --radius-xl: 16px;
+
+            /* Transitions */
+            --transition-fast: 150ms cubic-bezier(0.4, 0, 0.2, 1);
+            --transition: 200ms cubic-bezier(0.4, 0, 0.2, 1);
+            --transition-slow: 300ms cubic-bezier(0.4, 0, 0.2, 1);
         }
 
-        /* Navigation sections */
-        .nav-section {
-            border-bottom: 1px solid rgba(255,255,255,0.1);
+        /* Dark Theme */
+        [data-theme="dark"] {
+            --bg-primary: #0f172a;
+            --bg-secondary: #1e293b;
+            --bg-tertiary: #334155;
+            --text-primary: #f1f5f9;
+            --text-secondary: #cbd5e1;
+            --text-muted: #64748b;
+            --border-color: #334155;
+            --border-light: #1e293b;
+            --sidebar-bg: linear-gradient(180deg, #020617 0%, #0f172a 100%);
         }
-        .nav-section-title {
-            padding: 15px 20px 10px;
-            font-size: 0.75rem;
-            text-transform: uppercase;
-            letter-spacing: 1px;
-            color: rgba(255,255,255,0.4);
+
+        /* ========== Reset & Base ========== */
+        *, *::before, *::after {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
         }
-        .nav-link {
-            display: block;
-            color: rgba(255,255,255,.7);
+
+        html {
+            scroll-behavior: smooth;
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            font-size: 14px;
+            line-height: 1.6;
+            color: var(--text-primary);
+            background: var(--bg-secondary);
+            min-height: 100vh;
+            display: flex;
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
+        }
+
+        /* ========== Sidebar ========== */
+        .sidebar {
+            width: var(--sidebar-width);
+            background: var(--sidebar-bg);
+            color: var(--sidebar-text);
+            position: fixed;
+            top: 0;
+            left: 0;
+            bottom: 0;
+            display: flex;
+            flex-direction: column;
+            z-index: 100;
+            transition: transform var(--transition-slow);
+        }
+
+        .sidebar-header {
+            padding: 24px 20px;
+            border-bottom: 1px solid rgba(255,255,255,0.08);
+        }
+
+        .sidebar-logo {
+            display: flex;
+            align-items: center;
+            gap: 12px;
             text-decoration: none;
-            padding: 12px 20px;
-            transition: all 0.2s;
-            font-size: 0.95rem;
+            color: inherit;
         }
-        .nav-link:hover {
+
+        .logo-icon {
+            width: 40px;
+            height: 40px;
+            background: linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%);
+            border-radius: var(--radius);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+            font-size: 18px;
+            color: white;
+        }
+
+        .logo-text {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .logo-title {
+            font-size: 16px;
+            font-weight: 600;
+            letter-spacing: -0.02em;
+        }
+
+        .logo-subtitle {
+            font-size: 11px;
+            color: var(--sidebar-text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        /* Case Info Card */
+        .case-info {
+            margin: 16px;
+            padding: 16px;
+            background: rgba(255,255,255,0.05);
+            border-radius: var(--radius-lg);
+            border: 1px solid rgba(255,255,255,0.08);
+        }
+
+        .case-info-label {
+            font-size: 11px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            color: var(--sidebar-text-muted);
+            margin-bottom: 4px;
+        }
+
+        .case-info-value {
+            font-size: 13px;
+            font-weight: 500;
+            font-family: 'SF Mono', 'Fira Code', monospace;
+            color: var(--accent);
+        }
+
+        .case-status {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            margin-top: 12px;
+            padding: 6px 10px;
+            background: rgba(16, 185, 129, 0.15);
+            border-radius: 20px;
+            font-size: 12px;
+            color: #34d399;
+        }
+
+        .case-status::before {
+            content: '';
+            width: 6px;
+            height: 6px;
+            background: currentColor;
+            border-radius: 50%;
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        /* Navigation */
+        .sidebar-nav {
+            flex: 1;
+            overflow-y: auto;
+            padding: 8px 0;
+        }
+
+        .nav-section {
+            padding: 8px 16px 4px;
+        }
+
+        .nav-section-title {
+            font-size: 11px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.8px;
+            color: var(--sidebar-text-muted);
+            padding: 8px 12px;
+        }
+
+        .nav-item {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 10px 12px;
+            margin: 2px 8px;
+            border-radius: var(--radius);
+            color: var(--sidebar-text);
+            text-decoration: none;
+            font-size: 14px;
+            font-weight: 450;
+            transition: all var(--transition);
+            position: relative;
+        }
+
+        .nav-item:hover {
             background: var(--sidebar-hover);
             color: white;
         }
-        .nav-link.active {
-            background: var(--primary-color);
+
+        .nav-item.active {
+            background: var(--sidebar-active);
             color: white;
         }
-        .nav-link .icon {
-            margin-right: 10px;
+
+        .nav-item.active::before {
+            content: '';
+            position: absolute;
+            left: 0;
+            top: 50%;
+            transform: translateY(-50%);
+            width: 3px;
+            height: 24px;
+            background: var(--sidebar-active-border);
+            border-radius: 0 3px 3px 0;
+        }
+
+        .nav-icon {
             width: 20px;
-            display: inline-block;
-            text-align: center;
+            height: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 16px;
+            opacity: 0.8;
         }
 
-        /* Sub-navigation for criteria */
-        .nav-sub {
-            background: rgba(0,0,0,0.15);
-        }
-        .nav-sub .nav-link {
-            padding: 10px 20px 10px 45px;
-            font-size: 0.85rem;
-            color: rgba(255,255,255,.5);
-        }
-        .nav-sub .nav-link:hover {
-            color: white;
-            background: rgba(255,255,255,0.05);
-        }
-        .nav-sub .nav-link.active {
-            background: rgba(0,102,204,0.3);
-            color: white;
-        }
-        .nav-sub .criterion-num {
-            display: inline-block;
-            width: 22px;
-            height: 22px;
-            line-height: 22px;
-            text-align: center;
+        .nav-badge {
+            margin-left: auto;
+            padding: 2px 8px;
             background: rgba(255,255,255,0.1);
-            border-radius: 50%;
-            font-size: 0.7rem;
-            margin-right: 8px;
+            border-radius: 10px;
+            font-size: 11px;
+            font-weight: 500;
         }
 
-        /* Expandable section */
-        .nav-expandable {
-            cursor: pointer;
-        }
-        .nav-expandable::after {
-            content: "▼";
-            float: right;
-            font-size: 0.7rem;
-            transition: transform 0.2s;
-        }
-        .nav-expandable.collapsed::after {
-            transform: rotate(-90deg);
-        }
-        .nav-sub.collapsed {
-            display: none;
+        .nav-badge.success {
+            background: rgba(16, 185, 129, 0.2);
+            color: #34d399;
         }
 
-        /* Main content */
-        .main-content {
-            flex-grow: 1;
-            background: var(--secondary-color);
-            padding: 30px;
-            overflow-y: auto;
+        /* Sub Navigation */
+        .nav-sub {
+            padding-left: 44px;
+            max-height: 0;
+            overflow: hidden;
+            transition: max-height var(--transition-slow);
         }
-        .container {
-            max-width: 1200px;
-            margin: 0 auto;
-            background: white;
-            padding: 30px;
-            border-radius: 8px;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-        }
-        header {
-            margin-bottom: 30px;
-            border-bottom: 1px solid var(--border-color);
-            padding-bottom: 20px;
-        }
-        h1 { margin: 0; color: var(--primary-color); }
-        .meta { color: #6c757d; font-size: 0.9rem; margin-top: 5px; }
 
-        /* Utility classes */
-        .btn {
-            display: inline-block;
-            padding: 8px 16px;
-            background: var(--primary-color);
+        .nav-sub.expanded {
+            max-height: 500px;
+        }
+
+        .nav-sub .nav-item {
+            padding: 8px 12px;
+            font-size: 13px;
+            color: var(--sidebar-text-muted);
+        }
+
+        .nav-sub .nav-item:hover {
             color: white;
-            text-decoration: none;
-            border-radius: 4px;
-            transition: background 0.3s;
-            border: none;
+        }
+
+        .nav-expander {
             cursor: pointer;
         }
-        .btn:hover { background: #0052a3; }
-        .btn-secondary { background: #6c757d; }
-        .btn-secondary:hover { background: #545b62; }
-        .btn-success { background: #28a745; }
-        .btn-success:hover { background: #218838; }
 
-        .status-badge {
-            display: inline-block;
-            padding: 4px 8px;
-            border-radius: 4px;
-            font-size: 0.8rem;
-            font-weight: bold;
+        .nav-expander::after {
+            content: '';
+            margin-left: auto;
+            width: 0;
+            height: 0;
+            border-left: 4px solid transparent;
+            border-right: 4px solid transparent;
+            border-top: 5px solid currentColor;
+            opacity: 0.5;
+            transition: transform var(--transition);
         }
-        .status-active { background: #d4edda; color: #155724; }
-        .status-pending { background: #fff3cd; color: #856404; }
-        .status-draft { background: #e2e3e5; color: #383d41; }
-        .status-complete { background: #cce5ff; color: #004085; }
 
-        /* Progress indicator */
-        .progress-ring {
+        .nav-expander.expanded::after {
+            transform: rotate(180deg);
+        }
+
+        /* Sidebar Footer */
+        .sidebar-footer {
+            padding: 16px;
+            border-top: 1px solid rgba(255,255,255,0.08);
+        }
+
+        .theme-toggle {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            padding: 10px;
+            background: rgba(255,255,255,0.05);
+            border: 1px solid rgba(255,255,255,0.1);
+            border-radius: var(--radius);
+            color: var(--sidebar-text-muted);
+            font-size: 13px;
+            cursor: pointer;
+            transition: all var(--transition);
+            width: 100%;
+        }
+
+        .theme-toggle:hover {
+            background: rgba(255,255,255,0.1);
+            color: white;
+        }
+
+        /* ========== Main Content ========== */
+        .main-wrapper {
+            flex: 1;
+            margin-left: var(--sidebar-width);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* Top Header */
+        .top-header {
+            height: var(--header-height);
+            background: var(--bg-primary);
+            border-bottom: 1px solid var(--border-color);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 32px;
+            position: sticky;
+            top: 0;
+            z-index: 50;
+            backdrop-filter: blur(8px);
+            background: rgba(255,255,255,0.9);
+        }
+
+        [data-theme="dark"] .top-header {
+            background: rgba(15, 23, 42, 0.9);
+        }
+
+        .header-left {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+
+        .breadcrumb {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 13px;
+            color: var(--text-muted);
+        }
+
+        .breadcrumb a {
+            color: var(--text-secondary);
+            text-decoration: none;
+            transition: color var(--transition);
+        }
+
+        .breadcrumb a:hover {
+            color: var(--primary);
+        }
+
+        .breadcrumb-separator {
+            color: var(--text-muted);
+        }
+
+        .breadcrumb-current {
+            color: var(--text-primary);
+            font-weight: 500;
+        }
+
+        .header-actions {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        /* Main Content Area */
+        .main-content {
+            flex: 1;
+            padding: 32px;
+            max-width: 1400px;
+            width: 100%;
+            margin: 0 auto;
+        }
+
+        /* Page Header */
+        .page-header {
+            margin-bottom: 32px;
+        }
+
+        .page-title {
+            font-family: 'Playfair Display', Georgia, serif;
+            font-size: 32px;
+            font-weight: 700;
+            color: var(--text-primary);
+            letter-spacing: -0.02em;
+            margin-bottom: 8px;
+        }
+
+        .page-subtitle {
+            font-size: 15px;
+            color: var(--text-secondary);
+        }
+
+        /* ========== Cards ========== */
+        .card {
+            background: var(--bg-primary);
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-lg);
+            padding: 24px;
+            transition: all var(--transition);
+        }
+
+        .card:hover {
+            box-shadow: var(--shadow-md);
+        }
+
+        .card-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 20px;
+            padding-bottom: 16px;
+            border-bottom: 1px solid var(--border-light);
+        }
+
+        .card-title {
+            font-size: 16px;
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+
+        .card-subtitle {
+            font-size: 13px;
+            color: var(--text-muted);
+            margin-top: 2px;
+        }
+
+        /* ========== Buttons ========== */
+        .btn {
             display: inline-flex;
             align-items: center;
-            gap: 5px;
+            justify-content: center;
+            gap: 8px;
+            padding: 10px 20px;
+            font-size: 14px;
+            font-weight: 500;
+            border-radius: var(--radius);
+            border: none;
+            cursor: pointer;
+            text-decoration: none;
+            transition: all var(--transition);
+            white-space: nowrap;
         }
-        .progress-ring .count {
-            font-size: 0.75rem;
-            color: rgba(255,255,255,0.5);
+
+        .btn-primary {
+            background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
+            color: white;
+            box-shadow: 0 2px 4px rgba(37, 99, 235, 0.3);
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(37, 99, 235, 0.4);
+        }
+
+        .btn-secondary {
+            background: var(--bg-tertiary);
+            color: var(--text-primary);
+            border: 1px solid var(--border-color);
+        }
+
+        .btn-secondary:hover {
+            background: var(--gray-200);
+            border-color: var(--gray-300);
+        }
+
+        .btn-ghost {
+            background: transparent;
+            color: var(--text-secondary);
+        }
+
+        .btn-ghost:hover {
+            background: var(--bg-tertiary);
+            color: var(--text-primary);
+        }
+
+        .btn-success {
+            background: linear-gradient(135deg, var(--success) 0%, #059669 100%);
+            color: white;
+        }
+
+        .btn-sm {
+            padding: 6px 12px;
+            font-size: 13px;
+        }
+
+        .btn-lg {
+            padding: 14px 28px;
+            font-size: 16px;
+        }
+
+        .btn-icon {
+            padding: 10px;
+            border-radius: var(--radius);
+        }
+
+        /* ========== Badges ========== */
+        .badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            padding: 4px 10px;
+            font-size: 12px;
+            font-weight: 500;
+            border-radius: 20px;
+        }
+
+        .badge-success {
+            background: rgba(16, 185, 129, 0.1);
+            color: #059669;
+        }
+
+        .badge-warning {
+            background: rgba(245, 158, 11, 0.1);
+            color: #d97706;
+        }
+
+        .badge-info {
+            background: rgba(6, 182, 212, 0.1);
+            color: #0891b2;
+        }
+
+        .badge-primary {
+            background: var(--primary-50);
+            color: var(--primary);
+        }
+
+        /* ========== Progress ========== */
+        .progress-bar {
+            height: 8px;
+            background: var(--bg-tertiary);
+            border-radius: 4px;
+            overflow: hidden;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, var(--primary) 0%, var(--accent) 100%);
+            border-radius: 4px;
+            transition: width var(--transition-slow);
+        }
+
+        /* ========== Circular Progress ========== */
+        .circular-progress {
+            position: relative;
+            width: 120px;
+            height: 120px;
+        }
+
+        .circular-progress svg {
+            transform: rotate(-90deg);
+        }
+
+        .circular-progress .bg {
+            fill: none;
+            stroke: var(--bg-tertiary);
+            stroke-width: 8;
+        }
+
+        .circular-progress .progress {
+            fill: none;
+            stroke: url(#gradient);
+            stroke-width: 8;
+            stroke-linecap: round;
+            stroke-dasharray: 314;
+            stroke-dashoffset: calc(314 - (314 * var(--progress)) / 100);
+            transition: stroke-dashoffset var(--transition-slow);
+        }
+
+        .circular-progress .value {
+            position: absolute;
+            inset: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .circular-progress .percentage {
+            font-size: 28px;
+            font-weight: 700;
+            color: var(--text-primary);
+        }
+
+        .circular-progress .label {
+            font-size: 12px;
+            color: var(--text-muted);
+        }
+
+        /* ========== Utilities ========== */
+        .text-muted { color: var(--text-muted); }
+        .text-secondary { color: var(--text-secondary); }
+        .text-primary-color { color: var(--primary); }
+        .text-success { color: var(--success); }
+        .text-warning { color: var(--warning); }
+        .text-danger { color: var(--danger); }
+
+        .font-mono { font-family: 'SF Mono', 'Fira Code', monospace; }
+        .font-serif { font-family: 'Playfair Display', Georgia, serif; }
+
+        .mt-1 { margin-top: 4px; }
+        .mt-2 { margin-top: 8px; }
+        .mt-3 { margin-top: 16px; }
+        .mt-4 { margin-top: 24px; }
+        .mt-5 { margin-top: 32px; }
+
+        .mb-1 { margin-bottom: 4px; }
+        .mb-2 { margin-bottom: 8px; }
+        .mb-3 { margin-bottom: 16px; }
+        .mb-4 { margin-bottom: 24px; }
+        .mb-5 { margin-bottom: 32px; }
+
+        .grid { display: grid; }
+        .grid-cols-2 { grid-template-columns: repeat(2, 1fr); }
+        .grid-cols-3 { grid-template-columns: repeat(3, 1fr); }
+        .grid-cols-4 { grid-template-columns: repeat(4, 1fr); }
+        .gap-3 { gap: 16px; }
+        .gap-4 { gap: 24px; }
+
+        .flex { display: flex; }
+        .items-center { align-items: center; }
+        .justify-between { justify-content: space-between; }
+        .gap-2 { gap: 8px; }
+
+        /* ========== Animations ========== */
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .animate-in {
+            animation: fadeIn 0.4s ease-out forwards;
+        }
+
+        /* ========== Print Styles ========== */
+        @media print {
+            .sidebar,
+            .top-header,
+            .btn,
+            .theme-toggle {
+                display: none !important;
+            }
+            .main-wrapper {
+                margin-left: 0 !important;
+            }
+            .main-content {
+                padding: 0 !important;
+                max-width: 100% !important;
+            }
+            body {
+                background: white;
+            }
+        }
+
+        /* ========== Responsive ========== */
+        @media (max-width: 1024px) {
+            .sidebar {
+                transform: translateX(-100%);
+            }
+            .sidebar.open {
+                transform: translateX(0);
+            }
+            .main-wrapper {
+                margin-left: 0;
+            }
+            .grid-cols-4 {
+                grid-template-columns: repeat(2, 1fr);
+            }
+        }
+
+        @media (max-width: 640px) {
+            .main-content {
+                padding: 16px;
+            }
+            .page-title {
+                font-size: 24px;
+            }
+            .grid-cols-2,
+            .grid-cols-3,
+            .grid-cols-4 {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        /* ========== Mobile Menu Toggle ========== */
+        .mobile-menu-btn {
+            display: none;
+            padding: 8px;
+            background: transparent;
+            border: none;
+            cursor: pointer;
+            color: var(--text-primary);
+        }
+
+        @media (max-width: 1024px) {
+            .mobile-menu-btn {
+                display: flex;
+            }
+        }
+
+        /* Overlay for mobile */
+        .sidebar-overlay {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(0,0,0,0.5);
+            z-index: 99;
+        }
+
+        .sidebar-overlay.active {
+            display: block;
         }
     </style>
     {% block extra_head %}{% endblock %}
 </head>
 <body>
-    <nav class="sidebar">
+    <!-- SVG Definitions -->
+    <svg width="0" height="0" style="position: absolute;">
+        <defs>
+            <linearGradient id="gradient" x1="0%" y1="0%" x2="100%" y2="0%">
+                <stop offset="0%" style="stop-color:#2563eb"/>
+                <stop offset="100%" style="stop-color:#06b6d4"/>
+            </linearGradient>
+        </defs>
+    </svg>
+
+    <!-- Mobile Overlay -->
+    <div class="sidebar-overlay" onclick="toggleSidebar()"></div>
+
+    <!-- Sidebar -->
+    <aside class="sidebar" id="sidebar">
         <div class="sidebar-header">
-            <h2>MegaAgent Pro</h2>
-            <div class="case-id">Case: {{ case.case_id[:8] if case.case_id else 'New' }}...</div>
-        </div>
-
-        <!-- Dashboard -->
-        <div class="nav-section">
-            <a href="{{ base_path }}index.html" class="nav-link {% if page == 'index' %}active{% endif %}">
-                <span class="icon">📊</span> Dashboard
+            <a href="{{ base_path }}index.html" class="sidebar-logo">
+                <div class="logo-icon">EA</div>
+                <div class="logo-text">
+                    <span class="logo-title">EB-1A Portal</span>
+                    <span class="logo-subtitle">Immigration Case</span>
+                </div>
             </a>
         </div>
 
-        <!-- USCIS Forms -->
-        <div class="nav-section">
-            <div class="nav-section-title">USCIS Forms</div>
-            <a href="{{ base_path }}forms/index.html" class="nav-link {% if page == 'forms' %}active{% endif %}">
-                <span class="icon">📝</span> All Forms
-            </a>
-            <div class="nav-sub">
-                <a href="{{ base_path }}forms/index.html#i140" class="nav-link">I-140 Petition</a>
-                <a href="{{ base_path }}forms/index.html#g28" class="nav-link">G-28 Attorney</a>
-                <a href="{{ base_path }}forms/index.html#i907" class="nav-link">I-907 Premium</a>
+        <!-- Case Info -->
+        <div class="case-info">
+            <div class="case-info-label">Case ID</div>
+            <div class="case-info-value">{{ case.case_id[:12] if case.case_id else 'New Case' }}...</div>
+            <div class="case-status">
+                <span>{{ case.status|default('Active')|title }}</span>
             </div>
         </div>
 
-        <!-- Petition Letter - EB-1A Structure -->
-        <div class="nav-section">
-            <div class="nav-section-title">Petition Letter</div>
-            <a href="{{ base_path }}petition/index.html" class="nav-link nav-expandable {% if page == 'petition' %}active{% endif %}" onclick="toggleNav(event, 'petition-sub')">
-                <span class="icon">⚖️</span> EB-1A Petition
-            </a>
-            <div id="petition-sub" class="nav-sub">
-                <a href="{{ base_path }}petition/index.html#executive-summary" class="nav-link">Executive Summary</a>
-                <a href="{{ base_path }}petition/index.html#criterion-1" class="nav-link">
-                    <span class="criterion-num">1</span> Awards
+        <!-- Navigation -->
+        <nav class="sidebar-nav">
+            <div class="nav-section">
+                <a href="{{ base_path }}index.html" class="nav-item {% if page == 'index' %}active{% endif %}">
+                    <span class="nav-icon">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <rect x="3" y="3" width="7" height="7" rx="1"/>
+                            <rect x="14" y="3" width="7" height="7" rx="1"/>
+                            <rect x="3" y="14" width="7" height="7" rx="1"/>
+                            <rect x="14" y="14" width="7" height="7" rx="1"/>
+                        </svg>
+                    </span>
+                    <span>Dashboard</span>
                 </a>
-                <a href="{{ base_path }}petition/index.html#criterion-2" class="nav-link">
-                    <span class="criterion-num">2</span> Membership
-                </a>
-                <a href="{{ base_path }}petition/index.html#criterion-3" class="nav-link">
-                    <span class="criterion-num">3</span> Published Material
-                </a>
-                <a href="{{ base_path }}petition/index.html#criterion-4" class="nav-link">
-                    <span class="criterion-num">4</span> Judging
-                </a>
-                <a href="{{ base_path }}petition/index.html#criterion-5" class="nav-link">
-                    <span class="criterion-num">5</span> Original Contribution
-                </a>
-                <a href="{{ base_path }}petition/index.html#criterion-6" class="nav-link">
-                    <span class="criterion-num">6</span> Scholarly Articles
-                </a>
-                <a href="{{ base_path }}petition/index.html#criterion-7" class="nav-link">
-                    <span class="criterion-num">7</span> Exhibitions
-                </a>
-                <a href="{{ base_path }}petition/index.html#criterion-8" class="nav-link">
-                    <span class="criterion-num">8</span> Leading Role
-                </a>
-                <a href="{{ base_path }}petition/index.html#criterion-9" class="nav-link">
-                    <span class="criterion-num">9</span> High Salary
-                </a>
-                <a href="{{ base_path }}petition/index.html#criterion-10" class="nav-link">
-                    <span class="criterion-num">10</span> Commercial Success
-                </a>
-                <a href="{{ base_path }}petition/index.html#conclusion" class="nav-link">Conclusion</a>
             </div>
-        </div>
 
-        <!-- Exhibits -->
-        <div class="nav-section">
-            <div class="nav-section-title">Evidence</div>
-            <a href="{{ base_path }}exhibits/index.html" class="nav-link nav-expandable {% if page == 'exhibits' %}active{% endif %}" onclick="toggleNav(event, 'exhibits-sub')">
-                <span class="icon">📎</span> Exhibits
-            </a>
-            <div id="exhibits-sub" class="nav-sub">
-                <a href="{{ base_path }}exhibits/index.html#tab-a" class="nav-link">Tab A - Identity</a>
-                <a href="{{ base_path }}exhibits/index.html#tab-b" class="nav-link">Tab B - Awards</a>
-                <a href="{{ base_path }}exhibits/index.html#tab-c" class="nav-link">Tab C - Membership</a>
-                <a href="{{ base_path }}exhibits/index.html#tab-d" class="nav-link">Tab D - Press</a>
-                <a href="{{ base_path }}exhibits/index.html#tab-e" class="nav-link">Tab E - Judging</a>
-                <a href="{{ base_path }}exhibits/index.html#tab-f" class="nav-link">Tab F - Contribution</a>
-                <a href="{{ base_path }}exhibits/index.html#tab-g" class="nav-link">Tab G - Articles</a>
-                <a href="{{ base_path }}exhibits/index.html#tab-h" class="nav-link">Tab H - Role</a>
-                <a href="{{ base_path }}exhibits/index.html#tab-i" class="nav-link">Tab I - Salary</a>
-                <a href="{{ base_path }}exhibits/index.html#tab-j" class="nav-link">Tab J - Other</a>
+            <div class="nav-section">
+                <div class="nav-section-title">Documents</div>
+
+                <a href="{{ base_path }}petition/index.html" class="nav-item nav-expander {% if page == 'petition' %}active expanded{% endif %}" onclick="toggleSubNav(event, 'petition-nav')">
+                    <span class="nav-icon">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/>
+                            <path d="M14 2v6h6"/>
+                            <path d="M16 13H8M16 17H8M10 9H8"/>
+                        </svg>
+                    </span>
+                    <span>Petition Letter</span>
+                    <span class="nav-badge success">{{ progress.petition_percent|default(0) }}%</span>
+                </a>
+                <div id="petition-nav" class="nav-sub {% if page == 'petition' %}expanded{% endif %}">
+                    <a href="{{ base_path }}petition/index.html#intro" class="nav-item">Introduction</a>
+                    <a href="{{ base_path }}petition/index.html#section-1" class="nav-item">1. Summary</a>
+                    <a href="{{ base_path }}petition/index.html#section-2" class="nav-item">2. Evidence</a>
+                    <a href="{{ base_path }}petition/index.html#section-3" class="nav-item">3. Final Merits</a>
+                    <a href="{{ base_path }}petition/index.html#section-4" class="nav-item">4. National Importance</a>
+                    <a href="{{ base_path }}petition/index.html#section-5" class="nav-item">5. Conclusion</a>
+                </div>
+
+                <a href="{{ base_path }}forms/index.html" class="nav-item {% if page == 'forms' %}active{% endif %}">
+                    <span class="nav-icon">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M9 11l3 3L22 4"/>
+                            <path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/>
+                        </svg>
+                    </span>
+                    <span>USCIS Forms</span>
+                </a>
             </div>
-        </div>
 
-        <!-- Settings -->
-        <div class="nav-section">
-            <a href="#" class="nav-link">
-                <span class="icon">⚙️</span> Settings
-            </a>
-        </div>
-    </nav>
+            <div class="nav-section">
+                <div class="nav-section-title">Evidence</div>
 
-    <main class="main-content">
-        <div class="container">
+                <a href="{{ base_path }}exhibits/index.html" class="nav-item nav-expander {% if page == 'exhibits' %}active expanded{% endif %}" onclick="toggleSubNav(event, 'exhibits-nav')">
+                    <span class="nav-icon">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M22 19a2 2 0 01-2 2H4a2 2 0 01-2-2V5a2 2 0 012-2h5l2 3h9a2 2 0 012 2z"/>
+                        </svg>
+                    </span>
+                    <span>Exhibits</span>
+                    <span class="nav-badge">{{ total_exhibits|default(0) }}</span>
+                </a>
+                <div id="exhibits-nav" class="nav-sub {% if page == 'exhibits' %}expanded{% endif %}">
+                    <a href="{{ base_path }}exhibits/index.html#tab-a" class="nav-item">A - Identity</a>
+                    <a href="{{ base_path }}exhibits/index.html#tab-b" class="nav-item">B - Awards</a>
+                    <a href="{{ base_path }}exhibits/index.html#tab-c" class="nav-item">C - Membership</a>
+                    <a href="{{ base_path }}exhibits/index.html#tab-d" class="nav-item">D - Press</a>
+                    <a href="{{ base_path }}exhibits/index.html#tab-e" class="nav-item">E - Judging</a>
+                    <a href="{{ base_path }}exhibits/index.html#tab-f" class="nav-item">F - Contributions</a>
+                    <a href="{{ base_path }}exhibits/index.html#tab-g" class="nav-item">G - Articles</a>
+                    <a href="{{ base_path }}exhibits/index.html#tab-h" class="nav-item">H - Leadership</a>
+                    <a href="{{ base_path }}exhibits/index.html#tab-i" class="nav-item">I - Salary</a>
+                    <a href="{{ base_path }}exhibits/index.html#tab-j" class="nav-item">J - Other</a>
+                </div>
+            </div>
+        </nav>
+
+        <!-- Footer -->
+        <div class="sidebar-footer">
+            <button class="theme-toggle" onclick="toggleTheme()">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <circle cx="12" cy="12" r="5"/>
+                    <path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/>
+                </svg>
+                <span>Toggle Theme</span>
+            </button>
+        </div>
+    </aside>
+
+    <!-- Main Wrapper -->
+    <div class="main-wrapper">
+        <!-- Top Header -->
+        <header class="top-header">
+            <div class="header-left">
+                <button class="mobile-menu-btn" onclick="toggleSidebar()">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M3 12h18M3 6h18M3 18h18"/>
+                    </svg>
+                </button>
+                <nav class="breadcrumb">
+                    <a href="{{ base_path }}index.html">Case</a>
+                    <span class="breadcrumb-separator">/</span>
+                    <span class="breadcrumb-current">{% block breadcrumb %}Dashboard{% endblock %}</span>
+                </nav>
+            </div>
+            <div class="header-actions">
+                <button class="btn btn-secondary btn-sm" onclick="window.print()">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M6 9V2h12v7M6 18H4a2 2 0 01-2-2v-5a2 2 0 012-2h16a2 2 0 012 2v5a2 2 0 01-2 2h-2"/>
+                        <rect x="6" y="14" width="12" height="8"/>
+                    </svg>
+                    Print
+                </button>
+                <a href="{{ base_path }}petition/index.html" class="btn btn-primary btn-sm">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/>
+                        <path d="M14 2v6h6"/>
+                    </svg>
+                    View Petition
+                </a>
+            </div>
+        </header>
+
+        <!-- Main Content -->
+        <main class="main-content">
             {% block content %}{% endblock %}
-        </div>
-    </main>
+        </main>
+    </div>
 
     <script>
-    function toggleNav(event, subId) {
-        event.preventDefault();
-        const sub = document.getElementById(subId);
-        const link = event.currentTarget;
-        if (sub) {
-            sub.classList.toggle('collapsed');
-            link.classList.toggle('collapsed');
+        // Theme Toggle
+        function toggleTheme() {
+            const html = document.documentElement;
+            const currentTheme = html.getAttribute('data-theme');
+            const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
+            html.setAttribute('data-theme', newTheme);
+            localStorage.setItem('theme', newTheme);
         }
-        // Navigate to the page
-        window.location.href = link.getAttribute('href').split('#')[0];
-    }
+
+        // Load saved theme
+        const savedTheme = localStorage.getItem('theme');
+        if (savedTheme) {
+            document.documentElement.setAttribute('data-theme', savedTheme);
+        }
+
+        // Mobile Sidebar Toggle
+        function toggleSidebar() {
+            document.getElementById('sidebar').classList.toggle('open');
+            document.querySelector('.sidebar-overlay').classList.toggle('active');
+        }
+
+        // Sub Navigation Toggle
+        function toggleSubNav(event, navId) {
+            event.preventDefault();
+            const nav = document.getElementById(navId);
+            const link = event.currentTarget;
+
+            nav.classList.toggle('expanded');
+            link.classList.toggle('expanded');
+
+            // Navigate after toggle
+            const href = link.getAttribute('href');
+            if (href && !href.startsWith('#')) {
+                setTimeout(() => {
+                    window.location.href = href;
+                }, 100);
+            }
+        }
+
+        // Smooth scroll for anchor links
+        document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+            anchor.addEventListener('click', function(e) {
+                const target = document.querySelector(this.getAttribute('href'));
+                if (target) {
+                    e.preventDefault();
+                    target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                }
+            });
+        });
+
+        // Animation on scroll
+        const observer = new IntersectionObserver((entries) => {
+            entries.forEach(entry => {
+                if (entry.isIntersecting) {
+                    entry.target.classList.add('animate-in');
+                }
+            });
+        }, { threshold: 0.1 });
+
+        document.querySelectorAll('.card').forEach(card => {
+            observer.observe(card);
+        });
     </script>
 </body>
 </html>

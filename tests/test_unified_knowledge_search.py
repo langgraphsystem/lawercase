@@ -10,7 +10,7 @@ Covers:
 
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import UTC, datetime
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -18,7 +18,6 @@ import pytest
 from core.memory.memory_manager import MemoryManager
 from core.memory.models import MemoryRecord
 from core.memory.stores.supabase_semantic_store import SupabaseSemanticStore
-
 
 # ---------------------------------------------------------------------------
 # Fixtures
@@ -77,7 +76,7 @@ def _make_record(
         source=source,
         tags=tags or [],
         confidence=confidence,
-        created_at=datetime.utcnow(),
+        created_at=datetime.now(UTC),
     )
 
 

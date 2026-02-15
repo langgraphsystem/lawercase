@@ -261,8 +261,7 @@ class AGUIAdapter:
 
             # Handle MegaAgent specially - it uses handle_command
             if hasattr(agent, "handle_command"):
-                from core.groupagents.mega_agent import (CommandType,
-                                                         MegaAgentCommand)
+                from core.groupagents.mega_agent import CommandType, MegaAgentCommand
 
                 command = MegaAgentCommand(
                     user_id="web_user",

@@ -10,19 +10,19 @@ This module provides:
 
 from __future__ import annotations
 
+from collections.abc import Awaitable, Callable
 import contextvars
+from datetime import UTC, datetime
+from functools import wraps
 import logging
+from pathlib import Path
 import sys
 import time
 import traceback
-from collections.abc import Awaitable, Callable
-from datetime import datetime
-from functools import wraps
-from pathlib import Path
 from typing import Any, TypeVar
 
-import structlog
 from pythonjsonlogger import jsonlogger
+import structlog
 
 from core.exceptions import MegaAgentError
 
@@ -363,7 +363,7 @@ class AuditLogger:
             "event_type": "audit",
             "action": action,
             "status": status,
-            "timestamp": datetime.utcnow().isoformat(),
+            "timestamp": datetime.now(UTC).isoformat(),
         }
 
         if user_id:
@@ -408,7 +408,7 @@ class ErrorTracker:
         """
         error_type = type(error).__name__
         error_record = {
-            "timestamp": datetime.utcnow().isoformat(),
+            "timestamp": datetime.now(UTC).isoformat(),
             "error_type": error_type,
             "error_message": str(error),
             "severity": severity,

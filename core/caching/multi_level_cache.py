@@ -7,9 +7,10 @@ This module layers an in-process L0 cache on top of the existing Redis +
 semantic cache infrastructure exposed through `LLMCache`.
 """
 
+from collections import OrderedDict
+import hashlib
 import json
 import time
-from collections import OrderedDict
 from typing import Any
 
 from .llm_cache import LLMCache, get_llm_cache
@@ -45,13 +46,10 @@ class MultiLevelCache:
     # Helpers
     # ------------------------------------------------------------------ #
     def _local_key(self, prompt: str, model: str, temperature: float, extra: dict[str, Any]) -> str:
-        payload = {
-            "prompt": prompt,
-            "model": model,
-            "temperature": round(temperature, 2),
-            "metadata": extra or {},
-        }
-        return f"{self.namespace}:{json.dumps(payload, sort_keys=True)}"
+        raw = f"{self.namespace}:{model}:{round(temperature, 2)}:{prompt}"
+        if extra:
+            raw += f":{json.dumps(extra, sort_keys=True)}"
+        return hashlib.sha256(raw.encode()).hexdigest()
 
     def _local_remember(self, cache_key: str, value: Any) -> None:
         expiry = time.monotonic() + self.local_ttl

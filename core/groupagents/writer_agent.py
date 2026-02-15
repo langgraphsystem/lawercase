@@ -14,14 +14,14 @@ WriterAgent - Генерация документов и писем.
 
 from __future__ import annotations
 
+from datetime import UTC, datetime
+from enum import Enum
 import html
 import json
-import uuid
-from datetime import datetime
-from enum import Enum
 from pathlib import Path
 from string import Template
 from typing import Any
+import uuid
 
 from pydantic import BaseModel, Field, ValidationError, field_validator
 
@@ -957,7 +957,7 @@ class WriterAgent:
 
         # Обновление статуса
         workflow.status = "approved"
-        workflow.approval_date = datetime.utcnow()
+        workflow.approval_date = datetime.now(UTC)
         if comments:
             workflow.comments.append(comments)
 
@@ -1984,7 +1984,7 @@ Sincerely,
                 # Fallback: return first part of PROMPT
                 lines = prompt.strip().split("\n")
                 for line in lines:
-                    if line.startswith("Evidence of") or line.startswith("Documentation of"):
+                    if line.startswith(("Evidence of", "Documentation of")):
                         return f"Cite {cfr}. Focus on: {line.strip()}"
 
         # Fallback to static instructions

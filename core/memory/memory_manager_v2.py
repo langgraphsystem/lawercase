@@ -14,8 +14,7 @@ if TYPE_CHECKING:
 
 from .embedders import DeterministicEmbedder
 from .models import AuditEvent, ConsolidateStats, MemoryRecord, RetrievalQuery
-from .policies import (ConsolidationConfig, ConsolidationPolicy,
-                       select_salient_facts)
+from .policies import ConsolidationConfig, ConsolidationPolicy, select_salient_facts
 
 
 class Embedder(Protocol):
@@ -66,8 +65,7 @@ class MemoryManager:
         )
 
         # SUPABASE-FIRST: Default to Supabase stores
-        from .stores import (SupabaseEpisodicStore, SupabaseSemanticStore,
-                             SupabaseWorkingMemory)
+        from .stores import SupabaseEpisodicStore, SupabaseSemanticStore, SupabaseWorkingMemory
 
         self.semantic = semantic or SupabaseSemanticStore()
         self.episodic = episodic or SupabaseEpisodicStore()
@@ -338,8 +336,7 @@ def create_production_memory_manager(
     Legacy helper for Pinecone + Postgres stack. Use Supabase by default.
     """
     from ..llm.voyage_embedder import create_voyage_embedder
-    from ..storage.postgres_stores import (PostgresEpisodicStore,
-                                           PostgresWorkingMemory)
+    from ..storage.postgres_stores import PostgresEpisodicStore, PostgresWorkingMemory
     from .stores.pinecone_semantic_store import PineconeSemanticStoreAdapter
 
     return MemoryManager(
@@ -386,8 +383,7 @@ def create_supabase_memory_manager(
         >>> memory = create_supabase_memory_manager()
         >>> # All memory operations go to Supabase/PostgreSQL
     """
-    from .stores import (SupabaseEpisodicStore, SupabaseSemanticStore,
-                         SupabaseWorkingMemory)
+    from .stores import SupabaseEpisodicStore, SupabaseSemanticStore, SupabaseWorkingMemory
 
     return MemoryManager(
         semantic=SupabaseSemanticStore(namespace=namespace),
@@ -395,3 +391,37 @@ def create_supabase_memory_manager(
         working=SupabaseWorkingMemory(),
         use_production=True,
     )
+
+
+# Singleton instance for convenience
+_memory_manager_instance: MemoryManager | None = None
+
+
+def get_memory_manager() -> MemoryManager:
+    """Get or create singleton MemoryManager instance.
+
+    Uses Supabase backends by default for production use.
+    The instance is cached for reuse across the application.
+
+    Returns:
+        MemoryManager singleton instance
+
+    Example:
+        >>> memory = get_memory_manager()
+        >>> await memory.awrite("user-1", "Important fact")
+    """
+    global _memory_manager_instance
+
+    if _memory_manager_instance is None:
+        _memory_manager_instance = create_supabase_memory_manager()
+
+    return _memory_manager_instance
+
+
+def reset_memory_manager() -> None:
+    """Reset the singleton MemoryManager instance.
+
+    Useful for testing or when reconfiguration is needed.
+    """
+    global _memory_manager_instance
+    _memory_manager_instance = None

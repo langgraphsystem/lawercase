@@ -9,13 +9,13 @@ from core.memory.models import AuditEvent, MemoryRecord
 router = APIRouter(prefix="/v1/memory", tags=["memory"])
 
 
-@router.get("/snapshot")
+@router.get("/snapshot", deprecated=True)
 async def snapshot(thread_id: str, agent=Depends(get_agent), user=Depends(get_current_user)):
     snap = await agent.memory.asnapshot_thread(thread_id)
     return {"thread_id": thread_id, "snapshot": snap}
 
 
-@router.post("/write")
+@router.post("/write", deprecated=True)
 async def write(body: MemoryWriteRequest, agent=Depends(get_agent), user=Depends(get_current_user)):
     # If payload provided, treat as audit event reflection; else direct memory record
     if body.payload:
@@ -44,7 +44,7 @@ async def write(body: MemoryWriteRequest, agent=Depends(get_agent), user=Depends
     return {"count": len(recs)}
 
 
-@router.post("/retrieve")
+@router.post("/retrieve", deprecated=True)
 async def retrieve(
     body: MemoryRetrieveRequest, agent=Depends(get_agent), user=Depends(get_current_user)
 ):

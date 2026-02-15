@@ -7,11 +7,10 @@ the state of multi-block intake questionnaires per user and case.
 
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import UTC, datetime
 from typing import Any
 
-from sqlalchemy import (TIMESTAMP, CheckConstraint, Index, Integer, String,
-                        select, text, update)
+from sqlalchemy import TIMESTAMP, CheckConstraint, Index, Integer, String, select, text, update
 from sqlalchemy.dialects.postgresql import ARRAY
 from sqlalchemy.ext.asyncio import AsyncAttrs
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
@@ -48,7 +47,10 @@ class CaseIntakeProgressDB(Base):
     current_step: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     completed_blocks: Mapped[list[str]] = mapped_column(ARRAY(String), nullable=False, default=list)
     updated_at: Mapped[datetime] = mapped_column(
-        TIMESTAMP(timezone=True), nullable=False, default=datetime.utcnow, onupdate=datetime.utcnow
+        TIMESTAMP(timezone=True),
+        nullable=False,
+        default=lambda: datetime.now(UTC),
+        onupdate=lambda: datetime.now(UTC),
     )
 
 
@@ -71,7 +73,7 @@ class CaseIntakeProgress:
         self.current_block = current_block
         self.current_step = current_step
         self.completed_blocks = completed_blocks or []
-        self.updated_at = updated_at or datetime.utcnow()
+        self.updated_at = updated_at or datetime.now(UTC)
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -148,7 +150,8 @@ async def set_progress(
 
     async with db.session() as session:
         # Use INSERT ON CONFLICT to handle both create and update atomically
-        stmt = text("""
+        stmt = text(
+            """
         INSERT INTO mega_agent.case_intake_progress (
             user_id, case_id, current_block, current_step, completed_blocks, updated_at
         ) VALUES (
@@ -160,7 +163,8 @@ async def set_progress(
             current_step = EXCLUDED.current_step,
             completed_blocks = EXCLUDED.completed_blocks,
             updated_at = NOW()
-        """)
+        """
+        )
 
         await session.execute(
             stmt,
@@ -215,7 +219,7 @@ async def advance_step(user_id: str, case_id: str) -> CaseIntakeProgress | None:
             update(CaseIntakeProgressDB)
             .where(CaseIntakeProgressDB.user_id == user_id, CaseIntakeProgressDB.case_id == case_id)
             .values(
-                current_step=CaseIntakeProgressDB.current_step + 1, updated_at=datetime.utcnow()
+                current_step=CaseIntakeProgressDB.current_step + 1, updated_at=datetime.now(UTC)
             )
             .returning(CaseIntakeProgressDB)
         )

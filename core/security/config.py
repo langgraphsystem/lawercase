@@ -14,15 +14,19 @@ from __future__ import annotations
 import os
 from typing import Any
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 from config.secrets_manager import secrets_manager
 
 
 def _default_jwt_secret() -> str:
-    return secrets_manager.get("SECURITY_JWT_SECRET_KEY") or os.getenv(
-        "JWT_SECRET_KEY", "dev-secret-change-in-production"
-    )
+    secret = secrets_manager.get("SECURITY_JWT_SECRET_KEY") or os.getenv("JWT_SECRET_KEY")
+    if not secret:
+        raise ValueError(
+            "JWT secret key not configured. "
+            "Set JWT_SECRET_KEY environment variable or SECURITY_JWT_SECRET_KEY in secrets manager."
+        )
+    return secret
 
 
 class SecurityConfig(BaseModel):
@@ -126,9 +130,7 @@ class SecurityConfig(BaseModel):
         description="Bypass authentication in development",
     )
 
-    class Config:
-        env_prefix = "SECURITY_"
-        case_sensitive = False
+    model_config = ConfigDict()
 
 
 class CORSConfig(BaseModel):

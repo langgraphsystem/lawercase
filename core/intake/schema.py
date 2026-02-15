@@ -10,7 +10,7 @@ from __future__ import annotations
 from enum import Enum
 from typing import Any
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 # -------------------- PYDANTIC V2 MODELS --------------------
 
@@ -59,8 +59,7 @@ class IntakeQuestion(BaseModel):
     )
     tags: list[str] = Field(default_factory=list, description="Tags for semantic memory")
 
-    class Config:
-        use_enum_values = True
+    model_config = ConfigDict(use_enum_values=True)
 
 
 class IntakeBlock(BaseModel):
@@ -75,8 +74,7 @@ class IntakeBlock(BaseModel):
     description: str = Field(description="Short description in Russian")
     questions: list[IntakeQuestion] = Field(description="Questions in this block")
 
-    class Config:
-        use_enum_values = True
+    model_config = ConfigDict(use_enum_values=True)
 
 
 # -------------------- BLOCK DEFINITIONS --------------------

@@ -9,8 +9,8 @@ Provides centralized dependency management to ensure:
 
 from __future__ import annotations
 
-import os
 from collections.abc import Awaitable, Callable
+import os
 from typing import Any, TypeVar
 
 import structlog
@@ -214,8 +214,10 @@ class Container:
         """
         from core.orchestration.pipeline_manager import setup_checkpointer
         from core.orchestration.workflow_graph import (
-            build_advanced_case_workflow, build_case_workflow,
-            build_eb1a_complete_workflow)
+            build_advanced_case_workflow,
+            build_case_workflow,
+            build_eb1a_complete_workflow,
+        )
 
         # Persistent checkpointer (SQLite/DB) for resumable workflows
         def _get_checkpointer():

@@ -12,8 +12,13 @@ from typing import Any
 
 import structlog
 
-from .criteria_skill import (CriterionEvaluation, CriterionType, Evidence,
-                             EvidenceEvaluation, EvidenceStrength)
+from .criteria_skill import (
+    CriterionEvaluation,
+    CriterionType,
+    Evidence,
+    EvidenceEvaluation,
+    EvidenceStrength,
+)
 
 logger = structlog.get_logger(__name__)
 

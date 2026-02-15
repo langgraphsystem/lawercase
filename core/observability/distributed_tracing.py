@@ -7,18 +7,17 @@ the LangGraph workflows for end-to-end tracing.
 
 from __future__ import annotations
 
-import functools
-import os
 from collections.abc import Callable
 from dataclasses import dataclass
+import functools
+import os
 from typing import Any
 
 try:  # pragma: no cover - optional dependency
     from opentelemetry import trace
     from opentelemetry.sdk.resources import SERVICE_NAME, Resource
     from opentelemetry.sdk.trace import TracerProvider
-    from opentelemetry.sdk.trace.export import (BatchSpanProcessor,
-                                                ConsoleSpanExporter)
+    from opentelemetry.sdk.trace.export import BatchSpanProcessor, ConsoleSpanExporter
 
     OTEL_AVAILABLE = True
 except Exception:  # pragma: no cover - optional dependency
@@ -43,8 +42,7 @@ except Exception:
     ZipkinExporter = None  # type: ignore
 
 try:
-    from opentelemetry.exporter.otlp.proto.grpc.trace_exporter import \
-        OTLPSpanExporter
+    from opentelemetry.exporter.otlp.proto.grpc.trace_exporter import OTLPSpanExporter
 
     OTLP_AVAILABLE = True
 except Exception:

@@ -5,10 +5,10 @@ Checks documents for compliance with regulations and standards.
 
 from __future__ import annotations
 
-import re
 from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
+import re
 from typing import Any
 
 from .document_parser import LegalDocument

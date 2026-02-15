@@ -48,8 +48,7 @@ async def generate_site(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
 
     try:
         # Get case data
-        from core.groupagents.mega_agent import (CommandType, MegaAgentCommand,
-                                                 UserRole)
+        from core.groupagents.mega_agent import CommandType, MegaAgentCommand, UserRole
 
         command = MegaAgentCommand(
             user_id=str(user.id),
@@ -99,8 +98,7 @@ async def generate_site(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
             )
         else:
             await message.reply_text(
-                f"✅ Сайт сгенерирован локально: {site_path}\n\n"
-                "⚠️ Не удалось загрузить в облако."
+                f"✅ Сайт сгенерирован локально: {site_path}\n\n" "⚠️ Не удалось загрузить в облако."
             )
 
         logger.info(

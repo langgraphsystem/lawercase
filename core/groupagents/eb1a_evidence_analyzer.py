@@ -15,8 +15,8 @@ from datetime import datetime
 from enum import Enum
 from typing import TYPE_CHECKING, Any
 
-import structlog
 from pydantic import BaseModel, Field
+import structlog
 
 from ..memory.memory_manager import MemoryManager
 from ..skills.eb1a_criteria.criteria import CRITERION_CLASSES
@@ -91,8 +91,8 @@ def get_criterion_requirements(criterion: str) -> str:
 
         # Find the regulatory description (usually after ## Regulatory Reference)
         requirement_text = ""
-        for i, line in enumerate(lines):
-            if line.startswith("Evidence of") or line.startswith("Documentation of"):
+        for _, line in enumerate(lines):
+            if line.startswith(("Evidence of", "Documentation of")):
                 requirement_text = line.strip()
                 break
 
@@ -1797,9 +1797,14 @@ async def analyze_and_generate_draft(
 
     try:
         # Import WriterAgent
-        from .writer_agent import (DocumentRequest, DocumentType,
-                                   GeneratedDocument, Language, ToneStyle,
-                                   WriterAgent)
+        from .writer_agent import (
+            DocumentRequest,
+            DocumentType,
+            GeneratedDocument,
+            Language,
+            ToneStyle,
+            WriterAgent,
+        )
 
         # Initialize WriterAgent
         writer = WriterAgent(memory_manager=memory_manager)

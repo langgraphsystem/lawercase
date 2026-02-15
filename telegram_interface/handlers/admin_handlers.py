@@ -7,8 +7,7 @@ import os
 
 import structlog
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
-from telegram.ext import (CallbackQueryHandler, CommandHandler, ContextTypes,
-                          MessageHandler, filters)
+from telegram.ext import CallbackQueryHandler, CommandHandler, ContextTypes, MessageHandler, filters
 
 from core.groupagents.mega_agent import CommandType, MegaAgentCommand, UserRole
 
@@ -35,6 +34,12 @@ HELP_TEXT = """📋 Доступные команды MegaAgent EB-1A:
 /intake_resume — Продолжить с паузы
 /intake_cancel — Отменить анкету
 
+💼 Карьерная анкета:
+/career_start — Детальная анкета по карьере
+/career_status — Прогресс карьерной анкеты
+/career_skip — Пропустить компанию/фазу
+/career_cancel — Отменить карьерную анкету
+
 📊 EB-1A Анализ:
 /eb1_potential — Быстрая оценка потенциала
 /eb1_analyze — Полный анализ критериев
@@ -48,7 +53,17 @@ HELP_TEXT = """📋 Доступные команды MegaAgent EB-1A:
 
 📄 Документы:
 /generate_letter — Сгенерировать письмо
+/upload — Загрузка документов с AI-классификацией
+/cancel_upload — Отменить режим загрузки
 (Отправьте PDF файл для загрузки)
+
+🌐 Сайт кейса:
+/generate_site — Сгенерировать веб-сайт кейса
+/site_status — Статус сгенерированного сайта
+
+💬 Прямой чат с LLM:
+/chat — Чат с OpenAI напрямую
+/models — Список доступных моделей
 
 🔌 MCP Инструменты:
 /mcp_status — Статус MCP серверов
@@ -267,12 +282,15 @@ async def ask_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
             except Exception as e:
                 logger.exception("telegram.ask.send_failed", user_id=user_id, error=str(e))
     except Exception as e:
-        logger.exception("telegram.ask.exception", user_id=user_id, error=str(e))
-        # Use parse_mode=None to avoid Markdown parsing errors
+        # Send reply FIRST — logger.exception() can crash due to rich traceback bug
         try:
             await message.reply_text(f"❌ Exception: {e!s}", parse_mode=None)
         except Exception:  # nosec B110 - optional logging
             pass
+        try:
+            logger.exception("telegram.ask.exception", user_id=user_id, error=str(e))
+        except Exception:
+            logger.error("telegram.ask.exception", user_id=user_id, error=str(e))
 
 
 async def menu_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -291,11 +309,19 @@ async def menu_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
         ],
         [
             InlineKeyboardButton("📝 Анкета", callback_data="menu_intake"),
-            InlineKeyboardButton("📊 EB-1A анализ", callback_data="menu_eb1"),
+            InlineKeyboardButton("💼 Карьера", callback_data="menu_career"),
         ],
         [
+            InlineKeyboardButton("📊 EB-1A анализ", callback_data="menu_eb1"),
             InlineKeyboardButton("🔍 Поиск", callback_data="menu_search"),
+        ],
+        [
             InlineKeyboardButton("📄 Документы", callback_data="menu_docs"),
+            InlineKeyboardButton("🌐 Сайт кейса", callback_data="menu_site"),
+        ],
+        [
+            InlineKeyboardButton("💬 Чат с LLM", callback_data="menu_chat"),
+            InlineKeyboardButton("🔌 MCP", callback_data="menu_mcp"),
         ],
         [
             InlineKeyboardButton("⚙️ Статус", callback_data="menu_status"),
@@ -326,7 +352,10 @@ async def menu_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
         "menu_cases": "📁 *Управление кейсами:*\n\n"
         "/case_list — Список всех кейсов\n"
         "/case_active — Текущий активный кейс\n"
-        "/case_get <id> — Открыть кейс",
+        "/case_get <id> — Открыть кейс\n"
+        "/case_update <id> — Редактировать\n"
+        "/case_delete <id> — Удалить\n"
+        "/case_archive <id> — Архивировать",
         "menu_new_case": "➕ *Создание кейса:*\n\n"
         "Используйте команду:\n"
         "`/case_create Название | Описание`\n\n"
@@ -337,16 +366,37 @@ async def menu_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
         "/intake_status — Прогресс\n"
         "/intake_resume — Продолжить\n"
         "/intake_cancel — Отменить",
+        "menu_career": "💼 *Карьерная анкета:*\n\n"
+        "/career_start — Детальная анкета по карьере\n"
+        "/career_status — Прогресс\n"
+        "/career_skip — Пропустить компанию/фазу\n"
+        "/career_cancel — Отменить",
         "menu_eb1": "📊 *EB-1A Анализ:*\n\n"
         "/eb1_potential — Быстрая оценка\n"
         "/eb1_analyze — Полный анализ критериев",
         "menu_search": "🔍 *Поиск:*\n\n"
         "/ask <вопрос> — Спросить MegaAgent\n"
         "/kb_search <запрос> — Поиск в базе знаний\n"
-        "/memory_search <запрос> — Поиск по памяти",
+        "/memory_search <запрос> — Поиск по памяти\n"
+        "/kb_stats — Статистика базы знаний\n"
+        "/memory_stats — Статистика памяти",
         "menu_docs": "📄 *Документы:*\n\n"
-        "/generate_letter <тип> — Генерация письма\n\n"
+        "/generate_letter <тип> — Генерация письма\n"
+        "/upload — Загрузка с AI-классификацией\n"
+        "/cancel_upload — Отменить режим загрузки\n\n"
         "Для загрузки PDF просто отправьте файл в чат.",
+        "menu_site": "🌐 *Сайт кейса:*\n\n"
+        "/generate_site — Сгенерировать веб-сайт кейса\n"
+        "/site_status — Статус сгенерированного сайта",
+        "menu_chat": "💬 *Прямой чат с LLM:*\n\n"
+        "/chat <сообщение> — Чат с OpenAI напрямую\n"
+        "/models — Список доступных моделей",
+        "menu_mcp": "🔌 *MCP Инструменты:*\n\n"
+        "/mcp_status — Статус серверов\n"
+        "/mcp_connect — Подключиться\n"
+        "/mcp_tools — Список инструментов\n"
+        "/mcp_query <запрос> — Запрос через MCP\n"
+        "/mcp_disconnect — Отключиться",
         "menu_status": "⚙️ Используйте /status для проверки системы",
         "menu_help": "❓ Используйте /help для полного списка команд",
     }
